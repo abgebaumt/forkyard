@@ -13,6 +13,7 @@ pub(super) fn default_ai_confirm_cost() -> f64 {
 /// tools (`ClaudeCode`, `Codex`, `Opencode`) use the sign-in the user already has; Forkyard stores
 /// nothing of it (`ai::cli`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AiProviderKind {
     Anthropic,
@@ -34,6 +35,7 @@ pub enum AiProviderKind {
 
 /// An AI function; each one can be switched off (`Settings.ai_features_off`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AiFeature {
     CommitMessage,
@@ -54,6 +56,7 @@ pub enum AiFeature {
 /// From `Settings.ai_enabled`: `None` = `Unset` (never set up, never turned off), `Some(false)` =
 /// `Off` (turned off on purpose), `Some(true)` = `On`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AiState {
     Unset,
@@ -63,6 +66,7 @@ pub enum AiState {
 
 /// Own price for a model (USD per million tokens); wins over the built-in table.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiPriceOverride {
     pub model: String,
@@ -72,6 +76,7 @@ pub struct AiPriceOverride {
 
 /// Why a file of the context is not sent (completely) – shown in "What is sent?".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AiOmitReason {
     /// Looks like a secret (`.env*`, keys, keystores): never sent, not even the name.
@@ -88,6 +93,7 @@ pub enum AiOmitReason {
 
 /// A file of the context that is not sent (completely).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiOmitted {
     pub path: String,
@@ -97,6 +103,7 @@ pub struct AiOmitted {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AiPriceSource {
     /// From Forkyard's table (`as_of` names its date).
@@ -107,6 +114,7 @@ pub enum AiPriceSource {
 
 /// Price of a model in USD per million tokens.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiPrice {
     pub input_usd_per_mtok: f64,
@@ -117,6 +125,7 @@ pub struct AiPrice {
 
 /// A model of the provider (`ai_models`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiModelInfo {
     pub id: String,
@@ -128,6 +137,7 @@ pub struct AiModelInfo {
 /// How a structured answer is requested: schema enforced by the provider, JSON only, or the
 /// schema in the prompt (the core validates in every case).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AiStructuredMode {
     JsonSchema,
@@ -136,6 +146,7 @@ pub enum AiStructuredMode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiModelList {
     pub models: Vec<AiModelInfo>,
@@ -144,6 +155,7 @@ pub struct AiModelList {
 
 /// Why "What is sent?" asks before sending.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AiAskTrigger {
     /// First use of this function at all (API providers only).
@@ -160,6 +172,7 @@ pub enum AiAskTrigger {
 
 /// `ai_status`: what the UI needs for the visibility of AI elements and Settings › AI.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiStatus {
     pub state: AiState,
@@ -179,6 +192,7 @@ pub struct AiStatus {
 
 /// What `ai_preview` builds the text from. Later packages add their own variants.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AiInput {
     /// The staged diff of the repository.
@@ -187,8 +201,10 @@ pub enum AiInput {
     /// user's instruction for a new proposal and the units they placed themselves.
     Compose {
         #[serde(default)]
+        #[cfg_attr(feature = "ts", ts(optional = nullable))]
         instruction: Option<String>,
         #[serde(default)]
+        #[cfg_attr(feature = "ts", ts(optional = nullable))]
         keep: Vec<ComposeKeep>,
     },
     /// Bisect autopilot (9.1): the user's description and test command, the range's commit
@@ -226,6 +242,7 @@ pub enum AiInput {
 /// Kind of a hint of the review before a push. Keys are never a kind: they come from
 /// the local secret scan only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AiPushFindingKind {
     DebugOutput,
@@ -235,6 +252,7 @@ pub enum AiPushFindingKind {
 
 /// One hint of the review before a push; no promise of severity.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiPushFinding {
     /// One of the files the model saw.
@@ -248,6 +266,7 @@ pub struct AiPushFinding {
 
 /// Result of `ai_push_review`. `commits = 0`: nothing goes out, nothing was sent.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiPushReview {
     pub findings: Vec<AiPushFinding>,
@@ -259,6 +278,7 @@ pub struct AiPushReview {
 
 /// "What is sent?": the exact text, what is left out, and whether Forkyard asks before sending.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiPreview {
     pub text: String,
@@ -277,6 +297,7 @@ pub struct AiPreview {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiUsageRow {
     pub provider: String,
@@ -290,6 +311,7 @@ pub struct AiUsageRow {
 
 /// This month's usage (UTC month), numbers only.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiUsageSummary {
     pub month: String,

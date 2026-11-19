@@ -3,6 +3,7 @@
 use super::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum Platform {
     Windows,
@@ -23,6 +24,7 @@ impl Platform {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AppInfo {
     pub version: String,
@@ -35,6 +37,7 @@ pub struct AppInfo {
 
 /// The UI's startup milestones (`app_startup_report`): times in ms since `time_origin`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StartupReport {
     /// `performance.timeOrigin`: when the page started loading, Unix time in ms.
@@ -45,6 +48,7 @@ pub struct StartupReport {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StartupMark {
     pub name: String,
@@ -52,6 +56,7 @@ pub struct StartupMark {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StartupCall {
     pub command: String,
@@ -61,6 +66,7 @@ pub struct StartupCall {
 
 /// A stable Forkyard release on GitHub (`update_check`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateRelease {
     /// Version without a leading `v`, e.g. `1.2.0`.
@@ -74,6 +80,7 @@ pub struct UpdateRelease {
 
 /// Result of the update check.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateInfo {
     /// Version of this build.
@@ -89,6 +96,7 @@ pub struct UpdateInfo {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct Repo {
     pub id: Id,
@@ -110,6 +118,7 @@ pub struct Repo {
 /// What would start programs or redirect connections in a repository without the user doing
 /// anything.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum TrustFindingKind {
     /// Entry in the repository's configuration (`.git/config`).
@@ -121,6 +130,7 @@ pub enum TrustFindingKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct TrustFinding {
     pub kind: TrustFindingKind,
@@ -133,6 +143,7 @@ pub struct TrustFinding {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct RepoTrust {
     pub repo_id: Id,
@@ -142,6 +153,7 @@ pub struct RepoTrust {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum TabKind {
     Repo,
@@ -149,6 +161,7 @@ pub enum TabKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct Tab {
     pub id: Id,
@@ -162,6 +175,7 @@ pub struct Tab {
 
 /// A profile, only for naming it (e.g. "belongs to …").
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ProfileRef {
     pub id: Id,
@@ -171,6 +185,7 @@ pub struct ProfileRef {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct OpenedRepo {
     pub repo: Repo,
@@ -183,6 +198,7 @@ pub struct OpenedRepo {
 
 /// Note on an `OpenedRepo`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct OpenNotice {
     /// Human-readable sentence: what is missing and why.
@@ -192,6 +208,7 @@ pub struct OpenNotice {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CloneOptions {
     pub depth: Option<u32>,
@@ -204,6 +221,7 @@ pub struct CloneOptions {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct InitOptions {
     pub parent_path: String,
@@ -215,6 +233,7 @@ pub struct InitOptions {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct TemplateOption {
     pub key: String,
@@ -222,6 +241,7 @@ pub struct TemplateOption {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct InitTemplates {
     pub gitignore: Vec<TemplateOption>,
@@ -231,6 +251,7 @@ pub struct InitTemplates {
 /// Request from outside: open this folder (and show the commit). The path is checked
 /// (existing folder, complete), the commit is a SHA or `None`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct LaunchRequest {
     pub path: String,
@@ -248,6 +269,7 @@ pub struct LaunchRequest {
 
 /// Reason why a request from outside cannot be carried out.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "app.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum LaunchInvalid {
     /// The folder does not exist (or it is a file whose folder is missing).

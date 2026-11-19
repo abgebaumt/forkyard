@@ -3,6 +3,7 @@
 use super::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "graph.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct RefLabelInfo {
     pub kind: RefKind,
@@ -13,6 +14,7 @@ pub struct RefLabelInfo {
 
 /// Line segment in the vertical band of a row; `None` = starts/ends at the node.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "graph.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct GraphEdge {
     pub top: Option<u32>,
@@ -22,6 +24,7 @@ pub struct GraphEdge {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "graph.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum GraphRowKind {
     Commit,
@@ -31,6 +34,7 @@ pub enum GraphRowKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "graph.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct GraphRow {
     pub id: String,
@@ -61,6 +65,7 @@ pub struct GraphRow {
 
 /// Position of a commit relative to the checked-out branch and its upstream.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "graph.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum SyncMark {
     #[default]
@@ -72,6 +77,7 @@ pub enum SyncMark {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "graph.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct GraphPage {
     pub rows: Vec<GraphRow>,
@@ -81,6 +87,7 @@ pub struct GraphPage {
 
 /// What a reflog entry records, from the start of its message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "graph.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ReflogAction {
     Checkout,
@@ -95,6 +102,7 @@ pub enum ReflogAction {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "graph.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ReflogEntry {
     /// Where the ref pointed after the change.
@@ -110,6 +118,7 @@ pub struct ReflogEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "graph.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ReflogPage {
     pub entries: Vec<ReflogEntry>,

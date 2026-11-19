@@ -5,6 +5,7 @@ use super::*;
 /// Lines of a file, 1-based and inclusive, counted in the version of the first side of a
 /// collision (the agent started first; against the base: the agent).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agent_collisions.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct LineRange {
     pub start: u32,
@@ -14,6 +15,7 @@ pub struct LineRange {
 /// `conflict`: Git's merge of both states stops on conflicts. `overlap`: both change the same
 /// files, but they merge cleanly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agent_collisions.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum CollisionKind {
     Conflict,
@@ -22,6 +24,7 @@ pub enum CollisionKind {
 
 /// A file of a collision; `ranges` only for conflicting text files.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agent_collisions.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CollisionFile {
     pub path: String,
@@ -33,6 +36,7 @@ pub struct CollisionFile {
 /// `base` its name) – whose work touches the same files. `agent_id` is the agent started first.
 /// `id`: `<agent>+<other agent>` or `<agent>+base`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agent_collisions.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AgentCollision {
     pub id: String,
@@ -45,6 +49,7 @@ pub struct AgentCollision {
 
 /// An agent the check left out because its worktree or base could not be read.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agent_collisions.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CollisionSkip {
     pub agent_id: String,
@@ -54,6 +59,7 @@ pub struct CollisionSkip {
 /// `pending`: never checked; `checking`: a check runs (the last collisions stay);
 /// `failed`: the check failed (`error`), no collisions.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agent_collisions.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum CollisionCheckState {
     #[default]
@@ -65,6 +71,7 @@ pub enum CollisionCheckState {
 
 /// The last collision check of a repository's coding agents (event `agents:collisions`).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agent_collisions.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CollisionReport {
     pub repo_id: String,
@@ -77,6 +84,7 @@ pub struct CollisionReport {
 
 /// One conflict of a file: where it sits (first side's lines) and what both sides wrote.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agent_collisions.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CollisionBlock {
     pub range: LineRange,
@@ -86,6 +94,7 @@ pub struct CollisionBlock {
 
 /// Both sides of every conflict of one file of a collision.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agent_collisions.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CollisionPreview {
     pub collision_id: String,

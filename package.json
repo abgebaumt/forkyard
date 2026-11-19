@@ -27,6 +27,7 @@
   "type": "module",
   "scripts": {
     "tokens": "node scripts/build-tokens.mjs",
+    "gen:types": "node scripts/gen-types.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
     "dev": "vite",
     "typecheck": "tsc --noEmit",

@@ -5,6 +5,7 @@ use super::*;
 /// A coding-agent template of the user's own. Placeholders in `args`, `unattended_args` and
 /// `resume_args`: `${task}`, `${taskFile}`, `${worktree}`, `${branch}`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agents.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AgentTemplate {
     /// `custom:<id>`.
@@ -26,6 +27,7 @@ pub struct AgentTemplate {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agents.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AgentTemplateKind {
     Claude,
@@ -36,6 +38,7 @@ pub enum AgentTemplateKind {
 
 /// A template as the start dialog and the settings show it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agents.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AgentTemplateInfo {
     /// `claude`, `codex`, `opencode` or `custom:<id>`.
@@ -58,6 +61,7 @@ pub struct AgentTemplateInfo {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agents.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AgentStatus {
     #[default]
@@ -74,6 +78,7 @@ pub enum AgentStatus {
 /// Where the status comes from: the agent reported it (hook, terminal signal) or the core guesses
 /// it (no screen change for a while).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agents.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AgentStatusSource {
     Agent,
@@ -82,6 +87,7 @@ pub enum AgentStatusSource {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agents.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AgentTestState {
     Running,
@@ -91,6 +97,7 @@ pub enum AgentTestState {
 
 /// Last run of the repository's test command in the agent's worktree.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agents.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AgentTestResult {
     pub state: AgentTestState,
@@ -102,6 +109,7 @@ pub struct AgentTestResult {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agents.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct Agent {
     pub id: String,
@@ -136,6 +144,7 @@ pub struct Agent {
 
 /// Defaults for the start dialog, checked live.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agents.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AgentSuggestion {
     pub short_name: String,
@@ -153,6 +162,7 @@ pub struct AgentSuggestion {
 
 /// What “Stop agent and clean up” would destroy.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agents.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AgentCleanupPreview {
     /// Commits of the branch that are on no remote branch and not in the base.
@@ -165,6 +175,7 @@ pub struct AgentCleanupPreview {
 
 /// Payload of `agents:changed`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agents.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AgentsChangedEvent {
     /// The repository whose agents changed (status, start, end, cleanup).

@@ -5,6 +5,7 @@ use super::*;
 /// What `stats_compute` counts. `from`/`to`: ISO-8601, compared with the author time (both
 /// inclusive); `None` = open. `ref` (JSON key): `HEAD` or a full ref name (`refs/heads/main`).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stats.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StatsRange {
     pub from: Option<IsoTime>,
@@ -16,6 +17,7 @@ pub struct StatsRange {
 /// Commits of a week (`period` = its Monday, "YYYY-MM-DD") or a month ("YYYY-MM"), by the
 /// author's local date.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stats.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StatsBucket {
     pub period: String,
@@ -25,6 +27,7 @@ pub struct StatsBucket {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stats.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StatsAuthor {
     pub name: String,
@@ -38,6 +41,7 @@ pub struct StatsAuthor {
 
 /// A file that still exists at the tip and was changed in the period.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stats.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StatsFile {
     pub path: String,
@@ -50,6 +54,7 @@ pub struct StatsFile {
 
 /// `score` = commits × authors.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stats.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StatsHotspot {
     pub path: String,
@@ -61,6 +66,7 @@ pub struct StatsHotspot {
 /// Knowledge per folder (`path` "" = the whole repository). `weight`: changed lines, at least
 /// 1 per file change. `bus_factor`: fewest authors who together hold more than half of it.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stats.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StatsFolder {
     pub path: String,
@@ -77,6 +83,7 @@ pub struct StatsFolder {
 
 /// An author's changed lines in a folder.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stats.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StatsFolderShare {
     pub author: Person,
@@ -87,6 +94,7 @@ pub struct StatsFolderShare {
 /// `RepoStats::reference_time`: under 30 days, under 180 days, under 365 days, under 2 × 365
 /// days, older.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stats.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StatsCodeAge {
     /// Files that were blamed.
@@ -102,6 +110,7 @@ pub struct StatsCodeAge {
 
 /// Longest run of consecutive days with commits ("YYYY-MM-DD", author's local date).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stats.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StatsStreak {
     pub days: u32,
@@ -110,6 +119,7 @@ pub struct StatsStreak {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stats.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StatsBigCommit {
     pub sha: Sha,
@@ -119,6 +129,7 @@ pub struct StatsBigCommit {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stats.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StatsBusyDay {
     pub date: String,
@@ -126,6 +137,7 @@ pub struct StatsBusyDay {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stats.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StatsRecords {
     pub longest_streak: Option<StatsStreak>,
@@ -135,6 +147,7 @@ pub struct StatsRecords {
 
 /// Result of `stats_compute`: derived numbers only – no commit list, no messages.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stats.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct RepoStats {
     /// The commit whose history was counted; `None` = nothing to count.

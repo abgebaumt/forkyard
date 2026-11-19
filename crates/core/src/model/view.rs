@@ -3,6 +3,7 @@
 use super::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "view.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum GraphColumnId {
     Refs,
@@ -14,6 +15,7 @@ pub enum GraphColumnId {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "view.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum SectionId {
     Local,
@@ -27,6 +29,7 @@ pub enum SectionId {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "view.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ColumnState {
     pub id: GraphColumnId,
@@ -35,6 +38,7 @@ pub struct ColumnState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "view.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct SectionState {
     pub id: SectionId,
@@ -43,6 +47,7 @@ pub struct SectionState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "view.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct RepoViewState {
     pub hidden_refs: Vec<String>,
@@ -93,6 +98,7 @@ impl Default for RepoViewState {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "view.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CommitDraft {
     pub summary: String,
@@ -101,6 +107,7 @@ pub struct CommitDraft {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "view.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum Theme {
     Dark,
@@ -109,6 +116,7 @@ pub enum Theme {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "view.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum DateFormat {
     Relative,
@@ -117,6 +125,7 @@ pub enum DateFormat {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "view.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum DiffMode {
     Hunks,
@@ -126,6 +135,7 @@ pub enum DiffMode {
 
 /// Own proxy for a host (`Settings.proxy_by_host`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "view.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HostProxy {
     /// `https://host[:port]`; the input may also be just `host` or `host:port`.

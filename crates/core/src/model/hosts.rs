@@ -3,6 +3,7 @@
 use super::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum HostKind {
     Github,
@@ -37,7 +38,7 @@ impl HostKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HostUser {
     pub login: String,
@@ -47,6 +48,7 @@ pub struct HostUser {
 
 /// A connected account. The token itself never leaves the core.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HosterAccount {
     pub id: Id,
@@ -67,6 +69,7 @@ pub struct HosterAccount {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HostRepoRef {
     pub owner: String,
@@ -76,6 +79,7 @@ pub struct HostRepoRef {
 
 /// Why the details from the host are missing (the repository is still recognized).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HostInfoError {
     pub code: crate::error::ErrorCode,
@@ -85,6 +89,7 @@ pub struct HostInfoError {
 /// What a host offers. The UI only shows what is there; the core refuses the rest with
 /// `host_unsupported` before anything is sent.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HostCapabilities {
     /// The host has an issue tracker (Azure DevOps: work items) – for this repository, as far as known.
@@ -120,6 +125,7 @@ pub struct HostCapabilities {
 
 /// A release at the host, as `release_create` returns it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HostRelease {
     pub tag: String,
@@ -130,6 +136,7 @@ pub struct HostRelease {
 
 /// The repository at the host, recognized by the URL of a remote.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HostRepoInfo {
     /// Name of the remote by which it was recognized.
@@ -151,6 +158,7 @@ pub struct HostRepoInfo {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum PrState {
     Open,
@@ -159,6 +167,7 @@ pub enum PrState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum PrListState {
     Open,
@@ -169,6 +178,7 @@ pub enum PrListState {
 
 /// Summarized state of the checks (CI) of a pull request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ChecksState {
     Passing,
@@ -177,6 +187,7 @@ pub enum ChecksState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum PrReviewState {
     Approved,
@@ -187,7 +198,7 @@ pub enum PrReviewState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HostLabel {
     pub name: String,
@@ -196,6 +207,7 @@ pub struct HostLabel {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PrSummary {
     pub number: u64,
@@ -215,6 +227,7 @@ pub struct PrSummary {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PrPage {
     pub items: Vec<PrSummary>,
@@ -223,6 +236,7 @@ pub struct PrPage {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PrReviewer {
     pub user: HostUser,
@@ -231,7 +245,7 @@ pub struct PrReviewer {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HostComment {
     pub id: String,
@@ -246,6 +260,7 @@ pub struct HostComment {
 
 /// Which version of the file a review comment refers to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ReviewSide {
     /// The pull request's version (added or unchanged lines).
@@ -256,6 +271,7 @@ pub enum ReviewSide {
 
 /// A review thread: comments on lines of the diff with their answers (8.2).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ReviewThread {
     /// What `pr_review_reply` takes: GitHub, Gitea/Forgejo – ID of the first comment; GitLab – the
@@ -278,6 +294,7 @@ pub struct ReviewThread {
 
 /// What `pr_review_reply` posted.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ReviewReply {
     pub comment: HostComment,
@@ -288,6 +305,7 @@ pub struct ReviewReply {
 
 /// What a line of a suggested fix is in its diff.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ReviewFixLineKind {
     Context,
@@ -297,6 +315,7 @@ pub enum ReviewFixLineKind {
 
 /// One line of the hunk of a suggested fix, decoded for display.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ReviewFixLine {
     pub kind: ReviewFixLineKind,
@@ -309,6 +328,7 @@ pub struct ReviewFixLine {
 
 /// Why the core chose a fixup target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum FixupReason {
     /// Blame of the commented lines points to this pull request commit.
@@ -319,6 +339,7 @@ pub enum FixupReason {
 
 /// A commit of the pull request a fix can be a `fixup!` for.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct FixupTarget {
     pub sha: Sha,
@@ -329,6 +350,7 @@ pub struct FixupTarget {
 
 /// `aiReviewFix` (8.2): a suggested fix for one review thread – nothing is written.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiReviewFix {
     pub thread_id: String,
@@ -357,6 +379,7 @@ pub struct AiReviewFix {
 
 /// What `review_fix_apply` takes from a suggestion – the core checks and rebuilds everything.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ReviewFixInput {
     pub path: String,
@@ -369,6 +392,7 @@ pub struct ReviewFixInput {
 
 /// What `review_fix_apply` committed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ReviewFixApplied {
     pub commit: Sha,
@@ -382,6 +406,7 @@ pub struct ReviewFixApplied {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PrCommit {
     pub sha: Sha,
@@ -391,6 +416,7 @@ pub struct PrCommit {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum CheckRunState {
     Passing,
@@ -400,6 +426,7 @@ pub enum CheckRunState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PrCheck {
     pub name: String,
@@ -408,6 +435,7 @@ pub struct PrCheck {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PrDetails {
     #[serde(flatten)]
@@ -426,6 +454,7 @@ pub struct PrDetails {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum PrMergeMethod {
     Merge,
@@ -434,7 +463,7 @@ pub enum PrMergeMethod {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum IssueState {
     Open,
@@ -442,6 +471,7 @@ pub enum IssueState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum IssueListState {
     Open,
@@ -450,7 +480,7 @@ pub enum IssueListState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct IssueSummary {
     pub number: u64,
@@ -466,7 +496,7 @@ pub struct IssueSummary {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct IssuePage {
     pub items: Vec<IssueSummary>,
@@ -474,7 +504,7 @@ pub struct IssuePage {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct IssueDetails {
     #[serde(flatten)]

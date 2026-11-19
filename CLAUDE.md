@@ -27,6 +27,7 @@ npx vitest run src/screens/ConflictTool/model.test.ts   # single test file
 npm run tokens               # design/tokens.json -> src/styles/tokens.css, theme.css
 npm run check:contrast       # WCAG check of the colour pairs in design/tokens.json
 npm run check:commands       # contract api.ts <-> src-tauri <-> crates/core
+npm run gen:types            # Rust contract types -> src/core/generated/ (ts-rs), commit the result
 node scripts/find-german.mjs src/screens/Foo   # leftover German UI strings (heuristic)
 
 cargo build                                  # target/debug/forkyard (needed by E2E and screenshots)
@@ -74,11 +75,16 @@ Workspace crates:
 ### The command contract (most important seam)
 
 `src/core/api.ts` (`CoreCommands`) is authoritative. A new or changed command always touches **three
-places**: `src/core/api.ts` (+ types in `src/core/types.ts`), `crates/core/src/commands/<area>.rs` and
+places**: `src/core/api.ts`, `crates/core/src/commands/<area>.rs` and
 one table line `name => area::core_fn(param: Type, …) -> Ret;` in `src-tauri/src/commands.rs` (or a
 hand-written `#[tauri::command]` below the table plus its name in `hand_written:`). Then run
 `npm run check:commands`. camelCase in
-TS maps to snake_case in Rust. Errors always arrive as `{ code, message, gitOutput }` (`CoreError`). The
+TS maps to snake_case in Rust. Param/result/event types live in Rust only (`crates/core/src/model/<area>.rs`,
+`error.rs`, each with `#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "<area>.ts"))]`);
+`npm run gen:types` (= `cargo test -p gitcore --features ts --lib export_bindings` + biome) writes them and
+`Settings::default()` (`settingsDefaults.json`) to `src/core/generated/` (committed, CI fails on drift), and
+`src/core/types.ts` re-exports them next to the few TS-only types. Never change the wire shape just for TS:
+use `#[ts(...)]` attributes (e.g. `optional = nullable` for input fields the UI may omit). Errors always arrive as `{ code, message, gitOutput }` (`CoreError`). The
 UI talks to the core only through `src/core/index.ts`.
 
 ### Hard rules

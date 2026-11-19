@@ -4,6 +4,7 @@ use super::*;
 
 /// Which state of a coding agent its review compares with the base.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agent_review.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AgentReviewSource {
     /// The agent's working state: its commits plus uncommitted and new files (a snapshot commit).
@@ -15,6 +16,7 @@ pub enum AgentReviewSource {
 
 /// The two commits the review of an agent compares, and what the review's actions need to know.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "agent_review.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AgentReview {
     pub agent_id: String,

@@ -43,7 +43,7 @@ test("a new variant that is only in the enum is reported everywhere it is missin
   );
   const problems = compareErrorCodes({ ...GOOD, rust });
   assert.ok(problems.includes("ErrorCode::AiRefused is missing from ErrorCode::ALL"), problems.join("\n"));
-  assert.ok(problems.includes('src/core/types.ts ErrorCode: "ai_refused" is missing'), problems.join("\n"));
+  assert.ok(problems.includes('src/core/generated/error.ts ErrorCode: "ai_refused" is missing'), problems.join("\n"));
   assert.ok(problems.includes('src/app/errors.ts CODES: "ai_refused" is missing'), problems.join("\n"));
   assert.ok(problems.includes('en/errors.json: "ai_refused" is missing'), problems.join("\n"));
   assert.ok(problems.includes('de/errors.json: "ai_refused" is missing'), problems.join("\n"));
@@ -60,7 +60,10 @@ test("an extra TS code and an incomplete German text are reported", () => {
   const types = TYPES.replace('| "timeout";', '| "timeout"\n  | "gibt_es_nicht";');
   const de = { not_a_repo: { text: "Kein Repository." }, timeout: { text: "Zu langsam.", hint: "" } };
   const problems = compareErrorCodes({ ...GOOD, types, de });
-  assert.ok(problems.includes('src/core/types.ts ErrorCode: "gibt_es_nicht" is not an ErrorCode in error.rs'), problems.join("\n"));
+  assert.ok(
+    problems.includes('src/core/generated/error.ts ErrorCode: "gibt_es_nicht" is not an ErrorCode in error.rs'),
+    problems.join("\n"),
+  );
   assert.ok(problems.includes('de/errors.json: "not_a_repo" needs "text" and "hint"'), problems.join("\n"));
 });
 

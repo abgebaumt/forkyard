@@ -4,6 +4,7 @@ use super::*;
 
 /// Numbers from `git count-objects -v`, with Git's KiB values converted to bytes.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ObjectStats {
     /// Loose objects (`count`).
@@ -26,6 +27,7 @@ pub struct ObjectStats {
 /// An undo backup: an undo entry of the repository (or one of its worktrees), or a group of
 /// `refs/forkyard/undo/<id>/…` without an entry.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupUndoBackup {
     pub entry_id: Id,
@@ -38,6 +40,7 @@ pub struct CleanupUndoBackup {
 
 /// What the clean-up dialog shows before anything runs.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupPreview {
     pub objects: ObjectStats,
@@ -56,6 +59,7 @@ pub struct CleanupPreview {
 
 /// What `git lfs prune` would free (from `git lfs prune --dry-run`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupLfsEstimate {
     pub files: u64,
@@ -63,6 +67,7 @@ pub struct CleanupLfsEstimate {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum CleanupMode {
     /// `git gc`.
@@ -73,6 +78,7 @@ pub enum CleanupMode {
 
 /// The choices of the clean-up dialog.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupOptions {
     pub mode: CleanupMode,
@@ -88,6 +94,7 @@ pub struct CleanupOptions {
 
 /// The steps of a run, in the order they run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum CleanupStep {
     Worktrees,
@@ -98,6 +105,7 @@ pub enum CleanupStep {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum CleanupStepStatus {
     Done,
@@ -111,6 +119,7 @@ pub enum CleanupStepStatus {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupStepResult {
     pub step: CleanupStep,
@@ -121,6 +130,7 @@ pub struct CleanupStepResult {
 
 /// The step that failed and why.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupFailure {
     pub step: CleanupStep,
@@ -133,6 +143,7 @@ pub struct CleanupFailure {
 
 /// Outcome of `repoCleanupRun`; also after a cancel or a failed step.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupResult {
     pub before: ObjectStats,
@@ -149,6 +160,7 @@ pub struct CleanupResult {
 
 /// A lock on a file at the LFS server (`git lfs locks --verify`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct LfsLock {
     /// The server's ID of the lock.
@@ -165,6 +177,7 @@ pub struct LfsLock {
 
 /// Result of `lfs_locks`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct LfsLockList {
     /// Sorted by path.
@@ -175,6 +188,7 @@ pub struct LfsLockList {
 
 /// A path that `lfs_lock` / `lfs_unlock` could not lock or unlock.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct LfsLockFailure {
     pub path: String,
@@ -184,6 +198,7 @@ pub struct LfsLockFailure {
 
 /// Result of `lfs_lock` / `lfs_unlock`: the fresh list from the server plus what failed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct LfsLockOutcome {
     pub locks: LfsLockList,
@@ -192,6 +207,7 @@ pub struct LfsLockOutcome {
 
 /// Result of `patch_create`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PatchText {
     /// The patch; empty if there is nothing to show.
@@ -201,6 +217,7 @@ pub struct PatchText {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum SigningFormat {
     Openpgp,
@@ -209,6 +226,7 @@ pub enum SigningFormat {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "cleanup.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct SigningStatus {
     /// `commit.gpgSign`

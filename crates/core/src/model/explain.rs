@@ -5,6 +5,7 @@ use super::*;
 /// A command a plan may contain (allow list in `ai::features::plan_commands`); wire names as in
 /// `CoreCommands` (`branchCreate` …).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub enum PlanCommand {
     BranchCreate,
@@ -29,6 +30,7 @@ pub enum PlanCommand {
 /// `local`: changes only this repository and is undone with the plan; `outward`: reaches a
 /// remote, is confirmed on its own and cannot be undone.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum PlanClass {
     Local,
@@ -37,6 +39,7 @@ pub enum PlanClass {
 
 /// JSON type of an argument and how the step editor shows it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum PlanArgKind {
     Text,
@@ -48,6 +51,7 @@ pub enum PlanArgKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PlanArgField {
     pub name: String,
@@ -58,6 +62,7 @@ pub struct PlanArgField {
 
 /// One step as the model proposed it or the user edited it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PlanStep {
     pub command: PlanCommand,
@@ -69,6 +74,7 @@ pub struct PlanStep {
 
 /// Pre-check of one step.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(tag = "status", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum PlanCheck {
     /// Simulated: no conflicts.
@@ -84,6 +90,7 @@ pub enum PlanCheck {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PlanStepView {
     pub command: PlanCommand,
@@ -99,6 +106,7 @@ pub struct PlanStepView {
 
 /// A checked plan. Nothing in the repository has changed.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PlanPreview {
     pub steps: Vec<PlanStepView>,
@@ -113,6 +121,7 @@ pub struct PlanPreview {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum PlanStepStatus {
     Done,
@@ -121,6 +130,7 @@ pub enum PlanStepStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PlanStepOutcome {
     pub index: u32,
@@ -130,6 +140,7 @@ pub struct PlanStepOutcome {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PlanRunResult {
     pub steps: Vec<PlanStepOutcome>,
@@ -142,6 +153,7 @@ pub struct PlanRunResult {
 
 /// The four groups of the release notes (Keep a Changelog).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ReleaseGroupKind {
     Added,
@@ -152,6 +164,7 @@ pub enum ReleaseGroupKind {
 
 /// The language the entries were written in; German and English have their own headings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ReleaseLanguage {
     De,
@@ -160,6 +173,7 @@ pub enum ReleaseLanguage {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ReleaseNoteGroup {
     pub kind: ReleaseGroupKind,
@@ -171,6 +185,7 @@ pub struct ReleaseNoteGroup {
 
 /// The commits of the release notes: after `from` (a tag or the given start) up to `to_sha`, merges left out.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ReleaseNotesRange {
     /// `None`: from the first commit (no earlier tag).
@@ -184,6 +199,7 @@ pub struct ReleaseNotesRange {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ReleaseNotes {
     pub range: ReleaseNotesRange,
@@ -198,6 +214,7 @@ pub struct ReleaseNotes {
 
 /// `changelog_insert`: which file (relative to the working directory) and how.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ChangelogInsertResult {
     pub path: String,
@@ -207,6 +224,7 @@ pub struct ChangelogInsertResult {
 
 /// Which way the search by meaning goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AiSearchRoute {
     /// The embedding provider on this computer from Settings › AI.
@@ -219,6 +237,7 @@ pub enum AiSearchRoute {
 
 /// One hit of the search by meaning.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiSemanticHit {
     pub commit: CommitSummary,
@@ -232,6 +251,7 @@ pub struct AiSemanticHit {
 
 /// Result of `ai_semantic_search`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiSemanticResult {
     pub route: AiSearchRoute,
@@ -253,6 +273,7 @@ pub struct AiSemanticResult {
 
 /// `ai_semantic_status`: the way of the search and the index of this repository (sends nothing).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiSemanticStatus {
     pub route: AiSearchRoute,
@@ -269,6 +290,7 @@ pub struct AiSemanticStatus {
 
 /// `ai_semantic_index_update`: what the background growth did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiSemanticIndexUpdate {
     pub added: u64,
@@ -280,6 +302,7 @@ pub struct AiSemanticIndexUpdate {
 /// `ai_pr_description`: a suggestion for title and description – nothing is written
 /// anywhere; the form places it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiPrDescription {
     /// One line, at most 300 characters.
@@ -292,6 +315,7 @@ pub struct AiPrDescription {
 
 /// `ai_commit_message`: a draft for the commit form – the core never commits it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiCommitMessage {
     /// One line, at most 72 characters (`ai::features::commit_message::SUMMARY_LIMIT`).
@@ -302,6 +326,7 @@ pub struct AiCommitMessage {
 
 /// Sign-in of an AI command-line tool, as the tool reports it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AiLoginState {
     LoggedIn,
@@ -312,6 +337,7 @@ pub enum AiLoginState {
 
 /// Where a program was found (`tools::locate`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ToolSource {
     Configured,
@@ -322,6 +348,7 @@ pub enum ToolSource {
 
 /// An AI command-line tool the setup found (`ai_detect`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiCliFound {
     pub provider: AiProviderKind,
@@ -342,6 +369,7 @@ pub struct AiCliFound {
 
 /// Ollama or LM Studio answering on this computer.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiLocalFound {
     pub provider: AiProviderKind,
@@ -351,6 +379,7 @@ pub struct AiLocalFound {
 
 /// What the setup dialog offers (`ai_detect`); nothing was sent.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiDetection {
     pub clis: Vec<AiCliFound>,
@@ -363,6 +392,7 @@ pub struct AiDetection {
 /// Own paths of the AI command-line tools (`Settings.ai_cli_paths`, global); `None` = found
 /// automatically (PATH, the usual install folders, the login shell's PATH).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase", default)]
 pub struct AiCliPaths {
     pub claude_code: Option<String>,
@@ -392,6 +422,7 @@ impl AiCliPaths {
 
 /// Global settings of the active profile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub theme: Theme,
@@ -545,6 +576,7 @@ impl Default for Settings {
 
 /// App-side settings per repository.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct RepoSettings {
     pub encoding: String,
@@ -613,6 +645,7 @@ impl Default for RepoSettings {
 
 /// Trackers with a ready-made rule.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum LinkPresetKind {
     Jira,
@@ -622,6 +655,7 @@ pub enum LinkPresetKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct LinkPreset {
     pub kind: LinkPresetKind,
@@ -635,6 +669,7 @@ pub struct LinkPreset {
 
 /// An own rule: matches of `pattern` link to `url` (`$0` = whole match, `$1` … = groups).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CustomLinkRule {
     pub id: String,
@@ -644,6 +679,7 @@ pub struct CustomLinkRule {
 
 /// Ticket links stored for a repository (`repo_settings`, key `linkRules`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase", default)]
 pub struct LinkRulesConfig {
     /// `#123` (on GitLab also `!123`) link to the repository's host.
@@ -660,6 +696,7 @@ impl Default for LinkRulesConfig {
 
 /// Where an effective ticket link rule comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum LinkRuleSource {
     Custom,
@@ -670,6 +707,7 @@ pub enum LinkRuleSource {
 
 /// An effective rule: matches of `pattern` link to `url` (`$0` = whole match, `$1` … = groups).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct LinkRule {
     /// `custom:<id>`, `preset:<kind>:<n>`, `file:<id or position>`, `host:issue`, `host:merge_request`.
@@ -681,6 +719,7 @@ pub struct LinkRule {
 
 /// Where `.forkyard/links.json` was read from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum LinkFileOrigin {
     Worktree,
@@ -689,6 +728,7 @@ pub enum LinkFileOrigin {
 
 /// An ignored part of the repository file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct LinkRuleProblem {
     /// Position in the file's `rules` (from 0); `None` = the file as a whole.
@@ -697,6 +737,7 @@ pub struct LinkRuleProblem {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct LinkRules {
     /// In order of precedence: where two rules match at the same place, the earlier one wins.
@@ -707,6 +748,7 @@ pub struct LinkRules {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "explain.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct Profile {
     pub id: Id,
@@ -718,3 +760,4 @@ pub struct Profile {
     /// Lane colour 1 to 8; `None` = by position in the list.
     pub color: Option<u8>,
 }
+

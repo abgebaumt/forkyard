@@ -6,6 +6,7 @@ use super::*;
 /// and the incoming side (stage 3): 0-based first line and number of lines. The core cuts the
 /// text itself from the versions in the index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "conflicts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ConflictBlockRange {
     pub ours_start: u32,
@@ -16,6 +17,7 @@ pub struct ConflictBlockRange {
 
 /// How a conflict block went to the AI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "conflicts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum IntentSent {
     /// Completely: explanation and proposal.
@@ -30,6 +32,7 @@ pub enum IntentSent {
 
 /// The answer for one conflict block.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "conflicts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ConflictIntentBlock {
     /// Index among the conflicts of the file (0-based, the order of the ranges sent).
@@ -44,6 +47,7 @@ pub struct ConflictIntentBlock {
 
 /// `ai_conflict_intent`: one entry per conflict block, in order.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "conflicts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ConflictIntent {
     pub path: String,
@@ -51,6 +55,7 @@ pub struct ConflictIntent {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "conflicts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ConflictSide {
     Ours,
@@ -58,6 +63,7 @@ pub enum ConflictSide {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "conflicts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum RebaseAction {
     Pick,
@@ -69,6 +75,7 @@ pub enum RebaseAction {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "conflicts.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct RebasePlanRow {
     pub sha: Sha,
@@ -81,6 +88,7 @@ pub struct RebasePlanRow {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "conflicts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum RebaseRefusal {
     MergeCommits,
@@ -94,6 +102,7 @@ pub enum RebaseRefusal {
 
 /// Exact reason for `RebaseRefusal::NoCommonAncestor`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "conflicts.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum RebaseRefusalDetail {
     /// The base is related to the branch, but not an ancestor (rebasing onto it first helps).
@@ -103,6 +112,7 @@ pub enum RebaseRefusalDetail {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "conflicts.ts"))]
 #[serde(tag = "status", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum RebasePlan {
     Ok {
@@ -125,6 +135,7 @@ pub enum RebasePlan {
 
 /// What `conflict_preview` simulates (see `commands::preview`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "conflicts.ts"))]
 #[serde(tag = "kind", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum PreviewOp {
     /// `theirs` (branch, remote branch, tag or SHA) merged into HEAD.
@@ -142,6 +153,7 @@ pub enum PreviewOp {
 
 /// Result of `conflict_preview`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "conflicts.ts"))]
 #[serde(tag = "status", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum ConflictPreview {
     Clean,

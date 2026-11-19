@@ -1,9 +1,10 @@
-//! Data types between UI and core – mirror of src/core/types.ts.
+//! Data types between UI and core. The TypeScript side is generated from them
+//! (`npm run gen:types`, ts-rs, into src/core/generated/; src/core/types.ts re-exports it).
 //!
 //! Rules: structs with `rename_all = "camelCase"`; enums with snake_case values;
 //! unions as internally tagged enums with the field `kind` (results: `status`).
 //! `Option<T>` is written as `null`, like `T | null` in TypeScript.
-//! Whoever changes something here changes types.ts in the same step.
+//! Every serialised type derives `ts_rs::TS` behind the feature `ts` (see one of the area files).
 
 use serde::{Deserialize, Serialize};
 

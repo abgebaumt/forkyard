@@ -3,6 +3,7 @@
 use super::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "refs.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum RefKind {
     Local,
@@ -11,6 +12,7 @@ pub enum RefKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "refs.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct Ref {
     pub name: String,
@@ -33,7 +35,7 @@ pub struct Ref {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "refs.ts"))]
 #[serde(tag = "kind", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum Head {
     Branch {
@@ -85,6 +87,7 @@ impl Head {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "refs.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct RefsSnapshot {
     pub head: Head,
@@ -94,6 +97,7 @@ pub struct RefsSnapshot {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "refs.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum RemoteHost {
     Github,
@@ -104,6 +108,7 @@ pub enum RemoteHost {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "refs.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct Remote {
     pub name: String,

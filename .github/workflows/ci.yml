@@ -30,6 +30,16 @@ jobs:
       - name: Generated token CSS is up to date
         run: npm run tokens && git diff --exit-code -- src/styles/tokens.css src/styles/theme.css
       - run: npm run build
+      # The contract types and settings defaults come from the Rust core (ts-rs); this needs the core's
+      # build dependency libdbus and a Rust toolchain.
+      - name: Install libdbus for the core
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          cache-on-failure: true
+      - name: Generated contract types are up to date
+        run: npm run gen:types && git diff --exit-code -- src/core/generated && test -z "$(git status --porcelain -- src/core/generated)"
 
   rust:
     name: Rust (${{ matrix.os }})

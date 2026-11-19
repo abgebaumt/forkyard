@@ -3,6 +3,7 @@
 use super::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct Stash {
     pub index: u32,
@@ -15,6 +16,7 @@ pub struct Stash {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct UndoStep {
     pub label: String,
@@ -22,6 +24,7 @@ pub struct UndoStep {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct UndoState {
     pub undo: Option<UndoStep>,
@@ -33,6 +36,7 @@ pub struct UndoState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct FileHistoryEntry {
     pub commit: CommitSummary,
@@ -45,6 +49,7 @@ pub struct FileHistoryEntry {
 
 /// One step of `line_history`: a commit that changed the line, and where the line was in it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct LineHistoryStep {
     pub commit: CommitSummary,
@@ -57,6 +62,7 @@ pub struct LineHistoryStep {
 
 /// What a reference in a commit message points to (line archaeology, v1.2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ArchaeologyRefKind {
     /// `#12` on the repository's host (on GitHub and Gitea it may turn out to be a pull request).
@@ -69,6 +75,7 @@ pub enum ArchaeologyRefKind {
 
 /// A pull request, issue or ticket a commit message names.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ArchaeologyRef {
     /// As written in the message: `#12`, `!7`, `ABC-42`.
@@ -81,6 +88,7 @@ pub struct ArchaeologyRef {
 
 /// One commit that shaped the line.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ArchaeologyStep {
     pub commit: CommitSummary,
@@ -98,6 +106,7 @@ pub struct ArchaeologyStep {
 
 /// Whether the titles of host references could be looked up.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ArchaeologyHostLookup {
     /// No host reference in the messages.
@@ -111,6 +120,7 @@ pub enum ArchaeologyHostLookup {
 
 /// `line_archaeology`: the history of one line, newest first.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct LineArchaeology {
     /// Where the history starts: for a line of the working directory the commit that last changed it.
@@ -128,6 +138,7 @@ pub struct LineArchaeology {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ArchaeologyConfidence {
     High,
@@ -137,6 +148,7 @@ pub enum ArchaeologyConfidence {
 
 /// The AI's sentence about one step of the timeline.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ArchaeologyNote {
     pub sha: Sha,
@@ -145,6 +157,7 @@ pub struct ArchaeologyNote {
 
 /// `ai_archaeology`: the summary, checked against the timeline.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ArchaeologyAnswer {
     pub summary: String,
@@ -156,6 +169,7 @@ pub struct ArchaeologyAnswer {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct BlameLine {
     pub line_no: u32,
@@ -169,6 +183,7 @@ pub struct BlameLine {
 
 /// Line endings of a file that was read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum Eol {
     Lf,
@@ -178,6 +193,7 @@ pub enum Eol {
 
 /// Line endings when writing (`fileWrite`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum LineEnding {
     Lf,
@@ -185,6 +201,7 @@ pub enum LineEnding {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct FileContent {
     pub path: String,

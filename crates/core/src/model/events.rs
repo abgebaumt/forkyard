@@ -3,6 +3,7 @@
 use super::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "events.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum RepoChange {
     Worktree,
@@ -17,6 +18,7 @@ pub enum RepoChange {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "events.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum AppChange {
     Tabs,
@@ -37,6 +39,7 @@ pub enum AppChange {
 
 /// `repo:changed`
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "events.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct RepoChangedEvent {
     pub repo_id: Id,
@@ -45,6 +48,7 @@ pub struct RepoChangedEvent {
 
 /// `job:progress`
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "events.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct JobProgressEvent {
     pub job_id: String,
@@ -56,6 +60,7 @@ pub struct JobProgressEvent {
 
 /// `job:done`
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "events.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct JobDoneEvent {
     pub job_id: String,
@@ -67,6 +72,7 @@ pub struct JobDoneEvent {
 
 /// `hook:output`
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "events.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HookOutputEvent {
     pub repo_id: Id,
@@ -77,6 +83,7 @@ pub struct HookOutputEvent {
 
 /// `terminal:data`
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "events.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalDataEvent {
     pub terminal_id: Id,
@@ -85,6 +92,7 @@ pub struct TerminalDataEvent {
 
 /// `terminal:exit`
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "events.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalExitEvent {
     pub terminal_id: Id,
@@ -94,6 +102,7 @@ pub struct TerminalExitEvent {
 
 /// `app:changed`
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "events.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AppChangedEvent {
     pub what: Vec<AppChange>,
@@ -102,6 +111,7 @@ pub struct AppChangedEvent {
 /// `submodules:updated` – the follow-up job after checkout, pull, merge … (see
 /// `commands::submodule::auto`). A failure is a warning; the main operation went through.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "events.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct SubmodulesUpdatedEvent {
     pub repo_id: Id,
