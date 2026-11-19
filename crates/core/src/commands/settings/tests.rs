@@ -431,3 +431,27 @@ async fn commit_template_text_resolves_the_home_directory() {
     assert_eq!(s.commit_template.as_deref(), Some("~/lokal.txt"));
     assert_eq!(s.commit_template_text.as_deref(), Some("Lokal mit Tilde\n"));
 }
+
+#[tokio::test]
+async fn branch_cleanup_stale_days_is_per_profile_and_clamped() {
+    let tc = TestCore::new().await;
+    assert_eq!(settings_get(&tc).await.unwrap().branch_cleanup_stale_days, 90);
+    assert_eq!(settings_set(&tc, json!({"branchCleanupStaleDays": 0})).await.unwrap().branch_cleanup_stale_days, 1);
+    assert_eq!(settings_set(&tc, json!({"branchCleanupStaleDays": 99999})).await.unwrap().branch_cleanup_stale_days, 3650);
+    settings_set(&tc, json!({"branchCleanupStaleDays": 30})).await.unwrap();
+    let list = profile_save(&tc, None, "Privat".into(), "".into(), "".into(), false, None).await.unwrap();
+    let other = list.iter().find(|p| p.name == "Privat").unwrap().id.clone();
+    profile_activate(&tc, other).await.unwrap();
+    assert_eq!(settings_get(&tc).await.unwrap().branch_cleanup_stale_days, 90, "per profile");
+}
+
+#[tokio::test]
+async fn protected_branch_patterns_are_tidied_and_stored() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    assert!(repo_settings_get(&tc, id.clone()).await.unwrap().protected_branch_patterns.is_empty());
+    let s = repo_settings_set(&tc, id.clone(), json!({"protectedBranchPatterns": [" team/* ", "", "team/*", "qa"]})).await.unwrap();
+    assert_eq!(s.protected_branch_patterns, vec!["team/*".to_string(), "qa".to_string()]);
+    assert_eq!(repo_settings_get(&tc, id).await.unwrap().protected_branch_patterns, vec!["team/*".to_string(), "qa".to_string()]);
+}

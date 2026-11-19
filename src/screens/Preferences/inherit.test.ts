@@ -34,6 +34,7 @@ const base: RepoSettings = {
   secretScanIgnoredCount: 0,
   aiOff: false,
   aiCommitInstruction: null,
+  protectedBranchPatterns: [],
 };
 
 describe("inheritance in the project", () => {

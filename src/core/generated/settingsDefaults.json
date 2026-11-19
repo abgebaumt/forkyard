@@ -27,6 +27,7 @@
   "notifyOnError": true,
   "checkForUpdates": true,
   "conflictShowBase": false,
+  "branchCleanupStaleDays": 90,
   "agentTemplates": [],
   "sshUseAgent": true,
   "proxyUrl": null,

@@ -19,6 +19,7 @@ fn normalize(mut s: Settings) -> Settings {
     s.initial_commits = s.initial_commits.clamp(500, 100_000);
     s.editor_font_size = s.editor_font_size.clamp(8, 40);
     s.editor_tab_size = s.editor_tab_size.clamp(1, 16);
+    s.branch_cleanup_stale_days = s.branch_cleanup_stale_days.clamp(1, 3650);
     s.default_branch_name = s.default_branch_name.trim().to_string();
     if util::check_ref_name(&s.default_branch_name).is_err() {
         s.default_branch_name = Settings::default().default_branch_name;
@@ -356,6 +357,14 @@ pub async fn repo_settings_set(core: &Core, repo_id: String, patch: Value) -> Co
     changed.retain(|key| !READ_ONLY_KEYS.contains(&key.as_str()));
     if changed.iter().any(|k| k == "linkRules") {
         next.link_rules = crate::commands::links::normalize_config(&next.link_rules)?;
+    }
+    if changed.iter().any(|k| k == "protectedBranchPatterns") {
+        let mut seen = std::collections::HashSet::new();
+        next.protected_branch_patterns = std::mem::take(&mut next.protected_branch_patterns)
+            .into_iter()
+            .map(|p| p.trim().to_string())
+            .filter(|p| !p.is_empty() && seen.insert(p.clone()))
+            .collect();
     }
     if changed.iter().any(|k| k == "encoding") && encoding_rs::Encoding::for_label(next.encoding.trim().as_bytes()).is_none() {
         return Err(CoreError::not_allowed(format!("Unknown encoding “{}”.", next.encoding)));
