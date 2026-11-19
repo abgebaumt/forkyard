@@ -1,0 +1,40 @@
+{
+  "title": "Branches aufräumen",
+  "open": "Branches aufräumen …",
+  "group": {
+    "safe": "Sicher löschbar",
+    "review": "Erst prüfen",
+    "blocked": "Nicht löschbar"
+  },
+  "reason": {
+    "merged": "gemergt",
+    "prMerged": "PR #{{number}} gemergt",
+    "upstreamGone": "Upstream weg",
+    "stale": "alt",
+    "noPr": "kein PR",
+    "unmerged": "{{count}} nicht gemergt",
+    "unpushed": "{{count}} nicht gepusht",
+    "worktree": "in einem Worktree",
+    "protected": "geschützt"
+  },
+  "lost_one": "{{count}} Commit geht verloren (Undo möglich)",
+  "lost_other": "{{count}} Commits gehen verloren (Undo möglich)",
+  "filter": "Branches filtern",
+  "counter": "{{selected}} von {{total}} markiert",
+  "delete": "{{count}} löschen",
+  "deleting": "Branches löschen",
+  "done_one": "{{count}} Branch gelöscht",
+  "done_other": "{{count}} Branches gelöscht",
+  "prMissing": "PR-Daten fehlen – ohne Verbindung zu {{host}}",
+  "loadError": "Branches konnten nicht geladen werden",
+  "empty": "Nichts aufzuräumen.",
+  "remote": {
+    "option": "Auch auf {{remotes}} löschen",
+    "warning": "Wirkt nach außen und ist nicht umkehrbar.",
+    "confirmTitle": "{{count}} Remote-Branches löschen?",
+    "confirmBody": "Diese Branches werden auf dem Remote gelöscht. Rückgängig holt sie nicht zurück.",
+    "confirmAction": "{{count}} auf dem Remote löschen",
+    "done_one": "{{count}} Remote-Branch gelöscht",
+    "done_other": "{{count}} Remote-Branches gelöscht"
+  }
+}
