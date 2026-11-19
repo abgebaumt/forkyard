@@ -46,6 +46,24 @@ describe("invalidateRepo", () => {
   });
 });
 
+describe("invalidateRepo and the digest", () => {
+  const invalidated = (client: QueryClient, key: readonly unknown[]) => client.getQueryState(key)?.isInvalidated;
+  it("seen refreshes the digest and nothing in REFS_PARTS", async () => {
+    const client = new QueryClient();
+    client.setQueryData(qk.digest("r1"), null);
+    client.setQueryData(qk.refs("r1"), null);
+    await invalidateRepo(client, "r1", ["seen"]);
+    expect(invalidated(client, qk.digest("r1"))).toBe(true);
+    expect(invalidated(client, qk.refs("r1"))).toBe(false);
+  });
+  it("a fetch leaves the digest alone: each answer may cost host requests", async () => {
+    const client = new QueryClient();
+    client.setQueryData(qk.digest("r1"), null);
+    await invalidateRepo(client, "r1", ["refs", "head", "fetched"]);
+    expect(invalidated(client, qk.digest("r1"))).toBe(false);
+  });
+});
+
 describe("jobBelongsHere", () => {
   it("a job started here is always shown", () => expect(jobBelongsHere("j1", null, new Set(["j1"]), new Set())).toBe(true));
   it("a job of another window is shown only for a repo with a tab here", () => {

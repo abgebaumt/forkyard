@@ -449,6 +449,10 @@
     }
   },
   "repo": {
+    "digest": {
+      "keywords": "Zusammenfassung,seit gestern,Änderungen,Neuigkeiten",
+      "title": "Was ist neu seit …"
+    },
     "cleanupBranches": {
       "keywords": "alte Branches löschen gemergt veraltet",
       "title": "Branches aufräumen …"
