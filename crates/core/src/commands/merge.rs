@@ -567,22 +567,37 @@ pub async fn operation_abort(core: &Core, repo_id: String) -> CoreResult<Status>
         core.git_for(repo_id)?.args(["update-index", "-q", "--refresh"]).no_log().run_raw().await?;
         // What the user did to UNRELATED files during the operation does not belong to the
         // operation: `rebase --abort` resets hard, `merge --abort` discards staged changes.
-        let extra = match ExtraWork::find(core, repo_id, &op).await {
-            Ok(extra) => extra,
-            Err(e) => {
-                log::warn!("Extra work not backed up before the abort: {}", e.message);
-                None
+        // Without its backup (kept under a backup ref until it is written back) there is no abort.
+        let extra = ExtraWork::find(core, repo_id, &op).await?;
+        let backup = undo::new_id();
+        if let Some(extra) = &extra {
+            undo::create_backup_ref(core, repo_id, &backup, "worktree", &extra.snapshot.commit).await?;
+        }
+        let aborted = async {
+            let out = core.git_for(repo_id)?.args([subcommand, "--abort"]).run_raw().await?;
+            if !out.success() {
+                abort_past_leftovers(core, repo_id, subcommand, &out).await?;
             }
+            Ok::<_, CoreError>(())
+        }
+        .await;
+        let restored = match (&aborted, extra) {
+            (Ok(()), Some(extra)) => extra.restore(core, repo_id).await,
+            _ => Ok(()),
         };
-        let aborted = core.git_for(repo_id)?.args([subcommand, "--abort"]).run_raw().await?;
-        if !aborted.success() {
-            abort_past_leftovers(core, repo_id, subcommand, &aborted).await?;
-        }
-        if let Some(extra) = extra {
-            if let Err(e) = extra.restore(core, repo_id).await {
-                log::warn!("Extra work not restored after the abort: {}", e.message);
+        match restored {
+            Ok(()) => {
+                if let Err(e) = undo::delete_backup_refs(core, repo_id, &backup).await {
+                    log::warn!("Backup refs of {backup} not removed: {}", e.message);
+                }
             }
+            Err(e) => log::warn!(
+                "Extra work not restored after the abort; it stays in {}: {}",
+                undo::backup_ref_name(&backup, "worktree"),
+                e.message
+            ),
         }
+        aborted?;
         // An open undo entry of the aborted operation disappears (the branch is back at the
         // start); an orphaned one is closed.
         if let Err(e) = rebase::settle_pending_undo(core, repo_id).await {

@@ -1522,3 +1522,39 @@ async fn hard_reset_keeps_the_work_when_the_undo_entry_cannot_be_written() {
     assert_ne!(repo.head(), first);
     assert!(repo.git(&["for-each-ref", "refs/forkyard/undo/"]).is_empty(), "no orphan backup refs");
 }
+
+/// The abort resets hard; work on unrelated files is backed up first. If that backup fails,
+/// the abort must not run – it would destroy the work without a way back.
+#[cfg(unix)]
+#[tokio::test]
+async fn abort_refuses_when_unrelated_work_cannot_be_backed_up() {
+    use std::os::unix::fs::PermissionsExt;
+    let tc = TestCore::new().await;
+    let repo = TestRepo::new();
+    repo.write_file("a.txt", "basis\n");
+    repo.write_file("x.txt", "basis\n");
+    repo.commit("Basis");
+    repo.checkout_new("feature");
+    repo.commit_file("a.txt", "feature\n", "Feature ändert a");
+    repo.checkout("main");
+    repo.commit_file("a.txt", "main\n", "Main ändert a");
+    repo.checkout("feature");
+    assert!(!repo.git_output(&["rebase", "main"]).status.success());
+    let id = open(&tc, &repo).await;
+    repo.write_file("x.txt", "eigene Arbeit\n");
+    // An unreadable file makes the backup (`git add -A`) fail.
+    repo.write_file("gesperrt.txt", "x\n");
+    let locked = repo.path().join("gesperrt.txt");
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
+
+    let result = operation_abort(&tc, id.clone()).await;
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o644)).unwrap();
+    assert!(result.is_err(), "the abort ran without a backup of the unrelated work");
+    assert_eq!(repo.read_file("x.txt"), b"eigene Arbeit\n");
+    assert!(read_status(&tc, &id).await.unwrap().operation.is_some());
+
+    // With the backup possible, the abort runs and the work comes back.
+    let status = operation_abort(&tc, id).await.unwrap();
+    assert!(status.operation.is_none());
+    assert_eq!(repo.read_file("x.txt"), b"eigene Arbeit\n");
+}
