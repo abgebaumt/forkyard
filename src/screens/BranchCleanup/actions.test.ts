@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoreError, type BranchCleanupCandidate, type BranchCleanupTarget, type PushResult, type RefsSnapshot } from "../../core";
 
 type CleanupInput = { repoId: string; targets: BranchCleanupTarget[] };
-type RemoteInput = { repoId: string; jobId: string; remote: string; name: string };
+type RemoteInput = { repoId: string; jobId: string; remote: string; name: string; expected?: string | null };
 type ToastOptions = { tone: string; title: string; description?: string; action?: { label: string; onClick: () => void } };
 const calls: string[] = [];
 const branchCleanupDelete = vi.fn<(input: CleanupInput) => Promise<RefsSnapshot>>();
@@ -47,6 +47,7 @@ const candidate = (name: string, upstream: [string, string] | null, sha = "b".re
   committedAt: "2026-01-01T00:00:00Z",
   upstreamRemote: upstream?.[0] ?? null,
   upstreamBranch: upstream?.[1] ?? null,
+  upstreamSha: upstream ? `${sha.slice(0, 39)}e` : null,
 });
 const list = [
   candidate("fertig", ["origin", "fertig"], "1".repeat(40)),
@@ -79,6 +80,7 @@ describe("deleteSelected", () => {
       ],
     });
     expect(calls).toEqual(["local", "remote:origin/fertig"]);
+    expect(branchDeleteRemote.mock.calls[0]![0]).toMatchObject({ remote: "origin", name: "fertig", expected: `${"1".repeat(39)}e` });
     expect(confirmSpy.mock.calls[0]![0]).toMatchObject({ title: "Delete the remote branch?", danger: true, details: ["origin/fertig"] });
     expect(queryClient.getQueryData(qk.refs(REPO))).toBe(snapshot);
     const local = toastSpy.mock.calls.find(([options]) => options.title === "2 branches deleted")?.[0];

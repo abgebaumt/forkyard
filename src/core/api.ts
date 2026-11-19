@@ -410,9 +410,10 @@ export interface CoreCommands {
   /**
    * Deletes the branch `name` on the remote (`git push <remote> --delete <name>`); `name` without
    * the remote prefix (`origin/x` works too). `done`: deleted; `up_to_date`: did not exist there
-   * (any more), the stale remote branch here has been cleaned up. Job like `push`.
+   * (any more), the stale remote branch here has been cleaned up. Job like `push`. Deletes with a lease:
+   * only the tip `expected` (else the one the remote branch here knows); `push_rejected` if it has moved there.
    */
-  branchDeleteRemote(input: R & { jobId: string; remote: string; name: string }): Promise<PushResult>;
+  branchDeleteRemote(input: R & { jobId: string; remote: string; name: string; expected?: Sha | null }): Promise<PushResult>;
   /** `upstream: null` removes the link. */
   branchSetUpstream(input: R & { name: string; upstream: string | null }): Promise<RefsSnapshot>;
   /**

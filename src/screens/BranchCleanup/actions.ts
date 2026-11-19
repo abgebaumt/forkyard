@@ -18,8 +18,9 @@ export function openBranchCleanup(tabId: Id): void {
 
 /**
  * Deletes the marked branches in one core call (one undo entry, each checked against its SHA). With
- * `alsoRemote`, after a danger prompt, it then deletes each tracked remote branch on its own: a
- * failure there is reported for that branch and neither stops the others nor undoes the local deletion.
+ * `alsoRemote`, after a danger prompt, it then deletes each tracked remote branch on its own, only at
+ * the tip the list showed (a lease): a failure there, such as commits pushed since, is reported for that
+ * branch and neither stops the others nor undoes the local deletion.
  */
 export async function deleteSelected(
   repoId: Id,
@@ -63,11 +64,11 @@ export async function deleteSelected(
 
   if (remotes.length === 0) return;
   let succeeded = 0;
-  for (const { remote, branch, label } of remotes) {
+  for (const { remote, branch, expected, label } of remotes) {
     const jobId = newJobId();
     const result = await runAction(
       t("actions.sync.deleteRemote.label"),
-      () => core.branchDeleteRemote({ repoId, jobId, remote, name: branch }),
+      () => core.branchDeleteRemote({ repoId, jobId, remote, name: branch, expected }),
       {
         busyKey: busyKeys.push(repoId),
         job: { id: jobId, title: t("actions.sync.deleteRemote.job", { target: clip(label, 32) }), repoId },

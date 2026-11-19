@@ -8,11 +8,19 @@ const candidate = (partial: Partial<BranchCleanupCandidate> & Pick<BranchCleanup
   committedAt: "2026-01-01T00:00:00Z",
   upstreamRemote: null,
   upstreamBranch: null,
+  upstreamSha: null,
   ...partial,
 });
 
 const list: BranchCleanupCandidate[] = [
-  candidate({ name: "fertig", class: "safe", reasons: [{ kind: "merged" }], upstreamRemote: "origin", upstreamBranch: "fertig" }),
+  candidate({
+    name: "fertig",
+    class: "safe",
+    reasons: [{ kind: "merged" }],
+    upstreamRemote: "origin",
+    upstreamBranch: "fertig",
+    upstreamSha: "c".repeat(40),
+  }),
   candidate({ name: "alt", class: "review", reasons: [{ kind: "stale" }, { kind: "unmerged", count: 1 }] }),
   candidate({
     name: "release/2026.1",
@@ -20,6 +28,7 @@ const list: BranchCleanupCandidate[] = [
     reasons: [{ kind: "protected" }],
     upstreamRemote: "upstream",
     upstreamBranch: "release/2026.1",
+    upstreamSha: "d".repeat(40),
   }),
   candidate({
     name: "feature/thema-20",
@@ -60,7 +69,9 @@ describe("branch cleanup model", () => {
   });
 
   it("offers the remote only for selected branches with an existing upstream", () => {
-    expect(remoteTargets(list, new Set(["fertig", "alt"]))).toEqual([{ remote: "origin", branch: "fertig", label: "origin/fertig" }]);
+    expect(remoteTargets(list, new Set(["fertig", "alt"]))).toEqual([
+      { remote: "origin", branch: "fertig", expected: "c".repeat(40), label: "origin/fertig" },
+    ]);
     expect(remoteNames(list)).toEqual(["origin", "upstream"]);
   });
 });
