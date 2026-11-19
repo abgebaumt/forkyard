@@ -19,7 +19,8 @@ import {
 import { cancelCleanup, runCleanup } from "../../app/actions/cleanup";
 import { describeError } from "../../app/errors";
 import { formatBytes } from "../../app/format";
-import { qk } from "../../app/queries";
+import { qk, useTabs } from "../../app/queries";
+import { openBranchCleanup } from "../BranchCleanup/actions";
 import { useAppStore } from "../../app/store";
 import { Button } from "../../ui/Button";
 import { cn } from "../../ui/cn";
@@ -399,6 +400,8 @@ export function RepoCleanupDialog({ repoId, onClose }: { repoId: Id; onClose: ()
     retry: false,
     refetchOnWindowFocus: false,
   });
+  // Only a repository with an active tab can show the centre view.
+  const tab = useTabs().data?.find((item) => item.isActive && item.repoId === repoId);
   const [form, setForm] = useState<CleanupForm | null>(null);
   const shown = form ?? (preview.data ? initialForm(preview.data) : null);
   const finished = Boolean(run?.result || run?.error);
@@ -453,7 +456,23 @@ export function RepoCleanupDialog({ repoId, onClose }: { repoId: Id; onClose: ()
     secondary = <Button onClick={close}>{t("ui.cancel")}</Button>;
   } else {
     state = "form";
-    body = <FormBody repoId={repoId} preview={preview.data} form={shown} onChange={setForm} />;
+    body = (
+      <>
+        <FormBody repoId={repoId} preview={preview.data} form={shown} onChange={setForm} />
+        {tab && (
+          <Button
+            variant="ghost"
+            data-action="cleanup-branches"
+            onClick={() => {
+              onClose();
+              openBranchCleanup(tab.id);
+            }}
+          >
+            {t("cleanupBranches.open")}
+          </Button>
+        )}
+      </>
+    );
     secondary = <Button onClick={close}>{t("ui.cancel")}</Button>;
     primary = (
       <Button variant="primary" onClick={start}>

@@ -167,6 +167,10 @@
       "title": "Default branch name",
       "description": "The name of the first branch in repositories you create here."
     },
+    "branchCleanupStaleDays": {
+      "title": "Branches count as stale after (days)",
+      "description": "Used by Clean up branches."
+    },
     "initialCommits": {
       "title": "Commits on first load",
       "description": "How many commits the graph shows right after opening (at least 500). More takes longer to start."
@@ -371,6 +375,10 @@
       "noAccount": "No account for this remote"
     },
     "git": {
+      "protectedBranches": {
+        "title": "Protected branches",
+        "description": "One pattern per line, * matches anything, upper and lower case (A–Z) are not distinguished. main, master, develop, release/* and hotfix/* are always protected."
+      },
       "card": "Sync",
       "pullMode": "Pull mode",
       "pullModeDescription": "How the pull button works in this repository.",

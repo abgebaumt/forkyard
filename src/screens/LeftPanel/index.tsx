@@ -42,6 +42,7 @@ import { PanelSection } from "../../ui/Git";
 import { ariaShortcut, formatShortcut } from "../../ui/shortcut";
 import { ContextMenu, type MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
+import { openBranchCleanup } from "../BranchCleanup/actions";
 import { dropEntries, rowMenu, sectionMenu, sectionTitles } from "./menus";
 import {
   buildTrees,
@@ -506,6 +507,7 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
       toggleMaximized: () => toggleMaximized(key),
       toggleHide: () => void toggleHidden(repoId, sectionNames[key]),
       toggleSolo: () => void toggleSolo(repoId, sectionNames[key]),
+      cleanBranches: () => openBranchCleanup(tabId),
       setVisible: setSectionVisible,
     });
     // Worktrees and submodules can be shown again here.

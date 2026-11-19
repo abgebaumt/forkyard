@@ -449,6 +449,10 @@
     }
   },
   "repo": {
+    "cleanupBranches": {
+      "keywords": "alte Branches löschen gemergt veraltet",
+      "title": "Branches aufräumen …"
+    },
     "cleanup": {
       "keywords": "gc, garbage, prune, Speicher, Größe, aufräumen",
       "title": "Repository aufräumen …"

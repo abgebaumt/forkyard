@@ -449,6 +449,10 @@
     }
   },
   "repo": {
+    "cleanupBranches": {
+      "keywords": "delete old branches merged stale prune",
+      "title": "Clean up branches …"
+    },
     "cleanup": {
       "keywords": "gc, garbage, prune, storage, size, clean up",
       "title": "Clean up repository …"
