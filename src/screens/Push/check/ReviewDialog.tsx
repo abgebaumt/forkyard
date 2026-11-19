@@ -7,14 +7,14 @@
  * and "Send this time" stay inside this dialog: the dialog host shows one dialog at a time.
  */
 import { useEffect, useState } from "react";
-import { core, type AiInput, type AiProviderKind, type AiPushReview, type Id } from "../../core";
-import { showDialog } from "../../app/dialogs";
-import { signInInTerminal } from "../../app/ai/cliLogin";
-import { openAiSettings, openAiSetup } from "../../app/ai/open";
-import { useAiJob } from "../../app/ai/useAiJob";
-import { Button } from "../../ui/Button";
-import { Dialog } from "../../ui/Dialog";
-import { locale, t } from "../../i18n";
+import { core, type AiInput, type AiProviderKind, type AiPushReview, type Id } from "../../../core";
+import { showDialog } from "../../../app/dialogs";
+import { signInInTerminal } from "../../../app/ai/cliLogin";
+import { openAiSettings, openAiSetup } from "../../../app/ai/open";
+import { useAiJob } from "../../../app/ai/useAiJob";
+import { Button } from "../../../ui/Button";
+import { Dialog } from "../../../ui/Dialog";
+import { locale, t } from "../../../i18n";
 import { reviewPushLabel, reviewRows, reviewSummary } from "./model";
 
 export interface ReviewTarget {

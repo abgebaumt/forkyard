@@ -6,11 +6,11 @@
 import { t } from "../../i18n";
 import { core, type GitflowFinishOptions, type GitflowKind, type GitflowPrefixes, type GitflowStatus, type Id } from "../../core";
 import { toast } from "../../ui/Feedback";
-import { qk, queryClient } from "../queries";
-import { newJobId, runAction } from "../run";
-import { withFreshStatus } from "../statusCache";
-import { showWip } from "./merge";
-import { busyKeys } from "./keys";
+import { qk, queryClient } from "../../app/queries";
+import { newJobId, runAction } from "../../app/run";
+import { withFreshStatus } from "../../app/statusCache";
+import { showWip } from "../../app/actions/merge";
+import { busyKeys } from "../../app/actions/keys";
 
 export const cachedGitflow = (repoId: Id) => queryClient.getQueryData<GitflowStatus>(qk.gitflow(repoId));
 export const gitflowBusyKey = (repoId: Id) => busyKeys.write(repoId, "gitflow");

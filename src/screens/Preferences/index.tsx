@@ -50,7 +50,7 @@ import { ProfilesSection } from "./sections/Profiles";
 import { ProjectFilesSection, ProjectGitSection, ProjectIdentitySection } from "./sections/ProjectSections";
 import { TicketLinksSection } from "./sections/TicketLinks";
 import { SshSection } from "./sections/Ssh";
-import { NetworkSection } from "../Network/NetworkSection";
+import { NetworkSection } from "./sections/Network";
 import { HostsSection } from "../Hosts";
 import { CustomCommandsSection } from "../CustomCommands/Section";
 import { AgentTemplatesSection } from "../Agents/SettingsSection";

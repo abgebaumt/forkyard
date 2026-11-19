@@ -13,14 +13,14 @@ import {
   type LfsLockOutcome,
   type LfsStatus,
 } from "../../core";
-import { forceUnlockConfirm } from "../../screens/Lfs/locks";
+import { forceUnlockConfirm } from "./locks";
 import { toast } from "../../ui/Feedback";
-import { confirm } from "../dialogs";
-import { qk, queryClient } from "../queries";
-import { newJobId, runAction, type ActionResult } from "../run";
-import { useAppStore } from "../store";
-import { clip } from "./context";
-import { busyKeys } from "./keys";
+import { confirm } from "../../app/dialogs";
+import { qk, queryClient } from "../../app/queries";
+import { newJobId, runAction, type ActionResult } from "../../app/run";
+import { useAppStore } from "../../app/store";
+import { clip } from "../../app/actions/context";
+import { busyKeys } from "../../app/actions/keys";
 
 export const lfsBusyKey = (repoId: Id, what: "track" | "pull" | "prune" | "locks") => busyKeys.write(repoId, `lfs:${what}`);
 

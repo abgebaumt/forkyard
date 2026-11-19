@@ -3,13 +3,13 @@
  * (allowed, blocked by the system, not asked yet) and a test that really sends a notification
  * now.
  */
-import { t } from "../../i18n";
+import { t } from "../../../i18n";
 import { useEffect, useState } from "react";
 import { BellOff, CircleCheck, CircleHelp, Send } from "lucide-react";
-import { Button } from "../../ui/Button";
-import { Badge, SettingRow, type BadgeTone } from "../../screens/Preferences/parts";
-import { readSystemNotifications, sendTestNotification, systemNotificationState, type SystemNotifications } from "../notify";
-import { onSystemNotificationsChange } from "./system";
+import { Button } from "../../../ui/Button";
+import { Badge, SettingRow, type BadgeTone } from "../parts";
+import { readSystemNotifications, sendTestNotification, systemNotificationState, type SystemNotifications } from "../../../app/notify";
+import { onSystemNotificationsChange } from "../../../app/notifications/system";
 
 /**
  * The state as soon as the section is open – determined afresh, because the permission may

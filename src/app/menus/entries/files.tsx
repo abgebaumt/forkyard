@@ -43,7 +43,7 @@ import {
 import { restoreFile } from "../../actions/history";
 import { patchFromFiles } from "../../actions/patches";
 import { applyStashFiles } from "../../actions/stash";
-import { cachedLocks, lockFiles, unlockFiles } from "../../actions/lfs";
+import { cachedLocks, lockFiles, unlockFiles } from "../../../screens/Lfs/actions";
 import { lockIndex, lockMenuState } from "../../../screens/Lfs/locks";
 import { openDiffTool, openMergeTool } from "../../actions/tools";
 import { t } from "../../../i18n";

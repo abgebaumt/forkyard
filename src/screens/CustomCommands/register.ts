@@ -1,7 +1,7 @@
 /** Puts the custom commands with scope `repo` into the command palette of the active repository. */
 import { useEffect } from "react";
 import type { Id } from "../../core";
-import { runCustomCommand } from "../../app/actions/customCommands";
+import { runCustomCommand } from "./actions";
 import { kw, type AppCommand } from "../../app/commandTypes";
 import { useCustomCommandList } from "../../app/queries";
 import { registerCommands } from "../../app/registry";

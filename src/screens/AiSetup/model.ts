@@ -4,8 +4,8 @@
  * the end writes. Rendered by SetupDialog.tsx.
  */
 import type { AiCliFound, AiDetection, AiFeature, AiProviderKind, Settings } from "../../core";
-import { isLocal, usesBaseUrl } from "../../screens/Preferences/ai/model";
-import { isCli } from "./providers";
+import { isLocal, usesBaseUrl } from "../Preferences/ai/model";
+import { isCli } from "../../app/ai/providers";
 
 export type SetupStep = "search" | "found" | "provider" | "model" | "features" | "done";
 

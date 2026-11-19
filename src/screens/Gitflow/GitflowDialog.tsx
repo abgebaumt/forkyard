@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Trans } from "react-i18next";
 import { ArrowLeft, Check, GitBranch, GitMerge, RefreshCw, Settings2, Workflow } from "lucide-react";
 import { core, type GitflowKind, type GitflowPrefixes, type GitflowStatus, type Id } from "../../core";
-import { gitflowBusyKey, initGitflow, kindLabels, startGitflow } from "../../app/actions/gitflow";
+import { gitflowBusyKey, initGitflow, kindLabels, startGitflow } from "./actions";
 import { describeError } from "../../app/errors";
 import { qk, useRefs, useStatus } from "../../app/queries";
 import { useBusy } from "../../app/store";

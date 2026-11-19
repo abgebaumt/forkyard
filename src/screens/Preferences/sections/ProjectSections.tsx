@@ -12,7 +12,7 @@ import { Button } from "../../../ui/Button";
 import { Select } from "../../../ui/Select";
 import { Switch } from "../../../ui/Switch";
 import { LfsPanel } from "../../Lfs/LfsPanel";
-import { SigningSettings } from "../../Signing/SigningSettings";
+import { SigningSettings } from "./Signing";
 import { inheritedValue, overridePatch, resetPatch, type InheritContext, type InheritKey } from "../inherit";
 import { CommitText, GroupTitle, InheritRow, LoadError, Mono, SectionHeader, SettingRow, SettingsCard, SettingsSkeleton } from "../parts";
 import { applyRepoSettings, checkEmail, fieldError } from "../settings";

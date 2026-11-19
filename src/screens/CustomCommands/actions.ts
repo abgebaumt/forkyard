@@ -6,12 +6,12 @@
 import { core, type CustomCommandContext, type CustomCommandEntry, type CustomCommandResult, type Id } from "../../core";
 import { t } from "../../i18n";
 import { toast } from "../../ui/Feedback";
-import { askInputs } from "../../screens/CustomCommands/InputsDialog";
-import { confirm, showOutput, type ConfirmOptions } from "../dialogs";
-import { newJobId, runAction } from "../run";
-import { useAppStore } from "../store";
-import { openInBrowser } from "./hosts";
-import { busyKeys } from "./keys";
+import { askInputs } from "./InputsDialog";
+import { confirm, showOutput, type ConfirmOptions } from "../../app/dialogs";
+import { newJobId, runAction } from "../../app/run";
+import { useAppStore } from "../../app/store";
+import { openInBrowser } from "../../app/actions/hosts";
+import { busyKeys } from "../../app/actions/keys";
 
 function reportUntrusted(): void {
   toast({

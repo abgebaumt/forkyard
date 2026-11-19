@@ -7,7 +7,7 @@
 import { core, type Agent, type AgentReview, type FileDiff, type Id, type PatchSelection } from "../../core";
 import { busyKeys } from "../../app/actions/keys";
 import { abortOperation, mergeBranch, reportOpResult } from "../../app/actions/merge";
-import { preflight } from "../../app/actions/preflight";
+import { preflight } from "../Preflight/actions";
 import { undo } from "../../app/actions/undo";
 import { confirm, pickFromList } from "../../app/dialogs";
 import { qk, queryClient } from "../../app/queries";

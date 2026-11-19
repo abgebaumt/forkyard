@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { AiPushReview, AiStatus, SecretFinding } from "../../core";
-import { t } from "../../i18n";
+import type { AiPushReview, AiStatus, SecretFinding } from "../../../core";
+import { t } from "../../../i18n";
 import {
   acceptedIds,
   findingLocation,

@@ -6,16 +6,16 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { ShieldCheck, ShieldOff, Undo2 } from "lucide-react";
-import { core, type Id, type SigningFormat, type SigningStatus, type SshKey } from "../../core";
-import { qk, queryClient, useSshKeys } from "../../app/queries";
-import { runAction } from "../../app/run";
-import { writesSettled } from "../../app/writeQueue";
-import { Button } from "../../ui/Button";
-import { Select } from "../../ui/Select";
-import { Switch } from "../../ui/Switch";
-import { Badge, CommitText, GroupTitle, LoadError, Mono, SettingRow, SettingsSkeleton } from "../Preferences/parts";
-import { enqueue } from "../Preferences/settings";
-import { t } from "../../i18n";
+import { core, type Id, type SigningFormat, type SigningStatus, type SshKey } from "../../../core";
+import { qk, queryClient, useSshKeys } from "../../../app/queries";
+import { runAction } from "../../../app/run";
+import { writesSettled } from "../../../app/writeQueue";
+import { Button } from "../../../ui/Button";
+import { Select } from "../../../ui/Select";
+import { Switch } from "../../../ui/Switch";
+import { Badge, CommitText, GroupTitle, LoadError, Mono, SettingRow, SettingsSkeleton } from "../parts";
+import { enqueue } from "../settings";
+import { t } from "../../../i18n";
 
 // Reads happen only once no change is in flight anymore (see src/app/writeQueue.ts).
 export const useSigning = (repoId: Id | null) =>

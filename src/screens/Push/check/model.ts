@@ -2,10 +2,10 @@
  * Pure helpers of the push check: the dialog of the local secret scan
  * ("Looks like a key") and the result of the AI review before a push.
  */
-import type { AiPushFindingKind, AiPushReview, AiStatus, RepoSettings, SecretFinding, SecretRule } from "../../core";
-import { aiVisibility, featureVisible } from "../../app/ai/visibility";
-import { t } from "../../i18n";
-import { shortSha } from "../../app/format";
+import type { AiPushFindingKind, AiPushReview, AiStatus, RepoSettings, SecretFinding, SecretRule } from "../../../core";
+import { aiVisibility, featureVisible } from "../../../app/ai/visibility";
+import { t } from "../../../i18n";
+import { shortSha } from "../../../app/format";
 
 /** The fields of the push result `secrets_found`. */
 export interface SecretsFound {

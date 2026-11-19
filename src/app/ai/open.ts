@@ -13,7 +13,7 @@ export function openAiSettings(): void {
  */
 export async function openAiSetup(): Promise<boolean> {
   const [{ showAiSetup }, { showWhatIsSent }, { signInInTerminal }] = await Promise.all([
-    import("./SetupDialog"),
+    import("../../screens/AiSetup"),
     import("./gate"),
     import("./cliLogin"),
   ]);

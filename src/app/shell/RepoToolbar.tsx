@@ -22,7 +22,7 @@ import { busyKeys } from "../actions/keys";
 import { operationNames } from "../actions/merge";
 import { popStash, stashChanges } from "../actions/stash";
 import { addRemote, fetchAll, pull, pullModeHints, pullModeLabels, push, reviewAndPush, setDefaultPullMode } from "../actions/sync";
-import { reviewOffered } from "../../screens/PushCheck/model";
+import { reviewOffered } from "../../screens/Push/check/model";
 import { redo, undo } from "../actions/undo";
 import { toggleCockpit } from "../../screens/Agents/actions";
 import { agentCounts, toolbarLabel } from "../../screens/Agents/model";
