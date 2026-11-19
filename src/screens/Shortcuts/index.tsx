@@ -9,7 +9,6 @@
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Dialog as RadixDialog } from "radix-ui";
 import { Search, SearchX, X } from "lucide-react";
-import type { AppCommand, CommandGroup } from "../../app/commandTypes";
 import { useCommands } from "../../app/registry";
 import { useAppStore } from "../../app/store";
 import { afterFocusReturn, useFocusReturn } from "../../app/focusReturn";
@@ -17,95 +16,14 @@ import { Button } from "../../ui/Button";
 import { dialogSurface } from "../../ui/Dialog";
 import { CommandIcon } from "../../ui/commandIcon";
 import { Kbd } from "../../ui/Kbd";
-import { formatShortcut, isMacShortcuts } from "../../ui/shortcut";
+import { isMacShortcuts } from "../../ui/shortcut";
 import { matchesShortcut } from "../../app/commandTypes";
 import { cn } from "../../ui/cn";
-import { fold } from "../CommandPalette/fuzzy";
-import { fixedKeyGroups } from "./fixedKeys";
+import { filterSections, fixedSections, registrySections, type Section } from "./model";
 import { t } from "../../i18n";
 
 export interface ShortcutOverlayProps {
   onClose: () => void;
-}
-
-interface Entry {
-  key: string;
-  label: string;
-  /** Alternatives; an alternative with "…" in between is a range (Ctrl+1 … Ctrl+8). */
-  keys: string[][];
-}
-
-interface Section {
-  id: string;
-  title: string;
-  where?: string;
-  entries: Entry[];
-}
-
-const GROUP_ORDER: CommandGroup[] = ["General", "View", "Tabs", "Repository", "Remote", "Branch", "Commit", "Stash", "File"];
-const GROUP_TITLES: Record<CommandGroup, string> = {
-  General: t("shortcuts.groups.general"),
-  View: t("shortcuts.groups.view"),
-  Tabs: t("shortcuts.groups.tabs"),
-  Repository: t("shortcuts.groups.repository"),
-  Remote: t("shortcuts.groups.remote"),
-  Branch: t("shortcuts.groups.branch"),
-  Commit: t("shortcuts.groups.commit"),
-  Stash: t("shortcuts.groups.stash"),
-  File: t("shortcuts.groups.file"),
-};
-
-function registrySections(commands: readonly AppCommand[]): Section[] {
-  const withKeys = commands.filter((command) => command.shortcut);
-  const sections: Section[] = [];
-  for (const group of GROUP_ORDER) {
-    const list = withKeys.filter((command) => command.group === group);
-    if (!list.length) continue;
-    const entries: Entry[] = [];
-    // Ctrl+1 … Ctrl+8 as one row instead of eight.
-    const numbered = list.filter((command) => /^tab\.goto\.[1-8]$/.test(command.id));
-    for (const command of list) {
-      if (numbered.includes(command)) {
-        if (command === numbered[0]) {
-          entries.push({
-            key: "tab.goto.range",
-            label: t("shortcuts.gotoTabRange", { count: numbered.length }),
-            keys: [[numbered[0]!.shortcut!, "…", numbered[numbered.length - 1]!.shortcut!]],
-          });
-        }
-        continue;
-      }
-      entries.push({ key: command.id, label: command.title.replace(/ …$/, ""), keys: [[command.shortcut!]] });
-    }
-    sections.push({ id: `group-${group}`, title: GROUP_TITLES[group], entries });
-  }
-  return sections;
-}
-
-const fixedSections: Section[] = fixedKeyGroups.map((group) => ({
-  id: `fixed-${group.id}`,
-  title: group.title,
-  where: group.where,
-  entries: group.entries.map((entry, index) => ({ key: `${group.id}-${index}`, label: entry.label, keys: entry.keys.map((key) => [key]) })),
-}));
-
-function searchText(section: Section, entry: Entry): string {
-  const keys = entry.keys.flat().map((key) => `${key} ${formatShortcut(key)}`);
-  return fold(`${entry.label} ${section.title} ${keys.join(" ")}`);
-}
-
-function filterSections(sections: Section[], query: string): Section[] {
-  const words = fold(query.trim()).split(/\s+/).filter(Boolean);
-  if (!words.length) return sections;
-  const out: Section[] = [];
-  for (const section of sections) {
-    const entries = section.entries.filter((entry) => {
-      const text = searchText(section, entry);
-      return words.every((word) => text.includes(word));
-    });
-    if (entries.length) out.push({ ...section, entries });
-  }
-  return out;
 }
 
 function Keys({ keys }: { keys: string[][] }) {
