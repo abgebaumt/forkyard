@@ -307,6 +307,7 @@ pub async fn repo_trust_set(core: &Core, repo_id: String, trusted: bool) -> Core
     } else {
         let _ = crate::watcher::stop_watching(core, &repo_id);
         let _ = crate::autofetch::stop(core, &repo_id);
+        crate::commands::graph::release_graph_walkers(core, &repo_id);
     }
     core.emit_app_changed(&[AppChange::Repos, AppChange::Tabs]);
     repo_trust_get(core, repo_id).await

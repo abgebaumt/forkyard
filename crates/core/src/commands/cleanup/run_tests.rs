@@ -34,6 +34,20 @@ async fn normal_packs_loose_objects_and_keeps_young_unreachable_ones() {
     assert!(!result.cancelled && result.failure.is_none());
 }
 
+/// A live graph walker holds old packs open (on Windows gc could not delete them): gc ends it first.
+#[tokio::test]
+async fn gc_ends_the_graph_walkers_of_the_repository() {
+    use crate::commands::graph::{graph_page, graph_walker_count};
+    let (tc, repo, id) = setup().await;
+    for n in 0..4 {
+        repo.commit_file(&format!("Messwerte/Station {n}.csv"), format!("tag;mittel\n1;{n}\n"), "Messwerte");
+    }
+    graph_page(&tc, id.clone(), None, 2).await.unwrap();
+    assert_eq!(graph_walker_count(&tc, Some(&id)), 1);
+    run_cleanup(&tc, &id, only_gc(CleanupMode::Normal)).await.unwrap();
+    assert_eq!(graph_walker_count(&tc, Some(&id)), 0);
+}
+
 #[tokio::test]
 async fn thorough_removes_unreachable_loose_objects_at_once() {
     let (tc, repo, id) = setup().await;
