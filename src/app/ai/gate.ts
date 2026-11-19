@@ -27,8 +27,34 @@ export async function confirmSend(
   return result.ok;
 }
 
-/** "What is sent?" without sending: the text `input` builds (default: the staged changes of the repository). */
-export async function showWhatIsSent(repoId: Id, feature: AiFeature, input: AiInput = { kind: "staged_changes" }): Promise<void> {
-  const result = await runAction(t("ai.preview.loading"), () => core.aiPreview({ repoId, feature, input, locale: locale() }));
+/**
+ * "What is sent?" without sending: the text `input` builds (default: the staged changes of the
+ * repository). A failed preview goes to `onError` (inline in the element) or else to a toast.
+ */
+export async function showWhatIsSent(
+  repoId: Id,
+  feature: AiFeature,
+  input: AiInput = { kind: "staged_changes" },
+  onError?: (error: unknown) => void,
+): Promise<void> {
+  const load = () => core.aiPreview({ repoId, feature, input, locale: locale() });
+  if (onError) {
+    try {
+      await showAiPreview(await load(), "look");
+    } catch (error) {
+      onError(error);
+    }
+    return;
+  }
+  const result = await runAction(t("ai.preview.loading"), load);
   if (result.ok) await showAiPreview(result.value, "look");
+}
+
+/**
+ * Builds the preview of a request and passes the send gate. Null when the user did not send;
+ * throws when the preview could not be built.
+ */
+export async function askAi(repoId: Id, feature: AiFeature, input: AiInput): Promise<AiPreview | null> {
+  const preview = await core.aiPreview({ repoId, feature, input, locale: locale() });
+  return (await confirmSend(repoId, feature, preview)) ? preview : null;
 }

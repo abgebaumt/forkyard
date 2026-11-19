@@ -6,15 +6,14 @@
  * "Discard"). The view stays usable meanwhile, cancelling drops the answer, errors stay inline and a
  * late answer never moves the focus.
  */
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { core, type AiPreview, type Id } from "../../core";
-import { signInInTerminal } from "../../app/ai/cliLogin";
-import { confirmSend, showWhatIsSent } from "../../app/ai/gate";
-import { openAiSettings, openAiSetup } from "../../app/ai/open";
-import { errorView, loadingView, type AiErrorView } from "../../app/ai/requestState";
+import { useRef, useState, type ReactNode } from "react";
+import { core, type Id } from "../../core";
+import { AiErrorNotice } from "../../app/ai/AiErrorNotice";
+import { askAi, showWhatIsSent } from "../../app/ai/gate";
+import { checkProvider } from "../../app/ai/open";
+import { useAiJob } from "../../app/ai/useAiJob";
 import { aiVisibility, featureVisible } from "../../app/ai/visibility";
 import { useAiStatus, useRepoSettings } from "../../app/queries";
-import { newJobId } from "../../app/run";
 import { Button } from "../../ui/Button";
 import { locale, t } from "../../i18n";
 import { fromSuggestion, placeSplit, type DraftPart } from "./model";
@@ -44,75 +43,36 @@ export interface StackSuggest {
   clearSuggested: () => void;
 }
 
-type FailedView = Exclude<AiErrorView, { kind: "cancelled" }>;
-type Run = { kind: "idle" } | { kind: "running"; startedAt: number } | { kind: "failed"; view: FailedView };
-
 export function useStackSuggest({ repoId, branch, base, commitCount, parts, onInsert }: StackSuggestInput): StackSuggest {
   const status = useAiStatus();
   const repoSettings = useRepoSettings(repoId);
-  const [run, setRun] = useState<Run>({ kind: "idle" });
-  const [clock, setClock] = useState(() => Date.now());
+  const job = useAiJob(status.data?.local ?? false);
+  const { run, running, loading } = job;
   const [offer, setOffer] = useState<{ parts: DraftPart[]; ready: boolean } | null>(null);
   const [onePart, setOnePart] = useState(false);
   const [suggested, setSuggested] = useState(false);
   const latest = useRef(parts);
   latest.current = parts;
-  /** Job of the running request; null = none (a late answer of a cancelled one is dropped). */
-  const active = useRef<string | null>(null);
 
   const visible = featureVisible(status.data, FEATURE, repoSettings.data?.aiOff ?? false);
   const opensSetup = aiVisibility(status.data).elementsOpenSetup;
   const input = base ? { kind: FEATURE, branch, base } : null;
-  const running = run.kind === "running";
-
-  useEffect(() => {
-    if (!running) return;
-    const timer = window.setInterval(() => setClock(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [running]);
-
-  // Leaving the view cancels a running request; its answer is dropped.
-  useEffect(
-    () => () => {
-      const jobId = active.current;
-      active.current = null;
-      if (jobId) void core.jobCancel({ jobId }).catch(() => undefined);
-    },
-    [],
-  );
-
-  const fail = (error: unknown) => {
-    const view = errorView(error);
-    setRun(view.kind === "cancelled" ? { kind: "idle" } : { kind: "failed", view });
-  };
 
   const start = async () => {
-    if (opensSetup) {
-      void openAiSetup();
-      return;
-    }
-    if (!input || active.current || commitCount === 0) return;
-    setRun({ kind: "idle" });
+    if (!checkProvider(status.data)) return;
+    if (!input || job.busy() || commitCount === 0) return;
+    job.reset();
     setOffer(null);
     setOnePart(false);
-    let preview: AiPreview;
     try {
-      preview = await core.aiPreview({ repoId, feature: FEATURE, input, locale: locale() });
+      if (!(await askAi(repoId, FEATURE, input))) return;
     } catch (error) {
-      fail(error);
+      job.fail(error);
       return;
     }
-    if (!(await confirmSend(repoId, FEATURE, preview))) return;
-    const jobId = newJobId();
     const atStart = latest.current;
-    active.current = jobId;
-    setClock(Date.now());
-    setRun({ kind: "running", startedAt: Date.now() });
-    try {
-      const answer = await core.aiStackSplit({ repoId, jobId, branch, base: input.base, locale: locale() });
-      if (active.current !== jobId) return;
-      active.current = null;
-      setRun({ kind: "idle" });
+    const answer = await job.start((jobId) => core.aiStackSplit({ repoId, jobId, branch, base: input.base, locale: locale() }));
+    if (answer) {
       const next = fromSuggestion(answer);
       setOnePart(next.length === 1);
       const placement = placeSplit(latest.current, atStart, commitCount);
@@ -122,19 +82,10 @@ export function useStackSuggest({ repoId, branch, base, commitCount, parts, onIn
       } else {
         setOffer({ parts: next, ready: placement === "ready" });
       }
-    } catch (error) {
-      if (active.current !== jobId) return;
-      active.current = null;
-      fail(error);
     }
   };
 
-  const cancel = () => {
-    const jobId = active.current;
-    active.current = null;
-    setRun({ kind: "idle" });
-    if (jobId) void core.jobCancel({ jobId }).catch(() => undefined);
-  };
+  const cancel = job.cancel;
 
   const take = () => {
     if (!offer) return;
@@ -144,68 +95,8 @@ export function useStackSuggest({ repoId, branch, base, commitCount, parts, onIn
   };
 
   const showSent = () => {
-    if (input) void showWhatIsSent(repoId, FEATURE, input).catch(fail);
+    if (input) void showWhatIsSent(repoId, FEATURE, input, job.fail);
   };
-
-  const errorActions = (view: FailedView): ReactNode => {
-    switch (view.kind) {
-      case "setup":
-        return (
-          <Button size="sm" onClick={() => void openAiSetup()}>
-            {t("ai.state.setup")}
-          </Button>
-        );
-      case "notLoggedIn": {
-        const provider = status.data?.provider ?? null;
-        return provider ? (
-          <Button size="sm" onClick={() => signInInTerminal(provider)}>
-            {t("ai.setup.cli.signIn")}
-          </Button>
-        ) : (
-          <Button size="sm" onClick={() => void openAiSetup()}>
-            {t("ai.state.setup")}
-          </Button>
-        );
-      }
-      case "limit":
-        return (
-          <>
-            <Button size="sm" onClick={() => void start()}>
-              {t("ai.state.limitSend")}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={openAiSettings}>
-              {t("ai.state.limitChange")}
-            </Button>
-          </>
-        );
-      case "invalid":
-      case "tooLarge":
-        return (
-          <>
-            <Button size="sm" onClick={() => void start()}>
-              {t("ai.state.again")}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={showSent}>
-              {t("ai.state.showSent")}
-            </Button>
-          </>
-        );
-      case "unavailable":
-        return (
-          <Button size="sm" onClick={() => void start()}>
-            {t("ai.state.retry")}
-          </Button>
-        );
-      default:
-        return (
-          <Button size="sm" onClick={() => void start()}>
-            {t("ai.state.again")}
-          </Button>
-        );
-    }
-  };
-
-  const loading = run.kind === "running" ? loadingView(clock - run.startedAt, status.data?.local ?? false) : null;
 
   const control: ReactNode = visible ? (
     <div className="flex shrink-0 items-center gap-1" data-stack-ai="">
@@ -232,14 +123,13 @@ export function useStackSuggest({ repoId, branch, base, commitCount, parts, onIn
         {loading ? (loading.slow ? `${loading.text} – ${loading.slow}` : loading.text) : ""}
       </p>
       {run.kind === "failed" ? (
-        <div
-          role="alert"
-          data-stack-suggest-error={run.view.kind}
-          className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface px-3 py-2"
-        >
-          <p className="min-w-0 flex-1 text-sm break-words text-text">{run.view.text}</p>
-          {errorActions(run.view)}
-        </div>
+        <AiErrorNotice
+          name="stack-suggest-error"
+          view={run.view}
+          provider={status.data?.provider ?? null}
+          onAgain={() => void start()}
+          onShowSent={showSent}
+        />
       ) : null}
       {onePart && !offer ? (
         <p data-stack-one-part="" className="text-sm text-text-muted">
