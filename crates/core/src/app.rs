@@ -226,6 +226,9 @@ impl Core {
             let profile_id = db::profiles::active_id(tx)?;
             if !settings.remember_tabs {
                 db::tabs::delete_all(tx, &profile_id)?;
+                for window in db::windows::list(tx, &profile_id)?.into_iter().filter(|w| w.label != db::windows::MAIN) {
+                    db::windows::delete(tx, &profile_id, &window.label)?;
+                }
             }
             db::tabs::ensure_all(tx, &profile_id)
         })

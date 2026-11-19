@@ -35,6 +35,7 @@ const tab = (id: string, kind: Tab["kind"], repoId: string | null, isActive: boo
   isActive,
   title: repoId ?? "",
   path: repoId ? `/home/anna/${repoId}` : null,
+  window: "main",
 });
 
 describe("agent watch across repository tabs", () => {

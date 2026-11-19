@@ -8,8 +8,7 @@ use crate::error::CoreResult;
 use crate::model::{WindowGeometry, WindowState};
 use crate::util;
 
-/// Label of the window every profile has.
-pub const MAIN: &str = "main";
+pub use crate::windowing::MAIN;
 
 fn from_row(r: &Row) -> rusqlite::Result<WindowState> {
     let position: i64 = r.get("position")?;
@@ -68,8 +67,11 @@ pub fn insert(conn: &Connection, profile_id: &str, label: &str, geometry: Option
     Ok(())
 }
 
-/// Removes the window and its tabs.
+/// Removes the window and its tabs. `main` stays: without it `ensure` would relabel another window.
 pub fn delete(conn: &Connection, profile_id: &str, label: &str) -> CoreResult<()> {
+    if label == MAIN {
+        return Err(crate::error::CoreError::not_allowed("The main window cannot be removed."));
+    }
     conn.execute("delete from tabs where profile_id = ?1 and window_id = ?2", params![profile_id, label])?;
     conn.execute("delete from profile_windows where profile_id = ?1 and label = ?2", params![profile_id, label])?;
     Ok(())
@@ -180,6 +182,17 @@ mod tests {
         })
         .unwrap();
         assert_eq!(labels(&db), vec![("main".to_string(), 0), ("w-aaa111".to_string(), 1)]);
+    }
+
+    #[test]
+    fn delete_refuses_main() {
+        let db = db_with_profile();
+        let err = db.with(|c| {
+            ensure(c, "p")?;
+            delete(c, "p", MAIN)
+        });
+        assert_eq!(err.unwrap_err().code, crate::ErrorCode::NotAllowed);
+        assert_eq!(labels(&db), vec![("main".to_string(), 0)]);
     }
 
     #[test]
