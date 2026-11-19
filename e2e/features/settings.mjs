@@ -475,7 +475,16 @@ scenario(
     );
     assertEqual(
       nav[0].tabs.map((tab) => tab.label),
-      ["Appearance", "Diff and editor", "External programs", "Custom commands", "Notifications", "AI", "Coding agents"],
+      [
+        "Appearance",
+        "Diff and editor",
+        "External programs",
+        "Custom commands",
+        "Keyboard shortcuts",
+        "Notifications",
+        "AI",
+        "Coding agents",
+      ],
       "global sections",
     );
     assertIncludes(nav[1].tabs.map((tab) => tab.label).join("|"), "Git behavior", "profile sections");
