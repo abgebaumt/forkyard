@@ -49,7 +49,8 @@ import { TreeRow } from "../../ui/Git";
 import type { MenuEntry } from "../../ui/Menu";
 import { t } from "../../i18n";
 import { EMPTY_VIEW, sectionState, setSection } from "../LeftPanel/viewState";
-import { describeSubmodule, matchesSubmodule, splitPath, submoduleSecondary, submoduleTipLines } from "./model";
+import { describeSubmodule, matchesSubmodule, submoduleSecondary, submoduleTipLines } from "./model";
+import { splitPath } from "../../app/paths";
 
 export interface SubmodulesSectionProps {
   repoId: Id;

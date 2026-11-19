@@ -370,11 +370,6 @@ export function peekOf(unit: ComposeUnit): { kind: "add" | "remove"; text: strin
     .map((line) => ({ kind: line.kind as "add" | "remove", text: line.text.trim() }));
 }
 
-export function splitPath(path: string): { dir: string; name: string } {
-  const cut = path.lastIndexOf("/") + 1;
-  return { dir: path.slice(0, cut), name: path.slice(cut) };
-}
-
 export function summaryOf(arrangement: Arrangement): { commits: number; units: number; skipped: number; untitled: number } {
   return {
     commits: arrangement.commits.length,

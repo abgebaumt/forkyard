@@ -422,12 +422,6 @@ export function hunkRange(hunk: Hunk): string {
   return useOld ? t("diff.hunkRange.old", { label }) : label;
 }
 
-/** Folder and file name separately. */
-export function splitPath(path: string): { dir: string; name: string } {
-  const slash = path.lastIndexOf("/");
-  return slash === -1 ? { dir: "", name: path } : { dir: path.slice(0, slash + 1), name: path.slice(slash + 1) };
-}
-
 export const sourceKey = (source: DiffSource): string =>
   source.kind === "commit"
     ? `commit:${source.sha}`

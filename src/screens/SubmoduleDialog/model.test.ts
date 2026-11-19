@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Submodule } from "../../core";
 import { submoduleStateText } from "../../app/actions/submodules";
-import { matchesSubmodule, moveTargetProblem, normalizePath, pathProblem, splitPath, submoduleSecondary, suggestPath } from "./model";
+import { matchesSubmodule, moveTargetProblem, normalizePath, pathProblem, submoduleSecondary, suggestPath } from "./model";
 import { t } from "../../i18n";
 
 const sub = (patch: Partial<Submodule>): Submodule => ({
@@ -61,10 +61,6 @@ describe("submodule: row", () => {
       `${submoduleStateText.out_of_sync} · 2222222 instead of 1111111`,
     );
     expect(submoduleSecondary(sub({ state: "modified", branch: "main" }))).toBe(`${submoduleStateText.modified} · 1111111 · main`);
-  });
-  it("splits the path into name and folder", () => {
-    expect(splitPath("libs/kern")).toEqual({ name: "kern", dir: "libs/" });
-    expect(splitPath("kern")).toEqual({ name: "kern", dir: "" });
   });
   it("filters by path, URL and name", () => {
     expect(matchesSubmodule(sub({}), "KERN")).toBe(true);

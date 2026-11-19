@@ -9,7 +9,8 @@ import { DiffHunk, type DiffLine as UiDiffLine } from "../../ui/Diff";
 import { Kbd } from "../../ui/Kbd";
 import { laneColor } from "../../ui/cn";
 import { t } from "../../i18n";
-import { SKIP, groupOf, splitPath, unitDetail, type Arrangement, type Review, type Selection, type Units } from "./model";
+import { SKIP, groupOf, unitDetail, type Arrangement, type Review, type Selection, type Units } from "./model";
+import { splitPath } from "../../app/paths";
 
 function toUiLines(unit: ComposeUnit): UiDiffLine[] {
   return unit.lines.map((line) => ({

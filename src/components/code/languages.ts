@@ -3,6 +3,7 @@
  * (dynamic import), so that the start bundle stays small.
  */
 import type { LanguageSupport } from "@codemirror/language";
+import { baseName } from "../../app/paths";
 
 type Loader = () => Promise<LanguageSupport>;
 
@@ -88,7 +89,7 @@ const byFileName: Record<string, keyof typeof loaders> = {
 /** Name of the language for a path, or null (then the text stays uncoloured). */
 export function languageNameForPath(path: string | null | undefined): string | null {
   if (!path) return null;
-  const name = path.slice(path.lastIndexOf("/") + 1).toLowerCase();
+  const name = baseName(path).toLowerCase();
   if (name in byFileName) return byFileName[name] ?? null;
   const dot = name.lastIndexOf(".");
   if (dot <= 0) return null;

@@ -1,6 +1,7 @@
 /** Reading clone URLs: kind, server, host and a suggestion for the folder name. */
 import type { RemoteHost } from "../../core";
 import { t } from "../../i18n";
+import { hostKindOf } from "../../app/paths";
 
 export type UrlKind = "https" | "http" | "ssh" | "git" | "file" | "local";
 
@@ -28,15 +29,6 @@ const SCHEMES: Record<string, UrlKind | null> = {
   ftp: null,
   ftps: null,
 };
-
-function hosterOf(host: string): RemoteHost {
-  const labels = host.split(".");
-  if (host === "dev.azure.com" || host.endsWith(".dev.azure.com") || host.endsWith(".visualstudio.com")) return "azure";
-  if (labels.includes("github")) return "github";
-  if (labels.includes("gitlab")) return "gitlab";
-  if (labels.includes("bitbucket")) return "bitbucket";
-  return "other";
-}
 
 /** Last path segment without “.git”, cleaned of characters that are not allowed in folder names. */
 export function suggestName(pathPart: string): string {
@@ -108,7 +100,7 @@ export function parseCloneUrl(raw: string): UrlCheck {
     if (badPort) return { ok: false, reason: badPort };
     const path = slash < 0 ? "" : rest.slice(slash + 1);
     if (!path.replace(/\/+$/, "")) return { ok: false, reason: t("clone.parse.pathMissing") };
-    return { ok: true, kind, host, hoster: hosterOf(host), name: suggestName(path) };
+    return { ok: true, kind, host, hoster: hostKindOf(host), name: suggestName(path) };
   }
 
   // “ssh:/host/…” – one slash too few. Git would read this as a server named “ssh” and later report
@@ -134,7 +126,7 @@ export function parseCloneUrl(raw: string): UrlCheck {
     const path = scp[3]!;
     if (/\s/.test(url)) return { ok: false, reason: t("clone.parse.spaces") };
     if (!path.replace(/\/+$/, "")) return { ok: false, reason: t("clone.parse.scpPathMissing") };
-    return { ok: true, kind: "ssh", host, hoster: hosterOf(host), name: suggestName(path) };
+    return { ok: true, kind: "ssh", host, hoster: hostKindOf(host), name: suggestName(path) };
   }
 
   return {

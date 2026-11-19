@@ -69,6 +69,7 @@ import {
 import { MarkdownPreview } from "./MarkdownPreview";
 import { goBack } from "./nav";
 import { BackButton, CodeSkeleton, Divider, FileTitle, Tag, isPlainEscape, ownsKey } from "./parts";
+import { baseName } from "../../app/paths";
 
 export interface FileViewProps {
   repoId: Id;
@@ -206,7 +207,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
       const current = latest.current.buffer;
       if (!worktree || !current || current.key !== key) return false;
       const { text, encoding, eol } = current;
-      const name = path.slice(path.lastIndexOf("/") + 1);
+      const name = baseName(path);
       const result = await runAction(t("fileView.save"), () => core.fileWrite({ repoId, path, content: text, encoding, eol }), {
         busyKey: busyKey(repoId, path),
       });
@@ -243,7 +244,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
   /** Close or go back – with a prompt if there are unsaved changes. */
   const close = useCallback(async () => {
     if (worktree && isDirty(latest.current.buffer)) {
-      const name = path.slice(path.lastIndexOf("/") + 1);
+      const name = baseName(path);
       const answer = await choose({
         title: t("fileView.closeDirty.title", { name }),
         description: t("fileView.closeDirty.text"),
@@ -304,7 +305,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
   }, []);
 
   // --- Kopf ------------------------------------------------------------------------------------
-  const name = path.slice(path.lastIndexOf("/") + 1);
+  const name = baseName(path);
   const standLabel = worktree ? t("fileView.header.worktree") : t("fileView.header.commit", { sha: shortSha(sha!) });
   const header = (
     <header data-file-header="" className="@container shrink-0 border-b border-border bg-surface">
@@ -763,7 +764,7 @@ function ImagePreview({ repoId, path, sha, size }: { repoId: Id; path: string; s
       </Notice>
     );
   }
-  const name = path.slice(path.lastIndexOf("/") + 1);
+  const name = baseName(path);
   return (
     <figure data-image-preview="" className="m-0 flex h-full min-h-0 flex-col">
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-surface-sunken p-6">

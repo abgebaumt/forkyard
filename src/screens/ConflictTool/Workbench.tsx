@@ -51,7 +51,7 @@ import {
   type Eol,
   type Side,
 } from "./model";
-import { Divider, Strip, Tag, ToolHeader, splitPath } from "./parts";
+import { Divider, Strip, Tag, ToolHeader } from "./parts";
 import { ResultEditor, type ChunkLook, type ResultEditorHandle } from "./ResultEditor";
 import {
   clampIntentWidth,
@@ -69,6 +69,7 @@ import { dropSession, loadSession, saveSession } from "./session";
 import { SidesView, type SidesViewHandle } from "./SidesView";
 import type { SideTitles } from "./titles";
 import { t } from "../../i18n";
+import { splitPath } from "../../app/paths";
 
 export interface WorkbenchHandle {
   goToConflict(direction: 1 | -1): void;
