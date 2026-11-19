@@ -118,7 +118,7 @@ function mount() {
   pendingEffects = [];
   renderFn = () => {
     cursor = 0;
-    writer = useReleaseNotesWriter({ repoId: "repo", to: "v1.2.0", current: () => field, apply: (text) => (field = text) });
+    writer = useReleaseNotesWriter({ repoId: "repo", to: "v1.2.0", local: false, current: () => field, apply: (text) => (field = text) });
     const run = pendingEffects;
     pendingEffects = [];
     run.forEach((effect) => effect());

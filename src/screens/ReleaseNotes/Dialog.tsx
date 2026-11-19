@@ -68,7 +68,7 @@ function ReleaseNotesDialog({ repoId, subject, onDone }: { repoId: Id; subject: 
   const [busy, setBusy] = useState(false);
   const availability = useReleaseNotesAvailability(repoId);
   const range = useReleaseNotesRange(repoId, to);
-  const writer = useReleaseNotesWriter({ repoId, to, current: () => notesRef.current, apply: setText });
+  const writer = useReleaseNotesWriter({ repoId, to, local: availability.local, current: () => notesRef.current, apply: setText });
   const provider = useAiStatus().data?.provider ?? null;
   const available = availableTargets(subject.kind, availability.hostReleases);
 
@@ -109,7 +109,6 @@ function ReleaseNotesDialog({ repoId, subject, onDone }: { repoId: Id; subject: 
           to={to}
           writer={writer}
           openSetup={availability.openSetup}
-          local={availability.local}
           onSetup={setupFor(() => onDone(null))}
           onSignIn={signInFor(provider, () => onDone(null))}
         />

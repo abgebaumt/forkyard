@@ -355,7 +355,7 @@ function TagDialog({
   const [busy, setBusy] = useState(false);
   const check = useRef(0);
   const notes = useReleaseNotesAvailability(repoId);
-  const writer = useReleaseNotesWriter({ repoId, to: sha, current: () => messageRef.current, apply: setText });
+  const writer = useReleaseNotesWriter({ repoId, to: sha, local: notes.local, current: () => messageRef.current, apply: setText });
   const provider = useAiStatus().data?.provider ?? null;
 
   useEffect(() => {
@@ -458,7 +458,6 @@ function TagDialog({
             to={sha}
             writer={writer}
             openSetup={notes.openSetup}
-            local={notes.local}
             onSetup={() => {
               onDone(null);
               openAiSettings();
