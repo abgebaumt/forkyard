@@ -78,6 +78,7 @@ pub fn stop_background_if_closed(core: &Core, repo_id: &str) {
     if !still_open {
         let _ = watcher::stop_watching(core, repo_id);
         let _ = autofetch::stop(core, repo_id);
+        crate::commands::graph::release_graph_walkers(core, repo_id);
     }
 }
 
@@ -219,6 +220,7 @@ pub async fn repo_forget(core: &Core, repo_id: String) -> CoreResult<()> {
     if gone {
         let _ = watcher::stop_watching(core, &repo_id);
         let _ = autofetch::stop(core, &repo_id);
+        crate::commands::graph::release_graph_walkers(core, &repo_id);
     } else {
         stop_background_if_closed(core, &repo_id);
     }
