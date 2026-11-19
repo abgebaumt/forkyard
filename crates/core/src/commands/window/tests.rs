@@ -118,3 +118,253 @@ async fn without_remember_tabs_only_main_survives_a_restart() {
         vec![(TabKind::Management, "main", true)]
     );
 }
+
+// --- Window commands and lifecycle -------------------------------------------
+
+use super::*;
+use crate::commands::app::app_quit;
+use crate::events::names;
+use crate::model::{ScreenPoint, ScreenRect, StripReport, WindowFrameInput};
+
+fn profile_id(tc: &TestCore) -> String {
+    tc.db.with(db::profiles::active_id).unwrap()
+}
+
+fn window_labels(tc: &TestCore) -> Vec<String> {
+    let profile_id = profile_id(tc);
+    tc.db.with(|c| db::windows::list(c, &profile_id)).unwrap().into_iter().map(|w| w.label).collect()
+}
+
+fn synced_labels(tc: &TestCore) -> (Vec<String>, bool) {
+    let (windows, place_existing) = tc.events.window_syncs().last().cloned().expect("a sync");
+    (windows.into_iter().map(|w| w.label).collect(), place_existing)
+}
+
+fn app_changed_has(tc: &TestCore, what: &str) -> bool {
+    tc.events.named(names::APP_CHANGED).iter().any(|v| v["what"].as_array().unwrap().iter().any(|w| w == what))
+}
+
+#[tokio::test]
+async fn moving_a_tab_activates_it_in_the_target_and_closes_an_empty_source() {
+    let tc = TestCore::new().await;
+    let a = tabs_list(&tc).await.unwrap().remove(0);
+    add_window(&tc);
+    let b = in_w(W, tabs_list(&tc)).await.unwrap().remove(0);
+    assert_eq!(tab_move_to_window(&tc, a.id.clone(), "w-gone".into(), 0).await.unwrap_err().code, ErrorCode::NotFound);
+    tc.events.clear();
+
+    let left = tab_move_to_window(&tc, a.id.clone(), W.into(), 0).await.unwrap();
+    assert_eq!(left, vec![]);
+    let w_tabs = in_w(W, tabs_list(&tc)).await.unwrap();
+    assert_eq!(
+        w_tabs.iter().map(|t| (t.id.as_str(), t.is_active)).collect::<Vec<_>>(),
+        vec![(a.id.as_str(), true), (b.id.as_str(), false)]
+    );
+    assert_eq!(window_labels(&tc), vec![W]);
+    assert_eq!(synced_labels(&tc).0, vec![W]);
+    assert_eq!(tc.events.targeted(names::APP_FOCUS_REQUEST)[0].0, W);
+    assert!(app_changed_has(&tc, "windows") && app_changed_has(&tc, "tabs"));
+}
+
+#[tokio::test]
+async fn moving_within_the_own_window_reorders() {
+    let tc = TestCore::new().await;
+    let a = tabs_list(&tc).await.unwrap().remove(0);
+    let b = tab_open(&tc, None).await.unwrap().remove(1);
+    let tabs = tab_move_to_window(&tc, b.id.clone(), "main".into(), 0).await.unwrap();
+    assert_eq!(tabs.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(), vec![b.id.as_str(), a.id.as_str()]);
+    assert!(tc.events.window_syncs().is_empty());
+}
+
+#[tokio::test]
+async fn moving_the_active_tab_out_activates_its_right_neighbour() {
+    let tc = TestCore::new().await;
+    tabs_list(&tc).await.unwrap();
+    tab_open(&tc, None).await.unwrap();
+    let tabs = tab_open(&tc, None).await.unwrap();
+    let [a, b, c] = [&tabs[0], &tabs[1], &tabs[2]].map(|t| t.id.clone());
+    tab_activate(&tc, b.clone()).await.unwrap();
+    add_window(&tc);
+    let left = tab_move_to_window(&tc, b, W.into(), 9).await.unwrap();
+    assert_eq!(left.iter().map(|t| (t.id.clone(), t.is_active)).collect::<Vec<_>>(), vec![(a, false), (c, true)]);
+}
+
+#[tokio::test]
+async fn the_only_tab_cannot_be_torn_out() {
+    let tc = TestCore::new().await;
+    let a = tabs_list(&tc).await.unwrap().remove(0);
+    assert_eq!(tab_move_to_new_window(&tc, a.id, None).await.unwrap_err().code, ErrorCode::NotAllowed);
+    assert_eq!(window_labels(&tc), vec!["main"]);
+}
+
+#[tokio::test]
+async fn tearing_out_creates_a_window_at_the_point() {
+    let tc = TestCore::new().await;
+    tabs_list(&tc).await.unwrap();
+    let b = tab_open(&tc, None).await.unwrap().remove(1);
+    let label = tab_move_to_new_window(&tc, b.id.clone(), Some(ScreenPoint { x: -1600.0, y: 40.0 })).await.unwrap();
+    assert!(windowing::is_label(&label) && label != "main");
+    let profile_id = profile_id(&tc);
+    let rows = tc.db.with(|c| db::windows::list(c, &profile_id)).unwrap();
+    let g = rows.iter().find(|w| w.label == label).unwrap().geometry.unwrap();
+    assert_eq!((g.x, g.y, g.width, g.height, g.maximized), (-1600.0, 40.0, 1440.0, 900.0, false));
+    let moved = tc.db.with(|c| db::tabs::require(c, &profile_id, &b.id)).unwrap();
+    assert_eq!((moved.window.as_str(), moved.is_active), (label.as_str(), true));
+    assert_eq!(synced_labels(&tc), (vec!["main".to_string(), label], false));
+}
+
+#[tokio::test]
+async fn a_torn_out_window_takes_the_remembered_size() {
+    let tc = TestCore::new().await;
+    tabs_list(&tc).await.unwrap();
+    let b = tab_open(&tc, None).await.unwrap().remove(1);
+    note_geometry(&tc, "main", WindowGeometry { x: 10.0, y: 20.0, width: 1000.0, height: 700.0, maximized: true });
+    let label = tab_move_to_new_window(&tc, b.id, None).await.unwrap();
+    let profile_id = profile_id(&tc);
+    let rows = tc.db.with(|c| db::windows::list(c, &profile_id)).unwrap();
+    let g = rows.iter().find(|w| w.label == label).unwrap().geometry.unwrap();
+    assert_eq!((g.width, g.height, g.maximized), (1000.0, 700.0, false));
+    assert_eq!(rows[0].geometry, None, "note_geometry alone does not write");
+    save_geometry(&tc, "main");
+    let rows = tc.db.with(|c| db::windows::list(c, &profile_id)).unwrap();
+    assert_eq!(rows[0].geometry.map(|g| (g.x, g.y)), Some((10.0, 20.0)));
+}
+
+#[tokio::test]
+async fn a_handoff_is_taken_once_and_limited() {
+    let tc = TestCore::new().await;
+    let t = tabs_list(&tc).await.unwrap().remove(0);
+    tab_handoff_put(&tc, t.id.clone(), "{\"old\":1}".into()).await.unwrap();
+    tab_handoff_put(&tc, t.id.clone(), "{\"view\":1}".into()).await.unwrap();
+    assert_eq!(tab_handoff_take(&tc, t.id.clone()).await.unwrap().as_deref(), Some("{\"view\":1}"));
+    assert_eq!(tab_handoff_take(&tc, t.id.clone()).await.unwrap(), None);
+    let err = tab_handoff_put(&tc, t.id.clone(), "x".repeat(4 * 1024 * 1024 + 1)).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::NotAllowed);
+    assert_eq!(tab_handoff_take(&tc, t.id).await.unwrap(), None);
+}
+
+#[tokio::test]
+async fn layout_moves_strips_into_screen_coordinates_and_ranks_by_focus() {
+    let tc = TestCore::new().await;
+    add_window(&tc);
+    let report = StripReport { strip: ScreenRect { x: 0.0, y: 0.0, width: 800.0, height: 36.0 }, tab_mids: vec![50.0, 150.0] };
+    window_strip_report(&tc, Some(report.clone())).await.unwrap();
+    in_w(W, window_strip_report(&tc, Some(report))).await.unwrap();
+    note_focus(&tc, W);
+    note_focus(&tc, "main");
+    let frames = vec![
+        WindowFrameInput { label: "main".into(), inner: Some(ScreenRect { x: 100.0, y: 200.0, width: 1000.0, height: 700.0 }) },
+        WindowFrameInput { label: W.into(), inner: Some(ScreenRect { x: -1600.0, y: 0.0, width: 900.0, height: 600.0 }) },
+        WindowFrameInput { label: "w-ffffffffffffffffffffffffffffffff".into(), inner: None },
+    ];
+    let layout = window_layout(&tc, frames, Some(ScreenPoint { x: -1500.0, y: 10.0 })).await.unwrap();
+    assert!(layout.positions_known, "the frame without a row does not count");
+    assert_eq!(layout.cursor, Some(ScreenPoint { x: -1500.0, y: 10.0 }));
+    let got: Vec<_> = layout.frames.iter().map(|f| (f.label.as_str(), f.strip, f.tab_mids.clone(), f.focus_rank)).collect();
+    assert_eq!(
+        got,
+        vec![
+            ("main", Some(ScreenRect { x: 100.0, y: 200.0, width: 800.0, height: 36.0 }), vec![150.0, 250.0], 0),
+            (W, Some(ScreenRect { x: -1600.0, y: 0.0, width: 800.0, height: 36.0 }), vec![-1550.0, -1450.0], 1),
+        ]
+    );
+
+    window_strip_report(&tc, None).await.unwrap();
+    let frames = vec![WindowFrameInput { label: "main".into(), inner: None }];
+    let layout = window_layout(&tc, frames, None).await.unwrap();
+    assert!(!layout.positions_known);
+    assert_eq!((layout.frames[0].strip, layout.frames[0].tab_mids.len()), (None, 0));
+}
+
+#[tokio::test]
+async fn window_list_and_window_new() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let opened = tc.open(&repo).await;
+    let label = window_new(&tc).await.unwrap();
+    assert!(windowing::is_label(&label) && label != "main");
+    assert_eq!(synced_labels(&tc), (vec!["main".to_string(), label.clone()], false));
+    note_focus(&tc, &label);
+    let list = window_list(&tc).await.unwrap();
+    let title = opened.tab.title.clone();
+    assert_eq!(
+        list,
+        vec![
+            WindowInfo { label: "main".into(), title, tabs: 1, focused: false },
+            WindowInfo { label: label.clone(), title: String::new(), tabs: 1, focused: true },
+        ]
+    );
+}
+
+#[tokio::test]
+async fn windows_closed_while_quitting_are_restored() {
+    let tc = TestCore::new().await;
+    tabs_list(&tc).await.unwrap();
+    add_window(&tc);
+    in_w(W, tabs_list(&tc)).await.unwrap();
+    app_quit(&tc).await.unwrap();
+    window_closed(&tc, W);
+    window_closed(&tc, "main");
+    assert_eq!(window_labels(&tc), vec!["main", W]);
+    assert_eq!(restore(&tc).unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn closing_a_window_drops_its_tabs_but_not_the_last_window() {
+    let tc = TestCore::new().await;
+    set_enabled(&tc, true);
+    let repo = TestRepo::with_commit();
+    let main_tab = tabs_list(&tc).await.unwrap().remove(0);
+    add_window(&tc);
+    let opened = in_w(W, repo_open(&tc, path(&repo))).await.unwrap();
+    crate::commands::trust::repo_trust_set(&tc, opened.repo.id.clone(), true).await.unwrap();
+    assert!(is_watching(&tc, &opened.repo.id));
+    tc.events.clear();
+
+    window_closed(&tc, W);
+    assert_eq!(window_labels(&tc), vec!["main"]);
+    let profile_id = profile_id(&tc);
+    let all = tc.db.with(|c| db::tabs::list_all(c, &profile_id)).unwrap();
+    assert_eq!(all.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(), vec![main_tab.id.as_str()]);
+    assert!(app_changed_has(&tc, "windows"));
+    assert!(!is_watching(&tc, &opened.repo.id), "no window shows the repository any more");
+
+    window_closed(&tc, "main");
+    assert_eq!(window_labels(&tc), vec!["main"]);
+    assert_eq!(tc.db.with(|c| db::tabs::list_all(c, &profile_id)).unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn switching_profiles_swaps_the_windows() {
+    use crate::commands::profiles::{profile_activate, profile_save};
+    let tc = TestCore::new().await;
+    let p1 = profile_id(&tc);
+    tabs_list(&tc).await.unwrap();
+    add_window(&tc);
+    let list = profile_save(&tc, None, "Arbeit".into(), "".into(), "".into(), false, None).await.unwrap();
+    let p2 = list.iter().find(|p| p.id != p1).unwrap().id.clone();
+
+    profile_activate(&tc, p2).await.unwrap();
+    assert_eq!(synced_labels(&tc), (vec!["main".to_string()], true));
+    assert!(app_changed_has(&tc, "windows"));
+    let p1_rows: Vec<String> = tc.db.with(|c| db::windows::list(c, &p1)).unwrap().into_iter().map(|w| w.label).collect();
+    assert_eq!(p1_rows, vec!["main", W]);
+
+    profile_activate(&tc, p1).await.unwrap();
+    assert_eq!(synced_labels(&tc), (vec!["main".to_string(), W.to_string()], true));
+}
+
+#[tokio::test]
+async fn repo_changes_reach_every_window() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    add_window(&tc);
+    repo.write_file("neu.txt", "Inhalt");
+    tc.events.clear();
+    in_w(W, crate::commands::commit::commit_create(&tc, id, "op-w".into(), "Aus W".into(), String::new(), false, false, false, true, None))
+        .await
+        .unwrap();
+    assert!(tc.events.targeted(names::REPO_CHANGED).is_empty());
+    assert!(!tc.events.named(names::REPO_CHANGED).is_empty());
+}

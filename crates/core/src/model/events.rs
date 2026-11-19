@@ -35,6 +35,8 @@ pub enum AppChange {
     CustomCommands,
     /// AI status (`ai_status`): master switch, provider, model, key, given confirmations.
     Ai,
+    /// Windows of the active profile (`window_list`).
+    Windows,
 }
 
 /// `repo:changed`

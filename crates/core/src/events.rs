@@ -87,7 +87,7 @@ pub struct EventCollector {
     events: Mutex<Vec<(String, Value)>>,
     /// `emit_to` calls: (event, window, payload).
     targeted: Mutex<Vec<(String, String, Value)>>,
-    window_syncs: Mutex<Vec<Vec<WindowState>>>,
+    window_syncs: Mutex<Vec<(Vec<WindowState>, bool)>>,
 }
 
 impl EventCollector {
@@ -115,8 +115,8 @@ impl EventCollector {
     pub fn targeted(&self, name: &str) -> Vec<(String, Value)> {
         self.targeted.lock().iter().filter(|(n, _, _)| n == name).map(|(_, w, v)| (w.clone(), v.clone())).collect()
     }
-    /// The window lists of all `sync_windows` calls, oldest first.
-    pub fn window_syncs(&self) -> Vec<Vec<WindowState>> {
+    /// (windows, place_existing) of all `sync_windows` calls, oldest first.
+    pub fn window_syncs(&self) -> Vec<(Vec<WindowState>, bool)> {
         self.window_syncs.lock().clone()
     }
     pub fn clear(&self) {
@@ -134,8 +134,8 @@ impl EventSink for EventCollector {
         self.targeted.lock().push((event.to_string(), window.to_string(), payload.clone()));
         self.emit(event, payload);
     }
-    fn sync_windows(&self, windows: &[WindowState], _place_existing: bool) {
-        self.window_syncs.lock().push(windows.to_vec());
+    fn sync_windows(&self, windows: &[WindowState], place_existing: bool) {
+        self.window_syncs.lock().push((windows.to_vec(), place_existing));
     }
 }
 

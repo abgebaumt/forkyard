@@ -67,10 +67,11 @@ pub fn insert(conn: &Connection, profile_id: &str, label: &str, geometry: Option
     Ok(())
 }
 
-/// Removes the window and its tabs. `main` stays: without it `ensure` would relabel another window.
+/// Removes the window and its tabs. The last window stays. Without `main` the next `ensure`
+/// (start, profile switch) relabels the first remaining window to `main`.
 pub fn delete(conn: &Connection, profile_id: &str, label: &str) -> CoreResult<()> {
-    if label == MAIN {
-        return Err(crate::error::CoreError::not_allowed("The main window cannot be removed."));
+    if list(conn, profile_id)?.iter().all(|w| w.label == label) {
+        return Err(crate::error::CoreError::not_allowed("The last window cannot be removed."));
     }
     conn.execute("delete from tabs where profile_id = ?1 and window_id = ?2", params![profile_id, label])?;
     conn.execute("delete from profile_windows where profile_id = ?1 and label = ?2", params![profile_id, label])?;
@@ -185,7 +186,7 @@ mod tests {
     }
 
     #[test]
-    fn delete_refuses_main() {
+    fn delete_refuses_the_last_window() {
         let db = db_with_profile();
         let err = db.with(|c| {
             ensure(c, "p")?;
@@ -193,6 +194,12 @@ mod tests {
         });
         assert_eq!(err.unwrap_err().code, crate::ErrorCode::NotAllowed);
         assert_eq!(labels(&db), vec![("main".to_string(), 0)]);
+        db.with(|c| {
+            insert(c, "p", "w-a", None)?;
+            delete(c, "p", MAIN)
+        })
+        .unwrap();
+        assert_eq!(labels(&db), vec![("w-a".to_string(), 1)], "main may go while another window stays");
     }
 
     #[test]
