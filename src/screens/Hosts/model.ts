@@ -3,7 +3,8 @@
  * permissions it needs. Permission names are written the way the host calls them (English), so
  * they can be found there; everything else in our own words.
  */
-import type { HostKind } from "../../app/actions/hostTypes";
+import { accountPerson, type AccountState } from "../../app/actions/hosts";
+import type { HostAccountInfo, HostKind } from "../../app/actions/hostTypes";
 import { t } from "../../i18n";
 
 export interface TokenPermission {
@@ -130,3 +131,21 @@ export const instanceLabels: Record<HostKind, { public: string; own: string; own
   bitbucket: { public: "bitbucket.org", own: t("hosts.instance.own"), ownHint: "", placeholder: "" },
   azure_devops: { public: "dev.azure.com", own: t("hosts.instance.own"), ownHint: "", placeholder: "" },
 };
+
+/** The account row's badge text and the line under it. */
+export function stateText(account: HostAccountInfo, state: AccountState): { label: string; detail: string | null } {
+  const person = accountPerson(account);
+  switch (state) {
+    case "ok":
+      return { label: person ? t("hosts.state.connectedAs", { person }) : t("hosts.state.connected"), detail: null };
+    case "scopes":
+      return {
+        label: t("hosts.state.scopes"),
+        detail: person ? t("hosts.state.scopesDetailPerson", { person }) : t("hosts.state.scopesDetail"),
+      };
+    case "expired":
+      return { label: t("hosts.state.expired"), detail: account.lastError ?? t("hosts.state.expiredDetail") };
+    case "error":
+      return { label: t("hosts.state.error"), detail: account.lastError };
+  }
+}

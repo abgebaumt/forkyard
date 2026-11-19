@@ -24,6 +24,7 @@ import { Avatar } from "../../ui/Git";
 import { Badge, GroupTitle, SectionHeader, type BadgeTone } from "../Preferences/parts";
 import { t } from "../../i18n";
 import { openConnectDialog } from "./ConnectDialog";
+import { stateText } from "./model";
 
 export { openConnectDialog } from "./ConnectDialog";
 
@@ -33,23 +34,6 @@ const stateBadge: Record<AccountState, { tone: BadgeTone; icon: typeof CircleChe
   scopes: { tone: "warning", icon: ShieldAlert },
   error: { tone: "warning", icon: TriangleAlert },
 };
-
-function stateText(account: HostAccountInfo, state: AccountState): { label: string; detail: string | null } {
-  const person = accountPerson(account);
-  switch (state) {
-    case "ok":
-      return { label: person ? t("hosts.state.connectedAs", { person }) : t("hosts.state.connected"), detail: null };
-    case "scopes":
-      return {
-        label: t("hosts.state.scopes"),
-        detail: person ? t("hosts.state.scopesDetailPerson", { person }) : t("hosts.state.scopesDetail"),
-      };
-    case "expired":
-      return { label: t("hosts.state.expired"), detail: account.lastError ?? t("hosts.state.expiredDetail") };
-    case "error":
-      return { label: t("hosts.state.error"), detail: account.lastError };
-  }
-}
 
 function AccountRow({ account }: { account: HostAccountInfo }) {
   const busy = useBusy(hostBusyKeys.account(account.id));
