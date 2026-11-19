@@ -10,7 +10,8 @@ export type AppChange =
   | "ssh_keys"
   | "host_accounts"
   | "custom_commands"
-  | "ai";
+  | "ai"
+  | "windows";
 
 /**
  * `app:changed`

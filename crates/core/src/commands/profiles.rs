@@ -110,24 +110,35 @@ pub async fn profile_delete(core: &Core, id: String) -> CoreResult<Vec<Profile>>
 /// Switches the active profile (own tabs and settings); with `sync_gitconfig`
 /// the identity is written into the global gitconfig.
 pub async fn profile_activate(core: &Core, id: String) -> CoreResult<Vec<Profile>> {
-    let (old_repos, new_repos, profile) = core.db.tx(|tx| {
+    let (old_tabs, new_repos, windows, profile) = core.db.tx(|tx| {
         let old = db::profiles::active_id(tx)?;
-        let old_repos = db::tabs::open_repo_ids(tx, &old)?;
+        crate::commands::window::save_all_geometry(core, tx, &old)?;
+        let old_tabs = db::tabs::list_all(tx, &old)?;
         db::profiles::set_active(tx, &id)?;
+        // Also runs `windows::ensure`.
         db::tabs::ensure_all(tx, &id)?;
         let new_repos = db::tabs::open_repo_ids(tx, &id)?;
+        let windows = db::windows::list(tx, &id)?;
         let profile = db::profiles::get(tx, &id)?.ok_or_else(|| CoreError::not_found("Profile not found."))?;
-        Ok((old_repos, new_repos, profile))
+        Ok((old_tabs, new_repos, windows, profile))
     })?;
-    for repo_id in old_repos.iter().filter(|r| !new_repos.contains(r)) {
-        crate::commands::repos::stop_background_if_closed(core, repo_id);
+    core.events.sync_windows(&windows, true);
+    for tabs in old_tabs.chunk_by(|a, b| a.window == b.window) {
+        crate::commands::window::tabs_left(core, &tabs[0].window, tabs);
     }
     for repo_id in &new_repos {
         crate::commands::repos::start_background(core, repo_id);
     }
     let synced =
         if profile.sync_gitconfig { write_global_identity(core, &profile.author_name, &profile.author_email).await } else { Ok(()) };
-    core.emit_app_changed(&[AppChange::Profiles, AppChange::Settings, AppChange::Tabs, AppChange::Credentials, AppChange::SshKeys]);
+    core.emit_app_changed(&[
+        AppChange::Profiles,
+        AppChange::Settings,
+        AppChange::Tabs,
+        AppChange::Credentials,
+        AppChange::SshKeys,
+        AppChange::Windows,
+    ]);
     synced.map_err(|e| {
         CoreError::io(format!("Switched to “{}”, but the global Git identity couldn't be written: {}", profile.name, e.message))
     })?;
