@@ -6,13 +6,12 @@
  * never as a toast, and an answer that arrives later never moves the focus. "Show what was sent"
  * and "Send this time" stay inside this dialog: the dialog host shows one dialog at a time.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { core, type AiInput, type AiProviderKind, type AiPushReview, type Id } from "../../core";
 import { showDialog } from "../../app/dialogs";
-import { newJobId } from "../../app/run";
 import { signInInTerminal } from "../../app/ai/cliLogin";
 import { openAiSettings, openAiSetup } from "../../app/ai/open";
-import { errorView, loadingView, type AiErrorView } from "../../app/ai/requestState";
+import { useAiJob } from "../../app/ai/useAiJob";
 import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
 import { locale, t } from "../../i18n";
@@ -23,8 +22,6 @@ export interface ReviewTarget {
   remote: string | null;
   remoteBranch: string | null;
 }
-
-type Phase = { kind: "loading"; since: number } | { kind: "done"; review: AiPushReview } | { kind: "error"; view: AiErrorView };
 
 function ReviewDialog({
   repoId,
@@ -39,40 +36,31 @@ function ReviewDialog({
   provider: AiProviderKind | null;
   onDone: (push: boolean) => void;
 }) {
-  const [phase, setPhase] = useState<Phase>(() => ({ kind: "loading", since: Date.now() }));
+  const job = useAiJob(local, t("pushCheck.review.loading"));
+  const [review, setReview] = useState<AiPushReview | null>(null);
   const [round, setRound] = useState(0);
-  const [now, setNow] = useState(() => Date.now());
   const [sent, setSent] = useState<string | null>(null);
-  const job = useRef<string | null>(null);
   const input: AiInput = { kind: "outgoing_changes", branch: target.branch, remote: target.remote, remoteBranch: target.remoteBranch };
 
+  // Starts on open and on "Again"; "Back" closes the dialog, which cancels the job (useAiJob).
   useEffect(() => {
-    let alive = true;
-    const jobId = newJobId();
-    job.current = jobId;
-    setPhase({ kind: "loading", since: Date.now() });
-    core
-      .aiPushReview({ repoId, jobId, branch: target.branch, remote: target.remote, remoteBranch: target.remoteBranch, locale: locale() })
-      .then(
-        (review) => {
-          if (alive) setPhase({ kind: "done", review });
-        },
-        (error: unknown) => {
-          if (alive) setPhase({ kind: "error", view: errorView(error) });
-        },
-      );
-    return () => {
-      alive = false;
-      // A finished job ignores this; a running one ends and its answer is discarded.
-      void core.jobCancel({ jobId });
-    };
+    setReview(null);
+    void job
+      .start((jobId) =>
+        core.aiPushReview({
+          repoId,
+          jobId,
+          branch: target.branch,
+          remote: target.remote,
+          remoteBranch: target.remoteBranch,
+          locale: locale(),
+        }),
+      )
+      .then((answer) => {
+        if (answer) setReview(answer);
+      });
+    return job.cancel;
   }, [repoId, target, round]);
-
-  useEffect(() => {
-    if (phase.kind !== "loading") return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [phase.kind]);
 
   const again = () => {
     setSent(null);
@@ -83,7 +71,7 @@ function ReviewDialog({
       const preview = await core.aiPreview({ repoId, feature: "push_review", input, locale: locale() });
       setSent(preview.text);
     } catch (error) {
-      setPhase({ kind: "error", view: errorView(error) });
+      job.fail(error);
     }
   };
   /** "Send this time" at the monthly limit: the click is the confirmation for exactly this text. */
@@ -99,13 +87,14 @@ function ReviewDialog({
       });
       again();
     } catch (error) {
-      setPhase({ kind: "error", view: errorView(error) });
+      job.fail(error);
     }
   };
 
-  const loading = phase.kind === "loading" ? loadingView(now - phase.since, local, t("pushCheck.review.loading")) : null;
-  const failure = phase.kind === "error" && phase.view.kind !== "cancelled" ? phase.view : null;
-  const findings = phase.kind === "done" ? phase.review.findings.length : 0;
+  const loading = job.loading;
+  const failure = job.run.kind === "failed" ? job.run.view : null;
+  const phase = failure ? "error" : review ? "done" : "loading";
+  const findings = review?.findings.length ?? 0;
 
   return (
     <Dialog
@@ -122,7 +111,7 @@ function ReviewDialog({
             {t("pushCheck.review.back")}
           </Button>
           <Button variant="primary" data-action="review-push" onClick={() => onDone(true)}>
-            {reviewPushLabel(phase.kind, findings)}
+            {reviewPushLabel(phase, findings)}
           </Button>
         </>
       }
@@ -199,15 +188,15 @@ function ReviewDialog({
             </div>
           </div>
         ) : null}
-        {phase.kind === "done" ? (
+        {review ? (
           <>
             <p aria-live="polite" className="m-0 text-base font-medium text-text">
-              {reviewSummary(phase.review)}
+              {reviewSummary(review)}
             </p>
-            {phase.review.partial ? <p className="m-0 text-sm text-text-muted">{t("pushCheck.review.partial")}</p> : null}
-            {phase.review.findings.length ? (
+            {review.partial ? <p className="m-0 text-sm text-text-muted">{t("pushCheck.review.partial")}</p> : null}
+            {review.findings.length ? (
               <ul aria-label={t("pushCheck.review.listLabel")} className="m-0 flex max-h-80 list-none flex-col gap-2 overflow-auto p-0">
-                {reviewRows(phase.review).map((row) => (
+                {reviewRows(review).map((row) => (
                   <li key={row.key} data-review-finding={row.location} className="rounded-md border border-border bg-surface-sunken p-2">
                     <p className="m-0 font-mono text-code break-all text-text">{row.location}</p>
                     <p className="m-0 text-sm text-text-muted">{row.kind}</p>
