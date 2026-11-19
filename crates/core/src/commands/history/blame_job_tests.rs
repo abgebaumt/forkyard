@@ -2,8 +2,6 @@
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use serde_json::Value;
-
 use super::*;
 use crate::error::ErrorCode;
 use crate::events::names;
