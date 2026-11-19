@@ -1,7 +1,5 @@
 /** Opens Settings › AI (start-page entry, palette, notice;). */
-import type { AiStatus } from "../../core";
 import { useAppStore } from "../store";
-import { aiVisibility } from "./visibility";
 
 export function openAiSettings(): void {
   useAppStore.getState().openOverlay({ kind: "preferences", section: "ai" });
@@ -23,14 +21,4 @@ export async function openAiSetup(): Promise<boolean> {
   if (result?.kind === "whatIsSent") await showWhatIsSent(result.repoId, "commit_message");
   if (result?.kind === "signIn") signInInTerminal(result.provider);
   return result?.kind === "on" || result?.kind === "whatIsSent";
-}
-
-/**
- * Before an AI element sends: with AI on but no provider connected the click opens the setup
- * instead. Returns whether the caller may go on.
- */
-export function checkProvider(status: AiStatus | null | undefined): boolean {
-  if (!aiVisibility(status).elementsOpenSetup) return true;
-  void openAiSetup();
-  return false;
 }

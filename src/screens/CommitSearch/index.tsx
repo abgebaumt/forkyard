@@ -23,8 +23,8 @@ import { cn } from "../../ui/cn";
 import { Banner } from "../../ui/Feedback";
 import { Kbd } from "../../ui/Kbd";
 import { highlightParts, shaMatchLength } from "./highlight";
-import { aiVisibility, featureVisible } from "../../app/ai/visibility";
-import { openAiSetup } from "../../app/ai/open";
+import { featureVisible } from "../../app/ai/visibility";
+import { checkProvider } from "../../app/ai/checkProvider";
 import { SegmentedControl } from "../../ui/Field";
 import { MeaningSearch } from "./MeaningSearch";
 import type { SearchMode } from "./meaningModel";
@@ -389,11 +389,8 @@ export function CommitSearch({ repoId, tabId }: CommitSearchProps) {
   const meaningShown = featureVisible(aiStatus, "semantic_search", repoSettings?.aiOff ?? false);
   const current: SearchMode = meaningShown ? mode : "text";
   const choose = (next: SearchMode) => {
-    if (next === "meaning" && aiVisibility(aiStatus).elementsOpenSetup) {
-      // On, but no provider connected: the setup dialog.
-      void openAiSetup();
-      return;
-    }
+    // On, but no provider connected: the setup dialog.
+    if (next === "meaning" && !checkProvider(aiStatus)) return;
     useAppStore.getState().setSearch(tabId, { query: "", hits: [], active: -1 });
     setMode(next);
   };

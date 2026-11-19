@@ -8,9 +8,8 @@
 import { create } from "zustand";
 import { core, type AiStatus, type Id } from "../../core";
 import { confirmSend } from "../../app/ai/gate";
-import { openAiSetup } from "../../app/ai/open";
+import { checkProvider } from "../../app/ai/checkProvider";
 import { errorView } from "../../app/ai/requestState";
-import { aiVisibility } from "../../app/ai/visibility";
 import { qk, queryClient } from "../../app/queries";
 import { newJobId } from "../../app/run";
 import { locale } from "../../i18n";
@@ -58,10 +57,7 @@ function place(repoId: Id, atStart: MessageParts, suggestion: MessageParts) {
 export async function writeMessage(repoId: Id): Promise<void> {
   if (runningJob(repoId)) return;
   // "On" without a connected provider: the click leads to the setup, nothing is sent.
-  if (aiVisibility(queryClient.getQueryData<AiStatus>(qk.aiStatus)).elementsOpenSetup) {
-    void openAiSetup();
-    return;
-  }
+  if (!checkProvider(queryClient.getQueryData<AiStatus>(qk.aiStatus))) return;
   const jobId = newJobId();
   const atStart = fields(repoId);
   put(repoId, { phase: { kind: "running", jobId, startedAt: Date.now(), atStart }, undo: null });

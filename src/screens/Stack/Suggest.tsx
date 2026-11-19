@@ -10,7 +10,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { core, type Id } from "../../core";
 import { AiErrorNotice } from "../../app/ai/AiErrorNotice";
 import { askAi, showWhatIsSent } from "../../app/ai/gate";
-import { checkProvider } from "../../app/ai/open";
+import { checkProvider } from "../../app/ai/checkProvider";
 import { useAiJob } from "../../app/ai/useAiJob";
 import { aiVisibility, featureVisible } from "../../app/ai/visibility";
 import { useAiStatus, useRepoSettings } from "../../app/queries";

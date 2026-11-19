@@ -15,9 +15,8 @@ import { GitCommitHorizontal } from "lucide-react";
 import { core, type AiPreview, type AiStatus, type ComposeKeep, type ComposeNote, type ComposeState, type Id } from "../../core";
 import { confirmSend } from "../../app/ai/gate";
 import { showAiPreview } from "../../app/ai/PreviewDialog";
-import { openAiSetup } from "../../app/ai/open";
+import { checkProvider } from "../../app/ai/checkProvider";
 import { errorView, loadingView, type AiErrorView } from "../../app/ai/requestState";
-import { aiVisibility } from "../../app/ai/visibility";
 import { undo } from "../../app/actions/undo";
 import { confirm, hasOpenDialog } from "../../app/dialogs";
 import { describeError, toCoreError } from "../../app/errors";
@@ -194,10 +193,7 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   /** `again`: the user asked for a new proposal (with or without an instruction). */
   const propose = async (text: string | null, again = text !== null) => {
     if (requestRef.current.kind === "loading") return;
-    if (aiVisibility(queryClient.getQueryData<AiStatus>(qk.aiStatus)).elementsOpenSetup) {
-      void openAiSetup();
-      return;
-    }
+    if (!checkProvider(queryClient.getQueryData<AiStatus>(qk.aiStatus))) return;
     const keep: ComposeKeep[] = keepOf(arrangementRef.current, reviewRef.current.pinned);
     let preview: AiPreview;
     try {
