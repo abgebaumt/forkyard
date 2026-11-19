@@ -30,11 +30,16 @@ npm run app          # starts the app with hot reload
 Run these before you open a pull request. CI runs the same.
 
 ```bash
-npm run check                             # typecheck, tests, command contract, contrast, lint
+npm run check                             # typecheck, tests, command contract, file name case, contrast, lint
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
+
+CI also regenerates the contract types (`npm run gen:types`) and the token CSS (`npm run tokens`)
+and fails if they differ from what is committed. If you changed Rust types or `design/tokens.json`,
+run these two and commit the result. CI also runs the E2E smoke test (`node e2e/run.mjs smoke`,
+see [e2e/README.md](e2e/README.md)).
 
 `npm run format` and `cargo fmt --all` fix formatting. To hide the bulk formatting commits in
 `git blame`, run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once.
@@ -45,9 +50,13 @@ cargo test --workspace
 - `src-tauri` – a thin Tauri binding; one `#[tauri::command]` per core command.
 - `src` – the React UI. It never runs Git itself; it calls the core through `src/core`.
 
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) explains the parts and the rules the code relies on.
+[docs/CONVENTIONS.md](docs/CONVENTIONS.md) says where code goes.
+
 A new or changed command touches three places: `src/core/api.ts`, `crates/core/src/commands/<area>.rs`
-and one line in the `commands! { … }` table in `src-tauri/src/commands.rs`. `npm run check:commands`
-verifies they match.
+and one line in the `commands! { … }` table in `src-tauri/src/commands.rs`. Its types live in Rust
+(`crates/core/src/model/<area>.rs`); `npm run gen:types` writes them to `src/core/generated/`.
+`npm run check:commands` verifies that everything matches.
 
 A few rules the code relies on:
 
@@ -56,7 +65,8 @@ A few rules the code relies on:
 - Destructive operations create a backup ref first, so Undo works.
 - Secrets live only in the OS keychain – never in the database, logs or events.
 - UI colours and sizes come from design tokens (`design/tokens.json`, then `npm run tokens`).
-- UI text goes through i18n (`src/i18n`). Add every new string to both `locales/en` and `locales/de`.
+- UI text goes through i18n (`src/i18n`). Add every new string to both `src/i18n/locales/en` and
+  `src/i18n/locales/de`.
 
 ## Pull requests
 
