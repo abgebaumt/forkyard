@@ -8,7 +8,6 @@
     "rule": {
       "knownToken": "Known token format",
       "privateKey": "Private key",
-      "credential": "Password or token",
       "urlPassword": "Password in an address",
       "highEntropy": "Random-looking string"
     },
@@ -18,14 +17,11 @@
     "scanned_other": "Checked the added lines of {{count}} commits that are not on the remote yet.",
     "partial": "Very large push: only the newest commits were checked.",
     "back": "Back",
-    "pushAnyway": "Push anyway",
     "stopped": "The push was stopped."
   },
   "review": {
-    "label": "Review before push",
     "menu": "Review and push …",
     "menuHint": "Asks the AI provider about leftovers in what the push sends.",
-    "title": "Review before push",
     "description": "Hints without a promise: debug output, commented-out code, likely mistakes. Keys are found by the local check, not here.",
     "loading": "Reviewing …",
     "none": "No findings",
@@ -43,7 +39,6 @@
     "listLabel": "Findings of the review",
     "back": "Back",
     "push": "Push",
-    "pushAnyway": "Push anyway",
     "command": {
       "title": "Review and push …",
       "keywords": "review,check,push,ai,leftovers,debug"

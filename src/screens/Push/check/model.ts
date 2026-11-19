@@ -32,7 +32,7 @@ export interface ReviewRow {
 const RULES: Record<SecretRule, string> = {
   known_token: t("pushCheck.secrets.rule.knownToken"),
   private_key: t("pushCheck.secrets.rule.privateKey"),
-  credential: t("pushCheck.secrets.rule.credential"),
+  credential: t("ui.passwordOrToken"),
   url_password: t("pushCheck.secrets.rule.urlPassword"),
   high_entropy: t("pushCheck.secrets.rule.highEntropy"),
 };
@@ -94,7 +94,7 @@ export function reviewSummary(review: AiPushReview): string {
 
 /** "Push" only after a review without findings; otherwise "Push anyway" – always possible. */
 export const reviewPushLabel = (phase: "loading" | "done" | "error", findings: number): string =>
-  phase === "done" && findings === 0 ? t("pushCheck.review.push") : t("pushCheck.review.pushAnyway");
+  phase === "done" && findings === 0 ? t("pushCheck.review.push") : t("ui.pushAnyway");
 
 type ReviewRepo = Pick<RepoSettings, "aiOff" | "aiReviewBeforePush">;
 

@@ -130,7 +130,7 @@ export function LfsPanel({ repoId, autoFocus }: LfsPanelProps) {
           <p className="selectable text-sm break-words text-text-muted">{hint ? `${text} ${hint}` : text}</p>
         </div>
         <Button size="sm" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={() => void lfs.refetch()}>
-          {t("lfs.retry")}
+          {t("ui.retry")}
         </Button>
       </div>
     );
@@ -153,7 +153,7 @@ export function LfsPanel({ repoId, autoFocus }: LfsPanelProps) {
                 icon={<RefreshCw className="size-3.5" aria-hidden />}
                 onClick={() => void lfs.refetch()}
               >
-                {t("lfs.missing.recheck")}
+                {t("ui.checkAgain")}
               </Button>
             }
           >
@@ -268,7 +268,7 @@ export function LfsPanel({ repoId, autoFocus }: LfsPanelProps) {
           />
         </div>
         <Button type="submit" className="mt-5" loading={adding && removing === null} icon={<Plus className="size-icon" aria-hidden />}>
-          {t("lfs.add")}
+          {t("ui.add")}
         </Button>
       </form>
       {offers.length > 0 ? (

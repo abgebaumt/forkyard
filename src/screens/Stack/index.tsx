@@ -66,8 +66,8 @@ const DOT: Record<CheckTone, string> = { accent: "bg-accent", success: "bg-succe
 
 const STATE_WORD: Record<StackCheckState | "running", () => string> = {
   running: () => t("pullRequest.stack.checkState.running"),
-  passed: () => t("pullRequest.stack.checkState.passed"),
-  failed: () => t("pullRequest.stack.checkState.failed"),
+  passed: () => t("ui.passed"),
+  failed: () => t("ui.failed"),
   timed_out: () => t("pullRequest.stack.checkState.timed_out"),
 };
 
@@ -122,7 +122,7 @@ export function StackView({ repoId, tabId, branch }: StackViewProps) {
       <Centered>
         <EmptyState
           title={t("pullRequest.stack.errorTitle")}
-          action={<Button onClick={() => void status.refetch()}>{t("pullRequest.stack.retry")}</Button>}
+          action={<Button onClick={() => void status.refetch()}>{t("ui.retry")}</Button>}
         >
           {describeError(status.error).text}
         </EmptyState>
@@ -292,10 +292,7 @@ function Planner({ repoId, tabId, branch }: StackViewProps) {
   if (!data && plan.isError) {
     return (
       <Centered>
-        <EmptyState
-          title={t("pullRequest.stack.errorTitle")}
-          action={<Button onClick={() => void plan.refetch()}>{t("pullRequest.stack.retry")}</Button>}
-        >
+        <EmptyState title={t("pullRequest.stack.errorTitle")} action={<Button onClick={() => void plan.refetch()}>{t("ui.retry")}</Button>}>
           {describeError(plan.error).text}
         </EmptyState>
       </Centered>
@@ -324,7 +321,7 @@ function Planner({ repoId, tabId, branch }: StackViewProps) {
       <div className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-3 py-2">
         <div className="w-64 min-w-0">
           <Select
-            ariaLabel={t("pullRequest.stack.base")}
+            ariaLabel={t("ui.base")}
             value={base}
             options={baseOptions(refs, branch)}
             onValueChange={(value) => {
@@ -347,7 +344,7 @@ function Planner({ repoId, tabId, branch }: StackViewProps) {
         <div className="flex-1" />
         {checkJob ? (
           <Button size="sm" data-stack-check-cancel="" onClick={() => void core.jobCancel({ jobId: checkJob }).catch(() => undefined)}>
-            {t("ai.state.cancel")}
+            {t("ui.cancel")}
           </Button>
         ) : (
           <Button
@@ -523,7 +520,7 @@ function Existing({ repoId, status }: { repoId: Id; tabId: Id; status: StackStat
       body: t("pullRequest.stack.prsBody"),
       confirmLabel: t("pullRequest.stack.prsConfirm"),
       details: parts.slice(from).map((part, offset) => `${part.branch} → ${targets[from + offset]}: ${part.title}`),
-      detailsLabel: t("pullRequest.stack.prsLabel"),
+      detailsLabel: t("ui.pullRequests"),
       detailsWrap: true,
     });
     if (!ok) return;

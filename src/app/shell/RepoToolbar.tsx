@@ -125,9 +125,9 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           ? t("shell.toolbar.nothingToStash")
           : null;
   const popBlocked =
-    stashes && stashes.length === 0 ? t("shell.toolbar.noStash") : status?.conflicted.length ? t("shell.toolbar.resolveConflicts") : null;
-  const undoBlocked = undoState && !undoState.undo ? (undoState.undoBlocked ?? t("shell.toolbar.nothingToUndo")) : operation;
-  const redoBlocked = undoState && !undoState.redo ? t("shell.toolbar.nothingToRedo") : operation;
+    stashes && stashes.length === 0 ? t("ui.noStashAvailable") : status?.conflicted.length ? t("shell.toolbar.resolveConflicts") : null;
+  const undoBlocked = undoState && !undoState.undo ? (undoState.undoBlocked ?? t("ui.nothingToUndo")) : operation;
+  const redoBlocked = undoState && !undoState.redo ? t("ui.nothingToRedo") : operation;
 
   const pullMenu: MenuEntry[] = [
     { type: "label", label: t("shell.toolbar.pullModeLabel") },
@@ -146,7 +146,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     ),
     { type: "separator" },
     {
-      label: t("shell.toolbar.fetchAll"),
+      label: t("ui.fetchAllRemotes"),
       shortcut: "Mod+Shift+L",
       disabled: Boolean(fetchBlocked),
       tooltip: fetchBlocked ?? undefined,
@@ -171,7 +171,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   return (
     <Toolbar>
       <ToolbarButton
-        label={t("shell.toolbar.undo")}
+        label={t("ui.undo")}
         icon={icon(Undo2)}
         shortcut="Mod+Z"
         compact={compact}
@@ -181,7 +181,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         onClick={() => void undo(repoId)}
       />
       <ToolbarButton
-        label={t("shell.toolbar.redo")}
+        label={t("ui.redo")}
         icon={icon(Redo2)}
         shortcut="Mod+Y"
         compact={compact}
@@ -299,7 +299,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         />
       </span>
       <ToolbarButton
-        label={t("shell.toolbar.stats")}
+        label={t("ui.statistics")}
         icon={icon(ChartColumn)}
         compact={compact}
         pressed={view.center.kind === "stats"}
@@ -316,15 +316,15 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         onClick={() => setSearchOpen(tabId, !view.searchOpen)}
       />
       <ToolbarButton
-        label={t("shell.toolbar.commands")}
+        label={t("ui.commands")}
         icon={<CommandIcon className="size-icon" aria-hidden />}
         shortcut="Mod+P"
         compact={compact}
-        hint={t("shell.toolbar.palette")}
+        hint={t("ui.commandPalette")}
         onClick={() => openOverlay({ kind: "palette", mode: "all" })}
       />
       <ToolbarButton
-        label={t("shell.toolbar.settings")}
+        label={t("ui.settings")}
         icon={icon(SettingsIcon)}
         shortcut="Mod+,"
         compact={compact}
@@ -343,15 +343,15 @@ export function ManagementToolbar() {
     <Toolbar label={t("shell.toolbar.general")}>
       <div className="flex-1" />
       <ToolbarButton
-        label={t("shell.toolbar.commands")}
+        label={t("ui.commands")}
         icon={<CommandIcon className="size-icon" aria-hidden />}
         shortcut="Mod+P"
         compact={compact}
-        hint={t("shell.toolbar.palette")}
+        hint={t("ui.commandPalette")}
         onClick={() => openOverlay({ kind: "palette", mode: "all" })}
       />
       <ToolbarButton
-        label={t("shell.toolbar.settings")}
+        label={t("ui.settings")}
         icon={icon(SettingsIcon)}
         shortcut="Mod+,"
         compact={compact}

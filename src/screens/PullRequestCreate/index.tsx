@@ -62,10 +62,10 @@ export interface PullRequestCreateProps {
 function Frame({ tabId, detail, children, onClose }: { tabId: Id; detail?: string | null; children: ReactNode; onClose?: () => void }) {
   const closeCenter = useAppStore((state) => state.closeCenter);
   return (
-    <section aria-label={t("pullRequest.create.title")} data-screen="pr-create" className="flex h-full min-h-0 min-w-0 flex-col bg-bg">
+    <section aria-label={t("ui.createPullRequest")} data-screen="pr-create" className="flex h-full min-h-0 min-w-0 flex-col bg-bg">
       <header className="flex h-control-lg shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-3">
         <GitPullRequestCreate className="size-icon shrink-0 text-text-muted" aria-hidden />
-        <h2 className="m-0 shrink-0 text-base font-medium text-text">{t("pullRequest.create.title")}</h2>
+        <h2 className="m-0 shrink-0 text-base font-medium text-text">{t("ui.createPullRequest")}</h2>
         {detail ? (
           <span className="selectable min-w-0 truncate font-mono text-code text-text-muted" title={detail}>
             {detail}
@@ -74,7 +74,7 @@ function Frame({ tabId, detail, children, onClose }: { tabId: Id; detail?: strin
         <span className="flex-1" />
         <IconButton
           size="sm"
-          label={t("pullRequest.create.close")}
+          label={t("ui.close")}
           shortcut="Escape"
           data-back=""
           icon={<X className="size-icon" aria-hidden />}
@@ -204,11 +204,11 @@ export function PullRequestCreate({ repoId, tabId }: PullRequestCreateProps) {
         action={
           <div className="flex gap-2">
             <Button size="sm" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={() => void hostRepo.refetch()}>
-              {t("pullRequest.create.retry")}
+              {t("ui.retry")}
             </Button>
             {error.kind === "auth" ? (
               <Button size="sm" onClick={openIntegrations}>
-                {t("pullRequest.create.openIntegrations")}
+                {t("ui.openIntegrations")}
               </Button>
             ) : null}
           </div>
@@ -222,10 +222,10 @@ export function PullRequestCreate({ repoId, tabId }: PullRequestCreateProps) {
       <Blocked
         state="no-host"
         icon={<Unplug className="size-6" aria-hidden />}
-        title={t("pullRequest.create.noHost")}
+        title={t("ui.noHostDetected")}
         action={
           <Button size="sm" icon={<Plug className="size-3.5" aria-hidden />} onClick={() => void openConnectDialog()}>
-            {t("pullRequest.create.connect")}
+            {t("ui.connectAccount")}
           </Button>
         }
       >
@@ -245,7 +245,7 @@ export function PullRequestCreate({ repoId, tabId }: PullRequestCreateProps) {
             icon={<Plug className="size-3.5" aria-hidden />}
             onClick={() => void openConnectDialog({ kind: repo.kind ?? undefined })}
           >
-            {t("pullRequest.create.connect")}
+            {t("ui.connectAccount")}
           </Button>
         }
       >
@@ -376,7 +376,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
         confirm({
           title: t("pullRequest.create.leave.title"),
           body: t("pullRequest.create.leave.body"),
-          confirmLabel: t("pullRequest.create.leave.confirm"),
+          confirmLabel: t("ui.discard"),
           danger: true,
         }),
     };
@@ -450,7 +450,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
     if (creating || pushing || blockedReason || !sourceName || !targetName) return;
     const cleanTitle = title.trim();
     if (!cleanTitle) {
-      setTitleError(t("pullRequest.create.titleRequired"));
+      setTitleError(t("ui.enterATitle"));
       root.current?.querySelector<HTMLInputElement>('input[name="title"]')?.focus();
       return;
     }
@@ -531,14 +531,14 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
                 {loadingRefs ? (
                   <div
                     role="status"
-                    aria-label={t("pullRequest.create.loadingBranches")}
+                    aria-label={t("ui.loadingBranches")}
                     className="h-control-md animate-pulse rounded-md bg-surface-raised"
                   />
                 ) : sourceOptions.length ? (
                   <Select
                     label={t("pullRequest.create.sourceLabel")}
                     value={sourceName ?? ""}
-                    placeholder={t("pullRequest.create.chooseBranch")}
+                    placeholder={t("ui.chooseBranch")}
                     options={sourceOptions}
                     onValueChange={(next) => setSource(next)}
                   />
@@ -551,7 +551,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
                 {loadingRefs ? (
                   <div
                     role="status"
-                    aria-label={t("pullRequest.create.loadingBranches")}
+                    aria-label={t("ui.loadingBranches")}
                     className="h-control-md animate-pulse rounded-md bg-surface-raised"
                   />
                 ) : (
@@ -559,10 +559,10 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
                     label={
                       toParent && repo.forkParent
                         ? t("pullRequest.create.targetIn", { repo: `${repo.forkParent.owner}/${repo.forkParent.name}` })
-                        : t("pullRequest.create.target")
+                        : t("ui.target")
                     }
                     value={targetName ?? ""}
-                    placeholder={t("pullRequest.create.chooseBranch")}
+                    placeholder={t("ui.chooseBranch")}
                     options={targetOptions.map((name) => ({
                       value: name,
                       label: name === hostDefault ? t("pullRequest.create.default", { name }) : name,
@@ -637,7 +637,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
                   title={t("pullRequest.create.checkFailed")}
                   action={
                     <Button size="sm" onClick={() => void openPrs.refetch()}>
-                      {t("pullRequest.create.checkAgain")}
+                      {t("ui.checkAgain")}
                     </Button>
                   }
                 >
@@ -688,7 +688,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
 
             <TextField
               name="title"
-              label={t("pullRequest.create.titleLabel")}
+              label={t("ui.title")}
               value={title}
               autoComplete="off"
               maxLength={TITLE_LIMIT}
@@ -716,8 +716,8 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
                   label={t("pullRequest.create.bodyMode")}
                   value={mode}
                   options={[
-                    { value: "write", label: t("pullRequest.create.write") },
-                    { value: "preview", label: t("pullRequest.create.preview") },
+                    { value: "write", label: t("ui.write") },
+                    { value: "preview", label: t("ui.preview") },
                   ]}
                   onValueChange={setMode}
                 />
@@ -815,7 +815,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
                 </div>
                 {failure.kind === "auth" || failure.kind === "not_connected" ? (
                   <Button size="sm" onClick={openIntegrations}>
-                    {t("pullRequest.create.openIntegrations")}
+                    {t("ui.openIntegrations")}
                   </Button>
                 ) : null}
               </div>
@@ -832,7 +832,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
                 user: repo.account?.user?.login ?? t("pullRequest.create.yourAccount"),
               })}
           </p>
-          <Button onClick={close}>{t("pullRequest.create.cancel")}</Button>
+          <Button onClick={close}>{t("ui.cancel")}</Button>
           <Button
             type="submit"
             variant="primary"
@@ -844,7 +844,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
               ? t("pullRequest.create.pushAndCreate")
               : repo.capabilities.draftPrs && draft
                 ? t("pullRequest.create.createDraft")
-                : t("pullRequest.create.title")}
+                : t("ui.createPullRequest")}
           </Button>
         </footer>
       </form>

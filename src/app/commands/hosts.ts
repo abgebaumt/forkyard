@@ -35,7 +35,7 @@ export const commands: AppCommand[] = [
     group: "General",
     keywords: [...KEYWORDS(), ...kw("commands.hosts.check.keywords")],
     when: () => (cachedHostAccounts()?.length ?? 1) > 0,
-    disabledReason: () => t("commands.hosts.check.noAccount"),
+    disabledReason: () => t("ui.noAccountConnected"),
     run: async (ctx) => {
       const loaded = await runAction(t("commands.hosts.check.loadAction"), () => hostApi.accounts());
       if (!loaded.ok) return;

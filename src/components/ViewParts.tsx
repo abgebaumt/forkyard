@@ -64,7 +64,7 @@ export function FileTitle({ path, icon, prefix, strike = false }: { path: string
 /** Close or go back to the view you came from (Esc). */
 export function BackButton({ tabId, onClick }: { tabId: Id; onClick?: () => void }) {
   const target = useBackTarget(tabId);
-  const label = target ? backLabel(target) : t("fileView.close");
+  const label = target ? backLabel(target) : t("ui.close");
   return (
     <IconButton
       size="sm"

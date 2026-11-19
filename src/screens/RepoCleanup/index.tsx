@@ -53,18 +53,18 @@ const STEP_LABEL: Record<CleanupStep, string> = {
   gc: t("cleanup.step.gc"),
 };
 const STEP_NAME: Record<CleanupStep, string> = {
-  worktrees: t("cleanup.result.name.worktrees"),
+  worktrees: t("ui.orphanedWorktrees"),
   undo: t("cleanup.result.name.undo"),
-  reflog: t("cleanup.result.name.reflog"),
-  lfs: t("cleanup.result.name.lfs"),
+  reflog: t("ui.shortenTheReflog"),
+  lfs: t("ui.gitLfsCache"),
   gc: t("cleanup.result.name.gc"),
 };
 const STATUS_WORD: Record<CleanupStepStatus, string> = {
-  done: t("cleanup.result.status.done"),
-  skipped: t("cleanup.result.status.skipped"),
-  failed: t("cleanup.result.status.failed"),
-  cancelled: t("cleanup.result.status.cancelled"),
-  not_run: t("cleanup.result.status.notRun"),
+  done: t("ui.done"),
+  skipped: t("ui.skipped"),
+  failed: t("ui.failed"),
+  cancelled: t("ui.cancelled"),
+  not_run: t("ui.notRun"),
 };
 /** Status never by colour alone: the dot goes with the word above. */
 const STATUS_DOT: Record<CleanupStepStatus, string> = {
@@ -103,12 +103,12 @@ function NowSection({ preview }: { preview: CleanupPreview }) {
         <Figure name="loose" label={t("cleanup.now.loose")} value={objects.looseCount} text={count(objects.looseCount)} />
         <Figure name="packs" label={t("cleanup.now.packs")} value={objects.packs} text={count(objects.packs)} />
         {preview.lfsBytes !== null ? (
-          <Figure name="lfs" label={t("cleanup.now.lfs")} value={preview.lfsBytes} text={formatBytes(preview.lfsBytes)} />
+          <Figure name="lfs" label={t("ui.gitLfsCache")} value={preview.lfsBytes} text={formatBytes(preview.lfsBytes)} />
         ) : null}
         <Figure name="undo" label={t("cleanup.now.undo")} value={preview.undoBackups.length} text={count(preview.undoBackups.length)} />
         <Figure
           name="worktrees"
-          label={t("cleanup.now.worktrees")}
+          label={t("ui.orphanedWorktrees")}
           value={preview.orphanedWorktrees}
           text={count(preview.orphanedWorktrees)}
         />
@@ -166,9 +166,9 @@ function FormBody({
     <div className="flex flex-col gap-4">
       <NowSection preview={preview} />
       <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium text-text-muted">{t("cleanup.mode.label")}</h3>
+        <h3 className="text-sm font-medium text-text-muted">{t("ui.kind")}</h3>
         <RadioChoice
-          label={t("cleanup.mode.label")}
+          label={t("ui.kind")}
           value={form.mode}
           autoFocus
           onValueChange={(mode) => patch({ mode })}
@@ -214,7 +214,7 @@ function FormBody({
         {visible.worktrees ? (
           <div data-option="worktrees">
             <Checkbox
-              label={t("cleanup.extra.worktrees.label")}
+              label={t("ui.orphanedWorktrees")}
               hint={t("cleanup.extra.worktrees.frees")}
               checked={form.worktrees}
               onCheckedChange={(worktrees) => patch({ worktrees })}
@@ -247,7 +247,7 @@ function FormBody({
         </div>
         <div data-option="reflog" className="flex flex-col gap-1">
           <Checkbox
-            label={t("cleanup.extra.reflog.label")}
+            label={t("ui.shortenTheReflog")}
             hint={t("cleanup.extra.reflog.frees")}
             checked={form.reflog}
             onCheckedChange={(reflog) => patch({ reflog })}
@@ -380,7 +380,7 @@ function PreviewError({ error, onRetry }: { error: unknown; onRetry: () => void 
       <p className="selectable text-sm break-words text-text-muted">{hint ? `${text} ${hint}` : text}</p>
       <div>
         <Button size="sm" onClick={onRetry}>
-          {t("cleanup.retry")}
+          {t("ui.retry")}
         </Button>
       </div>
     </div>
@@ -424,7 +424,7 @@ export function RepoCleanupDialog({ repoId, onClose }: { repoId: Id; onClose: ()
     secondary = <Button onClick={onClose}>{t("cleanup.background")}</Button>;
     primary = (
       <Button loading={run.stopping} onClick={() => cancelCleanup(repoId)}>
-        {t("cleanup.cancel")}
+        {t("ui.cancel")}
       </Button>
     );
   } else if (run?.result) {
@@ -432,7 +432,7 @@ export function RepoCleanupDialog({ repoId, onClose }: { repoId: Id; onClose: ()
     body = <Result result={run.result} />;
     primary = (
       <Button variant="primary" onClick={close}>
-        {t("cleanup.close")}
+        {t("ui.close")}
       </Button>
     );
   } else if (run?.error) {
@@ -440,24 +440,24 @@ export function RepoCleanupDialog({ repoId, onClose }: { repoId: Id; onClose: ()
     body = <Refused error={run.error} />;
     primary = (
       <Button variant="primary" onClick={close}>
-        {t("cleanup.close")}
+        {t("ui.close")}
       </Button>
     );
   } else if (preview.isError) {
     state = "error";
     body = <PreviewError error={preview.error} onRetry={() => void preview.refetch()} />;
-    secondary = <Button onClick={close}>{t("cleanup.cancel")}</Button>;
+    secondary = <Button onClick={close}>{t("ui.cancel")}</Button>;
   } else if (!preview.data || !shown) {
     state = "loading";
     body = <Loading />;
-    secondary = <Button onClick={close}>{t("cleanup.cancel")}</Button>;
+    secondary = <Button onClick={close}>{t("ui.cancel")}</Button>;
   } else {
     state = "form";
     body = <FormBody repoId={repoId} preview={preview.data} form={shown} onChange={setForm} />;
-    secondary = <Button onClick={close}>{t("cleanup.cancel")}</Button>;
+    secondary = <Button onClick={close}>{t("ui.cancel")}</Button>;
     primary = (
       <Button variant="primary" onClick={start}>
-        {t("cleanup.start")}
+        {t("ui.cleanUp")}
       </Button>
     );
   }
@@ -465,7 +465,7 @@ export function RepoCleanupDialog({ repoId, onClose }: { repoId: Id; onClose: ()
     <Dialog
       open
       size="md"
-      title={t("cleanup.title")}
+      title={t("ui.cleanUpRepository")}
       description={t("cleanup.description")}
       onOpenChange={(open) => {
         if (!open) close();

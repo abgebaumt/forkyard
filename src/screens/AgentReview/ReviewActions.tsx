@@ -83,7 +83,7 @@ export function ReviewActions({
         title={why("discard") ?? undefined}
         onClick={() => void discardRest(agent, latest?.uncommittedFiles ?? 0)}
       >
-        {t("agents.review.discard")} <span className="text-xs font-normal">({t("agents.review.destructive")})</span>
+        {t("agents.review.discard")} <span className="text-xs font-normal">({t("ui.destructive")})</span>
       </Button>
       {takeOverWhy && latest ? (
         <p aria-live="polite" data-review-blocker="take-over" className="w-full text-sm text-text-muted">

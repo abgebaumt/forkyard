@@ -26,15 +26,11 @@ export async function createTag(repoId: Id, sha: Sha | null, annotated = false) 
     validate: refNameValidator(repoId, "tag"),
   });
   if (!input) return null;
-  const result = await runAction(
-    t("actions.tags.create.label"),
-    () => core.tagCreate({ repoId, name: input.name, sha, message: input.message }),
-    {
-      success: input.message
-        ? t("actions.tags.create.doneAnnotated", { name: clip(input.name) })
-        : t("actions.tags.create.done", { name: clip(input.name) }),
-    },
-  );
+  const result = await runAction(t("ui.createTag"), () => core.tagCreate({ repoId, name: input.name, sha, message: input.message }), {
+    success: input.message
+      ? t("actions.tags.create.doneAnnotated", { name: clip(input.name) })
+      : t("actions.tags.create.done", { name: clip(input.name) }),
+  });
   if (result.ok) queryClient.setQueryData(qk.refs(repoId), result.value);
   if (result.ok && input.message && input.targets.length > 0) {
     // Loaded on demand: the release-notes screen imports this module (pushTag).
@@ -53,7 +49,7 @@ async function pickRemote(repoId: Id, title: string, description: string): Promi
       sticky: true,
       title: t("actions.tags.noRemote"),
       description: t("actions.sync.noRemote.description"),
-      action: { label: t("actions.sync.noRemote.action"), onClick: addRemote },
+      action: { label: t("ui.addRemote"), onClick: addRemote },
     });
     return null;
   }
@@ -91,11 +87,11 @@ export async function deleteTag(repoId: Id, name: string, remote: string | true 
       ? t("actions.tags.delete.titleRemote", { name: clip(name, 40), remote: target })
       : t("actions.tags.delete.title", { name: clip(name, 40) }),
     body: `${target ? t("actions.tags.delete.bodyRemote") : t("actions.tags.delete.body")} ${TAG_COMMITS_NOTE}`,
-    confirmLabel: target ? t("actions.tags.delete.actionRemote") : t("actions.tags.delete.action"),
+    confirmLabel: target ? t("actions.tags.delete.actionRemote") : t("ui.deleteTag"),
     danger: true,
   });
   if (!ok) return null;
-  const result = await runAction(t("actions.tags.delete.action"), () => core.tagDelete({ repoId, name, remote: target }), {
+  const result = await runAction(t("ui.deleteTag"), () => core.tagDelete({ repoId, name, remote: target }), {
     busyKey: busyKeys.write(repoId, `tag:${name}`),
     success: target
       ? t("actions.tags.delete.doneRemote", { name: clip(name), remote: target })
@@ -113,7 +109,7 @@ export async function pushTag(repoId: Id, name: string, remote?: string | null) 
   if (!target) return null;
   const result = await guardSecrets(repoId, (acceptedSecrets) => {
     const jobId = newJobId();
-    return runAction(t("actions.tags.push.label"), () => core.tagPush({ repoId, jobId, name, remote: target, acceptedSecrets }), {
+    return runAction(t("ui.pushTag"), () => core.tagPush({ repoId, jobId, name, remote: target, acceptedSecrets }), {
       busyKey: busyKeys.write(repoId, `tag:${name}`),
       job: { id: jobId, title: t("actions.tags.push.job", { name: clip(name, 32) }), repoId },
     });

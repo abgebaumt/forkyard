@@ -8,7 +8,6 @@
   "conflictsTitle_other": "Erwartete Konflikte in {{count}} Dateien",
   "conflictsBody": "Git hält an und lässt dich sie lösen. Ausführen lässt es sich trotzdem.",
   "conflictsFromBody": "Commit {{sha}} ist der erste mit Konflikt; dort hält Git an und lässt dich ihn lösen. Ausführen lässt es sich trotzdem.",
-  "filesLabel": "Dateien",
   "updateRefs": "Abhängige Branches mitziehen",
   "updateRefsHint": "Rebaset auch: {{branches}}. Rückgängig setzt sie gemeinsam zurück."
 }

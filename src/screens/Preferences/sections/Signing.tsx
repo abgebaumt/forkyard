@@ -38,12 +38,12 @@ const NO_KEY = "none";
 function keyType(publicKey: string): string {
   const first = publicKey.trim().split(/\s+/)[0] ?? "";
   if (first.startsWith("ecdsa-")) return "ECDSA";
-  if (first.startsWith("sk-")) return t("signing.securityKey");
+  if (first.startsWith("sk-")) return t("ui.securityKey");
   return first.replace(/^ssh-/, "").toUpperCase();
 }
 
 const keyLabel = (key: SshKey) =>
-  [key.label, key.publicKey ? keyType(key.publicKey) : null, key.missing ? t("signing.fileMissing") : null].filter(Boolean).join(" · ");
+  [key.label, key.publicKey ? keyType(key.publicKey) : null, key.missing ? t("ui.fileMissing") : null].filter(Boolean).join(" · ");
 
 /** Writes the signing setting; the core's answer is then the state in the cache. */
 function applySigning(repoId: Id | null, wanted: { enabled: boolean; format: SigningFormat | null; key: string | null }) {
@@ -79,7 +79,7 @@ export function SigningSettings({ repoId }: { repoId: Id | null }) {
 
   const title = (
     <GroupTitle id={`signing-title-${scope}`} flush={!repoId}>
-      {t("signing.title")}
+      {t("ui.signCommits")}
     </GroupTitle>
   );
   if (status.isPending) {
@@ -171,7 +171,7 @@ export function SigningSettings({ repoId }: { repoId: Id | null }) {
       {format === "ssh" ? (
         <SettingRow
           stacked
-          title={t("signing.sshKey.title")}
+          title={t("ui.sshKey")}
           description={sshKeys.length === 0 && !current.key ? t("signing.sshKey.none") : t("signing.sshKey.description")}
         >
           {(ids) => (
@@ -201,7 +201,7 @@ export function SigningSettings({ repoId }: { repoId: Id | null }) {
               value={current.key ?? ""}
               validate={(value) => (/\s/.test(value) ? t("signing.noSpaces") : null)}
               onCommit={async (value) =>
-                (await applySigning(repoId, { enabled: current.enabled, format, key: value || null })).ok ? null : t("signing.notSaved")
+                (await applySigning(repoId, { enabled: current.enabled, format, key: value || null })).ok ? null : t("ui.notSaved")
               }
             />
           )}
@@ -209,7 +209,7 @@ export function SigningSettings({ repoId }: { repoId: Id | null }) {
       )}
 
       <SettingRow
-        title={t("signing.enable.title")}
+        title={t("ui.signCommits")}
         description={blocked ?? (format === "ssh" ? t("signing.enable.ssh") : t("signing.enable.other"))}
       >
         {(ids) => (
@@ -223,12 +223,7 @@ export function SigningSettings({ repoId }: { repoId: Id | null }) {
         )}
       </SettingRow>
 
-      <SettingRow
-        stacked
-        group
-        title={t("signing.program.title")}
-        description={t("signing.program.description", { config: programConfig[format] })}
-      >
+      <SettingRow stacked group title={t("ui.program")} description={t("signing.program.description", { config: programConfig[format] })}>
         {(ids) => (
           <p
             aria-labelledby={ids.labelId}

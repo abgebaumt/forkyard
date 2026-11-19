@@ -72,7 +72,7 @@ export function showError(label: string, raw: unknown): void {
     title: t("app.run.failed", { label }),
     description: hint ? `${text}\n${hint}` : text,
     action: gitOutput
-      ? { label: t("app.run.showOutput"), onClick: () => void showOutput(t("app.run.outputTitle", { label }), gitOutput) }
+      ? { label: t("ui.showOutput"), onClick: () => void showOutput(t("app.run.outputTitle", { label }), gitOutput) }
       : undefined,
   });
   // If the window is not in front right now (long push, fetch in the background), the system says it too.

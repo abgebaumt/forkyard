@@ -2,31 +2,25 @@
   "actionDialogs": {
     "ignore": {
       "comment": "A line starting with # is a comment and ignores nothing.",
-      "confirm": "Ignore",
       "description": "The pattern is added as a new line to the .gitignore in the root folder.",
       "oneLine": "A pattern is exactly one line.",
-      "pattern": "Pattern",
       "preview": "New line in .gitignore",
       "stopTracking": "Also stop tracking",
       "stopTrackingHint": "Tracked files that match the pattern leave the index and stay on disk.",
       "stopTrackingTracked": "Git already tracks the file; .gitignore alone doesn’t change that. The file leaves the index and stays on disk.",
-      "title": "Ignore",
       "what": "What to ignore?"
     },
     "message": {
-      "description": "Description",
       "lengthLong_one": "{{count}} character – many tools cut off after {{max}}",
       "lengthLong_other": "{{count}} characters – many tools cut off after {{max}}",
       "length_one": "{{count}} character",
-      "length_other": "{{count}} characters",
-      "summary": "Summary"
+      "length_other": "{{count}} characters"
     },
     "push": {
       "branchName": "Branch name on the remote",
       "confirm": "Push",
       "createdAs": "Will be created as {{name}}.",
       "description": "<strong>{{branch}}</strong> has no upstream yet. The push creates the branch on the remote and remembers it as the upstream.",
-      "remote": "Remote",
       "title": "Where to push?"
     },
     "refName": {
@@ -42,13 +36,10 @@
     "tag": {
       "annotation": "Annotation",
       "annotationOptional": "Annotation (optional)",
-      "confirm": "Create tag",
       "description": "The tag points to {{target}}.",
       "hintAnnotated": "Annotated tag: carries author, date and this text.",
       "hintLightweight": "Without text, a lightweight tag is created – just a name for the commit.",
       "hintNeedsText": "An annotated tag needs a text.",
-      "name": "Name",
-      "title": "Create tag",
       "titleAnnotated": "Create annotated tag"
     }
   },
@@ -73,22 +64,15 @@
     "unsavedText_one": "The editor has unsaved text.",
     "unsavedText_other": "The editor has unsaved text in {{count}} files."
   },
-  "common": {
-    "cancel": "Cancel"
-  },
   "dialogs": {
     "andMore_one": "and {{formatted}} more",
     "andMore_other": "and {{formatted}} more",
-    "close": "Close",
-    "copy": "Copy",
     "filter": "Filter …",
     "noMatch": "No match for “{{filter}}”.",
-    "noOutput": "No output.",
     "nothingToChoose": "Nothing to choose from.",
     "pickMore": "{{count, number}} more – type to narrow down."
   },
   "errorBoundary": {
-    "reload": "Reload",
     "reloadWithoutTabs": "Reload without the open tabs",
     "text": "Your repositories are not affected – nothing was changed. Reload the interface. If the error comes back right away, it is probably caused by one of the open repositories: then “Reload without the open tabs” helps.",
     "title": "The interface ran into an error"
@@ -103,13 +87,11 @@
     "fetchFailed": "{{where}}: auto-fetch failed",
     "fetchNews": "{{where}}: new on the remote",
     "fetchNewsShort": "Auto-fetch brought new commits or branches.",
-    "fetchNewsText": "Auto-fetch brought new commits or branches. Nothing was changed locally.",
-    "repository": "Repository"
+    "fetchNewsText": "Auto-fetch brought new commits or branches. Nothing was changed locally."
   },
   "run": {
     "failed": "{{label}} failed",
-    "outputTitle": "{{label}}: Git output",
-    "showOutput": "Show output"
+    "outputTitle": "{{label}}: Git output"
   },
   "shell": {
     "management": "Repository management"
@@ -136,8 +118,6 @@
       "macos": "Install the Xcode command line tools (“xcode-select --install”) or Git via Homebrew (“brew install git”).",
       "windows": "Download Git for Windows from git-scm.com and install it with the default settings."
     },
-    "recheck": "Check again",
-    "retry": "Try again",
     "tabsFailed": "The tabs could not be loaded"
   }
 }

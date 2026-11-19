@@ -1,24 +1,15 @@
 {
   "tool": {
     "interactive": "Interactive Rebase",
-    "squash": "Commits zusammenfassen",
-    "cherryPick": "Cherry-Pick"
+    "squash": "Commits zusammenfassen"
   },
   "commits_one": "{{count}} Commit",
   "commits_other": "{{count}} Commits",
   "closeWithoutChanges": "Schließen, ohne etwas zu ändern",
   "loading": "Commits werden geladen",
-  "backToGraph": "Zurück zum Graphen",
-  "retry": "Erneut versuchen",
-  "cancel": "Abbrechen",
   "dragToReorder": "Ziehen zum Umsortieren",
   "loadError": {
     "title": "Die Commits ließen sich nicht laden"
-  },
-  "column": {
-    "author": "Autor",
-    "date": "Datum",
-    "action": "Aktion"
   },
   "direction": {
     "oldestTop": "Ältester Commit oben",
@@ -28,7 +19,6 @@
     "action": "Aktion",
     "move": "verschieben",
     "message": "Message",
-    "spaceKey": "Leertaste",
     "choose": "Auswahl",
     "start": "starten"
   },
@@ -42,7 +32,6 @@
       "hint": "neue Message, Inhalt bleibt"
     },
     "squash": {
-      "label": "Zusammenfassen",
       "hint": "geht im Commit darüber auf"
     },
     "fixup": {
@@ -105,7 +94,6 @@
     "upToDateBody": "Der Plan entspricht dem aktuellen Stand des Branches.",
     "onto": "auf",
     "from": "ab {{base}}",
-    "stash": "Änderungen stashen",
     "rebaseFirst": "Erst auf „{{base}}“ rebasen",
     "rebaseFirstBody": "„{{base}}“ ist weitergegangen, seit der Branch abgezweigt ist. Rebase ihn zuerst normal auf „{{base}}“ – danach lassen sich seine Commits hier umsortieren und bearbeiten.",
     "pushedTitle": "Diese Commits liegen schon auf einem Remote",
@@ -118,14 +106,12 @@
     "previously": "vorher: {{summary}}",
     "newMessage": "neue Message",
     "messageEdited": "Message bearbeitet",
-    "editMessage": "Message bearbeiten",
     "editResultMessage": "Message des Ergebnisses bearbeiten",
     "keysHelp": "Pfeiltasten wählen einen Commit. P übernimmt, R formuliert um, S fasst zusammen, F arbeitet ohne Message ein, D lässt weg. Alt mit Pfeil verschiebt. Leertaste öffnet die Auswahl der Aktion, Enter bearbeitet die Message.",
     "forcePushTitle": "Der nächste Push braucht --force-with-lease",
     "forcePushBody": "Die fixup-Commits sind in schon gepushte Commits eingearbeitet. Pushe den Branch mit --force-with-lease, damit der Remote die neue Historie übernimmt.",
     "resetTip": "Alle Änderungen am Plan verwerfen",
-    "nothingChanged": "Noch nichts geändert",
-    "reset": "Zurücksetzen"
+    "nothingChanged": "Noch nichts geändert"
   },
   "squash": {
     "label": "Squash",
@@ -144,14 +130,11 @@
     "confirmTitle_other": "{{count}} gepushte Commits zusammenfassen?",
     "confirmBodyBranch": "Mindestens einer dieser Commits liegt schon auf einem Remote. Zusammenfassen schreibt sie neu: „{{branch}}“ weicht danach vom Remote ab, und der nächste Push muss erzwungen werden. Mit „Rückgängig“ in der Toolbar lässt sich das Zusammenfassen danach zurücknehmen.",
     "confirmBody": "Mindestens einer dieser Commits liegt schon auf einem Remote. Zusammenfassen schreibt sie neu: Der Branch weicht danach vom Remote ab, und der nächste Push muss erzwungen werden. Mit „Rückgängig“ in der Toolbar lässt sich das Zusammenfassen danach zurücknehmen.",
-    "confirm": "Zusammenfassen",
     "pushedTitle": "Mindestens einer dieser Commits liegt schon auf einem Remote",
     "pushedBody": "Zusammenfassen schreibt die Historie neu. Danach weicht der Branch vom Remote ab, und der nächste Push muss erzwungen werden (Force Push).",
     "direction": "Ältester Commit oben – Autor und Datum des ältesten bleiben",
     "listLabel": "Commits, die zusammengefasst werden, ältester oben",
     "formLabel": "Message des neuen Commits",
-    "summary": "Zusammenfassung",
-    "description": "Beschreibung",
     "chars_one": "{{count}} Zeichen",
     "chars_other": "{{count}} Zeichen",
     "charsTooMany_one": "{{count}} Zeichen – üblich sind höchstens {{limit}}",

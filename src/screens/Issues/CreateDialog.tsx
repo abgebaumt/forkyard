@@ -55,10 +55,10 @@ function CreateDialog({ repoId, where, onDone }: { repoId: Id; where: string; on
       footer={
         <>
           <Button disabled={busy} onClick={() => onDone(null)}>
-            {t("issues.create.cancel")}
+            {t("ui.cancel")}
           </Button>
           <Button variant="primary" loading={busy} icon={<Plus className="size-icon" aria-hidden />} onClick={() => void submit()}>
-            {t("issues.create.submit")}
+            {t("ui.create")}
           </Button>
         </>
       }
@@ -73,7 +73,7 @@ function CreateDialog({ repoId, where, onDone }: { repoId: Id; where: string; on
       >
         <TextField
           name="title"
-          label={t("issues.create.titleField")}
+          label={t("ui.title")}
           value={title}
           data-autofocus=""
           autoComplete="off"
@@ -85,7 +85,7 @@ function CreateDialog({ repoId, where, onDone }: { repoId: Id; where: string; on
         />
         <TextArea
           name="body"
-          label={t("issues.create.body")}
+          label={t("ui.description")}
           hint={t("issues.create.bodyHint")}
           rows={6}
           value={body}

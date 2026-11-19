@@ -18,7 +18,7 @@ export const commands: AppCommand[] = [
         ctx.queryClient.getQueryData<RepoSettings>(qk.repoSettings(ctx.repoId)),
       ),
     when: (ctx) => Boolean(ctx.tabId) && hasChanges(ctx.status),
-    disabledReason: (ctx) => (hasChanges(ctx.status) ? null : t("wip.compose.nothing")),
+    disabledReason: (ctx) => (hasChanges(ctx.status) ? null : t("ui.noChanges")),
     run: (ctx) => startCompose(ctx.tabId!),
   },
 ];

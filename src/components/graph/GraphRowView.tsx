@@ -109,10 +109,10 @@ export function changeCount(status: Status): number {
 }
 
 const kindLabel: Record<GraphRow["kind"], string> = {
-  commit: t("graph.row.kind.commit"),
-  merge: t("graph.row.kind.merge"),
-  wip: t("graph.row.kind.wip"),
-  stash: t("graph.row.kind.stash"),
+  commit: t("ui.commit"),
+  merge: t("ui.mergeCommit"),
+  wip: t("ui.localChanges"),
+  stash: t("ui.stash"),
 };
 
 /** "On main: text" or "WIP on main: 1a2b3c4 text" from Git's reflog. */
@@ -126,9 +126,9 @@ export function parseStashSummary(summary: string): { text: string; branch: stri
 function WipMessage({ repoId }: { repoId: Id }) {
   const { data: status, isError } = useStatus(repoId);
   if (!status)
-    return <span className="truncate text-text-muted italic">{isError ? t("graph.row.wipUnreadable") : t("graph.row.kind.wip")}</span>;
+    return <span className="truncate text-text-muted italic">{isError ? t("graph.row.wipUnreadable") : t("ui.localChanges")}</span>;
   const total = changeCount(status);
-  if (total === 0) return <span className="truncate text-text-muted">{t("graph.row.noChanges")}</span>;
+  if (total === 0) return <span className="truncate text-text-muted">{t("ui.noChanges")}</span>;
   const details: string[] = [];
   if (status.conflicted.length > 0) details.push(t("graph.row.conflicts", { count: status.conflicted.length }));
   if (status.staged.length > 0) details.push(t("graph.row.staged", { count: status.staged.length }));
@@ -154,7 +154,7 @@ export function dateTooltip(iso: string): string {
 /** Arrow on merge rows: collapse (hide the commits the merge brought in) or expand again. */
 /** Not focusable, also not by a mouse press: the row keeps the focus for the keyboard navigation. */
 export function CollapseToggle({ repoId, sha, collapsed, tooLarge }: { repoId: Id; sha: string; collapsed: boolean; tooLarge: boolean }) {
-  const label = tooLarge ? t("graph.row.collapseTooLarge") : collapsed ? t("graph.row.expand") : t("graph.row.collapse");
+  const label = tooLarge ? t("graph.row.collapseTooLarge") : collapsed ? t("ui.expandMerge") : t("graph.row.collapse");
   return (
     <button
       type="button"
@@ -174,7 +174,7 @@ export function CollapseToggle({ repoId, sha, collapsed, tooLarge }: { repoId: I
 
 /** ↑ not pushed yet, ↓ not pulled yet (checked-out branch and its upstream). */
 function SyncArrow({ sync }: { sync: Exclude<SyncMark, "none"> }) {
-  const label = sync === "ahead" ? t("graph.row.notPushed") : t("graph.row.notPulled");
+  const label = sync === "ahead" ? t("ui.notPushedYet") : t("graph.row.notPulled");
   return (
     <span data-sync={sync} title={label} className="shrink-0 font-mono text-sm text-text-muted">
       <span aria-hidden>{sync === "ahead" ? "↑" : "↓"}</span>
@@ -189,7 +189,7 @@ export type BisectMark = "good" | "bad" | "skip";
 const BISECT_LABELS: Record<BisectMark, string> = {
   good: t("graph.row.bisectGood"),
   bad: t("graph.row.bisectBad"),
-  skip: t("graph.row.bisectSkip"),
+  skip: t("ui.skipped"),
 };
 const BISECT_TONES: Record<BisectMark, string> = { good: "text-success", bad: "text-danger", skip: "text-text-muted" };
 

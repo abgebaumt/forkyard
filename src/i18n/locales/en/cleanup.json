@@ -1,17 +1,13 @@
 {
-  "title": "Clean up repository",
   "description": "Frees disk space that Git objects, old backups and logs take up. Nothing here runs on its own.",
   "loading": "Measuring the repository …",
   "previewFailed": "The repository couldn’t be measured.",
-  "retry": "Try again",
   "now": {
     "heading": "Now",
     "objects": "Git objects in total",
     "loose": "Of which loose objects",
     "packs": "Packs",
-    "lfs": "Git LFS cache",
     "undo": "Forkyard undo backups",
-    "worktrees": "Orphaned worktrees",
     "reflog": "Reflog entries older than 90 days",
     "notCounted": "not counted",
     "free": "Free disk space",
@@ -20,7 +16,6 @@
     "shared_other": "Affects the repository and all {{count}} worktrees."
   },
   "mode": {
-    "label": "Kind",
     "normal": {
       "label": "Normal",
       "frees": "Frees: packs loose objects, removes unreachable objects older than two weeks and old reflog entries by Git’s defaults (90 days, 30 days for unreachable ones), packs refs."
@@ -43,7 +38,6 @@
       "estimateFailed": "Git LFS couldn’t say how much it would free."
     },
     "worktrees": {
-      "label": "Orphaned worktrees",
       "frees": "Frees: the records of worktrees whose folder is missing; their branches can be checked out again afterwards."
     },
     "undo": {
@@ -56,16 +50,12 @@
       "warning": "Undo is no longer possible for these actions afterwards."
     },
     "reflog": {
-      "label": "Shorten the reflog",
       "frees": "Frees: reflog entries older than 90 days for all refs, even if the repository sets longer periods (gc.reflogExpire). Without such a setting, Normal already does this.",
       "warningWord": "Destructive:",
       "warning": "Commits that are only in the reflog are lost for good afterwards – also in the reflog view."
     }
   },
   "irreversible": "Clean-up can’t be undone.",
-  "start": "Clean up",
-  "cancel": "Cancel",
-  "close": "Close",
   "background": "Continue in background",
   "progress": {
     "step": "Step {{index}} of {{total}} – {{label}} …",
@@ -91,18 +81,8 @@
     "lfs": "LFS cache: {{change}}",
     "steps": "Steps",
     "name": {
-      "worktrees": "Orphaned worktrees",
       "undo": "Old undo backups",
-      "reflog": "Shorten the reflog",
-      "lfs": "Git LFS cache",
       "gc": "Git clean-up (gc)"
-    },
-    "status": {
-      "done": "done",
-      "skipped": "skipped",
-      "failed": "failed",
-      "cancelled": "cancelled",
-      "notRun": "not run"
     },
     "removed_one": "{{count}} removed",
     "removed_other": "{{count}} removed"
@@ -117,8 +97,5 @@
   },
   "toast": {
     "done": "Repository cleaned up – {{change}}"
-  },
-  "action": {
-    "label": "Clean up repository"
   }
 }

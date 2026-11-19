@@ -20,7 +20,7 @@ import { writeBlocked, writeLabel, type AiDraftPhase } from "./aiDraft";
 import { acceptOffer, toggleWriteMessage, useAiDraft, writeMessage } from "./aiDraftActions";
 
 const labelText = (label: "write" | "cancel" | "again") =>
-  label === "cancel" ? t("ai.state.cancel") : label === "again" ? t("wip.ai.again") : t("wip.ai.write");
+  label === "cancel" ? t("ui.cancel") : label === "again" ? t("wip.ai.again") : t("ui.write");
 
 export function AiWriteButtonView({ phase, staged, onToggle }: { phase: AiDraftPhase["kind"]; staged: number; onToggle: () => void }) {
   const label = writeLabel(phase);
@@ -28,7 +28,7 @@ export function AiWriteButtonView({ phase, staged, onToggle }: { phase: AiDraftP
   return (
     <Tip
       side="top"
-      label={blocked ?? (label === "cancel" ? t("ai.state.cancel") : t("wip.ai.writeTip"))}
+      label={blocked ?? (label === "cancel" ? t("ui.cancel") : t("wip.ai.writeTip"))}
       shortcut={blocked ? undefined : "Mod+Shift+M"}
     >
       <Button
@@ -91,7 +91,7 @@ function ErrorLine({
     view.kind === "setup" ? (
       setup(t("ai.state.setup"))
     ) : view.kind === "unavailable" ? (
-      again(t("ai.state.retry"))
+      again(t("ui.retry"))
     ) : view.kind === "notLoggedIn" && provider && isCli(provider) ? (
       <Button size="sm" variant="ghost" data-ai-sign-in="" onClick={() => setNoTerminal(!signInInTerminal(provider))}>
         {t("ai.setup.cli.signIn")}
@@ -103,13 +103,13 @@ function ErrorLine({
       </>
     ) : view.kind === "limit" ? (
       <>
-        {again(t("ai.state.limitSend"))}
+        {again(t("ui.sendThisTime"))}
         <Button size="sm" variant="ghost" onClick={() => openAiSettings()}>
           {t("ai.state.limitChange")}
         </Button>
       </>
     ) : view.kind === "tooLarge" ? (
-      <WhatIsSent repoId={repoId} label={t("wip.ai.whatIsSent")} />
+      <WhatIsSent repoId={repoId} label={t("ui.whatIsSent")} />
     ) : null;
   return (
     <div role="alert" data-ai-error="" className="flex flex-col gap-1 text-sm">
@@ -140,7 +140,7 @@ export function AiDraftStatusView({
       // the exact text can be looked at before anything is sent (no live region – nothing changed).
       return staged > 0 ? (
         <p data-ai-write-idle="" className="flex justify-end text-sm">
-          <WhatIsSent repoId={repoId} label={t("wip.ai.whatIsSent")} />
+          <WhatIsSent repoId={repoId} label={t("ui.whatIsSent")} />
         </p>
       ) : null;
     case "running": {
@@ -155,9 +155,9 @@ export function AiDraftStatusView({
     case "done":
       return (
         <p role="status" data-ai-write-status="" className="flex flex-wrap items-baseline gap-x-2 text-sm text-text-muted">
-          {phase.inserted ? <span className="font-medium text-text">{t("ai.suggestion.draft")}</span> : null}
+          {phase.inserted ? <span className="font-medium text-text">{t("ui.draft")}</span> : null}
           <span>{t("wip.ai.hint")}</span>
-          <WhatIsSent repoId={repoId} label={t("wip.ai.whatIsSent")} />
+          <WhatIsSent repoId={repoId} label={t("ui.whatIsSent")} />
         </p>
       );
     case "offer":
@@ -169,13 +169,13 @@ export function AiDraftStatusView({
           </p>
           <div className="flex flex-wrap gap-1">
             <Button size="sm" data-ai-offer-action="replace" onClick={() => acceptOffer(repoId, "replace")}>
-              {t("ai.suggestion.replace")}
+              {t("ui.replace")}
             </Button>
             <Button size="sm" variant="ghost" data-ai-offer-action="append" onClick={() => acceptOffer(repoId, "append")}>
               {t("ai.suggestion.append")}
             </Button>
             <Button size="sm" variant="ghost" data-ai-offer-action="discard" onClick={() => acceptOffer(repoId, "discard")}>
-              {t("ai.suggestion.discard")}
+              {t("ui.discard")}
             </Button>
           </div>
         </div>

@@ -25,11 +25,11 @@ export const hostKindLabels: Record<HostKind, string> = {
 
 /** What the host calls the thing – GitLab speaks of merge requests. The app uniformly says pull request. */
 export const hostPrWord: Record<HostKind, string> = {
-  github: t("actions.hosts.prWord.github"),
+  github: t("ui.pullRequest"),
   gitlab: t("actions.hosts.prWord.gitlab"),
-  gitea: t("actions.hosts.prWord.default"),
-  bitbucket: t("actions.hosts.prWord.default"),
-  azure_devops: t("actions.hosts.prWord.default"),
+  gitea: t("ui.pullRequest"),
+  bitbucket: t("ui.pullRequest"),
+  azure_devops: t("ui.pullRequest"),
 };
 
 export interface HostUser {

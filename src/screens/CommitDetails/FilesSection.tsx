@@ -82,7 +82,7 @@ export function FilesSection({
   const [view, setView] = useFilesView();
 
   return (
-    <section aria-label={t("commitDetails.files.section")} className="flex min-h-0 flex-1 flex-col border-t border-border">
+    <section aria-label={t("ui.files")} className="flex min-h-0 flex-1 flex-col border-t border-border">
       <div className="flex h-control-lg shrink-0 items-center gap-2 border-b border-border px-2">
         {treeSha !== null ? (
           <SegmentedControl<FilesMode>
@@ -91,11 +91,11 @@ export function FilesSection({
             onValueChange={setMode}
             options={[
               { value: "changed", label: t("commitDetails.files.changed") },
-              { value: "all", label: t("commitDetails.files.all") },
+              { value: "all", label: t("ui.allFiles") },
             ]}
           />
         ) : (
-          <SectionLabel className="px-1">{t("commitDetails.files.changedFiles")}</SectionLabel>
+          <SectionLabel className="px-1">{t("ui.changedFiles")}</SectionLabel>
         )}
         <span className="flex-1" />
         {!showAll && details ? (
@@ -220,13 +220,13 @@ export function ChangedFiles({ repoId, tabId, source, files, view, emptyText, li
       },
       { type: "separator" },
       {
-        label: single ? t("commitDetails.files.copyPath") : t("commitDetails.files.copyPaths", { count: targets.length }),
+        label: single ? t("ui.copyPath") : t("commitDetails.files.copyPaths", { count: targets.length }),
         icon: <ClipboardCopy className="size-icon" aria-hidden />,
         onSelect: () => {
           void writeClipboard(targets.map((file) => file.path).join("\n")).then((ok) => {
             toast(
               ok
-                ? { tone: "success", title: single ? t("commitDetails.files.pathCopied") : t("commitDetails.files.pathsCopied") }
+                ? { tone: "success", title: single ? t("ui.pathCopied") : t("commitDetails.files.pathsCopied") }
                 : { tone: "danger", title: t("commitDetails.copyFailed") },
             );
           });
@@ -344,7 +344,7 @@ function AllFiles({ repoId, tabId, sha }: { repoId: Id; tabId: Id; sha: Sha }) {
             {text ? (
               <IconButton
                 size="sm"
-                label={t("commitDetails.files.clearFilter")}
+                label={t("ui.clearFilter")}
                 shortcut="Esc"
                 icon={<X className="size-3.5" aria-hidden />}
                 onClick={clear}
@@ -368,7 +368,7 @@ function AllFiles({ repoId, tabId, sha }: { repoId: Id; tabId: Id; sha: Sha }) {
               title={t("commitDetails.files.noneFound")}
               action={
                 <Button size="sm" onClick={clear}>
-                  {t("commitDetails.files.clearFilter")}
+                  {t("ui.clearFilter")}
                 </Button>
               }
             >

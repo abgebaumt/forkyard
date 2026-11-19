@@ -91,9 +91,9 @@ function ReleaseNotesDialog({ repoId, subject, onDone }: { repoId: Id; subject: 
       }}
       footer={
         <>
-          <Button onClick={() => onDone(null)}>{t("actions.tags.releaseNotes.close")}</Button>
+          <Button onClick={() => onDone(null)}>{t("ui.close")}</Button>
           <Button variant="primary" loading={busy} disabled={!notes.trim() || targets.length === 0} onClick={() => void apply()}>
-            {t("actions.tags.releaseNotes.apply")}
+            {t("ui.apply")}
           </Button>
         </>
       }
@@ -114,7 +114,7 @@ function ReleaseNotesDialog({ repoId, subject, onDone }: { repoId: Id; subject: 
         />
         <TextArea
           data-release-notes-text=""
-          label={t("actions.tags.releaseNotes.notes")}
+          label={t("ui.releaseNotes")}
           value={notes}
           rows={12}
           onChange={(event) => {

@@ -80,7 +80,7 @@ export function LocksSection({ repoId }: { repoId: Id }) {
           icon={<RefreshCw className="size-3.5" aria-hidden />}
           onClick={() => void refreshLocks(repoId)}
         >
-          {t("lfs.locks.refresh")}
+          {t("ui.refresh")}
         </Button>
       </div>
       <p className="text-sm text-text-muted">{t("lfs.locks.intro")}</p>
@@ -155,7 +155,7 @@ export function LocksSection({ repoId }: { repoId: Id }) {
               disabled={actions.unlock.length === 0 || busy}
               onClick={() => void unlockFiles(repoId, actions.unlock, false)}
             >
-              {t("lfs.locks.unlock")}
+              {t("ui.unlock")}
             </Button>
             <Button
               size="sm"
@@ -163,7 +163,7 @@ export function LocksSection({ repoId }: { repoId: Id }) {
               disabled={actions.force.length === 0 || busy}
               onClick={() => void unlockFiles(repoId, actions.force, true, shown)}
             >
-              {t("lfs.locks.force")}
+              {t("ui.forceUnlock")}
             </Button>
             {selected.size > 0 ? (
               <span role="status" className="text-sm text-text-muted">

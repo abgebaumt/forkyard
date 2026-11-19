@@ -208,7 +208,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
       if (!worktree || !current || current.key !== key) return false;
       const { text, encoding, eol } = current;
       const name = baseName(path);
-      const result = await runAction(t("fileView.save"), () => core.fileWrite({ repoId, path, content: text, encoding, eol }), {
+      const result = await runAction(t("ui.save"), () => core.fileWrite({ repoId, path, content: text, encoding, eol }), {
         busyKey: busyKey(repoId, path),
       });
       if (!result.ok) return false;
@@ -249,8 +249,8 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
         title: t("fileView.closeDirty.title", { name }),
         description: t("fileView.closeDirty.text"),
         options: [
-          { key: "save", label: t("fileView.save"), description: t("fileView.closeDirty.saveHint") },
-          { key: "discard", label: t("fileView.closeDirty.discard"), description: t("fileView.closeDirty.discardHint"), danger: true },
+          { key: "save", label: t("ui.save"), description: t("fileView.closeDirty.saveHint") },
+          { key: "discard", label: t("ui.dontSave"), description: t("fileView.closeDirty.discardHint"), danger: true },
         ],
       });
       if (answer === null) return;
@@ -306,7 +306,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
 
   // --- Kopf ------------------------------------------------------------------------------------
   const name = baseName(path);
-  const standLabel = worktree ? t("fileView.header.worktree") : t("fileView.header.commit", { sha: shortSha(sha!) });
+  const standLabel = worktree ? t("ui.workingDirectory") : t("fileView.header.commit", { sha: shortSha(sha!) });
   const header = (
     <header data-file-header="" className="@container shrink-0 border-b border-border bg-surface">
       <div className="flex h-control-lg items-center gap-2 pr-1 pl-3">
@@ -335,14 +335,14 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
         <Divider />
         <IconButton
           size="sm"
-          label={t("fileView.header.history")}
+          label={t("ui.fileHistory")}
           shortcut="Mod+Shift+H"
           icon={<History className="size-icon" aria-hidden />}
           onClick={() => store().openHistory(tabId, path)}
         />
         <IconButton
           size="sm"
-          label={t("fileView.header.blame")}
+          label={t("ui.blame")}
           icon={<UserSearch className="size-icon" aria-hidden />}
           disabled={!textual}
           onClick={() => store().openBlame(tabId, path, sha)}
@@ -367,11 +367,11 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
         >
           {worktree ? (
             <SegmentedControl
-              label={t("fileView.mode.label")}
+              label={t("ui.mode")}
               value={editing ? "edit" : "view"}
               options={[
                 { value: "view", label: t("fileView.mode.view"), icon: <Eye className="size-3.5" aria-hidden /> },
-                { value: "edit", label: t("fileView.mode.edit"), icon: <PencilLine className="size-3.5" aria-hidden /> },
+                { value: "edit", label: t("ui.edit"), icon: <PencilLine className="size-3.5" aria-hidden /> },
               ]}
               onValueChange={(next) => setMode(next)}
             />
@@ -383,7 +383,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
               onClick={() => store().openFile(tabId, path, null, "edit")}
             >
               <span className="hidden @xl:inline">{t("fileView.mode.editWorktree")}</span>
-              <span className="@xl:hidden">{t("fileView.mode.edit")}</span>
+              <span className="@xl:hidden">{t("ui.edit")}</span>
             </Button>
           )}
           {markdown ? (
@@ -392,14 +392,14 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
               value={preview ? "preview" : "source"}
               options={[
                 { value: "source", label: t("fileView.markdown.source") },
-                { value: "preview", label: t("fileView.markdown.previewMode") },
+                { value: "preview", label: t("ui.preview") },
               ]}
               onValueChange={(next) => setPreview(next === "preview")}
             />
           ) : null}
           <IconButton
             size="sm"
-            label={t("fileView.wrap")}
+            label={t("ui.wrapLongLines")}
             active={wrap}
             aria-pressed={wrap}
             disabled={preview}
@@ -420,7 +420,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
                   <span className="hidden @2xl:inline">{t("fileView.saveStage")}</span>
                 </Button>
               </Tip>
-              <Tip label={t("fileView.save")} shortcut="Mod+S">
+              <Tip label={t("ui.save")} shortcut="Mod+S">
                 <Button
                   size="sm"
                   variant="primary"
@@ -429,7 +429,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
                   icon={<Save className="size-icon" aria-hidden />}
                   onClick={() => void save(false)}
                 >
-                  {t("fileView.save")}
+                  {t("ui.save")}
                 </Button>
               </Tip>
             </>
@@ -462,7 +462,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
           <>
             {gone ? (
               <Button icon={<History className="size-icon" aria-hidden />} onClick={() => store().openHistory(tabId, path)}>
-                {t("fileView.error.showHistory")}
+                {t("ui.showHistory")}
               </Button>
             ) : (
               <Button
@@ -470,7 +470,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
                 loading={query.isFetching}
                 onClick={() => void query.refetch()}
               >
-                {t("fileView.retry")}
+                {t("ui.retry")}
               </Button>
             )}
             <Button variant="ghost" onClick={() => goBack(tabId)}>
@@ -661,7 +661,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
           title={t("fileView.restored.title")}
           actions={
             <Button size="sm" variant="ghost" onClick={discardChanges}>
-              {t("fileView.restored.discard")}
+              {t("ui.discard")}
             </Button>
           }
         >
@@ -675,7 +675,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
           actions={
             <>
               <Button size="sm" onClick={reloadFromDisk}>
-                {t("fileView.external.reload")}
+                {t("ui.reload")}
               </Button>
               <Button size="sm" variant="ghost" onClick={keepMine}>
                 {t("fileView.external.keep")}
@@ -736,7 +736,7 @@ function BinaryNotice({ size, worktree, onExternal }: { size: number; worktree: 
     <Notice
       id="binary"
       icon={<Binary className="size-8" aria-hidden />}
-      title={t("fileView.binary.title")}
+      title={t("ui.binaryFile")}
       action={
         worktree ? (
           <Button icon={<ExternalLink className="size-icon" aria-hidden />} onClick={onExternal}>
@@ -781,7 +781,7 @@ function ImagePreview({ repoId, path, sha, size }: { repoId: Id; path: string; s
         />
       </div>
       <figcaption className="flex h-statusbar shrink-0 items-center gap-2 border-t border-border bg-surface px-3 text-xs text-text-muted tabular-nums">
-        {dimensions ? `${dimensions.width} × ${dimensions.height} px` : t("fileView.image.label")} · {formatBytes(size)}
+        {dimensions ? `${dimensions.width} × ${dimensions.height} px` : t("ui.image")} · {formatBytes(size)}
       </figcaption>
     </figure>
   );

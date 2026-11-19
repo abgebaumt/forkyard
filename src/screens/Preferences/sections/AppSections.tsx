@@ -55,7 +55,7 @@ const pullModes: { value: PullMode; label: string }[] = [
 export function GitSection({ settings }: { settings: Settings }) {
   return (
     <section>
-      <SectionHeader title={t("preferences.git.title")}>{t("preferences.git.intro")}</SectionHeader>
+      <SectionHeader title={t("ui.gitBehavior")}>{t("preferences.git.intro")}</SectionHeader>
       <SettingsCard title={t("preferences.git.fetchCard")}>
         <SettingRow
           title={t("preferences.git.autoFetch.title")}
@@ -103,7 +103,7 @@ export function GitSection({ settings }: { settings: Settings }) {
         <ToggleRow
           settings={settings}
           field="pushAfterCommit"
-          title={t("preferences.git.pushAfterCommit.title")}
+          title={t("ui.pushAfterCommit")}
           description={t("preferences.git.pushAfterCommit.description")}
         />
         <ToggleRow
@@ -181,18 +181,18 @@ export function GitSection({ settings }: { settings: Settings }) {
 const themes: { value: Theme; label: string }[] = [
   { value: "dark", label: t("preferences.appearance.theme.dark") },
   { value: "light", label: t("preferences.appearance.theme.light") },
-  { value: "system", label: t("preferences.appearance.theme.system") },
+  { value: "system", label: t("ui.system") },
 ];
 
 const dateFormats: { value: DateFormat; label: string }[] = [
   { value: "relative", label: t("preferences.appearance.dateFormat.relative") },
-  { value: "local", label: t("preferences.appearance.dateFormat.local") },
+  { value: "local", label: t("ui.local") },
   { value: "iso", label: t("preferences.appearance.dateFormat.iso") },
 ];
 
 /** Language names are written in their own language, so they can be found without knowing the one currently shown. */
 const languages: { value: LanguageSetting; label: string }[] = [
-  { value: "system", label: t("preferences.appearance.language.system") },
+  { value: "system", label: t("ui.system") },
   { value: "en", label: "English" },
   { value: "de", label: "Deutsch" },
 ];
@@ -202,17 +202,17 @@ export function AppearanceSection({ settings }: { settings: Settings }) {
   const example = formatDate(Date.now() - 3 * 3600 * 1000, settings.dateFormat);
   return (
     <section>
-      <SectionHeader title={t("preferences.appearance.title")}>{t("preferences.appearance.intro")}</SectionHeader>
-      <SettingsCard title={t("preferences.appearance.themeCard")}>
+      <SectionHeader title={t("ui.appearance")}>{t("preferences.appearance.intro")}</SectionHeader>
+      <SettingsCard title={t("ui.theme")}>
         <SettingRow
           group
-          title={t("preferences.appearance.theme.title")}
+          title={t("ui.theme")}
           description={t("preferences.appearance.theme.description")}
           changed={changedFor(settings, "theme")}
         >
           {() => (
             <SegmentedControl
-              label={t("preferences.appearance.theme.title")}
+              label={t("ui.theme")}
               value={settings.theme}
               options={themes}
               onValueChange={(value) => void applySettings({ theme: value })}
@@ -234,7 +234,7 @@ export function AppearanceSection({ settings }: { settings: Settings }) {
           )}
         </SettingRow>
         <SettingRow
-          title={t("preferences.appearance.zoom.title")}
+          title={t("ui.zoom")}
           description={t("preferences.appearance.zoom.description")}
           changed={percent === 100 ? undefined : { onReset: () => void applySettings({ zoom: 1 }) }}
         >
@@ -275,7 +275,7 @@ export function AppearanceSection({ settings }: { settings: Settings }) {
           description={t("preferences.appearance.toolbarLabels.description")}
         />
       </SettingsCard>
-      <SettingsCard title={t("preferences.appearance.authorsCard")}>
+      <SettingsCard title={t("ui.authors")}>
         <ToggleRow
           settings={settings}
           field="showInitials"
@@ -292,25 +292,25 @@ export function AppearanceSection({ settings }: { settings: Settings }) {
 // ---------------------------------------------------------------------------
 
 const diffModes: { value: DiffMode; label: string }[] = [
-  { value: "hunks", label: t("preferences.diff.mode.hunks") },
-  { value: "inline", label: t("preferences.diff.mode.inline") },
-  { value: "split", label: t("preferences.diff.mode.split") },
+  { value: "hunks", label: t("ui.hunks") },
+  { value: "inline", label: t("ui.wholeFile") },
+  { value: "split", label: t("ui.sideBySide") },
 ];
 
 export function DiffSection({ settings }: { settings: Settings }) {
   return (
     <section>
-      <SectionHeader title={t("preferences.diff.title")}>{t("preferences.diff.intro")}</SectionHeader>
+      <SectionHeader title={t("ui.diffAndEditor")}>{t("preferences.diff.intro")}</SectionHeader>
       <SettingsCard title={t("preferences.diff.diffCard")}>
         <SettingRow
           group
-          title={t("preferences.diff.mode.title")}
+          title={t("ui.diffView")}
           description={t("preferences.diff.mode.description")}
           changed={changedFor(settings, "diffMode")}
         >
           {() => (
             <SegmentedControl
-              label={t("preferences.diff.mode.title")}
+              label={t("ui.diffView")}
               value={settings.diffMode}
               options={diffModes}
               onValueChange={(value) => void applySettings({ diffMode: value })}
@@ -330,7 +330,7 @@ export function DiffSection({ settings }: { settings: Settings }) {
           description={t("preferences.diff.ignoreWhitespace.description")}
         />
       </SettingsCard>
-      <SettingsCard title={t("preferences.diff.textCard")}>
+      <SettingsCard title={t("ui.text")}>
         <SettingRow
           title={t("preferences.diff.fontSize.title")}
           description={t("preferences.diff.fontSize.description")}
@@ -399,7 +399,7 @@ const tools: {
   },
   {
     key: "externalTerminal",
-    title: t("preferences.external.terminal.title"),
+    title: t("ui.terminal"),
     description: t("preferences.external.terminal.description"),
     example: "wt -d {path}",
     pickTitle: t("preferences.external.terminal.pick"),
@@ -438,7 +438,7 @@ function checkCommand(value: string): string | null {
 export function ExternalSection({ settings }: { settings: Settings }) {
   return (
     <section>
-      <SectionHeader title={t("preferences.external.title")}>
+      <SectionHeader title={t("ui.externalPrograms")}>
         <Trans i18nKey="preferences.external.intro" components={{ code: <code className="font-mono text-code text-text" /> }} />
       </SectionHeader>
       <SettingsCard title={t("preferences.external.card")}>
@@ -490,7 +490,7 @@ export function NotificationsSection({ settings }: { settings: Settings }) {
   const system = useSystemNotificationState();
   return (
     <section data-system-notifications={system}>
-      <SectionHeader title={t("preferences.notifications.title")}>
+      <SectionHeader title={t("ui.notifications")}>
         {t("preferences.notifications.intro")}
         {systemIntro(system)}
       </SectionHeader>

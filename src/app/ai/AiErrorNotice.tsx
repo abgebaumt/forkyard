@@ -44,7 +44,7 @@ export function AiErrorNotice({
     case "limit":
       actions = (
         <>
-          {again(t("ai.state.limitSend"))}
+          {again(t("ui.sendThisTime"))}
           <Button size="sm" variant="ghost" onClick={openAiSettings}>
             {t("ai.state.limitChange")}
           </Button>
@@ -63,7 +63,7 @@ export function AiErrorNotice({
       );
       break;
     case "unavailable":
-      actions = again(t("ai.state.retry"));
+      actions = again(t("ui.retry"));
       break;
     case "notLoggedIn":
       actions = (

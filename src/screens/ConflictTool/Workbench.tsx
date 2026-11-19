@@ -302,7 +302,7 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
     const ok = await confirm({
       title: t("conflict.reset.title", { name }),
       body: t("conflict.reset.body"),
-      confirmLabel: t("conflict.reset.confirm"),
+      confirmLabel: t("ui.reset"),
       danger: true,
     });
     if (!ok) return;
@@ -591,7 +591,7 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
         toolbar={
           <div
             role="toolbar"
-            aria-label={t("conflict.toolbar")}
+            aria-label={t("ui.conflicts")}
             className="flex h-control-lg items-center gap-1 border-t border-border pr-1 pl-3"
           >
             <p
@@ -614,7 +614,7 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
             <div role="group" aria-label={t("conflict.nav.switch")} className="flex shrink-0 items-center">
               <IconButton
                 size="sm"
-                label={t("conflict.nav.prev")}
+                label={t("ui.previousConflict")}
                 shortcut="Shift+F7"
                 disabled={total === 0 || current <= 0}
                 icon={<ChevronUp className="size-icon" aria-hidden />}
@@ -629,7 +629,7 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
               </span>
               <IconButton
                 size="sm"
-                label={t("conflict.nav.next")}
+                label={t("ui.nextConflict")}
                 shortcut="F7"
                 disabled={total === 0 || current >= total - 1}
                 icon={<ChevronDown className="size-icon" aria-hidden />}
@@ -665,7 +665,7 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
                     className={intentOpen ? "bg-surface-raised" : undefined}
                     onClick={() => setIntentOpen(!intentOpen)}
                   >
-                    {t("conflict.intent.toggle")}
+                    {t("ui.intent")}
                   </Button>
                 </Tip>
               </>

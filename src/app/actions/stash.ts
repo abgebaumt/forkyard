@@ -49,7 +49,7 @@ async function resolveIndex(repoId: Id, stash: StashRef): Promise<number | null>
 export async function stashChanges(repoId: Id, options: StashOptions = {}) {
   const paths = options.paths ?? null;
   const result = await runAction(
-    t("actions.stash.label"),
+    t("ui.stash"),
     withFreshStatus(repoId, () =>
       core.stashCreate({
         repoId,
@@ -165,7 +165,7 @@ export async function dropStash(repoId: Id, stash: StashRef) {
 export async function renameStash(repoId: Id, stash: StashRef) {
   const message = await promptText({
     title: t("actions.stash.rename.title"),
-    label: t("actions.stash.rename.label"),
+    label: t("ui.description"),
     initial: stash.message,
     confirmLabel: t("actions.branches.rename.action"),
     validate: (value) => (value === stash.message ? t("actions.stash.rename.unchanged") : null),

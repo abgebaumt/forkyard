@@ -1,7 +1,5 @@
 {
   "alias": {
-    "remove": "Alias entfernen",
-    "save": "Alias speichern",
     "removed": "Alias entfernt",
     "removedText": "Der Tab heißt wieder wie der Ordner: „{{name}}“.",
     "saved": "Tab heißt jetzt „{{alias}}“",
@@ -15,9 +13,7 @@
       "hostKey": "Unbekannter SSH-Host"
     },
     "field": {
-      "username": "Benutzername",
-      "password": "Passwort oder Token",
-      "passphrase": "Passphrase"
+      "username": "Benutzername"
     },
     "answerAction": "Antwort an Git",
     "queue_one": "Danach wartet eine weitere Rückfrage.",
@@ -33,13 +29,11 @@
       "passwordUser": "<host>{{host}}</host> fragt nach dem Passwort für <user>{{user}}</user>. Viele Hoster erwarten hier ein Zugangs-Token statt des Konto-Passworts."
     },
     "trustHost": "Host vertrauen und verbinden",
-    "next": "Weiter",
     "signIn": "Anmelden",
     "compareTitle": "Erst vergleichen, dann vertrauen",
     "compareText": "Stimmt der Fingerabdruck nicht mit dem überein, den der Anbieter veröffentlicht, könnte jemand die Verbindung mitlesen. Dann brich ab.",
     "fingerprintOf": "Fingerabdruck von {{host}}",
     "copyFingerprint": "Fingerabdruck kopieren",
-    "fingerprint": "Fingerabdruck",
     "gitAsks": "Git fragt: {{prompt}}",
     "reveal": "Eingabe anzeigen",
     "remember": "Im Schlüsselbund des Systems merken",
@@ -61,7 +55,6 @@
     "commitNotFoundText": "„{{name}}“ ist geöffnet, diesen Commit gibt es dort aber nicht. Vielleicht fehlt noch ein Fetch – oder der Link gehört zu einem anderen Repository."
   },
   "profile": {
-    "menuTitle": "Profile",
     "manage": "Profile verwalten …",
     "chip": "Profil: {{name}}. Profil wechseln"
   },
@@ -76,13 +69,11 @@
     "detachedHint": "Es ist kein Branch ausgecheckt, sondern der Commit {{sha}}. Neue Commits gehören zu keinem Branch, bis du einen anlegst.",
     "upstreamGone": "Upstream {{name}} existiert nicht mehr",
     "upstream": "Upstream: {{name}}",
-    "upstreamMissing": "Upstream fehlt",
     "ahead_one": "{{count}} Commit voraus",
     "ahead_other": "{{count}} Commits voraus",
     "behind_one": "{{count}} Commit zurück",
     "behind_other": "{{count}} Commits zurück",
     "noUpstreamHint": "Der Branch folgt keinem Remote-Branch. Ein Push legt den Upstream an.",
-    "noUpstream": "kein Upstream",
     "notPublishedHint": "Folgt {{name}} (anderer Name). Ein Push fragt, wohin.",
     "notOnRemote": "· noch nicht auf {{remote}}",
     "jobCancelled": "{{title}} abgebrochen",
@@ -92,10 +83,6 @@
     "percent": "{{n}} %",
     "lastFetch": "Letzter Fetch: {{time}}",
     "fetchAgo": "Fetch {{time}}",
-    "zoom": "Zoom",
-    "zoomOut": "Verkleinern",
-    "zoomIn": "Vergrößern",
-    "zoomReset": "Zoom zurücksetzen",
     "zoomResetLimited": "Zoom zurücksetzen – in diesem Fenster wirken {{applied}} %; für {{zoom}} % das Fenster vergrößern",
     "zoomLabel": "Zoom {{zoom}} %, zurücksetzen",
     "zoomLabelLimited": "Zoom {{zoom}} %, in diesem Fenster wirken {{applied}} %, zurücksetzen",
@@ -105,10 +92,7 @@
     "versionLabel": "Forkyard-Version {{version}}, Änderungsprotokoll"
   },
   "tabMenu": {
-    "close": "Tab schließen",
     "closeOthers": "Andere Tabs schließen",
-    "changeAlias": "Alias ändern …",
-    "rename": "Umbenennen …",
     "folder": "Ordner: {{name}}",
     "displayNameOnly": "nur der Anzeigename",
     "backTo": "wieder „{{name}}“",
@@ -116,8 +100,6 @@
     "moveRight": "Nach rechts verschieben",
     "cleanup": "Repository aufräumen …",
     "showInFileManager": "{{revealInFileManager}}",
-    "copyPath": "Pfad kopieren",
-    "pathCopied": "Pfad kopiert",
     "clipboardUnavailable": "Zwischenablage nicht erreichbar"
   },
   "toolbar": {
@@ -133,16 +115,10 @@
     "stashNeedsCommit": "Stash braucht mindestens einen Commit",
     "resolveConflicts": "Erst die Konflikte lösen",
     "nothingToStash": "Keine Änderungen zum Stashen",
-    "noStash": "Kein Stash vorhanden",
-    "nothingToUndo": "Nichts rückgängig zu machen",
-    "nothingToRedo": "Nichts zu wiederholen",
     "pullModeLabel": "Pull-Modus (wird zum Standard)",
-    "fetchAll": "Fetch (alle Remotes)",
     "addRemote": "Remote hinzufügen …",
-    "undo": "Rückgängig",
     "undoWhat": "Rückgängig: {{label}}",
     "undoHint": "Letzte Aktion rückgängig machen",
-    "redo": "Wiederholen",
     "redoWhat": "Wiederholen: {{label}}",
     "redoHint": "Rückgängig gemachte Aktion wiederholen",
     "pullRunning": "Pull läuft – Abbrechen in der Statusleiste",
@@ -168,12 +144,8 @@
     "terminalShow": "Terminal im Repository einblenden",
     "search": "Suchen",
     "searchHint": "Commits nach Message, SHA oder Autor suchen",
-    "stats": "Statistik",
     "statsHint": "Commits, Autoren, Hotspots und Code-Alter dieses Repositorys",
     "statsHide": "Statistik schließen und zur vorigen Ansicht zurückkehren",
-    "commands": "Befehle",
-    "palette": "Command Palette",
-    "settings": "Einstellungen",
     "general": "Allgemeine Aktionen"
   },
   "trust": {
@@ -193,19 +165,15 @@
     "trustAndOpen": "Vertrauen und öffnen"
   },
   "workspace": {
-    "nothingSelected": "Nichts ausgewählt",
     "nothingSelectedHint": "Wähle im Graphen einen Commit oder die Zeile mit den lokalen Änderungen.",
     "showLeft": "Left Panel einblenden",
     "showRight": "Commit Panel einblenden",
     "missingTitle": "„{{name}}“ ist nicht mehr da",
-    "recheck": "Erneut prüfen",
     "chooseLocation": "Neuen Ort wählen …",
-    "removeFromList": "Aus der Liste entfernen",
     "missingText": "Der Ordner wurde verschoben, umbenannt oder gelöscht – oder er ist kein Git-Repository mehr. Ist ein Laufwerk nicht verbunden, schließe es an und prüfe erneut.",
     "leftWidth": "Breite des Left Panels",
     "rightWidth": "Breite des Commit Panels",
     "left": "Left Panel",
-    "center": "Ansicht",
     "right": "Commit Panel"
   },
   "starting": "Wird gestartet …"

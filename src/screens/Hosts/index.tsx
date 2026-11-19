@@ -104,7 +104,7 @@ function AccountRow({ account }: { account: HostAccountInfo }) {
           aria-label={t("hosts.account.checkLabel", { name })}
           onClick={() => void checkAccount(account)}
         >
-          {t("hosts.account.check")}
+          {t("ui.check")}
         </Button>
         <Button
           size="sm"
@@ -163,10 +163,10 @@ export function HostsSection() {
       data-state={accounts.isPending ? "loading" : accounts.isError ? "error" : list.length ? "filled" : "empty"}
     >
       <SectionHeader
-        title={t("hosts.section.title")}
+        title={t("ui.integrations")}
         actions={
           <Button variant="primary" icon={<Plus className="size-icon" aria-hidden />} onClick={() => void openConnectDialog()}>
-            {t("hosts.section.connect")}
+            {t("ui.connectAccount")}
           </Button>
         }
       >
@@ -175,7 +175,7 @@ export function HostsSection() {
 
       {keyring === false ? (
         <div className="mb-3 overflow-hidden rounded-md" data-state="no-keyring">
-          <Banner tone="warning" title={t("hosts.section.noKeyringTitle")}>
+          <Banner tone="warning" title={t("ui.noKeychainAvailable")}>
             {t("hosts.section.noKeyring")}
           </Banner>
         </div>
@@ -201,7 +201,7 @@ export function HostsSection() {
             </p>
           </div>
           <Button size="sm" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={() => void accounts.refetch()}>
-            {t("hosts.section.retry")}
+            {t("ui.retry")}
           </Button>
         </div>
       ) : list.length === 0 ? (
@@ -212,7 +212,7 @@ export function HostsSection() {
             <p className="text-base text-text-muted">{t("hosts.section.empty")}</p>
             <div className="mt-2">
               <Button size="sm" icon={<Plus className="size-3.5" aria-hidden />} onClick={() => void openConnectDialog()}>
-                {t("hosts.section.connect")}
+                {t("ui.connectAccount")}
               </Button>
             </div>
           </div>

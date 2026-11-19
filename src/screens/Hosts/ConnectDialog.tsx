@@ -166,7 +166,7 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
     <Dialog
       open
       size="md"
-      title={replace ? t("hosts.connect.replaceTitle") : t("hosts.connect.title")}
+      title={replace ? t("ui.replaceToken") : t("hosts.connect.title")}
       description={
         replace
           ? t("hosts.connect.replaceDescription", { host: `${hostKindLabels[replace.kind]} – ${accountHost(replace)}` })
@@ -178,10 +178,10 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
       footer={
         <>
           <Button disabled={busy} onClick={() => onDone(null)}>
-            {t("hosts.connect.cancel")}
+            {t("ui.cancel")}
           </Button>
           <Button variant="primary" loading={busy} onClick={() => void submit()}>
-            {busy ? t("hosts.connect.checking") : replace ? t("hosts.connect.replace") : t("hosts.connect.submit")}
+            {busy ? t("hosts.connect.checking") : replace ? t("ui.replaceToken") : t("ui.connect")}
           </Button>
         </>
       }
@@ -198,7 +198,7 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
       >
         {keyring === false ? (
           <div className="overflow-hidden rounded-md" data-state="no-keyring">
-            <Banner tone="warning" title={t("hosts.section.noKeyringTitle")}>
+            <Banner tone="warning" title={t("ui.noKeychainAvailable")}>
               {t("hosts.connect.noKeyring")}
             </Banner>
           </div>
@@ -207,9 +207,9 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
         {replace ? null : (
           <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
             <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-text-muted">{t("hosts.connect.host")}</span>
+              <span className="text-sm font-medium text-text-muted">{t("ui.host")}</span>
               <SegmentedControl
-                label={t("hosts.connect.host")}
+                label={t("ui.host")}
                 value={kind}
                 options={HOST_KINDS.map((value) => ({ value, label: hostKindLabels[value] }))}
                 onValueChange={(next) => {

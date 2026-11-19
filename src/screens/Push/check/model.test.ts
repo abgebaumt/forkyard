@@ -102,10 +102,10 @@ describe("push review", () => {
       `${t("pushCheck.review.found", { count: 1 })} · ${t("pushCheck.review.commits", { count: 2 })}`,
     );
     expect(reviewPushLabel("done", 0)).toBe(t("pushCheck.review.push"));
-    expect(reviewPushLabel("done", 2)).toBe(t("pushCheck.review.pushAnyway"));
-    expect(reviewPushLabel("loading", 0)).toBe(t("pushCheck.review.pushAnyway"));
-    expect(reviewPushLabel("error", 0)).toBe(t("pushCheck.review.pushAnyway"));
-    expect(t("pushCheck.review.push")).not.toBe(t("pushCheck.review.pushAnyway"));
+    expect(reviewPushLabel("done", 2)).toBe(t("ui.pushAnyway"));
+    expect(reviewPushLabel("loading", 0)).toBe(t("ui.pushAnyway"));
+    expect(reviewPushLabel("error", 0)).toBe(t("ui.pushAnyway"));
+    expect(t("pushCheck.review.push")).not.toBe(t("ui.pushAnyway"));
   });
 
   it("is offered only where the function is visible, and runs first only with the project switch", () => {

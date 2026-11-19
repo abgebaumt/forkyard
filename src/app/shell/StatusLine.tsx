@@ -125,7 +125,7 @@ function BranchInfo({ repoId }: { repoId: Id }) {
           }
         >
           {upstream.gone ? (
-            <span className="text-warning">{t("shell.status.upstreamMissing")}</span>
+            <span className="text-warning">{t("ui.upstreamMissing")}</span>
           ) : (
             <>
               <span className="inline-flex items-center" aria-label={t("shell.status.ahead", { count: upstream.ahead })}>
@@ -141,7 +141,7 @@ function BranchInfo({ repoId }: { repoId: Id }) {
         </span>
       ) : head.kind === "branch" ? (
         <span className="shrink-0" title={t("shell.status.noUpstreamHint")}>
-          {t("shell.status.noUpstream")}
+          {t("ui.noUpstream")}
         </span>
       ) : null}
       {operation ? (
@@ -304,10 +304,10 @@ export function StatusLine({ repoId }: { repoId: Id | null }) {
       right={
         <>
           <UpdateHint />
-          <span className="flex items-center" role="group" aria-label={t("shell.status.zoom")}>
+          <span className="flex items-center" role="group" aria-label={t("ui.zoom")}>
             <IconButton
               size="xs"
-              label={t("shell.status.zoomOut")}
+              label={t("ui.zoomOut")}
               shortcut="Mod+-"
               disabled={zoom <= ZOOM_MIN + 0.001}
               icon={<Minus className="size-3" aria-hidden />}
@@ -317,7 +317,7 @@ export function StatusLine({ repoId }: { repoId: Id | null }) {
               label={
                 limited
                   ? t("shell.status.zoomResetLimited", { applied: Math.round(applied * 100), zoom: Math.round(zoom * 100) })
-                  : t("shell.status.zoomReset")
+                  : t("ui.resetZoom")
               }
               shortcut="Mod+0"
             >
@@ -337,7 +337,7 @@ export function StatusLine({ repoId }: { repoId: Id | null }) {
             </Tip>
             <IconButton
               size="xs"
-              label={t("shell.status.zoomIn")}
+              label={t("ui.zoomIn")}
               shortcut="Mod++"
               disabled={zoom >= ZOOM_MAX - 0.001}
               icon={<Plus className="size-3" aria-hidden />}

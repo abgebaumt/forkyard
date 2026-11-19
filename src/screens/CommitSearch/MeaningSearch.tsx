@@ -41,7 +41,7 @@ function ErrorActions({
   if (kind === "setup") {
     return (
       <Button size="sm" onClick={() => void openAiSetup()}>
-        {t("commitSearch.meaning.openSetup")}
+        {t("ui.setUpAi")}
       </Button>
     );
   }
@@ -53,7 +53,7 @@ function ErrorActions({
           {t("ai.setup.cli.signIn")}
         </Button>
         <Button size="sm" variant="ghost" onClick={onRetry}>
-          {t("commitSearch.meaning.retry")}
+          {t("ui.retry")}
         </Button>
       </>
     );
@@ -62,10 +62,10 @@ function ErrorActions({
     return (
       <>
         <Button size="sm" onClick={onRetry}>
-          {t("commitSearch.meaning.sendAnyway")}
+          {t("ui.sendThisTime")}
         </Button>
         <Button size="sm" variant="ghost" onClick={openAiSettings}>
-          {t("commitSearch.meaning.changeLimit")}
+          {t("ui.changeLimit")}
         </Button>
       </>
     );
@@ -74,7 +74,7 @@ function ErrorActions({
     return (
       <>
         <Button size="sm" onClick={onRetry}>
-          {t("commitSearch.meaning.retry")}
+          {t("ui.retry")}
         </Button>
         <Button size="sm" variant="ghost" onClick={onShowSent}>
           {t("commitSearch.meaning.showSent")}
@@ -84,7 +84,7 @@ function ErrorActions({
   }
   return (
     <Button size="sm" onClick={onRetry}>
-      {t("commitSearch.meaning.retry")}
+      {t("ui.retry")}
     </Button>
   );
 }
@@ -221,7 +221,7 @@ export function MeaningSearch({ repoId, tabId, text, setText, modeSwitch }: Sear
   return (
     <div
       role="search"
-      aria-label={t("commitSearch.label")}
+      aria-label={t("ui.commitSearch")}
       data-screen="commit-search"
       data-mode="meaning"
       className="@container flex shrink-0 flex-col border-b border-border bg-surface text-base"
@@ -238,7 +238,7 @@ export function MeaningSearch({ repoId, tabId, text, setText, modeSwitch }: Sear
             maxLength={MAX_QUESTION}
             spellCheck={false}
             autoComplete="off"
-            aria-label={t("commitSearch.input")}
+            aria-label={t("ui.searchCommits")}
             aria-expanded={showList}
             aria-controls={listId}
             aria-autocomplete="list"
@@ -277,13 +277,7 @@ export function MeaningSearch({ repoId, tabId, text, setText, modeSwitch }: Sear
           icon={<ChevronDown className="size-icon" aria-hidden />}
           onClick={() => step(1)}
         />
-        <IconButton
-          size="sm"
-          label={t("commitSearch.close")}
-          shortcut="Esc"
-          icon={<X className="size-icon" aria-hidden />}
-          onClick={close}
-        />
+        <IconButton size="sm" label={t("ui.closeSearch")} shortcut="Esc" icon={<X className="size-icon" aria-hidden />} onClick={close} />
       </div>
 
       {failure && failure.kind !== "cancelled" ? (
@@ -314,7 +308,7 @@ export function MeaningSearch({ repoId, tabId, text, setText, modeSwitch }: Sear
           {indexing ? <span>{indexing}</span> : null}
           {loading?.slow ? <span>{loading.slow}</span> : null}
           <Button size="sm" variant="ghost" onClick={meaning.cancel}>
-            {t("commitSearch.meaning.cancel")}
+            {t("ui.cancel")}
           </Button>
         </div>
       ) : !result ? (
@@ -322,7 +316,7 @@ export function MeaningSearch({ repoId, tabId, text, setText, modeSwitch }: Sear
           <span>{t("commitSearch.meaning.hint")}</span>
           {note ? <span>{note}</span> : null}
           <Button size="sm" variant="ghost" data-ai-what-is-sent disabled={!text.trim()} onClick={() => void meaning.showSent(text.trim())}>
-            {t("commitSearch.meaning.whatIsSent")}
+            {t("ui.whatIsSent")}
           </Button>
         </div>
       ) : (

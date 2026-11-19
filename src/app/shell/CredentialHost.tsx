@@ -25,8 +25,8 @@ const titles: Record<CredentialKind, string> = {
 
 const fieldLabels: Record<Exclude<CredentialKind, "host_key">, string> = {
   username: t("shell.credential.field.username"),
-  password: t("shell.credential.field.password"),
-  passphrase: t("shell.credential.field.passphrase"),
+  password: t("ui.passwordOrToken"),
+  passphrase: t("ui.passphrase"),
 };
 
 /**
@@ -140,7 +140,7 @@ function CredentialDialog({ request, waiting }: { request: CredentialRequest; wa
               {t("ui.cancel")}
             </Button>
             <Button variant="primary" loading={sending} disabled={!value} onClick={() => void answer(value)}>
-              {request.kind === "username" ? t("shell.credential.next") : t("shell.credential.signIn")}
+              {request.kind === "username" ? t("ui.continue") : t("shell.credential.signIn")}
             </Button>
           </>
         )
@@ -170,7 +170,7 @@ function CredentialDialog({ request, waiting }: { request: CredentialRequest; wa
                 size="md"
                 label={t("shell.credential.copyFingerprint")}
                 icon={<Copy className="size-icon" aria-hidden />}
-                onClick={() => void copyText(fingerprint, t("shell.credential.fingerprint"))}
+                onClick={() => void copyText(fingerprint, t("ui.fingerprint"))}
               />
             </div>
           </div>

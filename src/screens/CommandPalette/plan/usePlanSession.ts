@@ -177,7 +177,7 @@ export function usePlanSession(repoId: Id | null, close: () => void, focusInput:
         toast({
           tone: "success",
           title: next.toast,
-          ...(result.undoRecorded ? { action: { label: t("commands.repo.undo.title"), onClick: () => void undo(repoId) } } : {}),
+          ...(result.undoRecorded ? { action: { label: t("ui.undo"), onClick: () => void undo(repoId) } } : {}),
         });
         return;
       }

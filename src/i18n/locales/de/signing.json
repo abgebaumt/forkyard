@@ -1,8 +1,5 @@
 {
-  "securityKey": "Sicherheitsschlüssel",
-  "fileMissing": "Datei fehlt",
   "save": "Signier-Einstellung speichern",
-  "title": "Commits signieren",
   "loadError": "Die Signier-Einstellungen ließen sich nicht laden",
   "blocked": "Wähle zuerst einen SSH-Schlüssel – ohne ihn scheitert jeder Commit.",
   "noKey": "Kein Schlüssel gewählt",
@@ -17,7 +14,6 @@
     "description": "Womit signiert wird (gpg.format). Wer das Format wechselt, wählt den Schlüssel neu."
   },
   "sshKey": {
-    "title": "SSH-Schlüssel",
     "none": "Noch kein SSH-Schlüssel eingetragen. Lege links unter „SSH-Schlüssel“ einen an oder trage einen vorhandenen ein – dann steht er hier zur Wahl.",
     "description": "Der öffentliche Schlüssel, mit dessen privatem Gegenstück signiert wird (user.signingKey). Zur Wahl stehen die Schlüssel aus „SSH-Schlüssel“."
   },
@@ -32,14 +28,11 @@
     "placeholder": "Schlüssel zur E-Mail-Adresse"
   },
   "noSpaces": "Eine Kennung enthält keine Leerzeichen.",
-  "notSaved": "Nicht gespeichert.",
   "enable": {
-    "title": "Commits signieren",
     "ssh": "Jeder neue Commit bekommt eine SSH-Signatur (commit.gpgSign). Als „gültig“ zeigt Git sie erst, wenn gpg.ssh.allowedSignersFile deinen Schlüssel kennt – sonst steht am Commit „nicht prüfbar“.",
     "other": "Jeder neue Commit wird signiert (commit.gpgSign). Kann das Programm die Passphrase nicht abfragen, scheitert der Commit mit der Meldung von Git."
   },
   "program": {
-    "title": "Programm",
     "description": "Nur zum Ablesen: das Programm, das Git zum Signieren startet ({{config}}). Ändern lässt es sich bisher nur mit git config.",
     "default": "{{program}} (Vorgabe von Git)"
   },

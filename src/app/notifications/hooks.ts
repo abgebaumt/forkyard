@@ -55,7 +55,7 @@ export function reportHookOutput(event: HookEvent, notifyOnError: boolean | unde
       tone: "danger",
       title,
       description: line || undefined,
-      action: text ? { label: t("notifications.hooks.showOutput"), onClick: () => showHookOutput(event.hook, event.output) } : undefined,
+      action: text ? { label: t("ui.showOutput"), onClick: () => showHookOutput(event.hook, event.output) } : undefined,
     });
     lastFailure = { ...event, at: Date.now(), toastId };
     desktopNotify(notifyOnError, title, line);
@@ -69,7 +69,7 @@ export function reportHookOutput(event: HookEvent, notifyOnError: boolean | unde
     title: t("notifications.hooks.printed", { hook: event.hook }),
     description: firstLine(text) || undefined,
     sticky: true,
-    action: { label: t("notifications.hooks.showOutput"), onClick: () => showHookOutput(event.hook, event.output) },
+    action: { label: t("ui.showOutput"), onClick: () => showHookOutput(event.hook, event.output) },
   });
 }
 
@@ -102,7 +102,7 @@ export async function reportHookRejection(label: string, error: CoreError, notif
     title,
     description: line ? `${message}\n${line}` : message,
     action: output
-      ? { label: t("notifications.hooks.showOutput"), onClick: () => showHookOutput(hook ?? t("notifications.hooks.gitHook"), output) }
+      ? { label: t("ui.showOutput"), onClick: () => showHookOutput(hook ?? t("notifications.hooks.gitHook"), output) }
       : undefined,
   });
   // The hook itself has already notified the system if its event arrived.

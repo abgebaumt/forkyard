@@ -19,7 +19,7 @@ function reportUntrusted(): void {
     title: t("customCommands.run.untrusted"),
     description: t("customCommands.run.untrustedHint"),
     action: {
-      label: t("customCommands.run.review"),
+      label: t("ui.review"),
       onClick: () => useAppStore.getState().openOverlay({ kind: "preferences", section: "commands" }),
     },
   });
@@ -44,7 +44,7 @@ export function runConfirmation(title: string, result: Extract<CustomCommandResu
     title: t("customCommands.run.confirmTitle", { title }),
     body: t("customCommands.run.confirmBody", { cwd: result.cwd }),
     details: [result.display],
-    detailsLabel: t("customCommands.run.confirmDetails"),
+    detailsLabel: t("ui.command"),
     detailsWrap: true,
     confirmLabel: t("customCommands.run.confirmLabel"),
   };

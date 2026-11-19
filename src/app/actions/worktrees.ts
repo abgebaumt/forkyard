@@ -33,7 +33,7 @@ export function samePath(a: string, b: string): boolean {
 /** What is checked out in the worktree, as a short text. */
 export function worktreeTarget(worktree: Pick<Worktree, "branch" | "head">): string {
   if (worktree.branch) return worktree.branch;
-  return worktree.head ? t("actions.worktrees.detachedAt", { sha: shortSha(worktree.head) }) : t("actions.worktrees.noCommit");
+  return worktree.head ? t("actions.worktrees.detachedAt", { sha: shortSha(worktree.head) }) : t("ui.noCommit");
 }
 
 const setList = (repoId: Id, list: Worktree[]) => queryClient.setQueryData(qk.worktrees(repoId), list);
@@ -77,7 +77,7 @@ export const ADD_WORKTREE_QUIET: ErrorCode[] = [
 
 export async function addWorktree(repoId: Id, input: AddWorktreeInput): Promise<ActionResult<Worktree[]>> {
   await whenFree(repoId);
-  const result = await runAction(t("actions.worktrees.add"), () => core.worktreeAdd({ repoId, ...input }), {
+  const result = await runAction(t("ui.createWorktree"), () => core.worktreeAdd({ repoId, ...input }), {
     busyKey: worktreeBusyKey(repoId),
     quiet: ADD_WORKTREE_QUIET,
   });
@@ -110,16 +110,12 @@ export async function lockWorktree(repoId: Id, worktree: Worktree, reason: strin
   const clean = reason?.trim() || null;
   await whenFree(repoId);
   showAtOnce(repoId, worktree.path, { isLocked: true, lockReason: clean });
-  const result = await runAction(
-    t("actions.worktrees.lock.label"),
-    () => core.worktreeLock({ repoId, path: worktree.path, reason: clean }),
-    {
-      busyKey: worktreeBusyKey(repoId),
-      success: worktree.isLocked
-        ? t("actions.worktrees.lock.reasonChanged", { name: clip(name, 40) })
-        : t("actions.worktrees.lock.done", { name: clip(name, 40) }),
-    },
-  );
+  const result = await runAction(t("ui.lock"), () => core.worktreeLock({ repoId, path: worktree.path, reason: clean }), {
+    busyKey: worktreeBusyKey(repoId),
+    success: worktree.isLocked
+      ? t("actions.worktrees.lock.reasonChanged", { name: clip(name, 40) })
+      : t("actions.worktrees.lock.done", { name: clip(name, 40) }),
+  });
   if (result.ok) setList(repoId, result.value);
   else void queryClient.invalidateQueries({ queryKey: qk.worktrees(repoId) });
   return result;
@@ -128,7 +124,7 @@ export async function lockWorktree(repoId: Id, worktree: Worktree, reason: strin
 export async function unlockWorktree(repoId: Id, worktree: Worktree) {
   await whenFree(repoId);
   showAtOnce(repoId, worktree.path, { isLocked: false, lockReason: null });
-  const result = await runAction(t("actions.worktrees.unlock.label"), () => core.worktreeUnlock({ repoId, path: worktree.path }), {
+  const result = await runAction(t("ui.unlock"), () => core.worktreeUnlock({ repoId, path: worktree.path }), {
     busyKey: worktreeBusyKey(repoId),
     success: t("actions.worktrees.unlock.done", { name: clip(folderName(worktree.path), 40) }),
   });
@@ -178,13 +174,13 @@ export async function removeWorktree(repoId: Id, worktree: Worktree) {
     body: t("actions.worktrees.remove.body", { keeps }),
     details: [worktree.path],
     detailsLabel: t("actions.worktrees.remove.detailsLabel"),
-    confirmLabel: t("actions.worktrees.remove.action"),
+    confirmLabel: t("ui.removeWorktree"),
     danger: true,
   });
   if (!ok) return null;
 
   const run = (force: boolean) =>
-    runAction(t("actions.worktrees.remove.action"), () => core.worktreeRemove({ repoId, path: worktree.path, force }), {
+    runAction(t("ui.removeWorktree"), () => core.worktreeRemove({ repoId, path: worktree.path, force }), {
       busyKey: worktreeBusyKey(repoId),
       quiet: ["dirty_worktree"],
       success: t("actions.worktrees.remove.done", { name: clip(name, 40) }),
@@ -228,7 +224,7 @@ export async function removeWorktree(repoId: Id, worktree: Worktree) {
 function reportDirty(error: CoreError) {
   toast({
     tone: "danger",
-    title: t("actions.hosts.failed", { label: t("actions.worktrees.remove.action") }),
+    title: t("actions.hosts.failed", { label: t("ui.removeWorktree") }),
     description: error.message || t("actions.worktrees.remove.dirty"),
   });
 }
@@ -259,11 +255,11 @@ export async function pruneWorktrees(repoId: Id) {
       : t("actions.worktrees.prune.body", { count: removable.length }),
     details: removable.map((item) => item.path),
     detailsLabel: t("actions.worktrees.prune.detailsLabel"),
-    confirmLabel: t("actions.lfs.prune.action"),
+    confirmLabel: t("ui.cleanUp"),
   });
   if (!ok) return null;
   await whenFree(repoId);
-  const result = await runAction(t("actions.lfs.prune.action"), () => core.worktreePrune({ repoId }), {
+  const result = await runAction(t("ui.cleanUp"), () => core.worktreePrune({ repoId }), {
     busyKey: worktreeBusyKey(repoId),
     success: (next) => {
       const gone = list.length - next.length;

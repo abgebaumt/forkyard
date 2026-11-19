@@ -39,22 +39,16 @@
     "stack_split": "Schlägt vor, wo ein Branch in aufeinander aufbauende Pull Requests geteilt wird."
   },
   "settings": {
-    "title": "KI",
     "intro": "Commit-Nachrichten, Pull-Request-Texte und mehr mit einem Anbieter deiner Wahl. Aus, bis du sie einschaltest; ein Anbieter und ein Schlüssel für alle Profile.",
-    "masterCard": "KI-Funktionen",
     "master": {
-      "title": "KI-Funktionen",
       "description": "Schaltet alle KI-Funktionen ein oder aus. Ausschalten bricht laufende Anfragen sofort ab.",
       "unset": "Noch nicht eingerichtet. „Einrichten …“ findet die KI-Programme auf diesem Computer – oder wähle unten einen Anbieter und schalte dies ein."
     },
-    "providerCard": "Anbieter",
     "provider": {
-      "title": "Anbieter",
       "description": "Wer die Anfragen beantwortet. Lokale Modelle laufen auf diesem Computer, und nichts verlässt ihn.",
       "placeholder": "Anbieter wählen"
     },
     "baseUrl": {
-      "title": "Adresse",
       "description": "Adresse des Dienstes mit Version, z. B. https://openrouter.ai/api/v1. Unverschlüsseltes http:// nur zu diesem Computer.",
       "descriptionLocal": "Leer lassen für den Standardport auf diesem Computer."
     },
@@ -65,21 +59,16 @@
       "none": "Kein Schlüssel gespeichert",
       "placeholder": "Schlüssel einfügen",
       "save": "Schlüssel speichern",
-      "remove": "Schlüssel entfernen",
       "removed": "Schlüssel entfernt"
     },
     "check": {
       "title": "Verbindung",
       "description": "Fragt den Anbieter nach seinen Modellen – mit dem oben eingegebenen Schlüssel, falls einer da ist.",
-      "button": "Prüfen",
-      "action": "Anbieter prüfen",
       "ok_one": "Verbunden – {{count}} Modell gefunden",
       "ok_other": "Verbunden – {{count}} Modelle gefunden"
     },
     "model": {
-      "title": "Modell",
-      "description": "Prüfe die Verbindung, um aus den Modellen des Anbieters zu wählen, oder gib die Modell-ID ein.",
-      "placeholder": "Modell-ID"
+      "description": "Prüfe die Verbindung, um aus den Modellen des Anbieters zu wählen, oder gib die Modell-ID ein."
     },
     "price": {
       "title": "Preis",
@@ -99,7 +88,6 @@
       "description": "Muster in .gitignore-Syntax, eines pro Zeile, für jedes Repository. Ein Repository kann in .forkyard/ai-ignore eigene ergänzen. Dateien, die wie Geheimnisse aussehen (.env, private Schlüssel, Schlüsselspeicher), werden nie gesendet; bekannte Geheimnismuster im übrigen Inhalt werden nach Möglichkeit entfernt."
     },
     "whatIsSent": {
-      "title": "Was wird gesendet?",
       "description": "Zeigt den genauen Text für die gestagten Änderungen des offenen Repositorys – ohne etwas zu senden.",
       "button": "Beispiel zeigen",
       "noRepo": "Öffne ein Repository, um ein Beispiel zu sehen."
@@ -129,8 +117,7 @@
     "invalidAmount": "Gib einen Betrag in USD ein, z. B. 0,10.",
     "setup": {
       "title": "Einrichtung",
-      "description": "Findet Claude Code, Codex, opencode, lokale Modelle und gespeicherte Schlüssel auf diesem Computer und schaltet KI in wenigen Schritten ein. Dabei wird nichts gesendet.",
-      "button": "Einrichten …"
+      "description": "Findet Claude Code, Codex, opencode, lokale Modelle und gespeicherte Schlüssel auf diesem Computer und schaltet KI in wenigen Schritten ein. Dabei wird nichts gesendet."
     },
     "cliCard": "Kommandozeilenprogramme",
     "cliPath": {
@@ -144,9 +131,7 @@
     "signInNoRepo": "Öffne ein Repository, um dich in seinem Terminal anzumelden, oder führe den Anmeldebefehl in einem eigenen Terminal aus."
   },
   "project": {
-    "title": "KI und Agenten",
     "intro": "Gilt nur für dieses Repository.",
-    "card": "KI",
     "off": {
       "title": "KI für dieses Repository aus",
       "description": "Für dieses Repository erscheint kein KI-Element, und nichts daraus wird gesendet."
@@ -158,7 +143,6 @@
     }
   },
   "preview": {
-    "title": "Was wird gesendet?",
     "lookIntro": "Genau dieser Text ginge an den Anbieter. Es wurde nichts gesendet.",
     "confirmIntro": "Bitte bestätige, bevor dies an den Anbieter geht.",
     "size": "{{chars}} Zeichen, ca. {{tokens}} Tokens",
@@ -167,8 +151,6 @@
     "shortened": "Auf Anfang und Ende jedes Hunks gekürzt: {{files}}",
     "dontAskAgain": "Hierfür nicht mehr fragen",
     "send": "Senden",
-    "cancel": "Abbrechen",
-    "close": "Schließen",
     "loading": "„Was wird gesendet?“ vorbereiten",
     "confirmAction": "Senden bestätigen",
     "ask": {
@@ -192,7 +174,6 @@
     "exact": "{{amount}} USD"
   },
   "search": {
-    "card": "Suche nach Bedeutung",
     "embedder": {
       "title": "Embeddings für die Suche",
       "description": "Ein Anbieter auf diesem Computer kann die Suche allein übernehmen. Sonst werden die Embeddings des Hauptanbieters genutzt; ohne Embeddings übersetzt der Hauptanbieter die Frage in eine Suche.",
@@ -201,7 +182,6 @@
       "lmstudio": "LM Studio (auf diesem Computer)"
     },
     "baseUrl": {
-      "title": "Adresse",
       "description": "Nur Adressen auf diesem Computer."
     },
     "model": {
@@ -217,9 +197,7 @@
       "count_other": "{{count}} Commits mit {{model}}"
     },
     "delete": {
-      "title": "Index löschen",
       "description": "Entfernt den Index aller Repositorys und Modelle. Die nächste Suche nach Bedeutung baut ihn neu auf.",
-      "button": "Index löschen",
       "confirmTitle": "Suchindex aller Repositorys löschen?",
       "confirmBody": "Der Index dient nur der Suche nach Bedeutung; an deinen Repositorys ändert sich nichts. Das lässt sich nicht rückgängig machen – die nächste Suche nach Bedeutung baut ihn neu auf und sendet die Commit-Texte dafür erneut an den Embedding-Anbieter.",
       "done_one": "{{count}} Index gelöscht",
@@ -231,30 +209,22 @@
     "tooltip": "Commit-Nachrichten, PR-Texte und mehr mit einem KI-Anbieter deiner Wahl. Standardmäßig aus."
   },
   "intro": {
-    "title": "Neu in 1.2: KI-Funktionen und Coding-Agenten – standardmäßig aus.",
-    "setup": "Einrichten …",
-    "close": "Schließen"
+    "title": "Neu in 1.2: KI-Funktionen und Coding-Agenten – standardmäßig aus."
   },
   "state": {
     "loading": "Schreibt …",
     "loadingFor": "{{label}} ({{seconds}} s)",
-    "cancel": "Abbrechen",
     "slowLocal": "Lokale Modelle brauchen länger",
     "slowRemote": "Anbieter antwortet langsam",
-    "retry": "Erneut versuchen",
     "invalid": "Antwort unbrauchbar",
     "again": "Nochmal",
     "showSent": "Gesendetes ansehen",
-    "limitSend": "Diesmal senden",
     "limitChange": "Limit ändern",
     "setup": "KI einrichten …"
   },
   "suggestion": {
-    "draft": "Entwurf",
     "ready": "Vorschlag liegt bereit",
-    "replace": "Ersetzen",
-    "append": "Anhängen",
-    "discard": "Verwerfen"
+    "append": "Anhängen"
   },
   "names": {
     "anthropic": "Anthropic",
@@ -268,7 +238,6 @@
     "opencode": "opencode"
   },
   "setup": {
-    "title": "KI einrichten",
     "intro": "Forkyard sucht KI-Programme auf diesem Computer. Beim Einrichten wird nichts gesendet.",
     "searching": "Suche …",
     "failed": "Die Suche ist fehlgeschlagen: {{message}}",
@@ -301,11 +270,8 @@
     },
     "keyStored": "API-Schlüssel gespeichert",
     "turnOnWith": "Mit {{name}} einschalten",
-    "continue": "Weiter",
     "other": "Andere Wahl",
     "back": "Zurück",
-    "cancel": "Abbrechen",
-    "close": "Schließen",
     "nothing": {
       "title": "Wie möchtest du KI nutzen?",
       "key": "API-Schlüssel verwenden",
@@ -315,25 +281,19 @@
       "cockpitHint": "Coding-Agenten funktionieren ohne KI-Anbieter. KI lässt sich später in den Einstellungen unter „KI“ einschalten."
     },
     "provider": {
-      "title": "Anbieter",
-      "check": "Prüfen",
-      "checkAction": "Anbieter prüfen",
       "ok_one": "Verbunden – {{count}} Modell gefunden",
       "ok_other": "Verbunden – {{count}} Modelle gefunden",
       "cliOk": "{{name}} ist bereit und angemeldet."
     },
     "model": {
-      "title": "Modell",
       "cliDefault": "Standard von {{name}}",
-      "cliHint": "Leer lassen, um das Standardmodell des Programms zu nutzen.",
-      "placeholder": "Modell-ID"
+      "cliHint": "Leer lassen, um das Standardmodell des Programms zu nutzen."
     },
     "features": {
       "hint": "Jede Funktion lässt sich später in den Einstellungen unter „KI“ ausschalten."
     },
     "turnOn": "Einschalten",
     "done": {
-      "whatIsSent": "Was wird gesendet?",
       "noRepo": "Öffne ein Repository, um ein Beispiel zu sehen, was gesendet wird."
     },
     "where": {

@@ -28,8 +28,8 @@ export interface CloneForm {
 
 /** What can go wrong while cloning – in our own words, with the next step. */
 export const CLONE_ERRORS: Partial<Record<ErrorCode, { title: string; hint: string; field?: FieldName }>> = {
-  auth_failed: { title: t("clone.errors.authFailed.title"), hint: t("clone.errors.authFailed.hint") },
-  offline: { title: t("clone.errors.offline.title"), hint: t("clone.errors.offline.hint") },
+  auth_failed: { title: t("ui.signInRejected"), hint: t("clone.errors.authFailed.hint") },
+  offline: { title: t("ui.serverNotReachable"), hint: t("clone.errors.offline.hint") },
   not_found: { title: t("clone.errors.notFound.title"), hint: t("clone.errors.notFound.hint"), field: "url" },
   path_exists: { title: t("clone.errors.pathExists.title"), hint: t("clone.errors.pathExists.hint"), field: "name" },
   path_not_found: { title: t("clone.errors.pathNotFound.title"), hint: t("clone.errors.pathNotFound.hint"), field: "parent" },
@@ -44,12 +44,12 @@ export function phaseLabel(phase: string): string {
   const key = phase.toLowerCase();
   if (key.startsWith("enumerating") || key.startsWith("counting")) return t("clone.phase.enumerating");
   if (key.startsWith("compressing")) return t("clone.phase.compressing");
-  if (key.startsWith("receiving")) return t("clone.phase.receiving");
-  if (key.startsWith("resolving")) return t("clone.phase.resolving");
-  if (key.startsWith("updating files") || key.startsWith("checking out")) return t("clone.phase.checkout");
+  if (key.startsWith("receiving")) return t("ui.transferringData");
+  if (key.startsWith("resolving")) return t("ui.assemblingTheHistory");
+  if (key.startsWith("updating files") || key.startsWith("checking out")) return t("ui.checkingOutFiles");
   if (key.startsWith("sparse")) return t("clone.phase.sparse");
   if (key.startsWith("filtering")) return t("clone.phase.filtering");
-  return t("clone.phase.connecting");
+  return t("ui.connecting");
 }
 
 export function isRealDate(value: string): boolean {
@@ -170,7 +170,7 @@ export function advancedSummary(form: CloneForm): string[] {
         : t("clone.summary.since", { date: form.since.trim() || "?" })
       : null,
     form.branch.trim() ? t("clone.summary.branch", { branch: form.branch.trim() }) : null,
-    form.sparse ? t("clone.summary.sparse") : null,
+    form.sparse ? t("ui.sparseCheckout") : null,
     form.submodules ? t("clone.summary.submodules") : null,
   ].filter((part): part is string => Boolean(part));
 }

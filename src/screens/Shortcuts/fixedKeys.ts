@@ -24,7 +24,7 @@ export interface FixedKeyGroup {
 export const fixedKeyGroups: FixedKeyGroup[] = [
   {
     id: "graph",
-    title: t("shortcuts.fixed.graph.title"),
+    title: t("ui.commitGraph"),
     where: t("shortcuts.fixed.graph.where"),
     entries: [
       { keys: ["ArrowDown", "J"], label: t("shortcuts.fixed.graph.entries.next") },
@@ -59,7 +59,7 @@ export const fixedKeyGroups: FixedKeyGroup[] = [
   },
   {
     id: "wip",
-    title: t("shortcuts.fixed.wip.title"),
+    title: t("ui.localChanges"),
     where: t("shortcuts.fixed.wip.where"),
     entries: [
       { keys: ["S"], label: t("shortcuts.fixed.wip.entries.stage") },
@@ -88,13 +88,13 @@ export const fixedKeyGroups: FixedKeyGroup[] = [
   },
   {
     id: "search",
-    title: t("shortcuts.fixed.search.title"),
+    title: t("ui.commitSearch"),
     where: t("shortcuts.fixed.search.where"),
     entries: [
       { keys: ["Enter", "F3"], label: t("shortcuts.fixed.search.entries.next") },
       { keys: ["Shift+Enter", "Shift+F3"], label: t("shortcuts.fixed.search.entries.previous") },
       { keys: ["ArrowDown", "ArrowUp"], label: t("shortcuts.fixed.search.entries.mark") },
-      { keys: ["Escape"], label: t("shortcuts.fixed.search.entries.close") },
+      { keys: ["Escape"], label: t("ui.closeSearch") },
     ],
   },
   {
@@ -102,8 +102,8 @@ export const fixedKeyGroups: FixedKeyGroup[] = [
     title: t("shortcuts.fixed.conflict.title"),
     where: t("shortcuts.fixed.conflict.where"),
     entries: [
-      { keys: ["F7", "Alt+ArrowDown"], label: t("shortcuts.fixed.conflict.entries.next") },
-      { keys: ["Shift+F7", "Alt+ArrowUp"], label: t("shortcuts.fixed.conflict.entries.previous") },
+      { keys: ["F7", "Alt+ArrowDown"], label: t("ui.nextConflict") },
+      { keys: ["Shift+F7", "Alt+ArrowUp"], label: t("ui.previousConflict") },
       { keys: ["Alt+ArrowRight", "Alt+ArrowLeft"], label: t("shortcuts.fixed.conflict.entries.nextPreviousFile") },
       { keys: ["ArrowLeft", "ArrowRight"], label: t("shortcuts.fixed.conflict.entries.switchSide") },
       { keys: ["Space", "Enter"], label: t("shortcuts.fixed.conflict.entries.take") },
@@ -123,9 +123,9 @@ export const fixedKeyGroups: FixedKeyGroup[] = [
       { keys: ["S"], label: t("shortcuts.fixed.rebase.entries.squash") },
       { keys: ["D"], label: t("shortcuts.fixed.rebase.entries.drop") },
       { keys: ["Alt+ArrowUp", "Alt+ArrowDown"], label: t("shortcuts.fixed.rebase.entries.move") },
-      { keys: ["Enter"], label: t("shortcuts.fixed.rebase.entries.editMessage") },
+      { keys: ["Enter"], label: t("ui.editMessage") },
       { keys: ["Space"], label: t("shortcuts.fixed.rebase.entries.chooseAction") },
-      { keys: ["Mod+Enter"], label: t("shortcuts.fixed.rebase.entries.start") },
+      { keys: ["Mod+Enter"], label: t("ui.start") },
       { keys: ["Escape"], label: t("shortcuts.fixed.rebase.entries.close") },
     ],
   },
@@ -142,7 +142,7 @@ export const fixedKeyGroups: FixedKeyGroup[] = [
   },
   {
     id: "blame",
-    title: t("shortcuts.fixed.blame.title"),
+    title: t("ui.blame"),
     where: t("shortcuts.fixed.blame.where"),
     entries: [
       { keys: ["ArrowDown", "ArrowUp"], label: t("shortcuts.fixed.blame.entries.move") },
@@ -157,20 +157,20 @@ export const fixedKeyGroups: FixedKeyGroup[] = [
     title: t("shortcuts.fixed.file.title"),
     where: t("shortcuts.fixed.file.where"),
     entries: [
-      { keys: ["Mod+S"], label: t("shortcuts.fixed.file.entries.save") },
-      { keys: ["Mod+Shift+H"], label: t("shortcuts.fixed.file.entries.history") },
+      { keys: ["Mod+S"], label: t("ui.save") },
+      { keys: ["Mod+Shift+H"], label: t("ui.fileHistory") },
       { keys: ["Escape"], label: t("shortcuts.fixed.file.entries.close") },
     ],
   },
   {
     id: "terminal",
-    title: t("shortcuts.fixed.terminal.title"),
+    title: t("ui.terminal"),
     where: t("shortcuts.fixed.terminal.where"),
     entries: [
       { keys: ["F6", "Shift+F6"], label: t("shortcuts.fixed.terminal.entries.leaveNextPrevious") },
       { keys: ["Alt+1", "Alt+2", "Alt+3"], label: t("shortcuts.fixed.terminal.entries.leaveArea") },
       { keys: ["Mod+Shift+C"], label: t("shortcuts.fixed.terminal.entries.copy") },
-      { keys: ["Mod+Shift+V", "Shift+Insert"], label: t("shortcuts.fixed.terminal.entries.paste") },
+      { keys: ["Mod+Shift+V", "Shift+Insert"], label: t("ui.paste") },
       { keys: ["Shift+PageUp", "Shift+PageDown"], label: t("shortcuts.fixed.terminal.entries.scroll") },
       { keys: ["ContextMenu", "Shift+F10"], label: t("shortcuts.fixed.terminal.entries.contextMenu") },
       { keys: ["ArrowUp", "ArrowDown"], label: t("shortcuts.fixed.terminal.entries.resize") },
@@ -185,19 +185,19 @@ export const fixedKeyGroups: FixedKeyGroup[] = [
       { keys: ["Home", "End"], label: t("shortcuts.fixed.tabs.entries.firstLast") },
       { keys: ["Mod+Shift+ArrowLeft", "Mod+Shift+ArrowRight"], label: t("shortcuts.fixed.tabs.entries.move") },
       { keys: ["F2"], label: t("shortcuts.fixed.tabs.entries.rename") },
-      { keys: ["Delete"], label: t("shortcuts.fixed.tabs.entries.close") },
+      { keys: ["Delete"], label: t("ui.closeTab") },
       { keys: ["ContextMenu", "Shift+F10"], label: t("shortcuts.fixed.tabs.entries.contextMenu") },
     ],
   },
   {
     id: "palette",
-    title: t("shortcuts.fixed.palette.title"),
+    title: t("ui.commandPalette"),
     where: t("shortcuts.fixed.palette.where"),
     entries: [
       { keys: [">"], label: t("shortcuts.fixed.palette.entries.commands") },
       { keys: ["@"], label: t("shortcuts.fixed.palette.entries.refs") },
       { keys: ["/"], label: t("shortcuts.fixed.palette.entries.files") },
-      { keys: ["#"], label: t("shortcuts.fixed.palette.entries.commits") },
+      { keys: ["#"], label: t("ui.searchCommits") },
       { keys: ["~"], label: t("shortcuts.fixed.palette.entries.repositories") },
       { keys: ["Tab"], label: t("shortcuts.fixed.palette.entries.moreActions") },
       { keys: ["Escape"], label: t("shortcuts.fixed.palette.entries.back") },

@@ -17,8 +17,8 @@ export function ProjectAiSection({ repoId }: { repoId: Id }) {
   const value = repoSettings.data;
   return (
     <section data-ai-project>
-      <SectionHeader title={t("ai.project.title")}>{t("ai.project.intro")}</SectionHeader>
-      <SettingsCard title={t("ai.project.card")}>
+      <SectionHeader title={t("ui.aiAndAgents")}>{t("ai.project.intro")}</SectionHeader>
+      <SettingsCard title={t("ui.ai")}>
         <SettingRow title={t("ai.project.off.title")} description={t("ai.project.off.description")}>
           {(ids) => (
             <Switch

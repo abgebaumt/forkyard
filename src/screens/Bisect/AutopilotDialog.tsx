@@ -85,7 +85,7 @@ export function AutopilotErrorLine({
         </Button>
       ) : (
         <Button size="sm" onClick={onRetry}>
-          {view.kind === "invalid" ? t("ai.state.again") : t("ai.state.retry")}
+          {view.kind === "invalid" ? t("ai.state.again") : t("ui.retry")}
         </Button>
       )}
       {view.kind === "invalid" ? (
@@ -212,7 +212,7 @@ function AutopilotDialog({ repoId, range, onDone }: { repoId: Id; range: Autopil
         <div className="flex items-center gap-2">
           {job.running ? (
             <Button size="sm" data-autopilot-write onClick={cancelWriting}>
-              {t("ai.state.cancel")}
+              {t("ui.cancel")}
             </Button>
           ) : (
             <Button size="sm" data-autopilot-write disabled={noDescription} onClick={() => void write()}>
@@ -256,16 +256,16 @@ function AutopilotDialog({ repoId, range, onDone }: { repoId: Id; range: Autopil
                 setPending(null);
               }}
             >
-              {t("ai.suggestion.replace")}
+              {t("ui.replace")}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setPending(null)}>
-              {t("ai.suggestion.discard")}
+              {t("ui.discard")}
             </Button>
           </div>
         ) : null}
         <TextArea
           data-autopilot-script
-          label={`${t("bisect.autopilot.script", { shell: SHELL_LABEL[SHELL] })}${draft ? ` · ${t("ai.suggestion.draft")}` : ""}`}
+          label={`${t("bisect.autopilot.script", { shell: SHELL_LABEL[SHELL] })}${draft ? ` · ${t("ui.draft")}` : ""}`}
           hint={t("bisect.autopilot.scriptHint")}
           value={script}
           rows={12}

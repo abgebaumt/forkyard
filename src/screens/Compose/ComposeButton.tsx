@@ -13,7 +13,7 @@ export function ComposeButton({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   if (!composeVisible(ai, repoSettings)) return null;
   const nothing = !hasChanges(status);
   return (
-    <Tip label={nothing ? t("wip.compose.nothing") : t("wip.compose.openTip")}>
+    <Tip label={nothing ? t("ui.noChanges") : t("wip.compose.openTip")}>
       <Button
         type="button"
         variant="secondary"

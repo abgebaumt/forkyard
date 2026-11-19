@@ -51,7 +51,7 @@ export function MarkdownPreview({ source, path }: { source: string; path: string
           prompt={{
             title: t("fileView.markdown.openLinkTitle"),
             body: t("fileView.markdown.openLinkBody"),
-            confirmLabel: t("fileView.markdown.openLink"),
+            confirmLabel: t("ui.openLink"),
           }}
         />
       </div>

@@ -48,12 +48,12 @@ async function parentsOutsideGraph(repoId: Id, index: GraphIndex, sha: Sha, limi
 export async function revertCommit(repoId: Id, sha: Sha, tabId?: Id | null) {
   const choice = await preflight(repoId, {
     title: t("preflight.revertTitle", { sha: shortSha(sha) }),
-    confirmLabel: t("actions.history.revert.label"),
+    confirmLabel: t("ui.revert"),
     op: { kind: "revert", commits: [sha] },
   });
   if (!choice) return null;
   const result = await runAction(
-    t("actions.history.revert.label"),
+    t("ui.revert"),
     withFreshStatus(repoId, () => core.revertCommit({ repoId, sha })),
     { busyKey: busyKeys.history(repoId) },
   );
@@ -65,7 +65,7 @@ export async function revertCommit(repoId: Id, sha: Sha, tabId?: Id | null) {
         description: t("actions.history.revert.nothingDescription", { sha: shortSha(sha) }),
       });
     } else {
-      reportOpResult(t("actions.history.revert.label"), result.value, tabId, { reveal: true });
+      reportOpResult(t("ui.revert"), result.value, tabId, { reveal: true });
     }
   }
   return result;
@@ -172,8 +172,7 @@ export async function resetBranch(repoId: Id, sha: Sha, mode: ResetMode, tabId?:
 export async function cherryPick(repoId: Id, shas: Sha[], tabId?: Id | null) {
   if (!shas.length) return null;
   const ordered = oldestFirst(await loadGraphIndex(repoId), shas);
-  const label =
-    ordered.length === 1 ? t("actions.history.cherryPick.label") : t("actions.history.cherryPick.labelMany", { count: ordered.length });
+  const label = ordered.length === 1 ? t("ui.cherryPick") : t("actions.history.cherryPick.labelMany", { count: ordered.length });
   const choice = await preflight(repoId, {
     title: t("preflight.pickTitle", { count: ordered.length }),
     confirmLabel: label,
@@ -248,7 +247,7 @@ export async function squashCommits(repoId: Id, shas: Sha[], tabId?: Id | null) 
     description: t("actions.history.squash.description"),
     summary,
     body,
-    confirmLabel: t("actions.history.squash.action"),
+    confirmLabel: t("ui.squash"),
   });
   if (!message) return null;
   const text = message.description ? `${message.summary}\n\n${message.description}` : message.summary;
@@ -297,7 +296,7 @@ export async function rewordHead(repoId: Id, sha: Sha, tabId?: Id | null) {
     ),
     {
       busyKey: busyKeys.history(repoId),
-      success: t("actions.history.reword.done"),
+      success: t("ui.messageChanged"),
     },
   );
   if (result.ok && tabId) useAppStore.getState().revealCommit(tabId, result.value.sha);
@@ -357,7 +356,7 @@ export async function copyCommitMessage(repoId: Id, sha: Sha) {
   if (!commit) {
     toast({
       tone: "danger",
-      title: t("actions.clipboard.failed"),
+      title: t("ui.copyFailed"),
       description: t("actions.history.commitNotLoaded", { sha: shortSha(sha) }),
     });
     return false;
@@ -368,6 +367,6 @@ export async function copyCommitMessage(repoId: Id, sha: Sha) {
 
 ${commit.description}`
       : commit.summary,
-    t("actions.history.messageWhat"),
+    t("ui.message"),
   );
 }

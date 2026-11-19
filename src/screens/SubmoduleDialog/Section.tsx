@@ -96,7 +96,7 @@ function offerInit(repoId: Id, pending: Submodule[]): void {
         .map((item) => item.path)
         .join(", ")}${pending.length > 3 ? " …" : ""}`,
     }),
-    action: { label: t("submodules.offer.action"), onClick: () => void updateSubmodules(repoId, null, { init: true }) },
+    action: { label: t("ui.initializeNow"), onClick: () => void updateSubmodules(repoId, null, { init: true }) },
   });
 }
 
@@ -120,10 +120,10 @@ function submoduleMenu(repoId: Id, submodule: Submodule, busy: boolean): MenuEnt
       blocked: fresh ? t("submodules.menu.initFirst") : null,
     }),
     MENU_SEPARATOR,
-    menuItem(t("submodules.menu.copyUrl"), Copy, () => void copyText(submodule.url ?? "", t("submodules.menu.urlWhat")), {
+    menuItem(t("ui.copyUrl"), Copy, () => void copyText(submodule.url ?? "", t("submodules.menu.urlWhat")), {
       blocked: submodule.url ? null : t("submodules.menu.noUrl"),
     }),
-    menuItem(t("submodules.menu.copyPath"), Copy, () => void copyText(submodule.path, t("submodules.menu.pathWhat"))),
+    menuItem(t("ui.copyPath"), Copy, () => void copyText(submodule.path, t("submodules.menu.pathWhat"))),
     menuItem(t("submoduleMove.menu"), FolderInput, () => void moveSubmodule(repoId, submodule), {
       tooltip: t("submoduleMove.menuTip", { path: submodule.path }),
       blocked: running,
@@ -255,7 +255,7 @@ export function SubmodulesSection({ repoId, query }: SubmodulesSectionProps) {
       <SideEmpty
         action={
           <Button size="sm" variant="ghost" onClick={openAddDialog}>
-            {t("submodules.section.add")}
+            {t("ui.add")}
           </Button>
         }
       >
@@ -283,10 +283,10 @@ export function SubmodulesSection({ repoId, query }: SubmodulesSectionProps) {
 
   const noneBlock = all.length === 0 ? t("submodules.section.none") : busy ? t("submodules.section.running") : null;
   const sectionMenu: MenuEntry[] = [
-    menuItem(open ? t("submodules.section.collapse") : t("submodules.section.expand"), null, toggle, {
+    menuItem(open ? t("ui.collapse") : t("ui.expand"), null, toggle, {
       blocked: filtering ? t("submodules.section.alwaysOpen") : null,
     }),
-    menuItem(t("submodules.section.hide"), null, () => void setSection(repoId, "submodules", { hidden: true }), {
+    menuItem(t("ui.hideSection"), null, () => void setSection(repoId, "submodules", { hidden: true }), {
       hint: t("submodules.section.hideHint"),
     }),
     MENU_SEPARATOR,
@@ -303,12 +303,12 @@ export function SubmodulesSection({ repoId, query }: SubmodulesSectionProps) {
   return (
     <SideSection
       id="submodules"
-      title={t("submodules.section.title")}
+      title={t("ui.submodules")}
       icon={<PackageOpen aria-hidden />}
       count={submodules.isPending ? undefined : filtering ? `${items.length}/${all.length}` : all.length}
       open={open}
       onToggle={toggle}
-      listLabel={summary ? t("submodules.section.listLabel", { summary }) : t("submodules.section.title")}
+      listLabel={summary ? t("submodules.section.listLabel", { summary }) : t("ui.submodules")}
       items={items}
       itemId={(item) => item.path}
       itemText={(item) => splitPath(item.path).name}
@@ -337,7 +337,7 @@ export function SubmodulesSection({ repoId, query }: SubmodulesSectionProps) {
           <IconButton
             size="sm"
             data-action="add"
-            label={t("submodules.dialog.title")}
+            label={t("ui.addSubmodule")}
             icon={<Plus className="size-3.5" aria-hidden />}
             onClick={openAddDialog}
           />

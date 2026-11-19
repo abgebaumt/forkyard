@@ -1,17 +1,13 @@
 {
-  "title": "Repository aufräumen",
   "description": "Gibt Speicherplatz frei, den Git-Objekte, alte Sicherungen und Protokolle belegen. Nichts davon läuft von selbst.",
   "loading": "Repository wird vermessen …",
   "previewFailed": "Das Repository ließ sich nicht vermessen.",
-  "retry": "Erneut versuchen",
   "now": {
     "heading": "Jetzt",
     "objects": "Git-Objekte gesamt",
     "loose": "Davon lose Objekte",
     "packs": "Packs",
-    "lfs": "Git-LFS-Cache",
     "undo": "Forkyard-Undo-Sicherungen",
-    "worktrees": "Verwaiste Worktrees",
     "reflog": "Reflog-Einträge älter als 90 Tage",
     "notCounted": "nicht gezählt",
     "free": "Freier Platz auf dem Datenträger",
@@ -20,7 +16,6 @@
     "shared_other": "Betrifft das Repository und alle {{count}} Worktrees."
   },
   "mode": {
-    "label": "Art",
     "normal": {
       "label": "Normal",
       "frees": "Gibt frei: packt lose Objekte, entfernt unerreichbare Objekte älter als zwei Wochen und alte Reflog-Einträge nach Git-Standard (90 Tage, 30 Tage für unerreichbare), packt Refs."
@@ -43,7 +38,6 @@
       "estimateFailed": "Git LFS konnte nicht sagen, wie viel frei würde."
     },
     "worktrees": {
-      "label": "Verwaiste Worktrees",
       "frees": "Gibt frei: Verwaltungsdaten von Worktrees, deren Ordner fehlt; deren Branches sind danach wieder auscheckbar."
     },
     "undo": {
@@ -56,16 +50,12 @@
       "warning": "Rückgängig ist für diese Aktionen danach nicht mehr möglich."
     },
     "reflog": {
-      "label": "Reflog kürzen",
       "frees": "Gibt frei: Reflog-Einträge älter als 90 Tage für alle Refs, auch wenn das Repository längere Fristen konfiguriert (gc.reflogExpire); ohne solche Konfiguration erledigt „Normal“ das bereits.",
       "warningWord": "Zerstörerisch:",
       "warning": "Commits, die nur noch im Reflog stehen, sind danach endgültig verloren – auch über die Reflog-Ansicht."
     }
   },
   "irreversible": "Aufräumen lässt sich nicht rückgängig machen.",
-  "start": "Aufräumen",
-  "cancel": "Abbrechen",
-  "close": "Schließen",
   "background": "Im Hintergrund weiter",
   "progress": {
     "step": "Schritt {{index}} von {{total}} – {{label}} …",
@@ -91,18 +81,8 @@
     "lfs": "LFS-Cache: {{change}}",
     "steps": "Schritte",
     "name": {
-      "worktrees": "Verwaiste Worktrees",
       "undo": "Alte Undo-Sicherungen",
-      "reflog": "Reflog kürzen",
-      "lfs": "Git-LFS-Cache",
       "gc": "Git-Aufräumen (gc)"
-    },
-    "status": {
-      "done": "erledigt",
-      "skipped": "übersprungen",
-      "failed": "fehlgeschlagen",
-      "cancelled": "abgebrochen",
-      "notRun": "nicht ausgeführt"
     },
     "removed_one": "{{count}} entfernt",
     "removed_other": "{{count}} entfernt"
@@ -117,8 +97,5 @@
   },
   "toast": {
     "done": "Repository aufgeräumt – {{change}}"
-  },
-  "action": {
-    "label": "Repository aufräumen"
   }
 }

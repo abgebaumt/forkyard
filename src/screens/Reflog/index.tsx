@@ -105,7 +105,7 @@ export function ReflogView({ repoId, tabId, refName }: ReflogViewProps) {
           title={t("reflog.error.title")}
           action={
             <Button icon={<RefreshCw className="size-icon" aria-hidden />} loading={query.isFetching} onClick={() => void query.refetch()}>
-              {t("reflog.error.retry")}
+              {t("ui.retry")}
             </Button>
           }
         >
@@ -139,10 +139,10 @@ export function ReflogView({ repoId, tabId, refName }: ReflogViewProps) {
   }
 
   return (
-    <section aria-label={t("reflog.ariaLabel")} data-screen="reflog" className="flex h-full min-h-0 min-w-0 flex-col bg-bg">
+    <section aria-label={t("ui.reflog")} data-screen="reflog" className="flex h-full min-h-0 min-w-0 flex-col bg-bg">
       <header className="flex h-control-lg shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-3">
         <History className="size-icon shrink-0 text-text-muted" aria-hidden />
-        <h2 className="shrink-0 text-md font-medium text-text">{t("reflog.title")}</h2>
+        <h2 className="shrink-0 text-md font-medium text-text">{t("ui.reflog")}</h2>
         <div className="w-56 min-w-0">
           <Select
             ariaLabel={t("reflog.filter")}

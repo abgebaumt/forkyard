@@ -99,7 +99,7 @@ export function fitRefs(groups: RefGroup[], width: number, pinned?: ReadonlySet<
   return available - GAP - MORE_WIDTH >= LABEL_MIN ? { shown: 1, truncateFirst: true } : { shown: 0, truncateFirst: false };
 }
 
-const kindText = { local: t("graph.refs.kind.local"), remote: t("graph.refs.kind.remote"), tag: t("graph.refs.kind.tag") } as const;
+const kindText = { local: t("ui.ref.local"), remote: t("ui.ref.remote"), tag: t("ui.ref.tag") } as const;
 
 const dropMarks =
   "data-[drop=true]:outline-2 data-[drop=true]:outline-offset-1 data-[drop=true]:outline-accent data-[dragging=true]:opacity-40";

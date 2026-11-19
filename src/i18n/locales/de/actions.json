@@ -1,13 +1,11 @@
 {
   "cli": {
-    "label": "Kommandozeilenbefehl installieren",
     "managed": "Der Befehl forkyard gehört zu dieser Installation.",
     "managedHint": "Das Paket bzw. der Installer hat ihn schon in den PATH gelegt (deb/rpm: /usr/bin/forkyard, Windows: der Programmordner).",
     "installed": "{{path}} verknüpft.",
     "ready": "Öffne ein neues Terminal und führe „forkyard --help“ aus.",
     "notOnPath": "Sein Ordner steht noch nicht im PATH – füge ihn hinzu und öffne dann ein neues Terminal."
   },
-  "undoLabel": "Rückgängig",
   "ancestry": {
     "atLeastTwo": "mindestens zwei Commits wählen",
     "containsMerge": "die Auswahl enthält einen Merge-Commit",
@@ -32,12 +30,8 @@
     },
     "startWithSummary": "{{name}} („{{summary}}“)",
     "create": {
-      "title": "Neuer Branch",
       "startsAt": "Der Branch beginnt bei {{start}}.",
       "startsAtHead": "Der Branch beginnt beim aktuellen Commit.",
-      "name": "Name",
-      "placeholder": "feature/neue-idee",
-      "action": "Branch anlegen",
       "done": "Branch „{{name}}“ angelegt",
       "doneCheckedOut": "Branch „{{name}}“ angelegt und ausgecheckt"
     },
@@ -47,11 +41,9 @@
       "other": "Im Repository läuft noch eine andere Aktion. Versuch es gleich noch einmal."
     },
     "checkout": {
-      "action": "Checkout",
       "detached": {
         "title": "HEAD losgelöst bei {{sha}}",
-        "description": "Es ist kein Branch ausgecheckt. Neue Commits gehören zu keinem Branch, bis du einen anlegst.",
-        "action": "Branch hier anlegen"
+        "description": "Es ist kein Branch ausgecheckt. Neue Commits gehören zu keinem Branch, bis du einen anlegst."
       },
       "done": "„{{name}}“ ausgecheckt",
       "follows": "Folgt {{upstream}}."
@@ -65,7 +57,6 @@
     },
     "rename": {
       "title": "Branch „{{name}}“ umbenennen",
-      "label": "Neuer Name",
       "unchanged": "Der Name ist unverändert.",
       "action": "Umbenennen",
       "done": "Branch heißt jetzt „{{name}}“"
@@ -92,7 +83,6 @@
       "bodyManyUnmerged_one": "{{count}} Branch ist nicht gemergt. Deren Commits findest du danach nur noch über Rückgängig oder das Reflog.",
       "bodyManyUnmerged_other": "{{count}} Branches sind nicht gemergt. Deren Commits findest du danach nur noch über Rückgängig oder das Reflog.",
       "anyway": "Trotzdem löschen",
-      "action": "Branch löschen",
       "actionMany": "Branches löschen",
       "doneOne": "Branch „{{name}}“ gelöscht",
       "doneMany": "{{count}} Branches gelöscht",
@@ -101,27 +91,21 @@
     },
     "upstream": {
       "set": "Upstream setzen",
-      "unset": "Upstream lösen",
       "setDone": "„{{name}}“ folgt jetzt {{upstream}}",
       "unsetDone": "„{{name}}“ hat keinen Upstream mehr",
       "changeTitle": "Upstream von „{{name}}“ ändern",
       "setTitle": "Upstream für „{{name}}“ setzen",
       "description": "Pull holt von diesem Remote-Branch, Push schreibt dorthin.",
-      "label": "Remote-Branch",
       "current": "aktueller Upstream",
       "empty": "Noch kein Remote-Branch bekannt. Ein Fetch holt sie; ein Push legt den Upstream von selbst an."
     },
     "pick": {
-      "label": "Branch",
-      "checkedOut": "ausgecheckt",
-      "remote": "Remote",
       "follows": "folgt {{upstream}}",
       "empty": "Es gibt keinen passenden Branch."
     }
   },
   "clipboard": {
     "copied": "{{what}} kopiert",
-    "failed": "Kopieren fehlgeschlagen",
     "failedDescription": "Die Zwischenablage ist gerade nicht erreichbar. Markiere den Text und kopiere ihn von Hand."
   },
   "fastForward": {
@@ -134,8 +118,6 @@
     "upToDateDescription": "„{{branch}}“ steht schon auf „{{upstream}}“ oder ist voraus."
   },
   "files": {
-    "stage": "Stagen",
-    "unstage": "Zurücknehmen",
     "discard": {
       "titleAll": "Alle Änderungen verwerfen?",
       "titleOne": "Änderungen an „{{path}}“ verwerfen?",
@@ -149,7 +131,6 @@
       "body": "Die nicht gestagten Änderungen werden aus dem Arbeitsverzeichnis entfernt. Gestagtes bleibt. Direkt danach holt Rückgängig sie zurück.",
       "fullPath": "Ganzer Pfad",
       "actionAll": "Alles verwerfen",
-      "action": "Verwerfen",
       "doneAll": "Alle Änderungen verworfen",
       "doneOne": "Änderungen an „{{path}}“ verworfen",
       "doneMany_one": "Änderungen an {{count}} Datei verworfen",
@@ -158,14 +139,12 @@
       "blockedOperation": "Es läuft ein {{operation}}. Alles zurücknehmen heißt hier: den {{operation}} abbrechen."
     },
     "external": {
-      "editor": "Im Editor öffnen",
       "terminal": "Im Terminal öffnen",
       "fileManager": "{{revealInFileManager}}",
       "diffTool": "Im externen Diff-Tool öffnen",
       "mergeTool": "Im externen Merge-Tool öffnen"
     },
     "ignore": {
-      "action": "Ignorieren",
       "done": "„{{pattern}}“ steht jetzt in .gitignore",
       "doneUntracked": "„{{pattern}}“ steht in .gitignore und wird nicht mehr verfolgt",
       "file": "Nur diese Datei",
@@ -177,8 +156,6 @@
     "stashOne": "Nur {{path}}",
     "stashMany": "Nur {{count}} Dateien: {{paths}}",
     "resolve": {
-      "ours": "Aktuelle Fassung übernehmen",
-      "theirs": "Eingehende Fassung übernehmen",
       "doneOne": "„{{path}}“ gelöst",
       "doneMany_one": "{{count}} Datei gelöst",
       "doneMany_other": "{{count}} Dateien gelöst",
@@ -188,11 +165,6 @@
     }
   },
   "gitflow": {
-    "kind": {
-      "feature": "Feature",
-      "release": "Release",
-      "hotfix": "Hotfix"
-    },
     "init": "Gitflow einrichten",
     "initDone": "Gitflow eingerichtet",
     "initDescription": "Haupt-Branch {{main}}, Entwicklungs-Branch {{develop}}.",
@@ -225,9 +197,7 @@
   "history": {
     "quoted": "„{{text}}“",
     "commitNotLoaded": "Der Commit {{sha}} ließ sich nicht laden.",
-    "messageWhat": "Message",
     "revert": {
-      "label": "Revert",
       "nothing": "Nichts zurückzunehmen",
       "nothingDescription": "Die Änderungen aus {{sha}} sind im aktuellen Stand schon nicht mehr enthalten."
     },
@@ -269,7 +239,6 @@
       "doneHard": "Der alte Stand ist verworfen – Rückgängig ({{shortcut}}) holt ihn zurück."
     },
     "cherryPick": {
-      "label": "Cherry-Pick",
       "labelMany": "Cherry-Pick von {{count}} Commits",
       "nothing": "Nichts zu übertragen",
       "nothingDescription": "Die Änderungen sind im ausgecheckten Branch schon enthalten."
@@ -279,16 +248,14 @@
       "impossible": "Squash nicht möglich",
       "impossibleDescription": "Zusammenfassen geht nur so: {{reason}}.",
       "title": "{{count}} Commits zusammenfassen",
-      "description": "Aus den gewählten Commits wird einer. Autor und Datum des ältesten bleiben; die späteren Commits des Branches werden neu aufgesetzt.",
-      "action": "Zusammenfassen"
+      "description": "Aus den gewählten Commits wird einer. Autor und Datum des ältesten bleiben; die späteren Commits des Branches werden neu aufgesetzt."
     },
     "reword": {
       "failed": "Message ändern fehlgeschlagen",
       "title": "Message des letzten Commits ändern",
       "action": "Message ändern",
       "pushedTitle": "Dieser Commit liegt schon auf dem Remote",
-      "pushedText": "Die Änderung erzeugt einen neuen Commit. Danach weicht der Branch vom Remote ab und braucht einen erzwungenen Push.",
-      "done": "Message geändert"
+      "pushedText": "Die Änderung erzeugt einen neuen Commit. Danach weicht der Branch vom Remote ab und braucht einen erzwungenen Push."
     },
     "restore": {
       "titleOne": "„{{path}}“ mit der Fassung aus {{sha}} überschreiben?",
@@ -307,9 +274,7 @@
   },
   "hosts": {
     "prWord": {
-      "github": "Pull Request",
-      "gitlab": "Merge Request",
-      "default": "Pull Request"
+      "gitlab": "Merge Request"
     },
     "unexpectedShape": "Der Kern hat {{what}} in einer unerwarteten Form geliefert.",
     "what": {
@@ -375,12 +340,9 @@
       "usernameInvalid": "Der Benutzername darf keine Leerzeichen oder Doppelpunkte enthalten."
     },
     "browser": {
-      "page": "Seite",
-      "noUrl": "Für diese {{what}} ist keine Adresse bekannt",
-      "open": "Im Browser öffnen"
+      "noUrl": "Für diese {{what}} ist keine Adresse bekannt"
     },
     "failed": "{{label}} fehlgeschlagen",
-    "openIntegrations": "Integrationen öffnen",
     "connect": {
       "label": "Konto verbinden",
       "rejected": "Der Hoster hat den Token abgelehnt",
@@ -427,13 +389,11 @@
       "done": "„{{pattern}}“ läuft nicht mehr über LFS"
     },
     "pull": {
-      "label": "LFS-Dateien holen",
       "done": "LFS-Dateien sind geholt"
     },
     "prune": {
       "title": "Lokalen LFS-Speicher aufräumen?",
       "body": "Gelöscht werden alte LFS-Dateien unter .git/lfs, die der ausgecheckte Stand und die jüngsten Commits nicht brauchen und die auf dem Remote liegen. Die Dateien in deinem Arbeitsverzeichnis bleiben. Brauchst du später einen alten Stand, holt Git LFS die Dateien wieder vom Remote – dafür muss er erreichbar sein.",
-      "action": "Aufräumen",
       "label": "LFS aufräumen",
       "done": "LFS aufgeräumt",
       "doneSummary": "LFS aufgeräumt: {{summary}}"
@@ -461,8 +421,6 @@
   },
   "merge": {
     "operation": {
-      "merge": "Merge",
-      "rebase": "Rebase",
       "cherryPick": "Cherry-Pick",
       "revert": "Revert"
     },
@@ -535,15 +493,12 @@
     "pushJob": "Push {{branch}}",
     "pushRejected": "Push abgelehnt",
     "create": {
-      "label": "Pull Request anlegen",
       "done": "Pull Request #{{number}} angelegt"
     },
     "comment": {
-      "label": "Kommentieren",
       "done": "Kommentar gesendet"
     },
     "method": {
-      "merge": "Merge-Commit",
       "squash": "Squash",
       "rebase": "Rebase",
       "mergeHint": "Alle Commits bleiben, dazu kommt ein Merge-Commit im Ziel-Branch.",
@@ -570,15 +525,12 @@
       "title": "Pull Request #{{number}} schließen?",
       "body": "„{{title}}“ wird beim Hoster geschlossen, ohne zu mergen. Branch und Commits bleiben; der Pull Request lässt sich wieder öffnen.",
       "action": "Pull Request schließen",
-      "label": "Schließen",
       "done": "Pull Request #{{number}} geschlossen"
     },
     "reopen": {
-      "label": "Wieder öffnen",
       "done": "Pull Request #{{number}} wieder geöffnet"
     },
     "checkout": {
-      "label": "Branch auschecken",
       "job": "Pull Request #{{number}} holen",
       "done": "Der Branch von Pull Request #{{number}} ist geholt und ausgecheckt."
     }
@@ -594,18 +546,13 @@
       "losesUpstream_other": "{{count}} lokale Branches verlieren den Upstream.",
       "undo": "Direkt danach holt Rückgängig den Remote zurück.",
       "detailsLabel": "Verlieren ihren Upstream",
-      "action": "Remote entfernen",
       "done": "Remote „{{name}}“ entfernt"
     }
   },
   "repos": {
-    "open": "Repository öffnen",
-    "newTab": "Neuer Tab",
     "openTab": "Tab öffnen",
     "switchTab": "Tab wechseln",
-    "closeTab": "Tab schließen",
     "moveTab": "Tab verschieben",
-    "zoom": "Zoom",
     "unsaved": {
       "titleOne": "Änderungen an „{{name}}“ speichern?",
       "titleMany": "Änderungen an {{count}} Dateien speichern?",
@@ -615,22 +562,18 @@
       "save": "Speichern und schließen",
       "saveDescription_one": "Die Datei wird gespeichert, dann schließt der Tab.",
       "saveDescription_other": "Alle Dateien werden gespeichert, dann schließt der Tab.",
-      "discard": "Nicht speichern",
       "discardDescription": "Der ungespeicherte Text geht verloren.",
       "failed": "Nicht alles ließ sich speichern",
       "failedDescription": "Der Tab bleibt offen. Nicht gespeichert: {{files}}"
     },
     "forget": {
       "title": "„{{name}}“ aus der Liste entfernen?",
-      "body": "Nur der Eintrag verschwindet; der Ordner {{path}} bleibt unverändert auf der Platte.",
-      "action": "Aus der Liste entfernen",
-      "label": "Entfernen"
+      "body": "Nur der Eintrag verschwindet; der Ordner {{path}} bleibt unverändert auf der Platte."
     }
   },
   "stash": {
     "gone": "Den Stash gibt es nicht mehr",
     "goneDescription": "Er wurde inzwischen angewendet oder gelöscht. Die Liste ist neu geladen.",
-    "label": "Stash",
     "done": "Änderungen gestasht",
     "doneFiles_one": "{{count}} Datei gestasht",
     "doneFiles_other": "{{count}} Dateien gestasht",
@@ -651,7 +594,6 @@
     },
     "rename": {
       "title": "Stash umbenennen",
-      "label": "Beschreibung",
       "unchanged": "Die Beschreibung ist unverändert.",
       "done": "Stash heißt jetzt „{{name}}“"
     }
@@ -660,8 +602,7 @@
     "state": {
       "initialized": "initialisiert",
       "uninitialized": "nicht initialisiert",
-      "outOfSync": "weicht ab",
-      "modified": "geändert"
+      "outOfSync": "weicht ab"
     },
     "hint": {
       "initialized": "Ausgecheckt ist genau der eingetragene Commit.",
@@ -672,7 +613,6 @@
     "fetchJob": "Submodul holen: {{path}}",
     "updateJob": "Submodul aktualisieren: {{path}}",
     "add": {
-      "label": "Submodul hinzufügen",
       "done": "Submodul „{{path}}“ hinzugefügt – die Änderung ist gestaged"
     },
     "update": {
@@ -692,7 +632,6 @@
       "label": "Submodul öffnen",
       "notFetched": "„{{path}}“ ist noch nicht geholt",
       "notFetchedDescription": "Ein Submodul lässt sich erst öffnen, wenn es initialisiert ist.",
-      "init": "Jetzt initialisieren",
       "noFolder": "Der Ordner des Repositories ist nicht bekannt."
     },
     "remove": {
@@ -727,11 +666,9 @@
     },
     "noRemote": {
       "title": "{{label}}: kein Remote eingerichtet",
-      "description": "Dieses Repository kennt noch keine Gegenstelle. Füge einen Remote hinzu, dann geht es.",
-      "action": "Remote hinzufügen"
+      "description": "Dieses Repository kennt noch keine Gegenstelle. Füge einen Remote hinzu, dann geht es."
     },
     "fetch": {
-      "label": "Fetch",
       "labelFrom": "Fetch von {{remote}}",
       "refs_one": "{{count}} Ref aktualisiert",
       "refs_other": "{{count}} Refs aktualisiert",
@@ -746,7 +683,6 @@
       "nothingNew": "Nichts Neues auf dem Remote."
     },
     "pull": {
-      "label": "Pull",
       "dirty": {
         "title": "Uncommittete Änderungen stehen dem Pull im Weg",
         "description": "Der Pull würde Dateien überschreiben, die du geändert hast. Es wurde noch nichts verändert.",
@@ -758,12 +694,10 @@
       "noUpstream": {
         "title": "Pull: kein Upstream",
         "description": "Der Branch folgt noch keinem Remote-Branch (oder der wurde gelöscht). Setze einen Upstream – oder pushe, das legt ihn an.",
-        "descriptionBranch": "„{{branch}}“ folgt noch keinem Remote-Branch (oder der wurde gelöscht). Setze einen Upstream – oder pushe, das legt ihn an.",
-        "action": "Upstream setzen …"
+        "descriptionBranch": "„{{branch}}“ folgt noch keinem Remote-Branch (oder der wurde gelöscht). Setze einen Upstream – oder pushe, das legt ihn an."
       }
     },
     "push": {
-      "label": "Push",
       "labelForced": "Erzwungener Push",
       "jobForced": "Push (erzwungen)",
       "done": "Nach {{target}} gepusht",
@@ -789,7 +723,6 @@
       "description": "Der Remote enthält Commits, die lokal fehlen.",
       "pull": "Erst pullen",
       "pullDescription": "Holt die fehlenden Commits; danach wird noch einmal gepusht.",
-      "force": "Push erzwingen …",
       "forceDescription": "Überschreibt den Remote-Branch. Vorher siehst du, welche Commits dort verloren gehen."
     },
     "deleteRemote": {
@@ -808,7 +741,6 @@
     "currentCommit": "den aktuellen Commit",
     "noRemote": "Kein Remote eingerichtet",
     "create": {
-      "label": "Tag anlegen",
       "done": "Tag „{{name}}“ angelegt",
       "doneAnnotated": "Annotierter Tag „{{name}}“ angelegt"
     },
@@ -821,14 +753,12 @@
       "bodyRemote": "Der Tag verschwindet hier und auf dem Remote. Wer ihn schon geholt hat, behält seine Kopie.",
       "body": "Der Tag wird nur lokal gelöscht, auf dem Remote bleibt er.",
       "actionRemote": "Lokal und remote löschen",
-      "action": "Tag löschen",
       "doneRemote": "Tag „{{name}}“ lokal und auf {{remote}} gelöscht",
       "done": "Tag „{{name}}“ gelöscht"
     },
     "push": {
       "pickRemote": "Auf welchen Remote pushen?",
       "pickRemoteDescription": "Der Tag „{{name}}“ wird dorthin übertragen.",
-      "label": "Tag pushen",
       "job": "Tag {{name}} pushen",
       "rejected": "Tag „{{name}}“ wurde abgelehnt",
       "rejectedShort": "Tag wurde abgelehnt",
@@ -836,11 +766,8 @@
       "done": "Tag „{{name}}“ nach {{remote}} gepusht"
     },
     "releaseNotes": {
-      "label": "Release Notes",
       "write": "Release Notes schreiben",
-      "rewrite": "Neu schreiben",
       "writing": "Schreibt Release Notes …",
-      "whatIsSent": "Was wird gesendet?",
       "range_one": "{{count}} Commit seit {{from}}",
       "range_other": "{{count}} Commits seit {{from}}",
       "rangeFromStart_one": "{{count}} Commit seit dem ersten Commit",
@@ -858,18 +785,12 @@
       "also": "Außerdem",
       "external": "Nach außen",
       "targets": {
-        "changelog": "In CHANGELOG.md einfügen",
         "changelogHint": "Als normale Änderung im Arbeitsverzeichnis – selbst prüfen und committen.",
         "hostRelease": "Release auf {{host}} anlegen",
-        "hostReleaseHint": "Pusht vorher den Tag nach {{remote}}. Verlässt diesen Computer und lässt sich nicht rückgängig machen.",
-        "clipboard": "In die Zwischenablage"
+        "hostReleaseHint": "Pusht vorher den Tag nach {{remote}}. Verlässt diesen Computer und lässt sich nicht rückgängig machen."
       },
       "titleTag": "Release Notes für {{name}}",
       "titleCommit": "Release Notes bis {{sha}}",
-      "notes": "Release Notes",
-      "apply": "Übernehmen",
-      "close": "Schließen",
-      "changelogLabel": "In CHANGELOG.md einfügen",
       "releaseLabel": "Release anlegen",
       "noRelease": {
         "title": "Kein Release angelegt",
@@ -884,8 +805,7 @@
         "changelog": "Release Notes in {{path}} eingefügt",
         "changelogCreated": "{{path}} mit den Release Notes angelegt",
         "release": "Release „{{tag}}“ auf {{host}} angelegt",
-        "openRelease": "Öffnen",
-        "clipboard": "Release Notes"
+        "openRelease": "Öffnen"
       }
     }
   },
@@ -899,7 +819,6 @@
     "mergeFailed": "Das Merge-Tool ließ sich nicht starten"
   },
   "undo": {
-    "redoLabel": "Wiederholen",
     "step": "„{{label}}“",
     "thisStep": "Dieser Schritt",
     "thisStepObject": "diesem Schritt",
@@ -922,8 +841,6 @@
     },
     "doneUndo": "Rückgängig gemacht",
     "doneRedo": "Wiederholt",
-    "nothingUndo": "Nichts rückgängig zu machen",
-    "nothingRedo": "Nichts zu wiederholen",
     "overwriteUndo": "Rückgängig würde neuere Arbeit überschreiben",
     "overwriteRedo": "Wiederholen würde neuere Arbeit überschreiben",
     "stashUndo": "Stashen und rückgängig machen",
@@ -932,20 +849,16 @@
   },
   "worktrees": {
     "detachedAt": "losgelöst bei {{sha}}",
-    "noCommit": "ohne Commit",
-    "add": "Worktree anlegen",
     "open": {
       "missing": "Der Ordner von „{{name}}“ fehlt",
       "missingHint": "Gibt es ihn nicht mehr, entfernt „Aufräumen“ den verwaisten Eintrag.",
       "current": "Dieser Worktree ist hier schon geöffnet"
     },
     "lock": {
-      "label": "Sperren",
       "done": "Worktree „{{name}}“ gesperrt",
       "reasonChanged": "Grund der Sperre von „{{name}}“ geändert"
     },
     "unlock": {
-      "label": "Entsperren",
       "done": "Worktree „{{name}}“ entsperrt"
     },
     "block": {
@@ -961,7 +874,6 @@
       "title": "Worktree „{{name}}“ entfernen?",
       "body": "Der Ordner wird samt Inhalt gelöscht. {{keeps}} Ein offener Tab dazu wird geschlossen.",
       "detailsLabel": "Dieser Ordner wird gelöscht",
-      "action": "Worktree entfernen",
       "done": "Worktree „{{name}}“ entfernt",
       "dirty": "Im Worktree liegen noch Änderungen."
     },

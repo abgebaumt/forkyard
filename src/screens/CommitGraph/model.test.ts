@@ -128,9 +128,7 @@ describe("the filter bar text", () => {
   it("names one solo or hidden ref, counts several", () => {
     expect(filterText(view({ soloRefs: ["refs/heads/main"] }), null)).toBe(t("commitGraph.filter.soloOne", { name: "main" }));
     expect(filterText(view({ soloRefs: ["a", "b"] }), null)).toBe(t("commitGraph.filter.soloMany", { count: 2 }));
-    expect(filterText(view({ hiddenRefs: [STASH_REF] }), null)).toBe(
-      t("commitGraph.filter.hiddenOne", { name: t("commitGraph.filter.stashes") }),
-    );
+    expect(filterText(view({ hiddenRefs: [STASH_REF] }), null)).toBe(t("commitGraph.filter.hiddenOne", { name: t("ui.stashes") }));
     expect(filterText(view({ hiddenRefs: ["a", "b", "c"] }), null)).toBe(t("commitGraph.filter.hiddenMany", { count: 3 }));
   });
 });

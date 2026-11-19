@@ -148,8 +148,8 @@ const KIND_NAMES: Record<UrlKind, string> = {
   http: t("clone.kind.http"),
   ssh: "SSH",
   git: t("clone.kind.git"),
-  file: t("clone.kind.local"),
-  local: t("clone.kind.local"),
+  file: t("ui.local"),
+  local: t("ui.local"),
 };
 
 /** Short badge on the URL field, e.g. “GitHub · SSH” or “Local folder”. */

@@ -2,7 +2,6 @@
   "hooks": {
     "outputOf": "Ausgabe von {{hook}}",
     "failed": "Hook „{{hook}}“ ist fehlgeschlagen (Exit-Code {{code}})",
-    "showOutput": "Ausgabe anzeigen",
     "printed": "Hook „{{hook}}“ hat etwas ausgegeben",
     "rejectedMessage": "Ein Git-Hook hat die Aktion abgelehnt.",
     "rejected": "{{label}}: von einem Git-Hook abgelehnt",

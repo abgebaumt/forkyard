@@ -13,12 +13,12 @@ export function LfsDialog({ repoId, onClose }: { repoId: Id; onClose: () => void
     <Dialog
       open
       size="md"
-      title={t("lfs.title")}
+      title={t("ui.gitLfs")}
       description={t("lfs.description")}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-      footer={<Button onClick={onClose}>{t("lfs.close")}</Button>}
+      footer={<Button onClick={onClose}>{t("ui.close")}</Button>}
     >
       <div data-screen="lfs">
         <LfsPanel repoId={repoId} autoFocus />

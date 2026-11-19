@@ -131,7 +131,7 @@ export function renderReadme(source: string): RenderedReadme {
     const placeholder = doc.createElement("span");
     placeholder.setAttribute("data-readme-image", remote ? "remote" : "local");
     placeholder.setAttribute("title", remote ? t("repos.readme.imageRemote") : t("repos.readme.imageLocal"));
-    placeholder.textContent = alt ? t("repos.readme.imageAlt", { alt }) : t("repos.readme.image");
+    placeholder.textContent = alt ? t("repos.readme.imageAlt", { alt }) : t("ui.image");
     image.replaceWith(placeholder);
   }
 
@@ -159,7 +159,7 @@ export function renderReadme(source: string): RenderedReadme {
     const box = doc.createElement("span");
     box.setAttribute("data-readme-task", done ? "done" : "open");
     box.setAttribute("role", "img");
-    box.setAttribute("aria-label", done ? t("repos.readme.taskDone") : t("repos.readme.taskOpen"));
+    box.setAttribute("aria-label", done ? t("ui.done") : t("ui.open"));
     input.replaceWith(box);
   }
 

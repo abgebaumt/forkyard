@@ -262,7 +262,7 @@ export function Treemap({ node, onFile, onFolder }: { node: TreeNode; onFile(pat
     <div
       data-stats-treemap=""
       role="group"
-      aria-label={t("stats.treemap.label", { path: node.path || t("stats.treemap.root") })}
+      aria-label={t("stats.treemap.label", { path: node.path || t("ui.repository") })}
       className="relative aspect-[2/1] w-full"
     >
       {tiles.map((tile, index) => {
@@ -315,9 +315,9 @@ export function HotspotList({ hotspots, onFile, limit = 8 }: { hotspots: StatsHo
     <table data-stats-hotspots="" className="w-full table-fixed text-base">
       <thead className="text-left text-sm text-text-muted">
         <tr>
-          <th className="py-1 font-normal">{t("stats.hotspots.file")}</th>
-          <th className="w-20 py-1 text-right font-normal">{t("stats.hotspots.changes")}</th>
-          <th className="w-20 py-1 text-right font-normal">{t("stats.hotspots.authors")}</th>
+          <th className="py-1 font-normal">{t("ui.file")}</th>
+          <th className="w-20 py-1 text-right font-normal">{t("ui.changes")}</th>
+          <th className="w-20 py-1 text-right font-normal">{t("ui.authors")}</th>
           <th className="w-1/4 py-1">
             <span className="sr-only">{t("stats.hotspots.score")}</span>
           </th>
@@ -389,7 +389,7 @@ export function AuthorsList({
             <span className="min-w-0 flex-1 truncate text-text" title={author.email}>
               {author.name}
             </span>
-            <span className="w-12 shrink-0 text-right text-text-muted tabular-nums" title={t("stats.authors.commits")}>
+            <span className="w-12 shrink-0 text-right text-text-muted tabular-nums" title={t("ui.commits")}>
               {formatCount(author.commits)}
             </span>
             <span className="w-20 shrink-0 text-right text-success tabular-nums" title={t("stats.authors.added")}>
@@ -423,7 +423,7 @@ export function KnowledgeTable({
     <table data-stats-knowledge="" className="w-full table-fixed text-base">
       <thead className="text-left text-sm text-text-muted">
         <tr>
-          <th className="w-1/4 py-1 font-normal">{t("stats.knowledge.folder")}</th>
+          <th className="w-1/4 py-1 font-normal">{t("ui.folder")}</th>
           <th className="py-1 font-normal">{t("stats.knowledge.lines")}</th>
           <th className="w-24 py-1 text-right font-normal">{t("stats.knowledge.busFactor")}</th>
         </tr>

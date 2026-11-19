@@ -205,7 +205,7 @@ function TextSearch({ repoId, tabId, text, setText, modeSwitch }: SearchPartProp
   return (
     <div
       role="search"
-      aria-label={t("commitSearch.label")}
+      aria-label={t("ui.commitSearch")}
       data-screen="commit-search"
       className="@container flex shrink-0 flex-col border-b border-border bg-surface text-base"
     >
@@ -221,7 +221,7 @@ function TextSearch({ repoId, tabId, text, setText, modeSwitch }: SearchPartProp
             maxLength={MAX_QUERY}
             spellCheck={false}
             autoComplete="off"
-            aria-label={t("commitSearch.input")}
+            aria-label={t("ui.searchCommits")}
             aria-expanded={showList}
             aria-controls={listId}
             aria-autocomplete="list"
@@ -260,13 +260,7 @@ function TextSearch({ repoId, tabId, text, setText, modeSwitch }: SearchPartProp
           icon={<ChevronDown className="size-icon" aria-hidden />}
           onClick={() => step(1)}
         />
-        <IconButton
-          size="sm"
-          label={t("commitSearch.close")}
-          shortcut="Esc"
-          icon={<X className="size-icon" aria-hidden />}
-          onClick={close}
-        />
+        <IconButton size="sm" label={t("ui.closeSearch")} shortcut="Esc" icon={<X className="size-icon" aria-hidden />} onClick={close} />
       </div>
 
       {!text.trim() ? (
@@ -294,7 +288,7 @@ function TextSearch({ repoId, tabId, text, setText, modeSwitch }: SearchPartProp
                   inputRef.current?.focus();
                 }}
               >
-                {t("commitSearch.retry")}
+                {t("ui.retry")}
               </Button>
             }
           >
@@ -400,7 +394,7 @@ export function CommitSearch({ repoId, tabId }: CommitSearchProps) {
         label={t("commitSearch.mode.label")}
         value={current}
         options={[
-          { value: "text", label: t("commitSearch.mode.text") },
+          { value: "text", label: t("ui.text") },
           { value: "meaning", label: t("commitSearch.mode.meaning") },
         ]}
         onValueChange={choose}

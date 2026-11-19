@@ -69,7 +69,7 @@ export async function confirmCloseTerminal(tabId: Id, tabName?: string | null): 
   return confirm({
     title: tabName ? t("terminal.confirm.closeTabNamed", { name: tabName }) : t("terminal.confirm.closeTab"),
     body: t("terminal.confirm.closeTabBody"),
-    confirmLabel: t("terminal.confirm.closeTabConfirm"),
+    confirmLabel: t("ui.closeTab"),
     danger: true,
   });
 }

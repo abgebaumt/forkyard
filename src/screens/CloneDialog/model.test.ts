@@ -121,8 +121,8 @@ describe("clone options and errors", () => {
     expect(isRealDate("2023-02-29")).toBe(false);
     expect(isRealDate("2024-2-1")).toBe(false);
     expect(sparseLines(" a \n\r\nb")).toEqual(["a", "b"]);
-    expect(phaseLabel("Receiving objects")).toBe(t("clone.phase.receiving"));
-    expect(phaseLabel("Checking out files")).toBe(t("clone.phase.checkout"));
-    expect(phaseLabel("")).toBe(t("clone.phase.connecting"));
+    expect(phaseLabel("Receiving objects")).toBe(t("ui.transferringData"));
+    expect(phaseLabel("Checking out files")).toBe(t("ui.checkingOutFiles"));
+    expect(phaseLabel("")).toBe(t("ui.connecting"));
   });
 });

@@ -2,31 +2,25 @@
   "actionDialogs": {
     "ignore": {
       "comment": "Eine Zeile mit # am Anfang ist ein Kommentar und ignoriert nichts.",
-      "confirm": "Ignorieren",
       "description": "Das Muster kommt als neue Zeile in die .gitignore im Wurzelverzeichnis.",
       "oneLine": "Ein Muster ist genau eine Zeile.",
-      "pattern": "Muster",
       "preview": "Neue Zeile in .gitignore",
       "stopTracking": "Auch nicht mehr verfolgen",
       "stopTrackingHint": "Verfolgte Dateien, auf die das Muster passt, verlassen den Index und bleiben auf der Platte.",
       "stopTrackingTracked": "Git verfolgt die Datei schon; .gitignore allein ändert daran nichts. Die Datei verlässt den Index und bleibt auf der Platte.",
-      "title": "Ignorieren",
       "what": "Was ignorieren?"
     },
     "message": {
-      "description": "Beschreibung",
       "lengthLong_one": "{{count}} Zeichen – viele Werkzeuge schneiden nach {{max}} ab",
       "lengthLong_other": "{{count}} Zeichen – viele Werkzeuge schneiden nach {{max}} ab",
       "length_one": "{{count}} Zeichen",
-      "length_other": "{{count}} Zeichen",
-      "summary": "Zusammenfassung"
+      "length_other": "{{count}} Zeichen"
     },
     "push": {
       "branchName": "Name des Branches auf dem Remote",
       "confirm": "Pushen",
       "createdAs": "Entsteht als {{name}}.",
       "description": "<strong>{{branch}}</strong> hat noch keinen Upstream. Der Push legt den Branch auf dem Remote an und merkt ihn als Upstream.",
-      "remote": "Remote",
       "title": "Wohin pushen?"
     },
     "refName": {
@@ -42,13 +36,10 @@
     "tag": {
       "annotation": "Annotation",
       "annotationOptional": "Annotation (optional)",
-      "confirm": "Tag anlegen",
       "description": "Der Tag zeigt auf {{target}}.",
       "hintAnnotated": "Annotierter Tag: trägt Autor, Datum und diesen Text.",
       "hintLightweight": "Ohne Text entsteht ein leichtgewichtiger Tag – nur ein Name für den Commit.",
       "hintNeedsText": "Ein annotierter Tag braucht einen Text.",
-      "name": "Name",
-      "title": "Tag anlegen",
       "titleAnnotated": "Annotierten Tag anlegen"
     }
   },
@@ -73,22 +64,15 @@
     "unsavedText_one": "Im Editor steht ungespeicherter Text.",
     "unsavedText_other": "Im Editor steht ungespeicherter Text in {{count}} Dateien."
   },
-  "common": {
-    "cancel": "Abbrechen"
-  },
   "dialogs": {
     "andMore_one": "und {{formatted}} weitere",
     "andMore_other": "und {{formatted}} weitere",
-    "close": "Schließen",
-    "copy": "Kopieren",
     "filter": "Filtern …",
     "noMatch": "Kein Treffer für „{{filter}}“.",
-    "noOutput": "Keine Ausgabe.",
     "nothingToChoose": "Nichts zur Auswahl.",
     "pickMore": "{{count, number}} weitere – tippe, um einzugrenzen."
   },
   "errorBoundary": {
-    "reload": "Neu laden",
     "reloadWithoutTabs": "Ohne die offenen Tabs neu laden",
     "text": "Deine Repositories sind davon nicht betroffen – es wurde nichts verändert. Lade die Oberfläche neu. Kommt der Fehler sofort wieder, liegt er vermutlich an einem der offenen Repositories: dann hilft „Ohne die offenen Tabs neu laden“.",
     "title": "Die Oberfläche ist auf einen Fehler gestoßen"
@@ -103,13 +87,11 @@
     "fetchFailed": "{{where}}: Auto-Fetch fehlgeschlagen",
     "fetchNews": "{{where}}: Neues auf dem Remote",
     "fetchNewsShort": "Der Auto-Fetch hat neue Commits oder Branches geholt.",
-    "fetchNewsText": "Der Auto-Fetch hat neue Commits oder Branches geholt. Lokal wurde nichts verändert.",
-    "repository": "Repository"
+    "fetchNewsText": "Der Auto-Fetch hat neue Commits oder Branches geholt. Lokal wurde nichts verändert."
   },
   "run": {
     "failed": "{{label}} fehlgeschlagen",
-    "outputTitle": "{{label}}: Ausgabe von Git",
-    "showOutput": "Ausgabe anzeigen"
+    "outputTitle": "{{label}}: Ausgabe von Git"
   },
   "shell": {
     "management": "Repository-Verwaltung"
@@ -136,8 +118,6 @@
       "macos": "Installiere die Xcode-Befehlszeilenwerkzeuge („xcode-select --install“) oder Git über Homebrew („brew install git“).",
       "windows": "Lade Git für Windows von git-scm.com herunter und installiere es mit den Standardeinstellungen."
     },
-    "recheck": "Erneut prüfen",
-    "retry": "Erneut versuchen",
     "tabsFailed": "Die Tabs ließen sich nicht laden"
   }
 }

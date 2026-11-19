@@ -511,7 +511,7 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
     // Worktrees and submodules can be shown again here.
     menuEntries = [...menuEntries, ...extraSectionEntries(repoId, view)];
   }
-  if (!menuEntries.length) menuEntries = [{ label: t("sidebar.menu.none"), disabled: true }];
+  if (!menuEntries.length) menuEntries = [{ label: t("ui.noActionsAvailable"), disabled: true }];
 
   // --- Mouse-------------------------------------------------------------------------------------------
   const rowFromEvent = (event: { target: EventTarget }): FlatRow | undefined => {
@@ -776,13 +776,13 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
     }
     const rows = rowsBySection[key];
     if (rows.length === 0) {
-      if (filtering) return totals[key] > 0 ? <EmptyLine>{t("sidebar.noMatch")}</EmptyLine> : null;
+      if (filtering) return totals[key] > 0 ? <EmptyLine>{t("ui.noMatch")}</EmptyLine> : null;
       if (key === "remote") {
         return (
           <EmptyLine
             action={
               <Button size="sm" variant="ghost" onClick={() => store().openOverlay({ kind: "add_remote" })}>
-                {t("sidebar.addRemote")}
+                {t("ui.addRemote")}
               </Button>
             }
           >
@@ -838,10 +838,10 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
       />
     ) : null;
     const add: Record<SectionKey, { label: string; run: () => void }> = {
-      local: { label: t("sidebar.add.branch"), run: () => void createBranch(repoId) },
-      remote: { label: t("sidebar.addRemote"), run: () => store().openOverlay({ kind: "add_remote" }) },
+      local: { label: t("ui.createBranch"), run: () => void createBranch(repoId) },
+      remote: { label: t("ui.addRemote"), run: () => store().openOverlay({ kind: "add_remote" }) },
       tags: { label: t("sidebar.add.tag"), run: () => void createTag(repoId, null) },
-      stashes: { label: t("sidebar.add.stash"), run: () => store().openStashForm(tabId) },
+      stashes: { label: t("ui.stashChanges"), run: () => store().openStashForm(tabId) },
     };
     const addButton = (
       <IconButton
@@ -905,7 +905,7 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
           {query ? (
             <IconButton
               size="xs"
-              label={t("sidebar.filter.clear")}
+              label={t("ui.clearFilter")}
               shortcut="Esc"
               icon={<X className="size-3.5" aria-hidden />}
               className="absolute top-1/2 right-0.5 -translate-y-1/2"
@@ -927,12 +927,12 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
           <ListFilter className="size-3.5 shrink-0 text-accent" aria-hidden />
           <Tip label={t("sidebar.viewFiltered.tip", { summary: filterSummary })} side="right">
             <span className="min-w-0 flex-1 truncate">
-              {t("sidebar.viewFiltered.title")}
+              {t("ui.viewFiltered")}
               <span className="sr-only">: {filterSummary}</span>
             </span>
           </Tip>
           <Button size="sm" variant="ghost" className="-my-1" onClick={() => void resetVisibility(repoId)}>
-            {t("sidebar.viewFiltered.reset")}
+            {t("ui.reset")}
           </Button>
         </div>
       ) : null}
@@ -963,7 +963,7 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
                 <p className="max-w-full font-medium break-words text-text">{t("sidebar.noHits.title", { query: query.trim() })}</p>
                 <p className="text-sm text-text-muted">{t("sidebar.noHits.text")}</p>
                 <Button size="sm" onClick={() => setQuery("")}>
-                  {t("sidebar.filter.clear")}
+                  {t("ui.clearFilter")}
                 </Button>
               </div>
             ) : (

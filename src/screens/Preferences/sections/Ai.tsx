@@ -49,10 +49,10 @@ export function AiSection({ settings, repoId }: { settings: Settings; repoId: Id
   }, []);
   return (
     <section data-ai-settings>
-      <SectionHeader title={t("ai.settings.title")}>{t("ai.settings.intro")}</SectionHeader>
-      <SettingsCard title={t("ai.settings.masterCard")}>
+      <SectionHeader title={t("ui.ai")}>{t("ai.settings.intro")}</SectionHeader>
+      <SettingsCard title={t("ui.aiFeatures")}>
         <SettingRow
-          title={t("ai.settings.master.title")}
+          title={t("ui.aiFeatures")}
           description={settings.aiEnabled === null ? t("ai.settings.master.unset") : t("ai.settings.master.description")}
         >
           {(ids) => (
@@ -71,7 +71,7 @@ export function AiSection({ settings, repoId }: { settings: Settings; repoId: Id
         <SettingRow title={t("ai.settings.setup.title")} description={t("ai.settings.setup.description")}>
           {() => (
             <Button data-ai-setup-open onClick={() => void openAiSetup()}>
-              {t("ai.settings.setup.button")}
+              {t("ui.setUp")}
             </Button>
           )}
         </SettingRow>
@@ -134,7 +134,7 @@ function ProviderCard({ settings }: { settings: Settings }) {
     setCheckResult(null);
     const typedKey = keyDraft.trim() || null;
     const result = await runAction(
-      t("ai.settings.check.action"),
+      t("ui.checkTheProvider"),
       () => core.aiModels({ jobId: newJobId(), provider, baseUrl: settings.aiBaseUrl, key: typedKey, model: settings.aiModel }),
       {
         quiet: [
@@ -174,7 +174,7 @@ function ProviderCard({ settings }: { settings: Settings }) {
 
   const removeKey = async () => {
     if (!provider) return;
-    const result = await runAction(t("ai.settings.key.remove"), () => core.aiKeyRemove({ provider }));
+    const result = await runAction(t("ui.removeKey"), () => core.aiKeyRemove({ provider }));
     if (result.ok) {
       queryClient.setQueryData(qk.aiStatus, result.value);
       toast({ tone: "success", title: t("ai.settings.key.removed") });
@@ -190,8 +190,8 @@ function ProviderCard({ settings }: { settings: Settings }) {
   const own = settings.aiPrices.find((price) => price.model === settings.aiModel);
 
   return (
-    <SettingsCard title={t("ai.settings.providerCard")}>
-      <SettingRow title={t("ai.settings.provider.title")} description={t("ai.settings.provider.description")}>
+    <SettingsCard title={t("ui.provider")}>
+      <SettingRow title={t("ui.provider")} description={t("ai.settings.provider.description")}>
         {(ids) => (
           <div className="w-72" data-ai-provider>
             <Select<string>
@@ -206,7 +206,7 @@ function ProviderCard({ settings }: { settings: Settings }) {
       </SettingRow>
       {provider && usesBaseUrl(provider) ? (
         <SettingRow
-          title={t("ai.settings.baseUrl.title")}
+          title={t("ui.address")}
           description={isLocal(provider) ? t("ai.settings.baseUrl.descriptionLocal") : t("ai.settings.baseUrl.description")}
         >
           {(ids) => (
@@ -242,7 +242,7 @@ function ProviderCard({ settings }: { settings: Settings }) {
               </div>
               {status?.keyHint ? (
                 <Button size="sm" variant="ghost" onClick={() => void removeKey()}>
-                  {t("ai.settings.key.remove")}
+                  {t("ui.removeKey")}
                 </Button>
               ) : null}
             </div>
@@ -254,7 +254,7 @@ function ProviderCard({ settings }: { settings: Settings }) {
           {() => (
             <div className="flex flex-col items-end gap-1">
               <Button data-ai-check loading={checking} onClick={() => void check()}>
-                {t("ai.settings.check.button")}
+                {t("ui.check")}
               </Button>
               {checkError ? (
                 <p role="alert" className="max-w-72 text-right text-sm text-danger">
@@ -283,14 +283,14 @@ function ProviderCard({ settings }: { settings: Settings }) {
         </SettingRow>
       ) : null}
       {provider ? (
-        <SettingRow title={t("ai.settings.model.title")} description={t("ai.settings.model.description")}>
+        <SettingRow title={t("ui.model")} description={t("ai.settings.model.description")}>
           {(ids) =>
             models && modelOptions.length && !isCli(provider) ? (
               <div className="w-72" data-ai-model>
                 <Select<string>
                   id={ids.id}
                   value={settings.aiModel ?? ""}
-                  placeholder={t("ai.settings.model.placeholder")}
+                  placeholder={t("ui.modelId")}
                   options={modelOptions}
                   onValueChange={(value) => void applySettings({ aiModel: value })}
                 />
@@ -302,7 +302,7 @@ function ProviderCard({ settings }: { settings: Settings }) {
                 className="w-72"
                 mono
                 value={settings.aiModel ?? ""}
-                placeholder={isCli(provider) ? t("ai.settings.cliModel") : t("ai.settings.model.placeholder")}
+                placeholder={isCli(provider) ? t("ai.settings.cliModel") : t("ui.modelId")}
                 onCommit={async (value) => fieldError(await applySettings({ aiModel: value.trim() || null }, { atField: true }))}
               />
             )
@@ -404,7 +404,7 @@ function PrivacyCard({ settings, repoId }: { settings: Settings; repoId: Id | nu
         )}
       </SettingRow>
       <SettingRow
-        title={t("ai.settings.whatIsSent.title")}
+        title={t("ui.whatIsSent")}
         description={repoId ? t("ai.settings.whatIsSent.description") : t("ai.settings.whatIsSent.noRepo")}
       >
         {() => (

@@ -152,7 +152,7 @@ export function NetworkSection({ settings }: { settings: Settings }) {
 
   return (
     <section data-screen="network">
-      <SectionHeader title={t("network.title")}>{t("network.intro")}</SectionHeader>
+      <SectionHeader title={t("ui.network")}>{t("network.intro")}</SectionHeader>
 
       {noVerify.length > 0 ? (
         <div className="mb-2 overflow-hidden rounded-md" data-network-warning>
@@ -197,7 +197,7 @@ export function NetworkSection({ settings }: { settings: Settings }) {
       </HostList>
       <AddForm
         name="proxy-host"
-        submitLabel={t("network.perHost.add")}
+        submitLabel={t("ui.add")}
         icon={<Plus className="size-icon" aria-hidden />}
         fields={[
           { key: "host", label: t("network.perHost.host"), placeholder: t("network.perHost.hostPlaceholder"), check: checkHost },

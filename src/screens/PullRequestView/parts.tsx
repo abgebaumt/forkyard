@@ -36,7 +36,7 @@ export const phaseInfo: Record<PrPhase, { label: string; icon: Icon; tone: strin
     badge: "border-transparent bg-success-surface text-text",
   },
   draft: {
-    label: t("pullRequest.view.phase.draft"),
+    label: t("ui.draft"),
     icon: GitPullRequestDraft,
     tone: "text-text-muted",
     badge: "border-border bg-surface-raised text-text-muted",
@@ -48,7 +48,7 @@ export const phaseInfo: Record<PrPhase, { label: string; icon: Icon; tone: strin
     badge: "border-transparent bg-accent-surface text-text",
   },
   closed: {
-    label: t("pullRequest.view.phase.closed"),
+    label: t("ui.closed"),
     icon: GitPullRequestClosed,
     tone: "text-danger",
     badge: "border-transparent bg-danger-surface text-text",
@@ -57,7 +57,7 @@ export const phaseInfo: Record<PrPhase, { label: string; icon: Icon; tone: strin
 
 export const stateLabels: Record<PrState, string> = {
   open: t("pullRequest.view.phase.open"),
-  closed: t("pullRequest.view.phase.closed"),
+  closed: t("ui.closed"),
   merged: t("pullRequest.view.phase.merged"),
 };
 
@@ -82,8 +82,8 @@ export function PhaseBadge({ pr, className }: { pr: Pick<PrSummary, "state" | "i
 }
 
 export const checkInfo: Record<CheckState, { label: string; icon: Icon; tone: string }> = {
-  passing: { label: t("pullRequest.view.check.passing"), icon: CircleCheck, tone: "text-success" },
-  failing: { label: t("pullRequest.view.check.failing"), icon: CircleX, tone: "text-danger" },
+  passing: { label: t("ui.passed"), icon: CircleCheck, tone: "text-success" },
+  failing: { label: t("ui.failed"), icon: CircleX, tone: "text-danger" },
   pending: { label: t("pullRequest.view.check.pending"), icon: Clock, tone: "text-warning" },
 };
 
@@ -154,7 +154,7 @@ export function ReviewState({ state, className }: { state: string | null; classN
   );
 }
 
-export const userName = (user: HostUser | null) => user?.name ?? user?.login ?? t("pullRequest.view.unknownUser");
+export const userName = (user: HostUser | null) => user?.name ?? user?.login ?? t("ui.unknown");
 
 /** Relative date with the exact one in the tooltip; empty if the host gives none. */
 export function When({ value, prefix }: { value: string | null; prefix?: string }) {
@@ -193,8 +193,8 @@ export function BlockTitle({ children, count }: { children: ReactNode; count?: n
 export function LabelsBlock({ labels, capabilities }: { labels: string[]; capabilities: Pick<HostCapabilities, "prLabels"> }) {
   if (!capabilities.prLabels) return null;
   return (
-    <section aria-label={t("pullRequest.view.labels")} data-pr-labels="">
-      <BlockTitle count={labels.length || undefined}>{t("pullRequest.view.labels")}</BlockTitle>
+    <section aria-label={t("ui.labels")} data-pr-labels="">
+      <BlockTitle count={labels.length || undefined}>{t("ui.labels")}</BlockTitle>
       {labels.length === 0 ? (
         <p className="text-base text-text-muted">{t("pullRequest.view.noLabels")}</p>
       ) : (

@@ -28,13 +28,13 @@ export function maybeShowAiIntro(status: AiStatus | undefined): boolean {
     sticky: true,
     title: t("ai.intro.title"),
     action: {
-      label: t("ai.intro.setup"),
+      label: t("ui.setUp"),
       onClick: () => {
         openAiSettings();
         void dismiss();
       },
     },
-    secondaryAction: { label: t("ai.intro.close"), onClick: () => void dismiss() },
+    secondaryAction: { label: t("ui.close"), onClick: () => void dismiss() },
   });
   return true;
 }

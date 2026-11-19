@@ -1,10 +1,8 @@
 {
-  "title": "Repositories",
   "count_one": "{{count}} Repository",
   "count_other": "{{count}} Repositories",
   "countFiltered": "{{shown}} von {{total}}",
   "loading": "Repositories werden geladen",
-  "retry": "Erneut versuchen",
   "sections": {
     "favorites": "Favoriten",
     "ungrouped": "Ohne Gruppe",
@@ -15,7 +13,6 @@
     "clone": "Klonen …",
     "init": "Neu anlegen …"
   },
-  "pickFolderTitle": "Repository öffnen",
   "notice": {
     "close": "Hinweis schließen",
     "notARepoTitle": "„{{name}}“ ist kein Git-Repository",
@@ -31,13 +28,11 @@
   },
   "listError": "Die Liste ließ sich nicht laden",
   "noMatch": {
-    "title": "Kein Treffer",
     "body": "Kein Name, Alias, Pfad oder Gruppenname enthält „{{filter}}“."
   },
   "filter": {
     "label": "Repositories filtern",
-    "placeholder": "Liste filtern",
-    "clear": "Filter leeren"
+    "placeholder": "Liste filtern"
   },
   "grouping": {
     "label": "Gliederung der Liste",
@@ -59,11 +54,8 @@
     "relocate": "Neuen Ort wählen …",
     "open": "Öffnen",
     "openInTab": "In neuem Tab öffnen",
-    "favoriteRemove": "Favorit entfernen",
     "favoriteAdd": "Als Favorit markieren",
-    "aliasChange": "Alias ändern …",
     "aliasSet": "Alias vergeben …",
-    "aliasRemove": "Alias entfernen",
     "groupChange": "Gruppe ändern …",
     "groupAssign": "Gruppe zuweisen …",
     "groupLeave": "Aus Gruppe „{{group}}“ nehmen",
@@ -71,8 +63,7 @@
     "color": "Farbe",
     "noColor": "Keine Farbe",
     "cleanup": "Repository aufräumen …",
-    "showInFileManager": "{{revealInFileManager}}",
-    "remove": "Aus der Liste entfernen"
+    "showInFileManager": "{{revealInFileManager}}"
   },
   "groupMenu": {
     "empty": "die Gruppe ist leer",
@@ -100,16 +91,13 @@
   },
   "actions": {
     "favoriteSet": "Favorit setzen",
-    "favoriteRemove": "Favorit entfernen",
     "colorChange": "Farbe ändern",
-    "aliasRemove": "Alias entfernen",
     "groupRemove": "Gruppe entfernen",
     "maxChars": "Höchstens {{count}} Zeichen.",
     "aliasChangeTitle": "Alias von „{{name}}“ ändern",
     "aliasSetTitle": "Alias für „{{name}}“ vergeben",
     "aliasLabel": "Alias",
     "aliasDescription": "Der Alias steht in der Liste und im Tab. Der Ordner auf der Platte behält seinen Namen.",
-    "aliasSave": "Alias speichern",
     "groupTitle": "Gruppe für „{{name}}“",
     "groupLabel": "Gruppe",
     "groupExisting": "Vorhanden: {{groups}}. Ein neuer Name legt eine neue Gruppe an.",
@@ -138,15 +126,12 @@
     "forgetHint": "Nur der Eintrag verschwindet."
   },
   "sync": {
-    "waiting": "wartet",
     "fetch": {
-      "title": "Fetch",
       "running": "holt …",
       "dialogTitle": "Gruppe „{{group}}“ holen",
       "description": "Fetch für {{repos}}. Geholt wird nur der Stand der Remotes – lokal ändert sich nichts."
     },
     "pull": {
-      "title": "Pull",
       "running": "pullt …",
       "dialogTitle": "Gruppe „{{group}}“ pullen",
       "description": "Pull für {{repos}}, je mit dem ausgecheckten Branch und dem Pull-Modus des Repositories."
@@ -165,14 +150,12 @@
     "paused": "Der Pull ist angehalten – im Tab des Repositories fortsetzen oder abbrechen.",
     "fastForward": "Per Fast-forward aktualisiert.",
     "updated": "Aktualisiert.",
-    "cancelled": "abgebrochen",
     "noRemote": "Kein Remote eingerichtet – übersprungen.",
     "noUpstream": "Der ausgecheckte Branch folgt keinem Remote-Branch – übersprungen.",
     "dirty": "Uncommittete Änderungen stehen im Weg. Erst committen oder stashen, dann pullen.",
     "inProgress": "Dort läuft noch ein Merge, Rebase, Cherry-Pick oder Revert.",
     "status": {
       "waiting": "Wartet",
-      "running": "Läuft",
       "done": "Fertig",
       "unchanged": "Unverändert",
       "attention": "Achtung",
@@ -190,10 +173,8 @@
       "cancelled": "{{count}} abgebrochen"
     },
     "cancelling": "Wird abgebrochen …",
-    "cancel": "Abbrechen",
     "retry_one": "{{count}} Repository wiederholen",
     "retry_other": "{{count}} Repositories wiederholen",
-    "close": "Schließen",
     "listLabel": "Repositories der Gruppe {{group}}",
     "open": "Öffnen",
     "progressLabel": "{{kind}} {{name}}"
@@ -202,7 +183,6 @@
     "heading": "README – {{name}}",
     "linkTitle": "Link außerhalb der App öffnen?",
     "linkBody": "Der Link stammt aus der README und öffnet sich im Standardprogramm des Systems:",
-    "linkOpen": "Link öffnen",
     "loading": "README wird geladen",
     "empty": "Die README ist leer",
     "blockedImages_one": "{{count}} Bild nicht geladen – die Vorschau holt nichts aus dem Netz",
@@ -216,9 +196,6 @@
     "noneBody": "Im Wurzelverzeichnis dieses Repositories liegt keine README-Datei.",
     "imageRemote": "Bilder aus dem Netz lädt die Vorschau nicht.",
     "imageLocal": "Bilder aus dem Repository zeigt die Vorschau nicht.",
-    "imageAlt": "Bild: {{alt}}",
-    "image": "Bild",
-    "taskDone": "erledigt",
-    "taskOpen": "offen"
+    "imageAlt": "Bild: {{alt}}"
   }
 }

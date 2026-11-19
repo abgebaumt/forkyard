@@ -10,8 +10,8 @@ import { busyKeys } from "./keys";
 import { preflight } from "../../screens/Preflight/actions";
 
 export const operationNames: Record<OperationKind, string> = {
-  merge: t("actions.merge.operation.merge"),
-  rebase: t("actions.merge.operation.rebase"),
+  merge: t("ui.merge"),
+  rebase: t("ui.rebase"),
   cherry_pick: t("actions.merge.operation.cherryPick"),
   revert: t("actions.merge.operation.revert"),
 };

@@ -168,7 +168,7 @@ export function ConflictError({
               {t("conflict.error.backToChanges")}
             </Button>
             <Button loading={retrying} icon={<RefreshCw className="size-icon" aria-hidden />} onClick={onRetry}>
-              {t("conflict.error.recheck")}
+              {t("ui.checkAgain")}
             </Button>
           </>
         }
@@ -193,10 +193,10 @@ export function ConflictError({
       action={
         <>
           <Button loading={retrying} icon={<RefreshCw className="size-icon" aria-hidden />} onClick={onRetry}>
-            {t("conflict.error.retry")}
+            {t("ui.retry")}
           </Button>
           <Button variant="ghost" onClick={onClose}>
-            {t("conflict.error.close")}
+            {t("ui.close")}
           </Button>
         </>
       }

@@ -31,7 +31,7 @@ const deps: RunDeps = {
   newJobId,
   startJob: (job) => useAppStore.getState().startJob(job),
   finishJob: (jobId) => useAppStore.getState().finishJob(jobId),
-  title: () => t("stats.job"),
+  title: () => t("ui.statistics"),
   toError: toCoreError,
 };
 

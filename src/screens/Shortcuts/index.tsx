@@ -169,7 +169,7 @@ export function ShortcutOverlay({ onClose }: ShortcutOverlayProps) {
                 {query ? (
                   <button
                     type="button"
-                    aria-label={t("shortcuts.search.clear")}
+                    aria-label={t("ui.clearSearch")}
                     onClick={() => {
                       setQuery("");
                       inputRef.current?.focus();
@@ -182,7 +182,7 @@ export function ShortcutOverlay({ onClose }: ShortcutOverlayProps) {
               </label>
             </div>
             <RadixDialog.Close
-              aria-label={t("shortcuts.close")}
+              aria-label={t("ui.close")}
               className="inline-flex size-control-sm items-center justify-center rounded-md text-text-muted hover:bg-surface-raised hover:text-text"
             >
               <X className="size-icon" aria-hidden />
@@ -208,7 +208,7 @@ export function ShortcutOverlay({ onClose }: ShortcutOverlayProps) {
               </div>
             ) : null}
             {shownGeneral.length ? (
-              <Part id="commands" title={t("shortcuts.parts.commands")}>
+              <Part id="commands" title={t("ui.commands")}>
                 {shownGeneral.map((section) => (
                   <SectionBlock key={section.id} section={section} />
                 ))}

@@ -22,7 +22,7 @@ export const submoduleStateText: Record<SubmoduleState, string> = {
   initialized: t("actions.submodules.state.initialized"),
   uninitialized: t("actions.submodules.state.uninitialized"),
   out_of_sync: t("actions.submodules.state.outOfSync"),
-  modified: t("actions.submodules.state.modified"),
+  modified: t("ui.fileStatus.modified"),
 };
 
 /** One sentence on what the state means. */
@@ -50,7 +50,7 @@ export interface AddSubmoduleInput {
 
 /** Clones and registers. The dialog reports errors itself (all codes silent). */
 export async function addSubmodule(repoId: Id, input: AddSubmoduleInput): Promise<ActionResult<Submodule[]>> {
-  const result = await runAction(t("actions.submodules.add.label"), () => core.submoduleAdd({ repoId, ...input }), {
+  const result = await runAction(t("ui.addSubmodule"), () => core.submoduleAdd({ repoId, ...input }), {
     busyKey: submoduleBusyKey(repoId),
     job: { id: input.jobId, title: t("actions.submodules.fetchJob", { path: clip(input.path, 40) }), repoId },
     quiet: ALL_CODES,
@@ -128,7 +128,7 @@ export async function openSubmodule(repoId: Id, submodule: Submodule) {
       tone: "info",
       title: t("actions.submodules.open.notFetched", { path: clip(submodule.path, 40) }),
       description: t("actions.submodules.open.notFetchedDescription"),
-      action: { label: t("actions.submodules.open.init"), onClick: () => void updateSubmodules(repoId, [submodule], { init: true }) },
+      action: { label: t("ui.initializeNow"), onClick: () => void updateSubmodules(repoId, [submodule], { init: true }) },
     });
     return null;
   }

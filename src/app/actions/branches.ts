@@ -92,22 +92,22 @@ export async function createBranch(repoId: Id, options: CreateBranchOptions = {}
   const start = options.start ?? null;
   const checkoutAfter = options.checkout ?? true;
   const name = await promptText({
-    title: options.title ?? t("actions.branches.create.title"),
+    title: options.title ?? t("ui.newBranch"),
     description:
       options.description ??
       (start ? t("actions.branches.create.startsAt", { start: describeStart(repoId, start) }) : t("actions.branches.create.startsAtHead")),
-    label: t("actions.branches.create.name"),
+    label: t("ui.name"),
     initial: options.suggestedName,
-    placeholder: t("actions.branches.create.placeholder"),
+    placeholder: t("ui.featureNewIdea"),
     mono: true,
     normalize: normalizeRefName,
     validate: refNameValidator(repoId, "branch"),
-    confirmLabel: t("actions.branches.create.action"),
+    confirmLabel: t("ui.createBranch"),
   });
   if (!name) return null;
   const create = () => core.branchCreate({ repoId, name, start, checkout: checkoutAfter });
   const run = () =>
-    runAction(t("actions.branches.create.action"), checkoutAfter ? withFreshStatus(repoId, create) : create, {
+    runAction(t("ui.createBranch"), checkoutAfter ? withFreshStatus(repoId, create) : create, {
       busyKey: busyKeys.branch(repoId),
       quiet: ["dirty_worktree"],
       success: checkoutAfter
@@ -120,7 +120,7 @@ export async function createBranch(repoId: Id, options: CreateBranchOptions = {}
     stashed = await offerStash(repoId, blockingFiles(result.error), t("actions.branches.stashMessage", { target: name }));
     if (!stashed) return result;
     result = await run();
-    if (!result.ok && result.error.code === "dirty_worktree") showError(t("actions.branches.create.action"), result.error);
+    if (!result.ok && result.error.code === "dirty_worktree") showError(t("ui.createBranch"), result.error);
   }
   if (result.ok) {
     queryClient.setQueryData(qk.refs(repoId), result.value);
@@ -167,7 +167,7 @@ function reportBusyCheckout(repoId: Id, target: string): void {
 export async function checkout(repoId: Id, target: string, options: CheckoutOptions = {}) {
   const run = () =>
     runAction(
-      t("actions.branches.checkout.action"),
+      t("ui.checkout"),
       withStatus(repoId, () => core.branchCheckout({ repoId, target })),
       {
         busyKey: busyKeys.history(repoId),
@@ -193,7 +193,7 @@ async function checkoutNow(repoId: Id, target: string, options: CheckoutOptions,
     stashed = await offerStash(repoId, blockingFiles(result.error), t("actions.branches.stashMessage", { target: pointName(target) }));
     if (!stashed) return result;
     result = await run();
-    if (!result.ok && result.error.code === "dirty_worktree") showError(t("actions.branches.checkout.action"), result.error);
+    if (!result.ok && result.error.code === "dirty_worktree") showError(t("ui.checkout"), result.error);
   }
   if (!result.ok) return result;
   reportCheckout(repoId, result.value, options.tabId);
@@ -208,7 +208,7 @@ function reportCheckout(repoId: Id, status: Status, tabId?: Id | null) {
       tone: "info",
       title: t("actions.branches.checkout.detached.title", { sha: shortSha(head.sha) }),
       description: t("actions.branches.checkout.detached.description"),
-      action: { label: t("actions.branches.checkout.detached.action"), onClick: () => void createBranch(repoId, { tabId }) },
+      action: { label: t("ui.createBranchHere"), onClick: () => void createBranch(repoId, { tabId }) },
     });
   } else {
     toast({
@@ -243,7 +243,7 @@ export function checkoutCommit(repoId: Id, sha: Sha, tabId?: Id | null) {
 export async function renameBranch(repoId: Id, name: string) {
   const newName = await promptText({
     title: t("actions.branches.rename.title", { name: clip(name, 40) }),
-    label: t("actions.branches.rename.label"),
+    label: t("ui.newName"),
     initial: name,
     mono: true,
     normalize: normalizeRefName,
@@ -317,7 +317,7 @@ export async function deleteBranches(repoId: Id, names: string[]) {
             : notes[0]!.merged
               ? t("actions.branches.delete.bodyMerged", { note: notes[0]!.text })
               : t("actions.branches.delete.body", { note: notes[0]!.text }),
-          confirmLabel: unmerged ? t("actions.branches.delete.anyway") : t("actions.branches.delete.action"),
+          confirmLabel: unmerged ? t("actions.branches.delete.anyway") : t("ui.deleteBranch"),
           danger: true,
         }
       : {
@@ -331,7 +331,7 @@ export async function deleteBranches(repoId: Id, names: string[]) {
   if (!ok) return null;
 
   const run = (force: boolean) =>
-    runAction(t("actions.branches.delete.action"), () => core.branchDelete({ repoId, names, force }), {
+    runAction(t("ui.deleteBranch"), () => core.branchDelete({ repoId, names, force }), {
       busyKey: busyKeys.branch(repoId),
       quiet: force ? [] : ["not_merged"],
       success: done,
@@ -355,7 +355,7 @@ export async function deleteBranches(repoId: Id, names: string[]) {
 /** Sets the upstream of a local branch; `upstream: null` removes the link. */
 export async function setUpstream(repoId: Id, name: string, upstream: string | null) {
   const result = await runAction(
-    upstream ? t("actions.branches.upstream.set") : t("actions.branches.upstream.unset"),
+    upstream ? t("actions.branches.upstream.set") : t("ui.unsetUpstream"),
     () => core.branchSetUpstream({ repoId, name, upstream }),
     {
       busyKey: busyKeys.branch(repoId),
@@ -385,7 +385,7 @@ export async function chooseUpstream(repoId: Id, name: string) {
       ? t("actions.branches.upstream.changeTitle", { name: clip(name, 36) })
       : t("actions.branches.upstream.setTitle", { name: clip(name, 36) }),
     description: t("actions.branches.upstream.description"),
-    label: t("actions.branches.upstream.label"),
+    label: t("ui.ref.remote"),
     items: sorted.map((ref) => ({
       key: ref.name,
       label: ref.name,
@@ -423,14 +423,14 @@ export async function pickBranch(repoId: Id, options: PickBranchOptions): Promis
   const picked = await pickFromList({
     title: options.title,
     description: options.description,
-    label: t("actions.branches.pick.label"),
+    label: t("ui.branch"),
     items: all.map((ref) => ({
       key: ref.fullName,
       label: ref.name,
       description: ref.isHead
-        ? t("actions.branches.pick.checkedOut")
+        ? t("ui.checkedOut")
         : ref.kind === "remote"
-          ? t("actions.branches.pick.remote")
+          ? t("ui.remote")
           : ref.upstream
             ? t("actions.branches.pick.follows", { upstream: ref.upstream })
             : undefined,

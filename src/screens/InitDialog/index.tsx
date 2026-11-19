@@ -119,7 +119,7 @@ export function InitDialog({ onClose }: InitDialogProps) {
           title: t("init.noFirstCommit", { name: repo.name }),
           description: notice.message,
           action: output
-            ? { label: t("init.showOutput"), onClick: () => void showOutput(t("init.firstCommitOutputTitle"), output) }
+            ? { label: t("ui.showOutput"), onClick: () => void showOutput(t("init.firstCommitOutputTitle"), output) }
             : undefined,
         });
       }
@@ -157,7 +157,7 @@ export function InitDialog({ onClose }: InitDialogProps) {
       footer={
         <>
           <Button onClick={onClose} disabled={busy}>
-            {t("init.cancel")}
+            {t("ui.cancel")}
           </Button>
           <Button variant="primary" type="submit" form={formId} loading={busy}>
             {t("init.create")}
@@ -183,7 +183,7 @@ export function InitDialog({ onClose }: InitDialogProps) {
               actions={
                 output ? (
                   <Button size="sm" onClick={() => void showOutput(t("init.outputTitle"), output)}>
-                    {t("init.showOutput")}
+                    {t("ui.showOutput")}
                   </Button>
                 ) : undefined
               }
@@ -205,7 +205,7 @@ export function InitDialog({ onClose }: InitDialogProps) {
         <TextField
           id={`${formId}-name`}
           autoFocus
-          label={t("init.name.label")}
+          label={t("ui.name")}
           mono
           value={name}
           placeholder={t("init.name.placeholder")}
@@ -238,7 +238,7 @@ export function InitDialog({ onClose }: InitDialogProps) {
             />
           </div>
           <Button className="mt-5" icon={<FolderOpen className="size-icon" aria-hidden />} onClick={() => void browse()}>
-            {t("init.browse")}
+            {t("ui.browse")}
           </Button>
         </div>
 
@@ -276,7 +276,7 @@ export function InitDialog({ onClose }: InitDialogProps) {
               title={t("init.templates.failed")}
               actions={
                 <Button size="sm" icon={<RefreshCw className="size-icon" aria-hidden />} onClick={() => void templates.refetch()}>
-                  {t("init.templates.retry")}
+                  {t("ui.retry")}
                 </Button>
               }
             >

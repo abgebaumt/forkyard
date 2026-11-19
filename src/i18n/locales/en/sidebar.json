@@ -10,14 +10,6 @@
     "unpublishedNone": "Not on the remote yet",
     "followsOther": "follows {{upstream}} (another name)"
   },
-  "kind": {
-    "branch": "Local branch",
-    "remoteBranch": "Remote branch",
-    "tag": "Tag",
-    "stash": "Stash",
-    "folder": "Folder",
-    "remote": "Remote"
-  },
   "tip": {
     "upstreamGone": "Upstream {{upstream}} no longer exists",
     "upstream": "Upstream: {{upstream}}",
@@ -36,15 +28,12 @@
     "followsOther": "Follows {{upstream}} (another name) – a push asks where to"
   },
   "describe": {
-    "checkedOut": "checked out",
     "detached": "detached",
     "unborn": "checked out, no commit yet",
-    "upstreamMissing": "Upstream missing",
     "inWorktree": "checked out in another worktree",
     "stashOn": "on {{branch}}, ",
     "hidden": "hidden in the graph",
     "partlyHidden": "partly hidden",
-    "solo": "Solo",
     "partlySolo": "partly solo"
   },
   "rename": {
@@ -62,39 +51,24 @@
   },
   "noBranch": "no branch",
   "section": {
-    "local": "Local",
-    "remote": "Remote",
-    "tags": "Tags",
-    "stashes": "Stashes",
-    "issues": "Issues",
-    "worktrees": "Worktrees",
-    "submodules": "Submodules",
     "show": "{{title}}: show in the graph again",
     "hide": "{{title}}: hide in the graph",
     "solo": "Solo: show only {{title}} in the graph",
     "showAll": "Show all sections",
     "maximize": "Maximize",
-    "hideSection": "Hide section",
     "sections": "Sections"
   },
   "menu": {
-    "none": "No actions available",
     "deleteBranches_one": "Delete {{count}} branch …",
     "deleteBranches_other": "Delete {{count}} branches …",
     "rename": "Rename",
-    "checkout": "Check out",
     "deleteBranch": "Delete branch …",
-    "viewStash": "View stash",
-    "collapse": "Collapse",
-    "expand": "Expand",
-    "showInGraph": "Show in graph"
+    "viewStash": "View stash"
   },
   "saveView": "Save view",
   "renamed": "Branch is now named “{{name}}”",
   "dropBranch": "Drop branch",
   "stashesFailed": "Could not load stashes",
-  "noMatch": "No match",
-  "addRemote": "Add remote",
   "noRemote": "No remote yet",
   "noLocal": "No local branches",
   "noTags": "No tags",
@@ -104,9 +78,7 @@
     "hide": "Hide {{title}} in the graph"
   },
   "add": {
-    "branch": "Create branch",
-    "tag": "Create tag at current commit",
-    "stash": "Stash changes"
+    "tag": "Create tag at current commit"
   },
   "summary": {
     "hidden": "{{count}} hidden",
@@ -114,13 +86,10 @@
   },
   "filter": {
     "label": "Filter branches, tags and stashes",
-    "placeholder": "Filter ({{shortcut}})",
-    "clear": "Clear filter"
+    "placeholder": "Filter ({{shortcut}})"
   },
   "viewFiltered": {
-    "tip": "{{summary}}. This only changes what the graph shows – not the repository.",
-    "title": "View filtered",
-    "reset": "Reset"
+    "tip": "{{summary}}. This only changes what the graph shows – not the repository."
   },
   "refsFailed": "Could not load branches and tags",
   "noHits": {

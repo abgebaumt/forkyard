@@ -6,7 +6,7 @@ import { kw, type AppCommand } from "../commandTypes";
 export const commands: AppCommand[] = [
   {
     id: "app.installCli",
-    title: t("commands.app.installCli.title"),
+    title: t("ui.installCommandLineCommand"),
     group: "General",
     keywords: kw("commands.app.installCli.keywords"),
     when: (ctx) => ctx.platform !== "windows",

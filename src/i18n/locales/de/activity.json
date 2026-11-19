@@ -1,20 +1,17 @@
 {
   "copy": {
-    "failed": "Kopieren fehlgeschlagen",
     "failedText": "Die Zwischenablage ist nicht erreichbar. Markiere den Text und kopiere ihn von Hand.",
     "command": "Befehl kopiert",
     "output": "Ausgabe kopiert"
   },
   "exit": {
     "noneTip": "Ohne Exit-Code beendet – die App hat den Befehl vorzeitig gestoppt oder er wurde abgebrochen.",
-    "none": "beendet",
     "okTip": "Exit-Code 0: erfolgreich",
     "errorTip": "Exit-Code {{code}}: fehlgeschlagen",
     "error": "Fehler {{code}}"
   },
   "title": "Protokoll",
   "description": "Jeder Git-Befehl, den die App ausgeführt hat – mit Dauer, Exit-Code und Ausgabe.",
-  "close": "Schließen",
   "closeLabel": "Protokoll schließen",
   "tabs": "Welches Protokoll",
   "tabRepo": "Dieses Repository",
@@ -26,8 +23,7 @@
   },
   "search": {
     "label": "Protokoll durchsuchen",
-    "placeholder": "In Befehl und Ausgabe suchen",
-    "clear": "Suche leeren"
+    "placeholder": "In Befehl und Ausgabe suchen"
   },
   "onlyErrors": "Nur Fehler",
   "onlyErrorsCount": "Nur Fehler ({{count}})",
@@ -42,7 +38,6 @@
   "refreshing": "Protokoll wird aktualisiert",
   "column": {
     "time": "Zeit",
-    "command": "Befehl",
     "duration": "Dauer",
     "exitCode": "Exit-Code"
   },
@@ -50,7 +45,6 @@
   "fresh_other": "{{count}} neue Einträge",
   "loading": "Protokoll wird geladen",
   "loadFailed": "Das Protokoll ließ sich nicht laden",
-  "retry": "Erneut versuchen",
   "noMatch": {
     "title": "Kein Eintrag passt",
     "both_one": "Unter den {{count, number}} geladenen Einträgen passt keiner zu Suche und Filter.",
@@ -75,7 +69,6 @@
     "noExit": "ohne Exit-Code beendet",
     "failed": "fehlgeschlagen mit Exit-Code {{code}}",
     "success": "erfolgreich",
-    "output": "Ausgabe von {{command}}",
-    "noOutput": "Keine Ausgabe."
+    "output": "Ausgabe von {{command}}"
   }
 }

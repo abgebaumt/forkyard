@@ -103,7 +103,7 @@ export function SquashMode({
           state="empty"
           icon={<Combine className="size-8" aria-hidden />}
           title={t("rebase.squash.tooFewTitle")}
-          actions={<Button onClick={onClose}>{t("rebase.backToGraph")}</Button>}
+          actions={<Button onClick={onClose}>{t("ui.backToGraph")}</Button>}
         >
           {t("rebase.squash.tooFewBody")}
         </StatePanel>
@@ -144,7 +144,7 @@ export function SquashMode({
           actions={
             <>
               <Button variant={base && !merge ? "secondary" : "primary"} onClick={onClose}>
-                {t("rebase.backToGraph")}
+                {t("ui.backToGraph")}
               </Button>
               {base && !merge ? (
                 <Button
@@ -182,7 +182,7 @@ export function SquashMode({
       const ok = await confirm({
         title: t("rebase.squash.confirmTitle", { count: ordered.length }),
         body: branch ? t("rebase.squash.confirmBodyBranch", { branch }) : t("rebase.squash.confirmBody"),
-        confirmLabel: t("rebase.squash.confirm"),
+        confirmLabel: t("ui.squash"),
         danger: true,
       });
       if (!ok) return;
@@ -252,7 +252,7 @@ export function SquashMode({
         }}
       >
         <TextField
-          label={t("rebase.squash.summary")}
+          label={t("ui.summary")}
           value={summary ?? ""}
           maxLength={2000}
           spellCheck
@@ -268,7 +268,7 @@ export function SquashMode({
           onChange={(event) => setSummary(event.target.value.replace(/[\r\n]+/g, " "))}
         />
         <TextArea
-          label={t("rebase.squash.description")}
+          label={t("ui.description")}
           value={description}
           rows={4}
           spellCheck
@@ -289,7 +289,7 @@ export function SquashMode({
         }
       >
         <Button variant="ghost" onClick={onClose}>
-          {t("rebase.cancel")}
+          {t("ui.cancel")}
         </Button>
         <StartButton
           action="start"

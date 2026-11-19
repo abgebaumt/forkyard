@@ -19,7 +19,7 @@ export function FileMatrix({
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr>
-            <th className="border-b border-border px-2.5 py-1.5 text-left text-xs font-medium text-text-muted">{t("wip.compose.file")}</th>
+            <th className="border-b border-border px-2.5 py-1.5 text-left text-xs font-medium text-text-muted">{t("ui.file")}</th>
             {arrangement.commits.map((commit, index) => (
               <th
                 key={commit.key}

@@ -47,27 +47,27 @@ export type PlanKeyAction =
 export type EscapeAction = "cancelRequest" | "cancelRun" | "endEdit" | "close" | "back" | "none";
 
 export const ARG_LABELS: Record<string, string> = {
-  name: t("palette.plan.args.name"),
+  name: t("ui.name"),
   start: t("palette.plan.args.start"),
-  checkout: t("palette.plan.args.checkout"),
-  target: t("palette.plan.args.target"),
-  newName: t("palette.plan.args.newName"),
+  checkout: t("ui.checkOut"),
+  target: t("ui.target"),
+  newName: t("ui.newName"),
   force: t("palette.plan.args.force"),
-  resetMode: t("palette.plan.args.resetMode"),
+  resetMode: t("ui.mode"),
   onto: t("palette.plan.args.onto"),
-  branch: t("palette.plan.args.branch"),
+  branch: t("ui.branch"),
   commits: t("palette.plan.args.commits"),
-  commit: t("palette.plan.args.commit"),
-  source: t("palette.plan.args.source"),
-  mergeMode: t("palette.plan.args.mergeMode"),
+  commit: t("ui.commit"),
+  source: t("ui.source"),
+  mergeMode: t("ui.mode"),
   message: t("palette.plan.args.message"),
   includeUntracked: t("palette.plan.args.includeUntracked"),
   paths: t("palette.plan.args.paths"),
-  summary: t("palette.plan.args.summary"),
-  description: t("palette.plan.args.description"),
-  remote: t("palette.plan.args.remote"),
+  summary: t("ui.summary"),
+  description: t("ui.description"),
+  remote: t("ui.remote"),
   prune: t("palette.plan.args.prune"),
-  pullMode: t("palette.plan.args.pullMode"),
+  pullMode: t("ui.mode"),
 };
 
 export const MODE_WORDS: Record<string, string> = {
@@ -78,8 +78,8 @@ export const MODE_WORDS: Record<string, string> = {
   ff_only: t("palette.plan.mode.ff_only"),
   no_ff: t("palette.plan.mode.no_ff"),
   squash: t("palette.plan.mode.squash"),
-  ff: t("palette.plan.mode.ff"),
-  rebase: t("palette.plan.mode.rebase"),
+  ff: t("ui.merge"),
+  rebase: t("ui.rebase"),
 };
 
 /** `?text` → `text` while asking is possible; `null` = not in ask mode. */
@@ -203,7 +203,7 @@ export function stepTitle(step: PlanStep): string {
     case "pull":
       return a("pullMode") ? t("palette.plan.step.pullMode", { mode: modeWord(a("pullMode")) }) : t("palette.plan.step.pull");
     case "push": {
-      const values = { branch: a("branch") || t("palette.plan.currentBranch"), remote: a("remote") || t("palette.plan.upstream") };
+      const values = { branch: a("branch") || t("ui.theCurrentBranch"), remote: a("remote") || t("palette.plan.upstream") };
       return flag("force") ? t("palette.plan.step.pushForce", values) : t("palette.plan.step.push", values);
     }
     case "branchDeleteRemote":
@@ -215,7 +215,7 @@ export function stepTitle(step: PlanStep): string {
 
 export function classView(step: PlanStepView): { word: string; tone: Tone } {
   if (step.class === "outward") return { word: t("palette.plan.class.outward"), tone: "danger" };
-  if (step.destructive) return { word: t("palette.plan.class.destructive"), tone: "danger" };
+  if (step.destructive) return { word: t("ui.destructive"), tone: "danger" };
   return { word: t("palette.plan.class.local"), tone: "muted" };
 }
 
@@ -238,11 +238,11 @@ export function checkView(check: PlanCheck): { word: string; tone: Tone; detail:
 export function outcomeView(outcome: PlanStepOutcome): { word: string; tone: Tone; detail: string | null } {
   switch (outcome.status) {
     case "done":
-      return { word: t("palette.plan.outcome.done"), tone: "success", detail: null };
+      return { word: t("ui.done"), tone: "success", detail: null };
     case "failed":
-      return { word: t("palette.plan.outcome.failed"), tone: "danger", detail: outcome.error ? describeError(outcome.error).text : null };
+      return { word: t("ui.failed"), tone: "danger", detail: outcome.error ? describeError(outcome.error).text : null };
     case "not_run":
-      return { word: t("palette.plan.outcome.notRun"), tone: "muted", detail: null };
+      return { word: t("ui.notRun"), tone: "muted", detail: null };
   }
 }
 
@@ -322,17 +322,16 @@ export function footerKeys(phase: PlanPhase): [string, string][] {
     case "result":
       return [["Esc", t("palette.plan.footer.close")]];
     case "failed":
-      return [["Esc", t("palette.plan.footer.back")]];
+      return [["Esc", t("ui.back")]];
     case "preview": {
       const keys: [string, string][] = [
         ["↑↓", t("palette.plan.footer.select")],
-        ["Enter", t("palette.plan.footer.run")],
+        ["Enter", t("ui.run")],
         ["E", t("palette.plan.footer.edit")],
-        [t("palette.plan.keys.delete"), t("palette.plan.footer.remove")],
+        [t("ui.keys.delete"), t("palette.plan.footer.remove")],
       ];
-      if (phase.preview.steps[phase.selected]?.class === "outward")
-        keys.push([t("palette.plan.keys.space"), t("palette.plan.footer.confirm")]);
-      keys.push(["Esc", t("palette.plan.footer.back")]);
+      if (phase.preview.steps[phase.selected]?.class === "outward") keys.push([t("ui.keys.space"), t("palette.plan.footer.confirm")]);
+      keys.push(["Esc", t("ui.back")]);
       return keys;
     }
   }

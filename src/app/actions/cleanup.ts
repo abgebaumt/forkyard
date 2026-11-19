@@ -20,7 +20,7 @@ export async function runCleanup(repoId: Id, options: CleanupOptions): Promise<C
   const busyKey = cleanupBusyKey(repoId);
   if (useAppStore.getState().busy[busyKey]) return null;
   const jobId = newJobId();
-  const label = t("cleanup.action.label");
+  const label = t("ui.cleanUpRepository");
   useCleanupRuns.getState().start(repoId, { jobId, startedAt: Date.now(), steps: plannedSteps(options) });
   useAppStore.getState().setBusy(busyKey, true);
   useAppStore.getState().startJob({ id: jobId, title: label, repoId });

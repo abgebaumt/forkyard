@@ -182,7 +182,7 @@ export function Cockpit({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     <section data-screen="cockpit" aria-labelledby="cockpit-title" className="flex h-full min-h-0 flex-col bg-bg" onKeyDown={onKeyDown}>
       <header className="flex items-center gap-3 border-b border-border px-4 py-2">
         <h1 id="cockpit-title" className="text-lg font-semibold text-text">
-          {t("agents.cockpit.title")}
+          {t("ui.codingAgents")}
         </h1>
         <span className="flex-1" />
         <Button
@@ -191,7 +191,7 @@ export function Cockpit({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           onClick={() => void startNewAgent(repoId, tabId)}
           data-action="new-agent"
         >
-          {t("agents.cockpit.new")}
+          {t("ui.newAgent")}
         </Button>
         <Button size="sm" variant="ghost" onClick={() => closeCockpit(tabId)}>
           {t("agents.cockpit.back")}
@@ -209,7 +209,7 @@ export function Cockpit({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           title={t("agents.cockpit.empty")}
           action={
             <Button variant="primary" onClick={() => void startNewAgent(repoId, tabId)}>
-              {t("agents.cockpit.new")}
+              {t("ui.newAgent")}
             </Button>
           }
         >

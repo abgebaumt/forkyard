@@ -1,7 +1,5 @@
 {
-  "title": "Statistik",
   "ariaLabel": "Statistik des Repositorys",
-  "job": "Statistik",
   "choice": "Zeitraum und Branch",
   "preset": {
     "label": "Zeitraum",
@@ -11,7 +9,6 @@
     "month": "Letzte 30 Tage"
   },
   "ref": {
-    "label": "Branch",
     "head": "{{branch}} (HEAD)",
     "detached": "HEAD"
   },
@@ -22,7 +19,6 @@
     "fresh": "Aktuell mit {{ref}}"
   },
   "failed": "Die Statistik konnte nicht berechnet werden",
-  "retry": "Erneut versuchen",
   "cancelled": {
     "title": "Statistik nicht berechnet",
     "body": "Die Berechnung wurde abgebrochen.",
@@ -57,10 +53,8 @@
     "bar_other": "{{period}}: {{count}} Commits"
   },
   "authors": {
-    "title": "Autoren",
     "count_one": "{{count}} Person",
     "count_other": "{{count}} Personen",
-    "commits": "Commits",
     "added": "Hinzugefügte Zeilen",
     "removed": "Gelöschte Zeilen",
     "more_one": "und {{count}} weitere Person",
@@ -77,15 +71,11 @@
     "changes_one": "{{n}} Änderung",
     "changes_other": "{{n}} Änderungen",
     "up": "Hoch zu {{path}}",
-    "root": "Repository",
     "partial": "Auf Grundlage der {{files}} am häufigsten geänderten Dateien."
   },
   "hotspots": {
     "title": "Hotspots",
     "hint": "oft geändert, von vielen Leuten",
-    "file": "Datei",
-    "changes": "Änderungen",
-    "authors": "Autoren",
     "score": "Änderungen × Autoren",
     "open": "Historie von {{path}} anzeigen",
     "empty": "Keine der in diesem Zeitraum geänderten Dateien gibt es noch."
@@ -93,7 +83,6 @@
   "knowledge": {
     "title": "Wissen pro Ordner",
     "hint": "Anteil der geänderten Zeilen pro Person · Bus-Faktor",
-    "folder": "Ordner",
     "lines": "Anteil der geänderten Zeilen pro Person",
     "busFactor": "Bus-Faktor",
     "others": "Weitere Personen",

@@ -260,7 +260,7 @@ export function SideSection<T>({
 
   const menuItemFor = menuTarget ? items[indexOf(menuTarget)] : undefined;
   let menuEntries = menuItemFor ? rowMenu(menuItemFor) : sectionMenu;
-  if (!menuEntries.length) menuEntries = [{ label: t("graph.sideSection.noActions"), disabled: true }];
+  if (!menuEntries.length) menuEntries = [{ label: t("ui.noActionsAvailable"), disabled: true }];
 
   // --- Mouse and keyboard ----------------------------------------------------------------------------
   const rowFromEvent = (event: { target: EventTarget }): T | undefined => {

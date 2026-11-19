@@ -45,13 +45,13 @@ function issueMenu(repoId: Id, tabId: Id, issue: IssueSummary): MenuEntry[] {
     menuItem(t("issues.section.open"), SquareArrowOutUpRight, () => openIssues(tabId, issue.number), { shortcut: "Enter" }),
     menuItem(t("issues.branch.label"), GitBranchPlus, () => void createIssueBranch(repoId, tabId, issue), { hint: issueBranchName(issue) }),
     MENU_SEPARATOR,
-    menuItem(t("issues.details.openInBrowser"), ExternalLink, () => void openIssueInBrowser(issue), {
-      blocked: issue.webUrl ? null : t("issues.section.noAddress"),
+    menuItem(t("ui.openInBrowser"), ExternalLink, () => void openIssueInBrowser(issue), {
+      blocked: issue.webUrl ? null : t("ui.noAddressKnown"),
     }),
     menuItem(t("issues.details.copyLink"), Link2, () => void copyIssueLink(issue), {
-      blocked: issue.webUrl ? null : t("issues.section.noAddress"),
+      blocked: issue.webUrl ? null : t("ui.noAddressKnown"),
     }),
-    menuItem(t("issues.section.copyNumber"), Copy, () => void copyText(issue.key, t("issues.section.numberWhat"))),
+    menuItem(t("ui.copyNumber"), Copy, () => void copyText(issue.key, t("issues.section.numberWhat"))),
   ];
 }
 
@@ -61,7 +61,7 @@ function IssueRow({ issue, state, query, open }: { issue: IssueSummary; state: S
     <TreeRow
       {...state.attrs}
       label={issue.title}
-      labelContent={<Marked text={issue.title || t("issues.untitled")} query={query} />}
+      labelContent={<Marked text={issue.title || t("ui.untitled")} query={query} />}
       tip={
         <span className="flex max-w-80 flex-col gap-0.5">
           <span className="break-words">
@@ -136,7 +136,7 @@ export function IssuesSection({ repoId, tabId, query }: IssuesSectionProps) {
       <SideEmpty
         action={
           <Button size="sm" variant="ghost" icon={<Plug className="size-3.5" aria-hidden />} onClick={openIntegrations}>
-            {t("issues.section.connect")}
+            {t("ui.connect")}
           </Button>
         }
       >
@@ -158,29 +158,29 @@ export function IssuesSection({ repoId, tabId, query }: IssuesSectionProps) {
         <span className="flex flex-wrap gap-1.5">
           {info.kind === "auth" || info.kind === "not_connected" ? (
             <Button size="sm" onClick={openIntegrations}>
-              {t("issues.problem.openIntegrations")}
+              {t("ui.openIntegrations")}
             </Button>
           ) : null}
           <Button size="sm" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={() => void issues.refetch()}>
-            {t("issues.problem.retry")}
+            {t("ui.retry")}
           </Button>
         </span>
       </div>
     );
-  } else if (all.length === 0) placeholder = <SideEmpty>{t("issues.section.noOpen")}</SideEmpty>;
+  } else if (all.length === 0) placeholder = <SideEmpty>{t("ui.noOpenIssues")}</SideEmpty>;
 
   const sectionMenu: MenuEntry[] = [
-    menuItem(open ? t("issues.section.collapse") : t("issues.section.expand"), null, toggle, {
+    menuItem(open ? t("ui.collapse") : t("ui.expand"), null, toggle, {
       blocked: filtering ? t("issues.section.alwaysOpen") : null,
     }),
-    menuItem(t("issues.section.hide"), null, () => setIssueSection(repoId, { hidden: true }), { hint: t("issues.section.hideHint") }),
+    menuItem(t("ui.hideSection"), null, () => setIssueSection(repoId, { hidden: true }), { hint: t("issues.section.hideHint") }),
     MENU_SEPARATOR,
     menuItem(t("issues.section.showAll"), ListFilter, showAll, { hint: t("issues.section.showAllHint") }),
-    menuItem(t("issues.section.reload"), RefreshCw, () => void refreshIssues(repoId), {
+    menuItem(t("ui.reload"), RefreshCw, () => void refreshIssues(repoId), {
       blocked: connected ? null : t("issues.section.notConnected"),
     }),
     menuItem(t("issues.view.openInBrowser"), ExternalLink, () => void openInBrowser(webUrl), {
-      blocked: webUrl ? null : t("issues.section.noAddress"),
+      blocked: webUrl ? null : t("ui.noAddressKnown"),
     }),
   ];
 
@@ -188,7 +188,7 @@ export function IssuesSection({ repoId, tabId, query }: IssuesSectionProps) {
   return (
     <SideSection
       id="issues"
-      title={t("issues.view.title")}
+      title={t("ui.issues")}
       icon={<CircleDot aria-hidden />}
       count={
         !connected || issues.isPending || (issues.isError && all.length === 0)

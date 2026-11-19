@@ -54,7 +54,7 @@ interface RowState {
 
 const waiting = (): RowState => ({
   status: "waiting",
-  text: t("repos.sync.waiting"),
+  text: t("ui.waiting"),
   phase: "",
   percent: null,
   jobId: null,
@@ -73,14 +73,14 @@ const kindInfo: Record<
 > = {
   fetch: {
     dialogTitle: (group) => t("repos.sync.fetch.dialogTitle", { group }),
-    title: t("repos.sync.fetch.title"),
+    title: t("ui.fetch"),
     running: t("repos.sync.fetch.running"),
     description: (repos) => t("repos.sync.fetch.description", { repos }),
     icon: CloudDownload,
   },
   pull: {
     dialogTitle: (group) => t("repos.sync.pull.dialogTitle", { group }),
-    title: t("repos.sync.pull.title"),
+    title: t("ui.pull"),
     running: t("repos.sync.pull.running"),
     description: (repos) => t("repos.sync.pull.description", { repos }),
     icon: ArrowDownToLine,
@@ -125,7 +125,7 @@ async function runOne(repo: Repo, kind: GroupSyncKind, jobId: string): Promise<O
     const error = toCoreError(raw);
     switch (error.code) {
       case "cancelled":
-        return { status: "cancelled", text: t("repos.sync.cancelled") };
+        return { status: "cancelled", text: t("ui.cancelled") };
       case "path_not_found":
       case "not_a_repo":
         return { status: "failed", text: t("repos.sync.missing") };
@@ -160,7 +160,7 @@ const statusIcon: Record<RowStatus, ReactNode> = {
 /** State in one word – read by screen readers before the row's sentence (never just the icon). */
 const statusWord: Record<RowStatus, string> = {
   waiting: t("repos.sync.status.waiting"),
-  running: t("repos.sync.status.running"),
+  running: t("ui.running"),
   done: t("repos.sync.status.done"),
   unchanged: t("repos.sync.status.unchanged"),
   attention: t("repos.sync.status.attention"),
@@ -196,7 +196,7 @@ function GroupSyncDialog({ group, repos, kind, onClose }: { group: string; repos
           const repo = queue.shift();
           if (!repo) return;
           if (stopped.current) {
-            patch(repo.id, { status: "cancelled", text: t("repos.sync.cancelled"), jobId: null });
+            patch(repo.id, { status: "cancelled", text: t("ui.cancelled"), jobId: null });
             continue;
           }
           const jobId = newJobId();
@@ -265,7 +265,7 @@ function GroupSyncDialog({ group, repos, kind, onClose }: { group: string; repos
       footer={
         running ? (
           <Button data-autofocus loading={cancelling} onClick={cancel}>
-            {cancelling ? t("repos.sync.cancelling") : t("repos.sync.cancel")}
+            {cancelling ? t("repos.sync.cancelling") : t("ui.cancel")}
           </Button>
         ) : (
           <>
@@ -275,7 +275,7 @@ function GroupSyncDialog({ group, repos, kind, onClose }: { group: string; repos
               </Button>
             ) : null}
             <Button variant="primary" data-autofocus data-group-sync-close="" onClick={onClose}>
-              {t("repos.sync.close")}
+              {t("ui.close")}
             </Button>
           </>
         )

@@ -65,7 +65,7 @@ export function PanelError({ title, children, detail, onRetry, action }: PanelEr
           {action ? <Button onClick={action.onClick}>{action.label}</Button> : null}
           {onRetry ? (
             <Button icon={<RefreshCw className="size-icon" aria-hidden />} onClick={onRetry}>
-              {t("commitDetails.retry")}
+              {t("ui.retry")}
             </Button>
           ) : null}
         </div>
@@ -214,7 +214,7 @@ export function PersonRow({ person, role, size = 28, trailing }: PersonRowProps)
         <p className="flex min-w-0 items-baseline gap-1.5">
           <span className="sr-only">{role}: </span>
           <span className="truncate font-medium text-text" title={person.name}>
-            {person.name || t("commitDetails.unknownPerson")}
+            {person.name || t("ui.unknown")}
           </span>
           <span aria-hidden className="shrink-0 text-xs text-text-muted">
             {role}

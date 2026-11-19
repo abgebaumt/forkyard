@@ -22,9 +22,7 @@ async function pickAndOpen(ctx: CommandContext) {
     return;
   }
   const describe = (item: Worktree) =>
-    [worktreeTarget(item), item.isMain ? t("commands.worktree.open.main") : null, item.isLocked ? t("commands.worktree.open.locked") : null]
-      .filter(Boolean)
-      .join(" · ");
+    [worktreeTarget(item), item.isMain ? t("ui.mainFolder") : null, item.isLocked ? t("ui.locked") : null].filter(Boolean).join(" · ");
   const path = await pickFromList({
     title: t("commands.worktree.open.dialogTitle"),
     description: t("commands.worktree.open.description"),

@@ -35,10 +35,10 @@ export async function applyReleaseTargets(input: ApplyInput): Promise<ReleaseTar
 }
 
 async function applyOne(target: ReleaseTarget, { repoId, tag, notes }: ApplyInput): Promise<boolean> {
-  if (target === "clipboard") return copyText(notes, t("actions.tags.releaseNotes.done.clipboard"));
+  if (target === "clipboard") return copyText(notes, t("ui.releaseNotes"));
   if (!tag) return false;
   if (target === "changelog") {
-    const result = await runAction(t("actions.tags.releaseNotes.changelogLabel"), () =>
+    const result = await runAction(t("ui.insertIntoChangelogMd"), () =>
       core.changelogInsert({ repoId, version: tag, date: localDate(new Date()), notes }),
     );
     if (result.ok) {

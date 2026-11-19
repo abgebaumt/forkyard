@@ -38,7 +38,7 @@ export const tokenGuides: Record<HostKind, TokenGuide> = {
           { name: "Pull requests: Read and write", why: t("hosts.guide.github.pullRequests") },
           { name: "Contents: Read and write", why: t("hosts.guide.github.contents") },
           { name: "Commit statuses: Read", why: t("hosts.guide.github.statuses") },
-          { name: "Issues: Read", why: t("hosts.guide.github.issues") },
+          { name: "Issues: Read", why: t("ui.listIssues") },
           { name: "Metadata: Read", why: t("hosts.guide.github.metadata") },
         ],
       },
@@ -85,7 +85,7 @@ export const tokenGuides: Record<HostKind, TokenGuide> = {
         permissions: [
           { name: "read:repository:bitbucket", why: t("hosts.guide.bitbucket.repository") },
           { name: "write:pullrequest:bitbucket", why: t("hosts.guide.bitbucket.pullrequest") },
-          { name: "read:issue:bitbucket", why: t("hosts.guide.bitbucket.issue") },
+          { name: "read:issue:bitbucket", why: t("ui.listIssues") },
           { name: "read:user:bitbucket", why: t("hosts.guide.bitbucket.user") },
         ],
       },

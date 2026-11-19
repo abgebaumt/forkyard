@@ -6,7 +6,6 @@
     "hostSpaces": "A host contains no spaces.",
     "hostWildcard": "Wildcards are not allowed – list each host separately."
   },
-  "title": "Network",
   "intro": "Proxy and certificates for this app's connections to HTTP(S) remotes. Your own Git configuration stays untouched; SSH connections are not affected.",
   "warning_one": "Certificate verification is turned off for {{count}} host",
   "warning_other": "Certificate verification is turned off for {{count}} hosts",
@@ -24,7 +23,6 @@
     "via": "via {{proxy}}",
     "noProxy": "no proxy",
     "remove": "Remove exception for {{host}}",
-    "add": "Add",
     "host": "Host",
     "hostPlaceholder": "git.company.example",
     "proxy": "Proxy for this host (empty = no proxy)"

@@ -1,6 +1,4 @@
 {
-  "title": "Reflog",
-  "ariaLabel": "Reflog",
   "filter": "Reflog anzeigen für",
   "listLabel": "Reflog-Einträge",
   "menuLabel": "Aktionen für {{selector}}",
@@ -14,17 +12,12 @@
     "body": "Git hat hier noch nichts aufgezeichnet, oder der Reflog ist abgeschaltet (core.logAllRefUpdates)."
   },
   "error": {
-    "title": "Der Reflog konnte nicht gelesen werden",
-    "retry": "Erneut versuchen"
+    "title": "Der Reflog konnte nicht gelesen werden"
   },
   "action": {
-    "checkout": "Checkout",
-    "commit": "Commit",
     "reset": "Reset",
     "rebase": "Rebase",
     "merge": "Merge",
-    "pull": "Pull",
-    "cherryPick": "Cherry-Pick",
     "amend": "Amend",
     "other": "Sonstiges"
   }

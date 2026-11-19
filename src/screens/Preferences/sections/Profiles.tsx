@@ -82,11 +82,11 @@ export function ProfilesSection({ create = false }: { create?: boolean }) {
 
   return (
     <section>
-      <SectionHeader title={t("preferences.profiles.title")}>{t("preferences.profiles.intro")}</SectionHeader>
+      <SectionHeader title={t("ui.profileAndIdentity")}>{t("preferences.profiles.intro")}</SectionHeader>
 
       {missingAuthor ? (
         <div className="mb-3 overflow-hidden rounded-md" data-state="no-author">
-          <Banner tone="warning" title={t("preferences.profiles.noAuthor.title")}>
+          <Banner tone="warning" title={t("ui.noAuthorSet")}>
             {!active.authorName.trim() && !active.authorEmail.trim()
               ? t("preferences.profiles.noAuthor.both")
               : !active.authorName.trim()
@@ -188,12 +188,12 @@ export function ProfilesSection({ create = false }: { create?: boolean }) {
       <div className="mt-6 mb-2 flex items-end gap-3">
         <div className="min-w-0 flex-1">
           <GroupTitle flush id="prefs-profile-list">
-            {t("preferences.profiles.list")}
+            {t("ui.profiles")}
           </GroupTitle>
           <p className="text-sm text-text-muted">{t("preferences.profiles.listIntro")}</p>
         </div>
         <Button icon={<Plus className="size-icon" aria-hidden />} onClick={() => setCreating(true)}>
-          {t("preferences.profiles.new")}
+          {t("ui.newProfile")}
         </Button>
       </div>
       <ul aria-labelledby="prefs-profile-list" className="overflow-hidden rounded-md border border-border">
@@ -217,11 +217,11 @@ function ProfileRow({ profile, onlyOne }: { profile: Profile; onlyOne: boolean }
     const ok = await confirm({
       title: t("preferences.profiles.delete.title", { name: profile.name }),
       body: t("preferences.profiles.delete.body"),
-      confirmLabel: t("preferences.profiles.delete.confirm"),
+      confirmLabel: t("ui.deleteProfile"),
       danger: true,
     });
     if (!ok) return;
-    const result = await runAction(t("preferences.profiles.delete.action"), () => core.profileDelete({ id: profile.id }), {
+    const result = await runAction(t("ui.deleteProfile"), () => core.profileDelete({ id: profile.id }), {
       success: t("preferences.profiles.delete.done", { name: profile.name }),
     });
     if (result.ok) queryClient.setQueryData(qk.profiles, result.value);
@@ -230,7 +230,7 @@ function ProfileRow({ profile, onlyOne }: { profile: Profile; onlyOne: boolean }
   const author =
     profile.authorName.trim() || profile.authorEmail.trim()
       ? [profile.authorName.trim(), profile.authorEmail.trim() && `<${profile.authorEmail.trim()}>`].filter(Boolean).join(" ")
-      : t("preferences.profiles.noAuthorSet");
+      : t("ui.noAuthorSet");
 
   return (
     <li data-profile={profile.name} className="flex h-12 items-center gap-3 border-b border-border px-3 last:border-b-0">
@@ -258,7 +258,7 @@ function ProfileRow({ profile, onlyOne }: { profile: Profile; onlyOne: boolean }
         </Badge>
       ) : (
         <Button size="sm" aria-label={t("preferences.profiles.switchLabel", { name: profile.name })} onClick={() => void activate()}>
-          {t("preferences.profiles.switch")}
+          {t("ui.switch")}
         </Button>
       )}
       <Tip label={blocked ?? t("preferences.profiles.delete.label", { name: profile.name })}>
@@ -299,7 +299,7 @@ function NewProfileDialog({ onClose }: { onClose: () => void }) {
     if (next.name || next.email) return;
     setBusy(true);
     const result = await runAction(
-      t("preferences.profiles.create.action"),
+      t("ui.createProfile"),
       () =>
         core.profileSave({
           id: null,
@@ -331,16 +331,16 @@ function NewProfileDialog({ onClose }: { onClose: () => void }) {
     <Dialog
       open
       size="sm"
-      title={t("preferences.profiles.create.title")}
+      title={t("ui.newProfile")}
       description={t("preferences.profiles.create.description")}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
       footer={
         <>
-          <Button onClick={onClose}>{t("preferences.profiles.create.cancel")}</Button>
+          <Button onClick={onClose}>{t("ui.cancel")}</Button>
           <Button variant="primary" loading={busy} onClick={() => void submit()}>
-            {t("preferences.profiles.create.submit")}
+            {t("ui.createProfile")}
           </Button>
         </>
       }

@@ -22,7 +22,7 @@ export const ACTIONS: RebaseAction[] = ["pick", "reword", "squash", "fixup", "dr
 export const actionInfo: Record<RebaseAction, ActionInfo> = {
   pick: { label: t("rebase.action.pick.label"), key: "P", hint: t("rebase.action.pick.hint") },
   reword: { label: t("rebase.action.reword.label"), key: "R", hint: t("rebase.action.reword.hint") },
-  squash: { label: t("rebase.action.squash.label"), key: "S", hint: t("rebase.action.squash.hint") },
+  squash: { label: t("ui.squash"), key: "S", hint: t("rebase.action.squash.hint") },
   fixup: { label: t("rebase.action.fixup.label"), key: "F", hint: t("rebase.action.fixup.hint") },
   drop: { label: t("rebase.action.drop.label"), key: "D", hint: t("rebase.action.drop.hint") },
 };

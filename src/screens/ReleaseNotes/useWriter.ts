@@ -120,7 +120,7 @@ export function useReleaseNotesWriter(options: {
         return core.aiReleaseNotes({ repoId, jobId, from: null, to, locale: locale() });
       },
       async () => {
-        const preview = await runAction(t("actions.tags.releaseNotes.label"), () =>
+        const preview = await runAction(t("ui.releaseNotes"), () =>
           core.aiPreview({ repoId, feature: "release_notes", input: inputFor(to), locale: locale() }),
         );
         return preview.ok && (await confirmSend(repoId, "release_notes", preview.value, ask));

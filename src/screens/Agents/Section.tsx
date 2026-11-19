@@ -40,7 +40,7 @@ export function AgentsSection({ repoId, tabId, query }: { repoId: Id; tabId: Id;
     <SideEmpty
       action={
         <Button size="sm" variant="ghost" onClick={() => void startNewAgent(repoId, tabId)}>
-          {t("agents.section.new")}
+          {t("ui.newAgent")}
         </Button>
       }
     >
@@ -50,12 +50,12 @@ export function AgentsSection({ repoId, tabId, query }: { repoId: Id; tabId: Id;
   return (
     <SideSection
       id="agents"
-      title={t("agents.section.title")}
+      title={t("ui.agents")}
       icon={<Bot aria-hidden />}
       count={agents.isPending ? undefined : filtering ? `${items.length}/${all.length}` : all.length}
       open={open}
       onToggle={toggle}
-      listLabel={t("agents.section.title")}
+      listLabel={t("ui.agents")}
       items={items}
       itemId={(agent) => agent.id}
       itemText={(agent) => agent.shortName}
@@ -94,7 +94,7 @@ export function AgentsSection({ repoId, tabId, query }: { repoId: Id; tabId: Id;
         }),
         MENU_SEPARATOR,
         menuItem(t("agents.commands.cockpit"), LayoutList, () => openCockpit(tabId)),
-        menuItem(t("agents.section.new"), Plus, () => void startNewAgent(repoId, tabId)),
+        menuItem(t("ui.newAgent"), Plus, () => void startNewAgent(repoId, tabId)),
       ]}
       // the section ends with the row “New agent …” (the empty state has its own button).
       footer={
@@ -106,7 +106,7 @@ export function AgentsSection({ repoId, tabId, query }: { repoId: Id; tabId: Id;
             data-action="new-agent-row"
             onClick={() => void startNewAgent(repoId, tabId)}
           >
-            {t("agents.section.new")}
+            {t("ui.newAgent")}
           </Button>
         ) : undefined
       }
@@ -123,7 +123,7 @@ export function AgentsSection({ repoId, tabId, query }: { repoId: Id; tabId: Id;
           <IconButton
             size="sm"
             data-action="add"
-            label={t("agents.section.new")}
+            label={t("ui.newAgent")}
             icon={<Plus className="size-3.5" aria-hidden />}
             onClick={() => void startNewAgent(repoId, tabId)}
           />

@@ -103,7 +103,7 @@ export function timelineRows(data: LineArchaeology, answer: ArchaeologyAnswer | 
     return {
       sha: step.commit.sha,
       short: shortSha(step.commit.sha),
-      summary: step.commit.summary || t("blame.noMessage"),
+      summary: step.commit.summary || t("ui.noMessage"),
       author: step.commit.author.name,
       authoredAt: step.commit.authoredAt,
       path: step.path,
@@ -163,7 +163,7 @@ export function explainView(state: ExplainState): ExplainView {
     case "idle":
       return { button: "explain", label: t("blame.archaeology.explain"), status: null, slow: null, urgent: false };
     case "loading":
-      return { button: "cancel", label: t("blame.archaeology.cancel"), status: state.shown.text, slow: state.shown.slow, urgent: false };
+      return { button: "cancel", label: t("ui.cancel"), status: state.shown.text, slow: state.shown.slow, urgent: false };
     case "done":
       return { button: "again", label: t("blame.archaeology.again"), status: t("blame.archaeology.done"), slow: null, urgent: false };
     case "error":

@@ -82,7 +82,7 @@ const CARD_ID = "gc-blame-card";
 
 /** How a revision is named in the header: working directory, short SHA, “before abc1234”. */
 export function standLabel(sha: Sha | null): string {
-  if (sha === null) return t("blame.stand.worktree");
+  if (sha === null) return t("ui.workingDirectory");
   if (sha === "HEAD") return t("blame.stand.head");
   if (sha.endsWith("^")) return t("blame.stand.before", { sha: shortSha(sha.slice(0, -1)) });
   return shortSha(sha);
@@ -218,7 +218,7 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
     void writeClipboard(text).then((ok) =>
       ok
         ? toast({ tone: "success", title: t("diff.copy.done") })
-        : toast({ tone: "danger", title: t("diff.copy.failed"), description: t("diff.copy.failedBody") }),
+        : toast({ tone: "danger", title: t("ui.copyFailed"), description: t("diff.copy.failedBody") }),
     );
   }, []);
   const menuFor = useCallback(
@@ -348,7 +348,7 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
   // --- Choose revision ---------------------------------------------------------------------------
   const standEntries: MenuEntry[] = [
     {
-      label: t("blame.stand.worktree"),
+      label: t("ui.workingDirectory"),
       checked: sha === null,
       hint: t("blame.stand.worktreeHint"),
       onSelect: () => store().openBlame(tabId, path, null),
@@ -406,11 +406,11 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
                 loading={query.isFetching}
                 onClick={() => void query.refetch()}
               >
-                {t("blame.error.retry")}
+                {t("ui.retry")}
               </Button>
             ) : (
               <Button icon={<History className="size-icon" aria-hidden />} onClick={() => store().openHistory(tabId, path)}>
-                {t("blame.error.showHistory")}
+                {t("ui.showHistory")}
               </Button>
             )}
             <Button variant="ghost" onClick={() => goBack(tabId)}>
@@ -424,7 +424,7 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
     );
   } else if (model.blocks.length === 0) {
     body = (
-      <Notice id="empty" icon={<FileQuestion className="size-8" aria-hidden />} title={t("blame.empty.title")}>
+      <Notice id="empty" icon={<FileQuestion className="size-8" aria-hidden />} title={t("ui.emptyFile")}>
         {t("blame.empty.body")}
       </Notice>
     );
@@ -456,7 +456,7 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
     >
       <header className="shrink-0 border-b border-border bg-surface">
         <div className="flex h-control-lg items-center gap-2 pr-1 pl-3">
-          <FileTitle path={path} icon={<UserSearch className="size-icon" aria-hidden />} prefix={t("blame.prefix")} />
+          <FileTitle path={path} icon={<UserSearch className="size-icon" aria-hidden />} prefix={t("ui.blame")} />
           <DropdownMenu entries={standEntries} align="end">
             <button
               type="button"
@@ -478,8 +478,8 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
             icon={<History className="size-icon" aria-hidden />}
             onClick={() => store().openHistory(tabId, path)}
           >
-            <span className="hidden @3xl:inline">{t("blame.history")}</span>
-            <span className="sr-only @3xl:hidden">{t("blame.history")}</span>
+            <span className="hidden @3xl:inline">{t("ui.history")}</span>
+            <span className="sr-only @3xl:hidden">{t("ui.history")}</span>
           </Button>
           <Button
             size="sm"
@@ -487,8 +487,8 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
             icon={<Eye className="size-icon" aria-hidden />}
             onClick={() => store().openFile(tabId, path, sha, "view")}
           >
-            <span className="hidden @3xl:inline">{t("blame.file")}</span>
-            <span className="sr-only @3xl:hidden">{t("blame.viewFile")}</span>
+            <span className="hidden @3xl:inline">{t("ui.file")}</span>
+            <span className="sr-only @3xl:hidden">{t("ui.viewFile")}</span>
           </Button>
           <Divider />
           <BackButton tabId={tabId} />
@@ -534,7 +534,7 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
               aria-describedby={cardOpen && keyCard ? CARD_ID : undefined}
               onClick={toggleCard}
             >
-              <span className="hidden @3xl:inline">{t("blame.card.short")}</span>
+              <span className="hidden @3xl:inline">{t("ui.commit")}</span>
             </Button>
           </Tip>
           <Tip label={current.uncommitted ? t("blame.reveal.local") : t("blame.reveal.commit")} shortcut="Enter">
@@ -543,9 +543,9 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
               variant="ghost"
               icon={<Crosshair className="size-icon" aria-hidden />}
               onClick={() => reveal(current)}
-              aria-label={t("blame.reveal.ariaLabel")}
+              aria-label={t("ui.showInGraph")}
             >
-              <span className="hidden @3xl:inline">{t("blame.reveal.short")}</span>
+              <span className="hidden @3xl:inline">{t("ui.inGraph")}</span>
             </Button>
           </Tip>
           <Tip label={"sha" in parent ? t("blame.parent.tip") : t("blame.parent.tipDisabled", { reason: parent.reason })} shortcut="P">
@@ -592,7 +592,7 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
 }
 
 const dateRange = (newest: string | null, oldest: string | null) => {
-  if (!newest || !oldest) return t("blame.legend.noLines");
+  if (!newest || !oldest) return t("ui.noLines");
   const from = formatRelative(oldest);
   const to = formatRelative(newest);
   return from === to ? to : t("blame.legend.range", { from, to });
@@ -626,7 +626,7 @@ function Legend({
           label={t("blame.legend.colorByLabel")}
           value={mode}
           options={[
-            { value: "author", label: t("blame.legend.author") },
+            { value: "author", label: t("ui.author") },
             { value: "age", label: t("blame.legend.age") },
           ]}
           onValueChange={onMode}
@@ -716,7 +716,7 @@ function Legend({
             })}
             className="flex min-w-0 items-center gap-1.5 rounded-sm"
           >
-            <span className="shrink-0 text-text">{t("blame.legend.new")}</span>
+            <span className="shrink-0 text-text">{t("ui.fileStatus.added")}</span>
             <span className="shrink-0 tabular-nums">{model.newest ? formatRelative(model.newest) : "–"}</span>
             <span aria-hidden className="flex shrink-0 overflow-hidden rounded-sm">
               {Array.from({ length: AGE_STEPS }, (_, step) => (
@@ -786,7 +786,7 @@ function HoverCard({
         </>
       ) : (
         <>
-          <span className="font-medium break-words">{block.summary || t("blame.noMessage")}</span>
+          <span className="font-medium break-words">{block.summary || t("ui.noMessage")}</span>
           <span className="flex items-center gap-2 text-text-muted">
             {mode === "age" ? (
               <span aria-hidden className="h-4 w-1 shrink-0 rounded-pill" style={{ background: colorOf(block, mode) }} />

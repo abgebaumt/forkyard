@@ -44,7 +44,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "issues.refresh",
-    title: t("commands.issues.refresh.title"),
+    title: t("ui.reloadIssues"),
     group: "Repository",
     keywords: kw("commands.issues.refresh.keywords"),
     when: (ctx) => hasRepo(ctx) && connected(ctx),

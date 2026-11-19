@@ -203,11 +203,9 @@ function GraphError({ error, busy, onRetry }: { error: unknown; busy: boolean; o
         action={
           <div className="flex justify-center gap-2">
             <Button variant="primary" loading={busy} icon={<RefreshCw className="size-icon" aria-hidden />} onClick={onRetry}>
-              {t("commitGraph.retry")}
+              {t("ui.retry")}
             </Button>
-            {output ? (
-              <Button onClick={() => void showOutput(t("commitGraph.outputTitle"), output)}>{t("commitGraph.showOutput")}</Button>
-            ) : null}
+            {output ? <Button onClick={() => void showOutput(t("commitGraph.outputTitle"), output)}>{t("ui.showOutput")}</Button> : null}
           </div>
         }
       >
@@ -226,7 +224,7 @@ function FilterBar({ repoId, view, smart }: { repoId: Id; view: RepoViewState; s
     >
       <Filter className="size-3.5 shrink-0 text-accent" aria-hidden />
       <p className="min-w-0 flex-1 truncate">
-        <span className="font-medium">{t("commitGraph.filter.title")}</span>
+        <span className="font-medium">{t("ui.viewFiltered")}</span>
         <span className="text-text-muted"> · {filterText(view, smart)}</span>
       </p>
       <Button size="sm" variant="ghost" onClick={() => void showAllRefs(repoId)}>
@@ -332,7 +330,7 @@ function GraphFooter({
           <>
             <span>{t("commitGraph.footer.loadFailed")}</span>
             <Button size="sm" variant="ghost" onClick={onMore}>
-              {t("commitGraph.retry")}
+              {t("ui.retry")}
             </Button>
           </>
         ) : (
@@ -708,7 +706,7 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
     const ok = await confirm({
       title: t("commitGraph.checkout.title", { sha: shortSha(row.sha) }),
       body: t("commitGraph.checkout.body"),
-      confirmLabel: t("commitGraph.checkout.confirm"),
+      confirmLabel: t("ui.checkOutCommit"),
     });
     if (ok) void checkout(repoId, row.sha, { tabId });
   };
@@ -1004,7 +1002,7 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
   return (
     <div
       role="grid"
-      aria-label={t("commitGraph.label")}
+      aria-label={t("ui.commitGraph")}
       aria-multiselectable
       aria-rowcount={hasNextPage ? -1 : rows.length + 1}
       aria-colcount={layout.order.length}
@@ -1030,7 +1028,7 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
             {t("commitGraph.reveal.seeking", { sha: shortSha(seeking.sha), count: flat.commitCount })}
           </span>
           <Button size="sm" variant="ghost" onClick={() => setSeeking(null)}>
-            {t("commitGraph.cancel")}
+            {t("ui.cancel")}
           </Button>
         </div>
       ) : null}
@@ -1181,7 +1179,7 @@ export function CommitGraph({ repoId, tabId }: CommitGraphProps) {
           title={t("commitGraph.stale")}
           actions={
             <Button size="sm" onClick={() => void refetch()}>
-              {t("commitGraph.retry")}
+              {t("ui.retry")}
             </Button>
           }
         >

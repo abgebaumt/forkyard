@@ -1,11 +1,9 @@
 {
   "failures": {
     "authFailed": {
-      "title": "Anmeldung abgelehnt",
       "hint": "Der Server hat die Zugangsdaten oder den SSH-Schlüssel nicht angenommen. Prüfe sie – und ob du dieses Repository lesen darfst."
     },
     "offline": {
-      "title": "Server nicht erreichbar",
       "hint": "Prüfe die Netzwerkverbindung und den Servernamen in der Adresse."
     },
     "notFound": {
@@ -43,38 +41,28 @@
   "phase": {
     "counting": "Der Server stellt die Daten zusammen",
     "compressing": "Der Server packt die Daten",
-    "receiving": "Daten werden übertragen",
-    "resolving": "Die Historie wird zusammengesetzt",
-    "checkout": "Dateien werden ausgecheckt",
-    "connecting": "Verbindung wird aufgebaut",
     "stopping": "Das Holen wird abgebrochen"
   },
   "progress": {
-    "from": "Von",
-    "to": "Nach",
     "label": "Fortschritt beim Holen des Submoduls",
     "valueText": "{{label}}, {{percent}} Prozent",
     "waiting": "Warte auf die Antwort des Servers …"
   },
   "dialog": {
-    "title": "Submodul hinzufügen",
     "description": "Bindet ein anderes Repository in einen Unterordner ein. Festgehalten wird ein bestimmter Commit; der Eintrag liegt danach gestaged bereit.",
     "continue": "Weiter holen",
     "stop": "Holen abbrechen",
     "busy": "Hole Submodul …",
-    "cancel": "Abbrechen",
     "closeWarning": {
       "title": "Das Submodul wird noch geholt",
       "text": "Wenn du jetzt abbrichst, wird der halbe Ordner wieder entfernt und nichts eingetragen."
     },
     "outputTitle": "Submodul hinzufügen: Ausgabe von Git",
-    "showOutput": "Ausgabe anzeigen",
     "cancelled": {
       "title": "Holen abgebrochen",
       "text": "Es wurde nichts eingetragen und kein Ordner zurückgelassen. Deine Eingaben stehen noch da."
     },
     "url": {
-      "label": "Adresse",
       "placeholder": "https://host/gruppe/bibliothek.git",
       "required": "Gib die Adresse des Repositories ein, das eingebunden wird.",
       "hintLocal": "Einen lokalen Ordner nimmt Git als Submodul nur an, wenn in deiner Git-Konfiguration protocol.file.allow auf „always“ steht.",
@@ -118,8 +106,7 @@
     "title_one": "Ein Submodul ist noch nicht geholt",
     "title_other": "{{count}} Submodule sind noch nicht geholt",
     "description_one": "Sein Ordner ist bisher leer: {{paths}}. Initialisieren holt die eingetragenen Commits.",
-    "description_other": "Ihre Ordner sind bisher leer: {{paths}}. Initialisieren holt die eingetragenen Commits.",
-    "action": "Jetzt initialisieren"
+    "description_other": "Ihre Ordner sind bisher leer: {{paths}}. Initialisieren holt die eingetragenen Commits."
   },
   "menu": {
     "busy": "Submodule werden gerade geholt",
@@ -130,10 +117,8 @@
     "updateHint": "checkt den eingetragenen Commit aus",
     "open": "Als Repository öffnen",
     "initFirst": "erst initialisieren",
-    "copyUrl": "URL kopieren",
     "urlWhat": "URL des Submoduls",
     "noUrl": "keine URL eingetragen",
-    "copyPath": "Pfad kopieren",
     "pathWhat": "Pfad des Submoduls",
     "updateAll": "Alle aktualisieren",
     "add": "Submodul hinzufügen …",
@@ -141,20 +126,15 @@
     "removeTip": "Submodul „{{path}}“ entfernen"
   },
   "section": {
-    "title": "Submodule",
     "listLabel": "Submodule: {{summary}}",
     "loadError": "Submodule lassen sich nicht laden",
-    "add": "Hinzufügen",
     "empty": "Keine Submodule",
     "pendingTip_one": "{{count}} Submodul ist noch nicht geholt; die Ordner sind leer.",
     "pendingTip_other": "{{count}} Submodule sind noch nicht geholt; die Ordner sind leer.",
     "pending": "{{count}} noch nicht geholt",
     "none": "keine Submodule",
     "running": "läuft schon",
-    "collapse": "Einklappen",
-    "expand": "Ausklappen",
     "alwaysOpen": "beim Filtern immer offen",
-    "hide": "Sektion ausblenden",
     "hideHint": "zurück über das Menü einer anderen Sektion",
     "fetching": "Submodule werden geholt"
   }

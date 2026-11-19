@@ -71,10 +71,10 @@ function worktreeMenu(repoId: Id, worktree: Worktree, anyOrphans: boolean, agent
           shortcut: "Enter",
           blocked: worktree.isPrunable ? t("worktrees.menu.folderMissing") : worktree.isCurrent ? t("worktrees.menu.alreadyOpen") : null,
         }),
-    menuItem(t("worktrees.menu.copyPath"), Copy, () => void copyText(worktree.path, t("worktrees.menu.pathWhat"))),
+    menuItem(t("ui.copyPath"), Copy, () => void copyText(worktree.path, t("worktrees.menu.pathWhat"))),
     MENU_SEPARATOR,
     worktree.isLocked
-      ? menuItem(t("worktrees.menu.unlock"), LockOpen, () => void unlockWorktree(repoId, worktree))
+      ? menuItem(t("ui.unlock"), LockOpen, () => void unlockWorktree(repoId, worktree))
       : menuItem(t("worktrees.menu.lock"), Lock, () => void changeLock(repoId, worktree), {
           blocked: lockBlock,
           hint: lockBlock ? undefined : t("worktrees.menu.lockHint"),
@@ -130,7 +130,7 @@ function WorktreeRow({
       </span>
       {agent ? (
         <span className="shrink-0 text-xs text-text-muted" data-flag="agent">
-          {t("agents.worktreeBadge")}
+          {t("ui.agent")}
         </span>
       ) : null}
       {worktree.hasChanges && !worktree.isPrunable ? (
@@ -264,7 +264,7 @@ export function WorktreesSection({ repoId, tabId, query }: WorktreesSectionProps
       <SideEmpty
         action={
           <Button size="sm" variant="ghost" onClick={() => void openWorktreeDialog(repoId)}>
-            {t("worktrees.section.create")}
+            {t("ui.create")}
           </Button>
         }
       >
@@ -274,10 +274,10 @@ export function WorktreesSection({ repoId, tabId, query }: WorktreesSectionProps
   }
 
   const sectionMenu: MenuEntry[] = [
-    menuItem(open ? t("worktrees.section.collapse") : t("worktrees.section.expand"), null, toggle, {
+    menuItem(open ? t("ui.collapse") : t("ui.expand"), null, toggle, {
       blocked: filtering ? t("worktrees.section.alwaysOpen") : null,
     }),
-    menuItem(t("worktrees.section.hide"), null, () => void setSection(repoId, "worktrees", { hidden: true }), {
+    menuItem(t("ui.hideSection"), null, () => void setSection(repoId, "worktrees", { hidden: true }), {
       hint: t("worktrees.section.hideHint"),
     }),
     MENU_SEPARATOR,
@@ -290,12 +290,12 @@ export function WorktreesSection({ repoId, tabId, query }: WorktreesSectionProps
   return (
     <SideSection
       id="worktrees"
-      title={t("worktrees.section.title")}
+      title={t("ui.worktrees")}
       icon={<FolderGit2 aria-hidden />}
       count={worktrees.isPending ? undefined : filtering ? `${items.length}/${all.length}` : all.length}
       open={open}
       onToggle={toggle}
-      listLabel={t("worktrees.section.title")}
+      listLabel={t("ui.worktrees")}
       items={items}
       itemId={(item) => item.path}
       itemText={(item) => folderName(item.path)}
@@ -323,7 +323,7 @@ export function WorktreesSection({ repoId, tabId, query }: WorktreesSectionProps
         <IconButton
           size="sm"
           data-action="add"
-          label={t("worktrees.dialog.title")}
+          label={t("ui.createWorktree")}
           icon={<Plus className="size-3.5" aria-hidden />}
           onClick={() => void openWorktreeDialog(repoId)}
         />

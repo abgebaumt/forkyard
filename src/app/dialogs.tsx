@@ -255,7 +255,7 @@ export function DialogHost() {
                   void writeClipboard(current.options.text);
                 }}
               >
-                {t("app.dialogs.copy")}
+                {t("ui.copy")}
               </Button>
               <Button
                 variant="primary"
@@ -266,13 +266,13 @@ export function DialogHost() {
                   finish(current.id);
                 }}
               >
-                {t("app.dialogs.close")}
+                {t("ui.close")}
               </Button>
             </>
           }
         >
           <pre className="selectable max-h-96 overflow-auto rounded-md bg-surface-sunken p-3 font-mono text-code whitespace-pre-wrap text-text">
-            {current.options.text || t("app.dialogs.noOutput")}
+            {current.options.text || t("ui.noOutput")}
           </pre>
         </Dialog>
       );
@@ -388,7 +388,7 @@ function PromptDialog({ options, onDone }: { options: PromptOptions; onDone: (va
       }}
       footer={
         <>
-          <Button onClick={() => onDone(null)}>{t("app.common.cancel")}</Button>
+          <Button onClick={() => onDone(null)}>{t("ui.cancel")}</Button>
           <Button variant="primary" disabled={blocked && !submitting} loading={submitting} onClick={() => void submit()}>
             {options.confirmLabel}
           </Button>
@@ -444,7 +444,7 @@ function ChooseDialog({ options, onDone }: { options: ChooseOptions; onDone: (va
       }}
       footer={
         <Button autoFocus={safeIndex < 0} data-autofocus={safeIndex < 0 || undefined} onClick={() => onDone(null)}>
-          {t("app.common.cancel")}
+          {t("ui.cancel")}
         </Button>
       }
     >
@@ -524,7 +524,7 @@ function PickDialog({ options, onDone }: { options: PickOptions; onDone: (value:
       }}
       footer={
         <>
-          <Button onClick={() => onDone(null)}>{t("app.common.cancel")}</Button>
+          <Button onClick={() => onDone(null)}>{t("ui.cancel")}</Button>
           <Button variant="primary" disabled={!current} onClick={() => current && onDone(current.key)}>
             {options.confirmLabel}
           </Button>

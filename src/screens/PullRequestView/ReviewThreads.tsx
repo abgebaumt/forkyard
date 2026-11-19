@@ -52,8 +52,8 @@ function DiffLines({ fix }: { fix: AiReviewFix }) {
           <span aria-hidden className="w-3 shrink-0 text-text-muted">
             {line.kind === "added" ? "+" : line.kind === "removed" ? "−" : " "}
           </span>
-          {line.kind === "added" ? <span className="sr-only">{t("pullRequest.view.reviewThreads.added")}</span> : null}
-          {line.kind === "removed" ? <span className="sr-only">{t("pullRequest.view.reviewThreads.removed")}</span> : null}
+          {line.kind === "added" ? <span className="sr-only">{t("ui.diff.added")}</span> : null}
+          {line.kind === "removed" ? <span className="sr-only">{t("ui.diff.removed")}</span> : null}
           <span className="whitespace-pre">{line.text}</span>
         </div>
       ))}
@@ -211,7 +211,7 @@ function ThreadCard({
         {availability === "ready" || availability === "setup" ? (
           running ? (
             <Button size="sm" data-review-fix-cancel="" onClick={cancel}>
-              {t("pullRequest.view.reviewThreads.cancel")}
+              {t("ui.cancel")}
             </Button>
           ) : (
             <Button size="sm" data-review-fix-suggest="" onClick={() => void suggest()}>
@@ -221,7 +221,7 @@ function ThreadCard({
         ) : null}
         {availability === "ready" ? (
           <Button size="sm" variant="ghost" data-review-what-is-sent="" onClick={() => void whatIsSent()}>
-            {t("pullRequest.view.reviewThreads.whatIsSent")}
+            {t("ui.whatIsSent")}
           </Button>
         ) : null}
         {availability === "unavailable" ? (
@@ -280,13 +280,13 @@ function ThreadCard({
             ) : (
               <>
                 <Button size="sm" variant="primary" data-review-fix-checkout="" onClick={() => void checkout()}>
-                  {t("pullRequest.view.reviewThreads.checkout")}
+                  {t("ui.checkOutBranch")}
                 </Button>
                 <span className="text-sm text-text-muted">{t("pullRequest.view.reviewThreads.checkoutHint", { branch: fix.branch })}</span>
               </>
             )}
             <Button size="sm" variant="ghost" data-review-fix-discard="" onClick={() => setFix(null)}>
-              {t("pullRequest.view.reviewThreads.discard")}
+              {t("ui.discard")}
             </Button>
           </div>
         </div>
@@ -320,7 +320,7 @@ function ThreadCard({
           />
           <div className="flex justify-end gap-2">
             <Button size="sm" variant="ghost" onClick={() => setReplyOpen(false)}>
-              {t("pullRequest.view.reviewThreads.cancel")}
+              {t("ui.cancel")}
             </Button>
             <Button type="submit" size="sm" variant="primary" data-review-reply-post="" disabled={!reply.trim()} loading={posting}>
               {t("pullRequest.view.reviewThreads.replyPost")}

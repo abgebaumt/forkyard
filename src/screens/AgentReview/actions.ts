@@ -65,7 +65,7 @@ export async function takeOver(tabId: Id, agent: Agent): Promise<boolean> {
   toast({
     tone: "success",
     title: target === "both" ? t("agents.review.takenOverStaged", { count }) : t("agents.review.takenOver", { count }),
-    action: { label: t("agents.review.undo"), onClick: () => void undo(repoId) },
+    action: { label: t("ui.undo"), onClick: () => void undo(repoId) },
   });
   return true;
 }
@@ -104,7 +104,7 @@ export async function commitSelection(
   toast({
     tone: "success",
     title: t("agents.review.committed", { summary: message.summary.trim() }),
-    action: { label: t("agents.review.undo"), onClick: () => void undo(repoId) },
+    action: { label: t("ui.undo"), onClick: () => void undo(repoId) },
   });
   return true;
 }
@@ -158,7 +158,7 @@ export async function discardRest(agent: Agent, uncommitted: number): Promise<bo
     title: t("agents.review.discardTitle", { name: displayName(agent) }),
     body: t("agents.review.discardBody", { count: uncommitted }),
     details: [agent.worktreePath],
-    confirmLabel: t("agents.review.discardConfirm"),
+    confirmLabel: t("ui.discard"),
     danger: true,
   });
   if (!ok) return false;
@@ -171,7 +171,7 @@ export async function discardRest(agent: Agent, uncommitted: number): Promise<bo
   toast({
     tone: "info",
     title: t("agents.review.discarded", { name: displayName(agent) }),
-    action: { label: t("agents.review.undo"), onClick: () => void undo(worktree) },
+    action: { label: t("ui.undo"), onClick: () => void undo(worktree) },
   });
   return true;
 }
@@ -195,9 +195,9 @@ export async function reviewAgentFromPalette(repoId: Id, tabId: Id): Promise<voi
       ? open[0]!.id
       : await pickFromList({
           title: t("agents.review.pickTitle"),
-          label: t("agents.review.pickLabel"),
+          label: t("ui.codingAgent"),
           items: pickItems(open),
-          confirmLabel: t("agents.review.pickConfirm"),
+          confirmLabel: t("ui.review"),
         });
   if (chosen) openAgentReview(tabId, chosen);
 }
@@ -213,9 +213,9 @@ export async function pickComparison(repoId: Id, tabId: Id, current: Id[]): Prom
   }
   const chosen = await pickFromList({
     title: t("agents.review.compareTitle"),
-    label: t("agents.review.compareLabel"),
+    label: t("ui.codingAgent"),
     items: pickItems(candidates),
-    confirmLabel: t("agents.review.compareConfirm"),
+    confirmLabel: t("ui.compare"),
   });
   if (chosen) compareWith(tabId, chosen);
 }

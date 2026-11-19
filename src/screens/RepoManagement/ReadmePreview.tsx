@@ -54,7 +54,7 @@ function ReadmeBody({ source }: { source: string }) {
           data-readme=""
           className={cn(proseDocument, "mx-auto max-w-180 px-6 py-5")}
           html={rendered.html}
-          prompt={{ title: t("repos.readme.linkTitle"), body: t("repos.readme.linkBody"), confirmLabel: t("repos.readme.linkOpen") }}
+          prompt={{ title: t("repos.readme.linkTitle"), body: t("repos.readme.linkBody"), confirmLabel: t("ui.openLink") }}
         />
       </div>
     </>
@@ -96,7 +96,7 @@ export function ReadmePreview({ repo }: ReadmePreviewProps) {
           title={t("repos.readme.errorTitle")}
           action={
             <Button icon={<RefreshCw className="size-icon" aria-hidden />} onClick={() => void readme.refetch()}>
-              {t("repos.retry")}
+              {t("ui.retry")}
             </Button>
           }
         >

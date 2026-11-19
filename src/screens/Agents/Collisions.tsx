@@ -88,7 +88,7 @@ function PreviewDialog({
       }}
       footer={
         <Button variant="primary" data-autofocus onClick={() => onDone(null)}>
-          {t("agents.collision.close")}
+          {t("ui.close")}
         </Button>
       }
     >
@@ -170,7 +170,7 @@ function InformDialog({
       }}
       footer={
         <>
-          <Button onClick={() => onDone(null)}>{t("agents.collision.informCancel")}</Button>
+          <Button onClick={() => onDone(null)}>{t("ui.cancel")}</Button>
           <Button variant="primary" type="submit" form="agent-inform" data-action="inform-send" disabled={empty || sending}>
             {t("agents.collision.informSend")}
           </Button>
@@ -193,7 +193,7 @@ function InformDialog({
       >
         {targets.length > 1 ? (
           <Select
-            label={t("agents.collision.informRecipient")}
+            label={t("ui.agent")}
             value={recipient}
             options={targets.map((target) => ({ value: target.id, label: target.shortName }))}
             onValueChange={(next) => {
@@ -275,9 +275,9 @@ export function CollisionBanners({
             <Button
               size="sm"
               data-action="collision-check"
-              onClick={() => void runAction(t("agents.collision.checkAgain"), () => core.agentCollisionCheck({ repoId }))}
+              onClick={() => void runAction(t("ui.checkAgain"), () => core.agentCollisionCheck({ repoId }))}
             >
-              {t("agents.collision.checkAgain")}
+              {t("ui.checkAgain")}
             </Button>
           }
         >

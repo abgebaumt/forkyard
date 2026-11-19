@@ -7,13 +7,9 @@
     "layoutList": "Liste",
     "layoutTree": "Baum"
   },
-  "sideSection": {
-    "noActions": "Keine Aktionen verfügbar"
-  },
   "code": {
     "controlCharacter": "Steuerzeichen",
     "find": "Suchen",
-    "replace": "Ersetzen",
     "next": "weiter",
     "previous": "zurück",
     "all": "alle",
@@ -34,9 +30,6 @@
   "columns": {
     "refs": "Refs",
     "graph": "Graph",
-    "message": "Message",
-    "author": "Autor",
-    "date": "Datum",
     "sha": "SHA"
   },
   "header": {
@@ -57,15 +50,8 @@
     "widthOf": "Breite der Spalte {{column}}"
   },
   "row": {
-    "kind": {
-      "commit": "Commit",
-      "merge": "Merge-Commit",
-      "wip": "Lokale Änderungen",
-      "stash": "Stash"
-    },
     "stashUnnamed": "Stash ohne Namen",
     "wipUnreadable": "Lokale Änderungen nicht lesbar",
-    "noChanges": "Keine Änderungen",
     "conflicts_one": "1 Konflikt",
     "conflicts_other": "{{count}} Konflikte",
     "staged_one": "{{count}} gestaged",
@@ -78,22 +64,14 @@
     "noMessage": "Ohne Message",
     "checkedOut": "{{kind}}, ausgecheckt",
     "collapse": "Merge einklappen (die mitgebrachten Commits ausblenden)",
-    "expand": "Merge ausklappen",
     "collapseTooLarge": "Zu viele Commits zum Einklappen (über 20.000)",
     "collapsedCount_one": "+1 Commit",
     "collapsedCount_other": "+{{formatted}} Commits",
-    "notPushed": "Noch nicht gepusht",
     "notPulled": "Noch nicht gepullt",
     "bisectGood": "gut",
-    "bisectBad": "schlecht",
-    "bisectSkip": "übersprungen"
+    "bisectBad": "schlecht"
   },
   "refs": {
-    "kind": {
-      "local": "Lokaler Branch",
-      "remote": "Remote-Branch",
-      "tag": "Tag"
-    },
     "twinTitle": "{{kind}}: {{name}} (gleicher Stand wie der lokale Branch)",
     "pinnedTitle": "„{{name}}“ ist links im Graphen angeheftet",
     "pinned": "angeheftet:",

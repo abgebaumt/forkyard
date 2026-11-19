@@ -30,7 +30,7 @@ const fullTime = new Intl.DateTimeFormat(locale(), { dateStyle: "full", timeStyl
 /** `done`: message after copying, e.g. “Command copied”. */
 async function copy(text: string, done: string) {
   if (await writeClipboard(text)) toast({ tone: "success", title: done });
-  else toast({ tone: "danger", title: t("activity.copy.failed"), description: t("activity.copy.failedText") });
+  else toast({ tone: "danger", title: t("ui.copyFailed"), description: t("activity.copy.failedText") });
 }
 
 function ExitBadge({ code }: { code: number | null }) {
@@ -41,7 +41,7 @@ function ExitBadge({ code }: { code: number | null }) {
         className="inline-flex h-5 items-center gap-1 rounded-sm border border-border bg-surface-raised px-1.5 text-xs font-medium text-text-muted"
       >
         <CircleSlash className="size-3" aria-hidden />
-        {t("activity.exit.none")}
+        {t("ui.ended")}
       </span>
     );
   }
@@ -114,7 +114,7 @@ export function ActivityLog({ repoId, onClose }: { repoId: Id | null; onClose: (
                 <RadixDialog.Title className="text-lg font-semibold">{t("activity.title")}</RadixDialog.Title>
                 <RadixDialog.Description className="text-base text-text-muted">{t("activity.description")}</RadixDialog.Description>
               </div>
-              <Tip label={t("activity.close")} shortcut="Esc">
+              <Tip label={t("ui.close")} shortcut="Esc">
                 <RadixDialog.Close
                   aria-label={t("activity.closeLabel")}
                   className="inline-flex size-control-md shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-surface-raised hover:text-text"
@@ -296,7 +296,7 @@ function LogList({ scope, repoId }: { scope: ActivityScope; repoId: Id | null })
           {query ? (
             <button
               type="button"
-              aria-label={t("activity.search.clear")}
+              aria-label={t("ui.clearSearch")}
               onClick={() => {
                 setQuery("");
                 searchRef.current?.focus();
@@ -337,7 +337,7 @@ function LogList({ scope, repoId }: { scope: ActivityScope; repoId: Id | null })
       >
         <span className="w-4 shrink-0" />
         <span className="w-28 shrink-0">{t("activity.column.time")}</span>
-        <span className="min-w-0 flex-1">{t("activity.column.command")}</span>
+        <span className="min-w-0 flex-1">{t("ui.command")}</span>
         <span className="w-20 shrink-0 text-right">{t("activity.column.duration")}</span>
         <span className="w-24 shrink-0">{t("activity.column.exitCode")}</span>
       </div>
@@ -377,7 +377,7 @@ function LogList({ scope, repoId }: { scope: ActivityScope; repoId: Id | null })
             <p className="text-md font-medium text-text">{t("activity.loadFailed")}</p>
             <p className="selectable max-w-120 text-base text-text-muted">{describeError(activity.error).text}</p>
             <Button className="mt-2" icon={<RefreshCw className="size-icon" aria-hidden />} onClick={() => void activity.refetch()}>
-              {t("activity.retry")}
+              {t("ui.retry")}
             </Button>
           </div>
         ) : rows.length === 0 ? (
@@ -589,7 +589,7 @@ function LogRow({ entry, open, tabStop, onToggle, onFocus, onMove, onJump, pageR
               output ? "text-text" : "text-text-muted",
             )}
           >
-            {output || t("activity.row.noOutput")}
+            {output || t("ui.noOutput")}
           </pre>
           <div className="mt-2 flex items-center gap-2">
             <Button

@@ -36,11 +36,11 @@ async function update(label: string, repoId: Id, patch: Patch) {
 }
 
 export const setFavorite = (repo: Repo, isFavorite: boolean) =>
-  update(isFavorite ? t("repos.actions.favoriteSet") : t("repos.actions.favoriteRemove"), repo.id, { isFavorite });
+  update(isFavorite ? t("repos.actions.favoriteSet") : t("ui.removeFromFavorites"), repo.id, { isFavorite });
 
 export const setColor = (repo: Repo, color: number | null) => update(t("repos.actions.colorChange"), repo.id, { color });
 
-export const clearAlias = (repo: Repo) => update(t("repos.actions.aliasRemove"), repo.id, { alias: null });
+export const clearAlias = (repo: Repo) => update(t("ui.removeAlias"), repo.id, { alias: null });
 
 export const clearGroup = (repo: Repo) => update(t("repos.actions.groupRemove"), repo.id, { groupName: null });
 
@@ -51,11 +51,11 @@ export async function editAlias(repo: Repo) {
     label: t("repos.actions.aliasLabel"),
     description: t("repos.actions.aliasDescription"),
     initial: repo.alias ?? repo.name,
-    confirmLabel: t("repos.actions.aliasSave"),
+    confirmLabel: t("ui.saveAlias"),
     validate: (value) => (value.length > 80 ? t("repos.actions.maxChars", { count: 80 }) : null),
   });
   if (alias === null) return null;
-  return update(t("repos.actions.aliasSave"), repo.id, { alias: alias === repo.name ? null : alias });
+  return update(t("ui.saveAlias"), repo.id, { alias: alias === repo.name ? null : alias });
 }
 
 /** Asks for a group; existing groups are shown as help. */
@@ -157,7 +157,7 @@ export async function resolveMissing(repo: Repo) {
     description: t("repos.actions.missingDescription", { path: repo.path }),
     options: [
       { key: "relocate", label: t("repos.menu.relocate"), description: t("repos.actions.relocateHint") },
-      { key: "forget", label: t("repos.menu.remove"), description: t("repos.actions.forgetHint") },
+      { key: "forget", label: t("ui.removeFromList"), description: t("repos.actions.forgetHint") },
     ],
   });
   if (choice === "relocate") return relocateRepo(repo);

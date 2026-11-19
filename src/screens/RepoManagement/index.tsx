@@ -130,7 +130,7 @@ export function RepoManagement({ tabId: _tabId }: RepoManagementProps) {
 
   /** "Open …": pick a folder; if it is not a repository, the offer to create one there stays. */
   const openFolder = async () => {
-    const path = await core.pickFolder({ title: t("repos.pickFolderTitle") });
+    const path = await core.pickFolder({ title: t("ui.openRepository") });
     if (!path) return;
     setNotice(null);
     const result = await openRepositoryAt(path, { quiet: QUIET });
@@ -235,7 +235,7 @@ export function RepoManagement({ tabId: _tabId }: RepoManagementProps) {
           title={t("repos.listError")}
           action={
             <Button icon={<RefreshCw className="size-icon" aria-hidden />} onClick={() => void reposQuery.refetch()}>
-              {t("repos.retry")}
+              {t("ui.retry")}
             </Button>
           }
         >
@@ -248,7 +248,7 @@ export function RepoManagement({ tabId: _tabId }: RepoManagementProps) {
       <div className="flex flex-1 items-center justify-center" data-list-nomatch>
         <EmptyState
           icon={<SearchX className="size-6" aria-hidden />}
-          title={t("repos.noMatch.title")}
+          title={t("ui.noMatch")}
           action={
             <Button
               onClick={() => {
@@ -256,7 +256,7 @@ export function RepoManagement({ tabId: _tabId }: RepoManagementProps) {
                 filterRef.current?.focus();
               }}
             >
-              {t("repos.filter.clear")}
+              {t("ui.clearFilter")}
             </Button>
           }
         >
@@ -288,12 +288,12 @@ export function RepoManagement({ tabId: _tabId }: RepoManagementProps) {
       className="@container flex min-h-0 flex-1 bg-bg"
     >
       <section
-        aria-label={t("repos.title")}
+        aria-label={t("ui.tabs.management")}
         className="flex min-w-0 flex-1 flex-col bg-surface @5xl:w-130 @5xl:flex-none @5xl:border-r @5xl:border-border"
       >
         <div className="mx-auto flex min-h-0 w-full max-w-180 flex-1 flex-col">
           <header className="flex flex-col gap-3 px-4 pt-5 pb-4">
-            <h1 className="text-xl font-semibold">{t("repos.title")}</h1>
+            <h1 className="text-xl font-semibold">{t("ui.tabs.management")}</h1>
             <EntryButtons onOpen={() => void openFolder()} />
           </header>
           {noticeBanner}
@@ -333,7 +333,7 @@ export function RepoManagement({ tabId: _tabId }: RepoManagementProps) {
                     <span className="absolute top-1/2 right-0.5 -translate-y-1/2">
                       <IconButton
                         size="sm"
-                        label={t("repos.filter.clear")}
+                        label={t("ui.clearFilter")}
                         icon={<X className="size-3.5" aria-hidden />}
                         onClick={() => {
                           setFilter("");

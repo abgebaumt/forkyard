@@ -35,7 +35,7 @@ export function AiPreviewDialog({
     <Dialog
       open
       size="lg"
-      title={t("ai.preview.title")}
+      title={t("ui.whatIsSent")}
       description={mode === "confirm" ? t("ai.preview.confirmIntro") : t("ai.preview.lookIntro")}
       onOpenChange={(open) => {
         if (!open) onDone(null);
@@ -49,7 +49,7 @@ export function AiPreviewDialog({
               </div>
             ) : null}
             <Button data-autofocus onClick={() => onDone(null)}>
-              {t("ai.preview.cancel")}
+              {t("ui.cancel")}
             </Button>
             <Button variant="primary" onClick={() => onDone({ send: true, dontAskAgain })}>
               {t("ai.preview.send")}
@@ -57,7 +57,7 @@ export function AiPreviewDialog({
           </>
         ) : (
           <Button variant="primary" data-autofocus onClick={() => onDone(null)}>
-            {t("ai.preview.close")}
+            {t("ui.close")}
           </Button>
         )
       }

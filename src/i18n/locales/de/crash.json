@@ -12,7 +12,6 @@
     "viewHint": "Den ganzen Bericht anzeigen",
     "save": "Speichern…",
     "saveHint": "Den Bericht als Textdatei speichern",
-    "discard": "Verwerfen",
     "discardHint": "Diesen Bericht löschen"
   },
   "view": {

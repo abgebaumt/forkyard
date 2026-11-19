@@ -102,7 +102,7 @@ export function FinishDialog({
       footer={
         <>
           <Button data-autofocus onClick={onClose}>
-            {t("gitflow.finish.cancel")}
+            {t("ui.cancel")}
           </Button>
           <Button
             variant="primary"

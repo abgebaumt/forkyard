@@ -155,7 +155,7 @@ export async function pushBranchForPr(repoId: Id, branch: string, jobId: string)
   // The same jobId may be used again once the first attempt has ended.
   const result = await guardSecrets(repoId, (acceptedSecrets) =>
     runAction(
-      t("actions.sync.push.label"),
+      t("ui.push"),
       () =>
         core.push({
           repoId,
@@ -184,7 +184,7 @@ export async function pushBranchForPr(repoId: Id, branch: string, jobId: string)
 
 /** Creates the pull request. Errors go back to the form (without a message); on success its view opens. */
 export async function createPullRequest(input: PrCreateInput, tabId: Id): Promise<ActionResult<PrSummary>> {
-  const result = await runHostAction(t("actions.pullrequests.create.label"), () => hostApi.prCreate(input), {
+  const result = await runHostAction(t("ui.createPullRequest"), () => hostApi.prCreate(input), {
     busyKey: prBusyKeys.create(input.repoId),
     inline: true,
   });
@@ -203,7 +203,7 @@ export async function createPullRequest(input: PrCreateInput, tabId: Id): Promis
 }
 
 export async function commentOnPr(repoId: Id, number: number, body: string): Promise<boolean> {
-  const result = await runHostAction(t("actions.pullrequests.comment.label"), () => hostApi.prComment(repoId, number, body), {
+  const result = await runHostAction(t("ui.comment"), () => hostApi.prComment(repoId, number, body), {
     busyKey: prBusyKeys.write(repoId, number),
   });
   if (result.ok) {
@@ -214,7 +214,7 @@ export async function commentOnPr(repoId: Id, number: number, body: string): Pro
 }
 
 export const mergeMethodLabels: Record<MergeMethod, string> = {
-  merge: t("actions.pullrequests.method.merge"),
+  merge: t("ui.mergeCommit"),
   squash: t("actions.pullrequests.method.squash"),
   rebase: t("actions.pullrequests.method.rebase"),
 };
@@ -272,7 +272,7 @@ export async function closePr(repoId: Id, pr: Pick<PrSummary, "number" | "title"
     confirmLabel: t("actions.pullrequests.close.action"),
   });
   if (!ok) return false;
-  const result = await runHostAction(t("actions.pullrequests.close.label"), () => hostApi.prClose(repoId, pr.number), {
+  const result = await runHostAction(t("ui.close"), () => hostApi.prClose(repoId, pr.number), {
     busyKey: prBusyKeys.write(repoId, pr.number),
     success: t("actions.pullrequests.close.done", { number: pr.number }),
   });
@@ -281,7 +281,7 @@ export async function closePr(repoId: Id, pr: Pick<PrSummary, "number" | "title"
 }
 
 export async function reopenPr(repoId: Id, pr: Pick<PrSummary, "number">): Promise<boolean> {
-  const result = await runHostAction(t("actions.pullrequests.reopen.label"), () => hostApi.prReopen(repoId, pr.number), {
+  const result = await runHostAction(t("ui.reopen"), () => hostApi.prReopen(repoId, pr.number), {
     busyKey: prBusyKeys.write(repoId, pr.number),
     success: t("actions.pullrequests.reopen.done", { number: pr.number }),
   });
@@ -292,7 +292,7 @@ export async function reopenPr(repoId: Id, pr: Pick<PrSummary, "number">): Promi
 /** Fetches the pull request's branch and checks it out. */
 export async function checkoutPr(repoId: Id, pr: Pick<PrSummary, "number" | "sourceBranch">): Promise<boolean> {
   const jobId = newJobId();
-  const result = await runHostAction(t("actions.pullrequests.checkout.label"), () => hostApi.prCheckout(repoId, pr.number), {
+  const result = await runHostAction(t("ui.checkOutBranch"), () => hostApi.prCheckout(repoId, pr.number), {
     busyKey: busyKeys.history(repoId),
     job: { id: jobId, title: t("actions.pullrequests.checkout.job", { number: pr.number }), repoId },
   });

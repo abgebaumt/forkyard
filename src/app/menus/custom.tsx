@@ -16,7 +16,7 @@ export function customCommandEntries(repoId: Id, scope: CustomCommandScope, cont
   return [
     { type: "separator" },
     {
-      label: t("menus.custom.title"),
+      label: t("ui.customCommands"),
       icon: <SquareTerminal className="size-icon" aria-hidden />,
       children: entries.map((entry) =>
         menuItem(entry.command.title, null, () => void runCustomCommand(repoId, entry, context), {

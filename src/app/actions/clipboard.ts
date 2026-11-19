@@ -51,7 +51,7 @@ export async function copyText(text: string, what: string): Promise<boolean> {
       description: text.length > 120 ? `${text.slice(0, 119)}…` : text,
     });
   } else {
-    toast({ tone: "danger", title: t("actions.clipboard.failed"), description: t("actions.clipboard.failedDescription") });
+    toast({ tone: "danger", title: t("ui.copyFailed"), description: t("actions.clipboard.failedDescription") });
   }
   return ok;
 }

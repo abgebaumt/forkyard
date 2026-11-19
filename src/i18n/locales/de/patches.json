@@ -20,7 +20,6 @@
     "preview": "Vorschau des Patches",
     "previewMore": "… und {{count}} weitere Zeilen. Die Vorschau ist gekürzt, der Patch nicht.",
     "fits": "passt",
-    "binary": "binär",
     "moreFiles": "und {{count}} weitere Dateien",
     "loading": "Patch wird erzeugt"
   },
@@ -33,7 +32,6 @@
     "applied": "Patch angewendet",
     "appliedText_one": "{{count}} Datei im Arbeitsverzeichnis geändert. Nichts ist gestaged oder committet.",
     "appliedText_other": "{{count}} Dateien im Arbeitsverzeichnis geändert. Nichts ist gestaged oder committet.",
-    "undo": "Rückgängig",
     "blocked": {
       "empty": "Füge zuerst einen Patch ein oder wähle eine Datei.",
       "checking": "Der Patch wird noch geprüft.",
@@ -42,7 +40,6 @@
     "title": "Patch anwenden",
     "description": "Ändert nur das Arbeitsverzeichnis von <strong>{{repo}}</strong>. Nichts wird gestaged oder committet; ganz oder gar nicht.",
     "thisRepo": "diesem Repository",
-    "cancel": "Abbrechen",
     "submit": "Anwenden",
     "conflicts": {
       "title": "Es gibt offene Konflikte",
@@ -70,8 +67,6 @@
   },
   "create": {
     "scope": {
-      "unstaged": "Nicht gestaged",
-      "staged": "Gestaged",
       "all": "Beides",
       "label": "Welche Änderungen",
       "withCount": "{{label}} ({{count}})"
@@ -95,13 +90,10 @@
     "from": "Aus: <strong>{{what}}</strong>",
     "onlyThisFile": " – nur diese Datei",
     "onlyFiles": " – nur {{count}} Dateien",
-    "close": "Schließen",
     "saveAs": "Als Datei speichern …",
-    "copy": "In die Zwischenablage",
     "untracked_one": "Ohne {{count}} neue, noch nicht verfolgte Datei – die steckt nur in „Nicht gestaged“.",
     "untracked_other": "Ohne {{count}} neue, noch nicht verfolgte Dateien – die stecken nur in „Nicht gestaged“.",
     "error": "Der Patch ließ sich nicht erzeugen",
-    "retry": "Erneut versuchen",
     "noText": "Kein Text für einen Patch",
     "nothing": "Nichts zu exportieren",
     "noTextHint": "Alle betroffenen Dateien sind binär oder kein gültiges UTF-8 – so etwas passt nicht in einen Text-Patch.",

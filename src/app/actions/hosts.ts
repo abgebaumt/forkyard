@@ -170,12 +170,12 @@ export function connectInputs(
 }
 
 /** Opens a page in the system browser – never inside the app. Only http and https. */
-export async function openInBrowser(url: string | null | undefined, what = t("actions.hosts.browser.page")): Promise<boolean> {
+export async function openInBrowser(url: string | null | undefined, what = t("ui.page")): Promise<boolean> {
   if (!url || !/^https?:\/\//i.test(url)) {
     toast({ tone: "warning", title: t("actions.hosts.browser.noUrl", { what }) });
     return false;
   }
-  const result = await runAction(t("actions.hosts.browser.open"), async () => {
+  const result = await runAction(t("ui.openInBrowser"), async () => {
     // For automated tests: no browser should start there (as with the links in the README preview).
     if (import.meta.env.DEV && window.__gcTestOpened) window.__gcTestOpened.push(url);
     else await openUrl(url);
@@ -207,9 +207,7 @@ export function showHostError(label: string, error: unknown): HostErrorText {
     title: t("actions.hosts.failed", { label }),
     description: info.hint ? `${info.text}\n${info.hint}` : info.text,
     action:
-      info.kind === "auth" || info.kind === "not_connected"
-        ? { label: t("actions.hosts.openIntegrations"), onClick: openIntegrations }
-        : undefined,
+      info.kind === "auth" || info.kind === "not_connected" ? { label: t("ui.openIntegrations"), onClick: openIntegrations } : undefined,
     sticky: true,
   });
   if (info.kind === "auth") void queryClient.invalidateQueries({ queryKey: qk.hostAccounts });

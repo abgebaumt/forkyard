@@ -17,24 +17,18 @@
     "urlRejected": "Git doesn't accept this URL."
   },
   "editTitle": "Edit remote “{{name}}”",
-  "add": "Add remote",
   "save": "Save remote",
-  "saveButton": "Save",
   "saved": "Remote “{{name}}” saved",
   "added": "Remote “{{name}}” added",
   "remove": {
     "title": "Remove remote “{{name}}”?",
     "body": "The connection and all remote branches {{name}}/… disappear from this repository; branches that track it lose their upstream. Nothing changes on the server. Undo brings the remote back.",
-    "confirm": "Remove remote",
-    "done": "Remote “{{name}}” removed",
-    "undo": "Undo"
+    "done": "Remote “{{name}}” removed"
   },
   "editDescription": "Change the name and addresses. Remote branches and upstreams follow along when renaming.",
   "addDescription": "Connects this repository to another server or folder.",
-  "cancel": "Cancel",
   "loading": "Loading remotes",
   "loadFailed": "The remotes couldn't be loaded",
-  "retry": "Try again",
   "gone": {
     "title": "The remote “{{name}}” no longer exists",
     "body": "It was removed or renamed in the meantime, maybe in the terminal. Close the dialog and select it again."
@@ -42,7 +36,6 @@
   "notSaved": "Not saved",
   "notAdded": "Not added",
   "name": {
-    "label": "Name",
     "hint": "Short and without spaces. The first remote is usually called “origin”."
   },
   "fetchUrl": {

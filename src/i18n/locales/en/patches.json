@@ -20,7 +20,6 @@
     "preview": "Patch preview",
     "previewMore": "… and {{count}} more lines. The preview is truncated, the patch is not.",
     "fits": "fits",
-    "binary": "binary",
     "moreFiles": "and {{count}} more files",
     "loading": "Creating patch"
   },
@@ -33,7 +32,6 @@
     "applied": "Patch applied",
     "appliedText_one": "{{count}} file changed in the working directory. Nothing is staged or committed.",
     "appliedText_other": "{{count}} files changed in the working directory. Nothing is staged or committed.",
-    "undo": "Undo",
     "blocked": {
       "empty": "Paste a patch or choose a file first.",
       "checking": "The patch is still being checked.",
@@ -42,7 +40,6 @@
     "title": "Apply patch",
     "description": "Only changes the working directory of <strong>{{repo}}</strong>. Nothing is staged or committed; all or nothing.",
     "thisRepo": "this repository",
-    "cancel": "Cancel",
     "submit": "Apply",
     "conflicts": {
       "title": "There are open conflicts",
@@ -70,8 +67,6 @@
   },
   "create": {
     "scope": {
-      "unstaged": "Unstaged",
-      "staged": "Staged",
       "all": "Both",
       "label": "Which changes",
       "withCount": "{{label}} ({{count}})"
@@ -95,13 +90,10 @@
     "from": "From: <strong>{{what}}</strong>",
     "onlyThisFile": " – only this file",
     "onlyFiles": " – only {{count}} files",
-    "close": "Close",
     "saveAs": "Save as file …",
-    "copy": "Copy to clipboard",
     "untracked_one": "Without {{count}} new, untracked file – it is only in “Unstaged”.",
     "untracked_other": "Without {{count}} new, untracked files – they are only in “Unstaged”.",
     "error": "The patch could not be created",
-    "retry": "Try again",
     "noText": "No text for a patch",
     "nothing": "Nothing to export",
     "noTextHint": "All affected files are binary or not valid UTF-8 – that does not fit into a text patch.",

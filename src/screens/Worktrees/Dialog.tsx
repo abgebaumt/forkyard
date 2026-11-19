@@ -300,7 +300,7 @@ function WorktreeDialog({ repoId, preset, onDone }: { repoId: Id; preset?: Workt
     <Dialog
       open
       size="md"
-      title={t("worktrees.dialog.title")}
+      title={t("ui.createWorktree")}
       description={t("worktrees.dialog.description")}
       onOpenChange={(open) => {
         if (!open && !busy) onDone(null);
@@ -308,10 +308,10 @@ function WorktreeDialog({ repoId, preset, onDone }: { repoId: Id; preset?: Workt
       footer={
         <>
           <Button onClick={() => onDone(null)} disabled={busy}>
-            {t("worktrees.dialog.cancel")}
+            {t("ui.cancel")}
           </Button>
           <Button variant="primary" type="submit" form={formId} loading={busy} disabled={loading || Boolean(loadError) || unborn}>
-            {t("worktrees.dialog.title")}
+            {t("ui.createWorktree")}
           </Button>
         </>
       }
@@ -327,7 +327,7 @@ function WorktreeDialog({ repoId, preset, onDone }: { repoId: Id; preset?: Workt
         }}
       >
         {loading ? (
-          <div role="status" aria-label={t("worktrees.dialog.loading")} className="flex animate-pulse flex-col gap-4">
+          <div role="status" aria-label={t("ui.loadingBranches")} className="flex animate-pulse flex-col gap-4">
             {[0, 1, 2].map((row) => (
               <div key={row}>
                 <div className="h-3 w-24 rounded-sm bg-surface-raised" />
@@ -348,7 +348,7 @@ function WorktreeDialog({ repoId, preset, onDone }: { repoId: Id; preset?: Workt
                     void worktrees.refetch();
                   }}
                 >
-                  {t("worktrees.dialog.retry")}
+                  {t("ui.retry")}
                 </Button>
               }
             >
@@ -378,7 +378,7 @@ function WorktreeDialog({ repoId, preset, onDone }: { repoId: Id; preset?: Workt
                   label={t("worktrees.dialog.mode.label")}
                   value={mode}
                   options={[
-                    { value: "new", label: t("worktrees.dialog.mode.new") },
+                    { value: "new", label: t("ui.newBranch") },
                     { value: "existing", label: t("worktrees.dialog.mode.existing") },
                     { value: "detached", label: t("worktrees.dialog.mode.detached") },
                   ]}
@@ -400,7 +400,7 @@ function WorktreeDialog({ repoId, preset, onDone }: { repoId: Id; preset?: Workt
                   label={t("worktrees.dialog.name.label")}
                   mono
                   value={name}
-                  placeholder={t("worktrees.dialog.name.placeholder")}
+                  placeholder={t("ui.featureNewIdea")}
                   error={errors.name ?? undefined}
                   autoComplete="off"
                   autoCorrect="off"
@@ -427,10 +427,10 @@ function WorktreeDialog({ repoId, preset, onDone }: { repoId: Id; preset?: Workt
               ) : (
                 <Select
                   id={`${formId}-existing`}
-                  label={t("worktrees.dialog.branch")}
+                  label={t("ui.branch")}
                   value={existing}
                   options={existingOptions}
-                  placeholder={t("worktrees.dialog.branchPlaceholder")}
+                  placeholder={t("ui.chooseBranch")}
                   error={errors.existing ?? undefined}
                   onValueChange={(value) => {
                     setExisting(value);
@@ -467,12 +467,12 @@ function WorktreeDialog({ repoId, preset, onDone }: { repoId: Id; preset?: Workt
                 />
               </div>
               <Button className="mt-5" icon={<FolderOpen className="size-icon" aria-hidden />} onClick={() => void browse()}>
-                {t("worktrees.dialog.browse")}
+                {t("ui.browse")}
               </Button>
             </div>
             <TextField
               id={`${formId}-folder`}
-              label={t("worktrees.dialog.folder.label")}
+              label={t("ui.folderName")}
               mono
               value={folder}
               placeholder={t("worktrees.dialog.folder.placeholder")}
@@ -527,9 +527,9 @@ function LockDialog({ worktree, onDone }: { worktree: Worktree; onDone: (value: 
       }}
       footer={
         <>
-          <Button onClick={() => onDone(null)}>{t("worktrees.dialog.cancel")}</Button>
+          <Button onClick={() => onDone(null)}>{t("ui.cancel")}</Button>
           <Button variant="primary" type="submit" form="worktree-lock-form">
-            {worktree.isLocked ? t("worktrees.lock.saveReason") : t("worktrees.lock.lock")}
+            {worktree.isLocked ? t("worktrees.lock.saveReason") : t("ui.lock")}
           </Button>
         </>
       }

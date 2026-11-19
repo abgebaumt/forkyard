@@ -162,7 +162,7 @@ function repoMenu(
     { type: "separator" },
     repo.isFavorite
       ? {
-          label: t("repos.menu.favoriteRemove"),
+          label: t("ui.removeFromFavorites"),
           icon: <StarOff className="size-icon" />,
           shortcut: "F",
           onSelect: () => run(() => setFavorite(repo, false)),
@@ -174,13 +174,13 @@ function repoMenu(
           onSelect: () => run(() => setFavorite(repo, true)),
         },
     {
-      label: repo.alias ? t("repos.menu.aliasChange") : t("repos.menu.aliasSet"),
+      label: repo.alias ? t("ui.changeAlias") : t("repos.menu.aliasSet"),
       icon: <PencilLine className="size-icon" />,
       shortcut: "F2",
       onSelect: () => run(() => editAlias(repo)),
     },
   );
-  if (repo.alias) entries.push({ label: t("repos.menu.aliasRemove"), onSelect: () => run(() => clearAlias(repo)) });
+  if (repo.alias) entries.push({ label: t("ui.removeAlias"), onSelect: () => run(() => clearAlias(repo)) });
   entries.push({
     label: repo.groupName ? t("repos.menu.groupChange") : t("repos.menu.groupAssign"),
     icon: <Tags className="size-icon" />,
@@ -220,7 +220,7 @@ function repoMenu(
     },
     { type: "separator" },
     {
-      label: t("repos.menu.remove"),
+      label: t("ui.removeFromList"),
       icon: <Trash2 className="size-icon" />,
       shortcut: "Delete",
       danger: true,
@@ -349,7 +349,7 @@ function RepoRow({ repo, selected, tabbable, position, total, onMove, onSettled,
             <IconButton
               size="sm"
               tabIndex={-1}
-              label={t("repos.menu.remove")}
+              label={t("ui.removeFromList")}
               icon={<Trash2 className="size-icon" aria-hidden />}
               onClick={() => props.onRemove(repo)}
             />
@@ -366,7 +366,7 @@ function RepoRow({ repo, selected, tabbable, position, total, onMove, onSettled,
           <IconButton
             size="sm"
             tabIndex={-1}
-            label={repo.isFavorite ? t("repos.menu.favoriteRemove") : t("repos.menu.favoriteAdd")}
+            label={repo.isFavorite ? t("ui.removeFromFavorites") : t("repos.menu.favoriteAdd")}
             shortcut="F"
             aria-pressed={repo.isFavorite}
             className={cn(

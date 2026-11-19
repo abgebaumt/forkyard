@@ -42,7 +42,7 @@ export function followVanishedDiff(repoId: Id, after?: Status): void {
 /** `paths: null` = everything. */
 export async function stagePaths(repoId: Id, paths: string[] | null) {
   const result = await runAction(
-    t("actions.files.stage"),
+    t("ui.stage"),
     withStatus(repoId, () => core.stagePaths({ repoId, paths })),
   );
   return result;
@@ -51,7 +51,7 @@ export async function stagePaths(repoId: Id, paths: string[] | null) {
 /** `paths: null` = everything. */
 export async function unstagePaths(repoId: Id, paths: string[] | null) {
   const result = await runAction(
-    t("actions.files.unstage"),
+    t("ui.unstage"),
     withStatus(repoId, () => core.unstagePaths({ repoId, paths })),
   );
   return result;
@@ -84,12 +84,12 @@ export async function discardPaths(repoId: Id, paths: string[] | null, options: 
           : t("actions.files.discard.body"),
     details: affected.length > 1 || (affected.length === 1 && fileNameForTitle(affected[0]!) !== affected[0]) ? affected : undefined,
     detailsLabel: affected.length === 1 ? t("actions.files.discard.fullPath") : undefined,
-    confirmLabel: all ? t("actions.files.discard.actionAll") : t("actions.files.discard.action"),
+    confirmLabel: all ? t("actions.files.discard.actionAll") : t("ui.discard"),
     danger: true,
   });
   if (!ok) return null;
   const result = await runAction(
-    t("actions.files.discard.action"),
+    t("ui.discard"),
     withStatus(repoId, () => core.discardPaths({ repoId, paths })),
     {
       busyKey: busyKeys.write(repoId, "discard"),
@@ -136,7 +136,7 @@ export function fileNameForTitle(path: string, max = 48): string {
 }
 
 const externalLabels: Record<ExternalTarget, string> = {
-  editor: t("actions.files.external.editor"),
+  editor: t("ui.openInEditor"),
   terminal: t("actions.files.external.terminal"),
   file_manager: t("actions.files.external.fileManager"),
   diff_tool: t("actions.files.external.diffTool"),
@@ -153,7 +153,7 @@ export function openExternal(repoId: Id, target: ExternalTarget, path: string | 
 /** Pattern into the .gitignore in the root directory; optionally stop tracking. */
 export async function ignorePattern(repoId: Id, pattern: string, stopTracking = false) {
   const result = await runAction(
-    t("actions.files.ignore.action"),
+    t("ui.ignore"),
     withStatus(repoId, () => core.ignoreAdd({ repoId, pattern, stopTracking })),
     {
       success: stopTracking
@@ -239,7 +239,7 @@ export async function resolveConflictSide(repoId: Id, paths: string[], side: "ou
   let last = null;
   for (const path of paths) {
     last = await runAction(
-      side === "ours" ? t("actions.files.resolve.ours") : t("actions.files.resolve.theirs"),
+      side === "ours" ? t("ui.takeCurrentVersion") : t("ui.takeIncomingVersion"),
       withStatus(repoId, () => core.conflictResolve({ repoId, path, content: null, side })),
     );
     if (!last.ok) return last;

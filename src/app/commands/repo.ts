@@ -19,7 +19,7 @@ const hasChanges = (ctx: CommandContext) => Boolean(ctx.status && ctx.status.uns
 export const commands: AppCommand[] = [
   {
     id: "repo.undo",
-    title: t("commands.repo.undo.title"),
+    title: t("ui.undo"),
     group: "Repository",
     shortcut: "Mod+Z",
     textEditing: true,
@@ -28,7 +28,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "repo.redo",
-    title: t("commands.repo.redo.title"),
+    title: t("ui.redo"),
     group: "Repository",
     shortcut: "Mod+Y",
     aliases: ["Mod+Shift+Z"],
@@ -38,7 +38,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "sync.fetch",
-    title: t("commands.sync.fetch.title"),
+    title: t("ui.fetchAllRemotes"),
     group: "Remote",
     shortcut: "Mod+Shift+L",
     when: hasRemote,
@@ -46,7 +46,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "sync.pull",
-    title: t("commands.sync.pull.title"),
+    title: t("ui.pull"),
     group: "Remote",
     shortcut: "Mod+Shift+D",
     keywords: Object.values(pullModeLabels),
@@ -69,7 +69,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "sync.push",
-    title: t("commands.sync.push.title"),
+    title: t("ui.push"),
     group: "Remote",
     shortcut: "Mod+Shift+P",
     when: (ctx) => hasRemote(ctx) && onBranch(ctx),
@@ -86,7 +86,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "stash.create",
-    title: t("commands.stash.create.title"),
+    title: t("ui.stashChanges"),
     group: "Stash",
     // Ctrl+Shift+S belongs to "Stage all" (src/app/commands/wip.ts); stash and pop live on Alt.
     shortcut: "Alt+S",
@@ -145,7 +145,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "view.graph",
-    title: t("commands.view.graph.title"),
+    title: t("ui.backToGraph"),
     group: "View",
     when: (ctx) => hasRepo(ctx) && ctx.view?.center.kind !== "graph",
     run: (ctx) => ctx.store.closeCenter(ctx.tabId!),

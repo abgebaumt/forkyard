@@ -51,7 +51,7 @@ export async function restoreVersion(repoId: Id, entry: FileHistoryEntry): Promi
     tone: "success",
     title: t("fileHistory.restore.doneTitle", { name, sha: shortSha(sha) }),
     description: t("fileHistory.restore.doneBody"),
-    action: { label: t("fileHistory.restore.undo"), onClick: () => void undo(repoId) },
+    action: { label: t("ui.undo"), onClick: () => void undo(repoId) },
   });
   return true;
 }

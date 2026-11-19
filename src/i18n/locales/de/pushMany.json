@@ -1,12 +1,9 @@
 {
   "title": "{{branch}} und mehr pushen",
   "description": "Weitere Branches und Tags gehen im selben Push mit.",
-  "remote": "Remote",
   "filter": "Filter",
   "listLabel": "Weitere Branches/Tags hinzufügen",
   "none": "Nichts passt zum Filter.",
-  "branch": "Branch",
-  "tag": "Tag",
   "candidate": {
     "new": "legt den Remote-Branch an",
     "newCount_one": "neu · {{count}} Commit",

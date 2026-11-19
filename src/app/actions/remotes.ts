@@ -31,11 +31,11 @@ export async function removeRemote(repoId: Id, remote: Pick<Remote, "name" | "fe
       .join(" "),
     details: following.length > 1 ? following : undefined,
     detailsLabel: t("actions.remotes.remove.detailsLabel"),
-    confirmLabel: t("actions.remotes.remove.action"),
+    confirmLabel: t("ui.removeRemote"),
     danger: true,
   });
   if (!ok) return null;
-  const result = await runAction(t("actions.remotes.remove.action"), () => core.remoteRemove({ repoId, name: remote.name }), {
+  const result = await runAction(t("ui.removeRemote"), () => core.remoteRemove({ repoId, name: remote.name }), {
     busyKey: busyKeys.write(repoId, "remote"),
     success: t("actions.remotes.remove.done", { name: clip(remote.name) }),
   });

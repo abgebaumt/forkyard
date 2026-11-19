@@ -7,13 +7,9 @@
     "layoutList": "List",
     "layoutTree": "Tree"
   },
-  "sideSection": {
-    "noActions": "No actions available"
-  },
   "code": {
     "controlCharacter": "Control character",
     "find": "Find",
-    "replace": "Replace",
     "next": "next",
     "previous": "previous",
     "all": "all",
@@ -34,9 +30,6 @@
   "columns": {
     "refs": "Refs",
     "graph": "Graph",
-    "message": "Message",
-    "author": "Author",
-    "date": "Date",
     "sha": "SHA"
   },
   "header": {
@@ -57,15 +50,8 @@
     "widthOf": "Width of column {{column}}"
   },
   "row": {
-    "kind": {
-      "commit": "Commit",
-      "merge": "Merge commit",
-      "wip": "Local changes",
-      "stash": "Stash"
-    },
     "stashUnnamed": "Unnamed stash",
     "wipUnreadable": "Local changes could not be read",
-    "noChanges": "No changes",
     "conflicts_one": "1 conflict",
     "conflicts_other": "{{count}} conflicts",
     "staged_one": "{{count}} staged",
@@ -78,22 +64,14 @@
     "noMessage": "No message",
     "checkedOut": "{{kind}}, checked out",
     "collapse": "Collapse merge (hide the commits it brought in)",
-    "expand": "Expand merge",
     "collapseTooLarge": "Too many commits to collapse (over 20,000)",
     "collapsedCount_one": "+1 commit",
     "collapsedCount_other": "+{{formatted}} commits",
-    "notPushed": "Not pushed yet",
     "notPulled": "Not pulled yet",
     "bisectGood": "good",
-    "bisectBad": "bad",
-    "bisectSkip": "skipped"
+    "bisectBad": "bad"
   },
   "refs": {
-    "kind": {
-      "local": "Local branch",
-      "remote": "Remote branch",
-      "tag": "Tag"
-    },
     "twinTitle": "{{kind}}: {{name}} (same commit as the local branch)",
     "pinnedTitle": "“{{name}}” is pinned to the left of the graph",
     "pinned": "pinned:",

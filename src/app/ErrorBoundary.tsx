@@ -60,7 +60,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
               onClick={this.reload}
               className="rounded-md bg-accent px-3 py-1.5 font-medium text-on-accent"
             >
-              {t("app.errorBoundary.reload")}
+              {t("ui.reload")}
             </button>
             <button type="button" disabled={busy} onClick={this.reloadWithoutTabs} className="rounded-md border border-border px-3 py-1.5">
               {t("app.errorBoundary.reloadWithoutTabs")}

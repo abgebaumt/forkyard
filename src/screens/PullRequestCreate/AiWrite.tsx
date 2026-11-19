@@ -163,12 +163,12 @@ export function usePrAiWriter({ repoId, source, target, ahead, sameBranch, field
     <div className="flex shrink-0 items-center gap-1" data-pr-ai="">
       {opensSetup ? null : (
         <Button size="sm" variant="ghost" data-pr-ai-what-is-sent="" disabled={!input || running} onClick={() => void showSent()}>
-          {t("pullRequest.create.ai.whatIsSent")}
+          {t("ui.whatIsSent")}
         </Button>
       )}
       {running ? (
         <Button size="sm" data-pr-ai-cancel="" onClick={cancel}>
-          {t("ai.state.cancel")}
+          {t("ui.cancel")}
         </Button>
       ) : (
         <Button size="sm" data-pr-ai-write="" disabled={!opensSetup && Boolean(blocked)} onClick={() => void start()}>
@@ -225,13 +225,13 @@ export function usePrAiWriter({ repoId, source, target, ahead, sameBranch, field
           </pre>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={() => takeBody("replace")}>
-              {t("ai.suggestion.replace")}
+              {t("ui.replace")}
             </Button>
             <Button size="sm" onClick={() => takeBody("append")}>
               {t("ai.suggestion.append")}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setBodyOffer(null)}>
-              {t("ai.suggestion.discard")}
+              {t("ui.discard")}
             </Button>
           </div>
         </div>

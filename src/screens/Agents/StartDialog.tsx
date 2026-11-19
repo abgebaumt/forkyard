@@ -139,7 +139,7 @@ function StartDialog({ repoId, tabId, onDone }: { repoId: Id; tabId: Id; onDone:
         <>
           <span className="mr-auto text-sm text-text-muted">{t("agents.start.shortcutHint")}</span>
           <Button variant="ghost" disabled={busy} onClick={() => onDone(null)}>
-            {t("agents.start.cancel")}
+            {t("ui.cancel")}
           </Button>
           <Button
             type="submit"
@@ -169,7 +169,7 @@ function StartDialog({ repoId, tabId, onDone }: { repoId: Id; tabId: Id; onDone:
         ) : null}
         {draft.templateId ? (
           <Select
-            label={t("agents.start.template")}
+            label={t("ui.agent")}
             value={draft.templateId}
             options={templateOptions}
             onValueChange={(templateId) => setDraft((d) => ({ ...d, templateId, unattended: false }))}
@@ -194,7 +194,7 @@ function StartDialog({ repoId, tabId, onDone }: { repoId: Id; tabId: Id; onDone:
           </div>
         ) : null}
         <TextArea
-          label={t("agents.start.task")}
+          label={t("ui.task")}
           hint={t("agents.start.taskHint")}
           value={draft.task}
           rows={4}
@@ -204,7 +204,7 @@ function StartDialog({ repoId, tabId, onDone }: { repoId: Id; tabId: Id; onDone:
         />
         <div className="grid grid-cols-2 gap-3">
           <TextField
-            label={t("agents.start.branch")}
+            label={t("ui.branch")}
             value={draft.branch}
             mono
             data-field="branch"
@@ -215,7 +215,7 @@ function StartDialog({ repoId, tabId, onDone }: { repoId: Id; tabId: Id; onDone:
             }}
           />
           <Select
-            label={t("agents.start.base")}
+            label={t("ui.base")}
             value={base}
             options={baseOptions}
             onValueChange={(next) => setDraft((d) => ({ ...d, base: next }))}

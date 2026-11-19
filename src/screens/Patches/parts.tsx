@@ -100,7 +100,7 @@ export function PatchFileList({
               </span>
             ) : null}
             <span className="w-16 shrink-0 text-right font-mono text-xs">
-              {file.binary ? <span className="text-text-muted">{t("patches.parts.binary")}</span> : null}
+              {file.binary ? <span className="text-text-muted">{t("ui.binary")}</span> : null}
               {file.added ? <span className="text-success">+{file.added}</span> : null}
               {file.added && file.removed ? " " : null}
               {file.removed ? <span className="text-danger">−{file.removed}</span> : null}

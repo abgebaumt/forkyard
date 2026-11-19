@@ -135,9 +135,9 @@ function SetupForm({ repoId, status, onCancel }: { repoId: Id; status: GitflowSt
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-xs font-semibold tracking-wide text-text-muted uppercase">{t("gitflow.setup.prefixes")}</legend>
         <div className="grid grid-cols-4 gap-3">
-          {prefixField("feature", t("gitflow.setup.feature"), "feature/")}
-          {prefixField("release", t("gitflow.setup.release"), "release/")}
-          {prefixField("hotfix", t("gitflow.setup.hotfix"), "hotfix/")}
+          {prefixField("feature", t("ui.feature"), "feature/")}
+          {prefixField("release", t("ui.release"), "release/")}
+          {prefixField("hotfix", t("ui.hotfix"), "hotfix/")}
           {prefixField("versionTag", t("gitflow.setup.versionTag"), t("gitflow.setup.versionTagPlaceholder"))}
         </div>
         <p className="text-sm text-text-muted">
@@ -381,7 +381,7 @@ export function GitflowDialog({ repoId, initialKind = "feature", onDone }: Gitfl
       onOpenChange={(open) => {
         if (!open) onDone(null);
       }}
-      footer={<Button onClick={() => onDone(null)}>{t("gitflow.close")}</Button>}
+      footer={<Button onClick={() => onDone(null)}>{t("ui.close")}</Button>}
     >
       <div data-screen="gitflow" data-gitflow-state={state} className="flex flex-col gap-4">
         {state === "loading" ? <Skeleton /> : null}
@@ -392,7 +392,7 @@ export function GitflowDialog({ repoId, initialKind = "feature", onDone }: Gitfl
               title={t("gitflow.readFailed")}
               actions={
                 <Button size="sm" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={() => void gitflow.refetch()}>
-                  {t("gitflow.retry")}
+                  {t("ui.retry")}
                 </Button>
               }
             >
@@ -459,7 +459,7 @@ export function GitflowDialog({ repoId, initialKind = "feature", onDone }: Gitfl
                       {item.branch === current ? (
                         <span className="flex shrink-0 items-center gap-1 text-sm text-text-muted">
                           <Check className="size-3.5" aria-hidden />
-                          {t("gitflow.active.checkedOut")}
+                          {t("ui.checkedOut")}
                         </span>
                       ) : null}
                       <Button
