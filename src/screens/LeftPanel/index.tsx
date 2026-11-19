@@ -72,6 +72,7 @@ import {
 import { ExtraSections, extraSectionEntries } from "./ExtraSections";
 import { t } from "../../i18n";
 import { LoadError, SkeletonRows } from "../../ui/Feedback";
+import { readRowHeight } from "../../components/VirtualList";
 
 export interface LeftPanelProps {
   repoId: Id;
@@ -100,11 +101,6 @@ type MenuTarget = { kind: "row"; id: string } | { kind: "section"; section: Sect
 
 const isBranchNode = (node: TreeNode | undefined | null): node is TreeNode => node?.kind === "branch" || node?.kind === "remote_branch";
 const isMenuKey = (event: { key: string; shiftKey: boolean }) => event.key === "ContextMenu" || (event.shiftKey && event.key === "F10");
-
-function readRowHeight(): number {
-  const value = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gc-size-row"));
-  return Number.isFinite(value) && value > 0 ? value : 24;
-}
 
 /** Left panel: browse and control branches, remotes, tags and stashes. */
 export function LeftPanel({ repoId, tabId }: LeftPanelProps) {
@@ -140,7 +136,7 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ sourceId: string; targetId: string | null } | null>(null);
   const [menu, setMenu] = useState<MenuTarget>(null);
-  const [rowHeight] = useState(readRowHeight);
+  const [rowHeight] = useState(() => readRowHeight());
 
   const scrollRef = useRef<HTMLDivElement>(null);
   // Pointer or keyboard focus on a branch highlights its commits in the graph.
