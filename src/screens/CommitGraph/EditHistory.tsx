@@ -130,7 +130,14 @@ export function EditHistory({ repoId, tabId, edit, flat }: { repoId: Id; tabId: 
       ? { index: flipIndex(rows.length, index), pointerId: drag.pointerId, clientX: drag.clientX, clientY: drag.clientY }
       : null;
   });
-  const [active, setActive] = useState(initialDrag?.index ?? 0);
+  const [active, setActive] = useState(
+    () =>
+      initialDrag?.index ??
+      Math.max(
+        0,
+        displayed.findIndex((row) => row.sha === edit.entry),
+      ),
+  );
   useEffect(() => {
     if (graphEditOf(tabId)?.drag) updateGraphEdit(tabId, (current) => ({ ...current, drag: null }));
     if (viewMayTakeFocus()) listRef.current?.focus({ preventScroll: true });
