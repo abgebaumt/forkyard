@@ -27,10 +27,10 @@ Use these before writing a new helper:
 
 | Need | Place |
 | --- | --- |
-| Run Git (`GitCmd`, `.read()` for background reads, `.literal_paths()`) | `git/runner.rs` |
+| Run Git (`GitCmd`, `.read()` for background reads, `.literal_paths()`; `spawn_records` → `GitRecordStream`, a pull stream that kills Git on drop) | `git/runner.rs` |
 | Resolve revisions, `is_ancestor`, `is_sha`, `short`, the ref argument check `is_rev_arg` | `git/rev.rs` |
 | `git log` flags (`LOG_SAFE`), the commit header format (`HEADER`), the streaming log/numstat parser | `git/log.rs` |
-| `git blame --porcelain` parser (`BlameParser`) | `git/blame.rs` |
+| `git blame --porcelain` parser (`BlameParser`), `--incremental` parser (`IncrementalParser`) | `git/blame.rs` |
 | HEAD, running operations and other state read from `.git` | `git/repo.rs` |
 | Temporary index (`TempIndex`), empty tree, unmerged entries | `git/index.rs` |
 | Whitespace-neutral `git apply` (`GIT_APPLY`) | `git.rs` |

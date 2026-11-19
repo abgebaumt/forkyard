@@ -37,7 +37,11 @@ is `CoreEvents` in `src/core/types.ts`).
     `secrets.rs`, `http.rs` (ureq/rustls), `watcher.rs`, `autofetch.rs`, `jobs.rs`, `events.rs`.
   - Feature `testkit` provides `TestCore` and `TestRepo` (`testkit.rs`).
   - Feature `ts` derives the TypeScript types (ts-rs), see [The command contract](#the-command-contract).
-  - `bin/forkyard-editor.rs` is the sequence editor for interactive rebase.
+  - `bin/forkyard-editor.rs` is the sequence editor for interactive rebase; `bin/forkyard-bench.rs`
+    measures graph pages and blame on a large repository.
+  - Graph walkers (`commands/graph/walker.rs`) are long-lived background `git log` processes. Code that
+    deletes or relocates a repository or worktree folder, runs `gc`, or untrusts a repository calls
+    `commands::graph::release_graph_walkers` first.
 - `crates/askpass`: helper for `GIT_ASKPASS`/`SSH_ASKPASS`. It forwards prompts over a local channel
   (127.0.0.1, one-time token) to the core, which sends `credential:request` to the UI. std only;
   `src-tauri/build.rs` compiles it with rustc as a sidecar into `src-tauri/binaries/`.
