@@ -117,18 +117,29 @@ pub async fn rebase_start_with(
     branch: Option<String>,
     update_refs: Option<bool>,
 ) -> CoreResult<OpResult> {
+    rebase_start_expecting(core, &repo_id, &onto, branch.as_deref(), update_refs.unwrap_or(false), None).await
+}
+
+/// `rebase_start_with`; `expected` = (ref, SHA, message): inside the write lock the ref must still be
+/// at that SHA, otherwise nothing happens and `stale_state` comes back with the message.
+pub(crate) async fn rebase_start_expecting(
+    core: &Core,
+    repo_id: &str,
+    onto: &str,
+    branch: Option<&str>,
+    update_refs: bool,
+    expected: Option<(&str, &str, &str)>,
+) -> CoreResult<OpResult> {
     let touched = AtomicBool::new(false);
-    auto::follow(
-        core,
-        &repo_id,
-        write_action(
-            core,
-            &repo_id,
-            &touched,
-            start_rebase(core, &repo_id, &onto, branch.as_deref(), update_refs.unwrap_or(false), &touched),
-        ),
-    )
-    .await
+    let start = async {
+        if let Some((name, sha, message)) = expected {
+            if rev::rev_parse(core, repo_id, name).await?.as_deref() != Some(sha) {
+                return Err(CoreError::new(ErrorCode::StaleState, message));
+            }
+        }
+        start_rebase(core, repo_id, onto, branch, update_refs, &touched).await
+    };
+    auto::follow(core, repo_id, write_action(core, repo_id, &touched, start)).await
 }
 
 /// The local branches a rebase of `branch` (default: the checked-out one) onto `onto` would move

@@ -350,13 +350,14 @@ pub async fn stack_restack(core: &Core, repo_id: String, branch: String, expecte
     if let Some(reason) = restack.blocked {
         return Err(CoreError::not_allowed(reason));
     }
+    const CHANGED: &str = "The stack has changed since it was shown. Nothing was rebased; check it again.";
     if restack.top_tip != expected_top.trim() {
-        return Err(CoreError::new(
-            ErrorCode::StaleState,
-            "The stack has changed since it was shown. Nothing was rebased; check it again.",
-        ));
+        return Err(CoreError::new(ErrorCode::StaleState, CHANGED));
     }
-    rebase::rebase_start_with(core, repo_id, restack.onto, Some(restack.top), Some(true)).await
+    // Checked again inside the write lock: the top part may move until the rebase starts.
+    let top_ref = format!("refs/heads/{}", restack.top);
+    rebase::rebase_start_expecting(core, &repo_id, &restack.onto, Some(&restack.top), true, Some((&top_ref, expected_top.trim(), CHANGED)))
+        .await
 }
 
 /// Pushes every part in one atomic push (v1.1 `push_with`: the first part as the primary branch,

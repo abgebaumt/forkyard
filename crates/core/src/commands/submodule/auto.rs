@@ -264,13 +264,12 @@ fn schedule(core: &Core, repo_id: &str, before: Vec<(Vec<u8>, String)>) {
 async fn update_changed(core: &Core, repo_id: &str, before: Vec<(Vec<u8>, String)>) {
     let job_id = format!("job-submodules-{}", util::new_id());
     let Ok(job) = core.start_job(&job_id, Some(repo_id)) else { return };
-    let network = tokio::select! {
-        guard = core.network_lock(repo_id) => Some(guard),
-        _ = job.token().cancelled() => None,
-    };
-    let Some(_network) = network else {
-        job.finish::<()>(&Err(crate::error::CoreError::cancelled()));
-        return;
+    let _network = match core.network_lock_cancellable(repo_id, job.token()).await {
+        Ok(guard) => guard,
+        Err(e) => {
+            job.finish::<()>(&Err(e));
+            return;
+        }
     };
     let guard = core.write_lock(repo_id).await;
     let after = recorded(core, repo_id).await;

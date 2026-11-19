@@ -19,7 +19,7 @@ use crate::db::{self, Db};
 use crate::error::{CoreError, CoreResult};
 use crate::events::{names, EventSink};
 use crate::git::{locate, GitCmd, GitRunner};
-use crate::jobs::{Job, JobRegistry};
+use crate::jobs::{CancelToken, Job, JobRegistry};
 use crate::model::{AppChange, AppChangedEvent, RepoChange, RepoChangedEvent, Settings};
 use crate::util;
 
@@ -361,6 +361,41 @@ impl Core {
     /// lock only for the part that changes something locally.
     pub async fn network_lock(&self, repo_id: &str) -> WriteGuard {
         self.lock_for(&Self::network_key(repo_id)).lock_owned().await
+    }
+
+    /// `write_lock`, except that waiting can be cancelled.
+    pub async fn write_lock_cancellable(&self, repo_id: &str, cancel: &CancelToken) -> CoreResult<WriteGuard> {
+        tokio::select! {
+            guard = self.write_lock(repo_id) => Ok(guard),
+            _ = cancel.cancelled() => Err(CoreError::cancelled()),
+        }
+    }
+
+    /// `network_lock`, except that waiting can be cancelled.
+    pub async fn network_lock_cancellable(&self, repo_id: &str, cancel: &CancelToken) -> CoreResult<WriteGuard> {
+        tokio::select! {
+            guard = self.network_lock(repo_id) => Ok(guard),
+            _ = cancel.cancelled() => Err(CoreError::cancelled()),
+        }
+    }
+
+    /// Like `with_write_lock`, except that even waiting for the lock can be cancelled.
+    /// Callers report `repo:changed` themselves, because it depends on the result.
+    pub async fn with_lock_cancellable<T, F>(&self, repo_id: &str, cancel: &CancelToken, action: F) -> CoreResult<T>
+    where
+        F: Future<Output = CoreResult<T>>,
+    {
+        let _guard = self.write_lock_cancellable(repo_id, cancel).await?;
+        action.await
+    }
+
+    /// Like `with_lock_cancellable`, for the network lock: one transfer per repository at a time.
+    pub async fn with_network_lock<T, F>(&self, repo_id: &str, cancel: &CancelToken, action: F) -> CoreResult<T>
+    where
+        F: Future<Output = CoreResult<T>>,
+    {
+        let _guard = self.network_lock_cancellable(repo_id, cancel).await?;
+        action.await
     }
 
     /// The network lock, if it is free. Does not wait (auto-fetch skips otherwise).

@@ -17,7 +17,6 @@
 //! - `push` takes its locks itself: never call it while holding the write lock.
 
 use std::collections::HashMap;
-use std::future::Future;
 use std::path::PathBuf;
 
 use serde_json::json;
@@ -58,35 +57,6 @@ fn commits(n: u32) -> String {
     } else {
         format!("{n} commits")
     }
-}
-
-/// Like `Core::with_write_lock`, except that even waiting for the lock can be cancelled.
-/// Callers report `repo:changed` themselves, because it depends on the result.
-async fn with_lock_cancellable<T, F>(core: &Core, repo_id: &str, cancel: &CancelToken, action: F) -> CoreResult<T>
-where
-    F: Future<Output = CoreResult<T>>,
-{
-    let guard = tokio::select! {
-        guard = core.write_lock(repo_id) => guard,
-        _ = cancel.cancelled() => return Err(CoreError::cancelled()),
-    };
-    let result = action.await;
-    drop(guard);
-    result
-}
-
-/// Like `with_lock_cancellable`, for the network lock: one transfer per repository at a time.
-pub(crate) async fn with_network_lock<T, F>(core: &Core, repo_id: &str, cancel: &CancelToken, action: F) -> CoreResult<T>
-where
-    F: Future<Output = CoreResult<T>>,
-{
-    let guard = tokio::select! {
-        guard = core.network_lock(repo_id) => guard,
-        _ = cancel.cancelled() => return Err(CoreError::cancelled()),
-    };
-    let result = action.await;
-    drop(guard);
-    result
 }
 
 /// Value from the Git configuration; `None` if not set or empty.
@@ -355,7 +325,7 @@ pub async fn fetch(core: &Core, repo_id: String, job_id: String, remote: Option<
 pub(crate) async fn fetch_with_job(core: &Core, repo_id: &str, job: &Job, remote: Option<&str>, prune: bool) -> CoreResult<FetchResult> {
     // Only the network lock: a long fetch doesn't block any of the user's write actions.
     let result =
-        with_network_lock(core, repo_id, job.token(), fetch_remotes(core, repo_id, job.token(), Some(job), remote, prune, true)).await;
+        core.with_network_lock(repo_id, job.token(), fetch_remotes(core, repo_id, job.token(), Some(job), remote, prune, true)).await;
     // Only report if something has changed (or could have after an error).
     let unchanged = matches!(&result, Ok(r) if r.updated_refs == 0 && r.pruned_refs == 0);
     let never_started = matches!(&result, Err(e) if matches!(e.code, ErrorCode::NoRemote | ErrorCode::NotFound | ErrorCode::PathNotFound));
@@ -419,8 +389,8 @@ pub(crate) async fn pull_with_job(core: &Core, repo_id: &str, job: &Job, mode: O
             None => default_pull_mode(core, repo_id)?,
         };
         // Fetch first (network lock), then integrate (write lock).
-        let plan = with_network_lock(core, repo_id, job.token(), pull_fetch(core, repo_id, job, &mut fetched)).await?;
-        with_lock_cancellable(core, repo_id, job.token(), pull_integrate(core, repo_id, job, mode, plan)).await
+        let plan = core.with_network_lock(repo_id, job.token(), pull_fetch(core, repo_id, job, &mut fetched)).await?;
+        core.with_lock_cancellable(repo_id, job.token(), pull_integrate(core, repo_id, job, mode, plan)).await
     }
     .await;
     match &result {
@@ -712,7 +682,7 @@ pub async fn push_checked(
     };
     // The transfer runs under the network lock; `push_transfer` takes the write lock
     // only briefly, to record the upstream.
-    let result = with_network_lock(core, &repo_id, job.token(), push_transfer(core, &repo_id, job.token(), Some(&job), request)).await;
+    let result = core.with_network_lock(&repo_id, job.token(), push_transfer(core, &repo_id, job.token(), Some(&job), request)).await;
     if let Ok(PushResult::Done { created_upstream, .. }) = &result {
         let changes: &[RepoChange] = if *created_upstream { &[RepoChange::Refs, RepoChange::Config] } else { &[RepoChange::Refs] };
         core.emit_repo_changed(&repo_id, changes);
@@ -752,7 +722,7 @@ pub async fn push_with(
         accepted_secrets: accepted_secrets.as_deref(),
     };
     let result =
-        with_network_lock(core, &repo_id, job.token(), push_many(core, &repo_id, &job, request, &extra, atomic.unwrap_or(true))).await;
+        core.with_network_lock(&repo_id, job.token(), push_many(core, &repo_id, &job, request, &extra, atomic.unwrap_or(true))).await;
     if let Ok(PushResult::Multi { refs, .. }) = &result {
         if refs.iter().any(|item| item.status == PushRefStatus::Ok) {
             core.emit_repo_changed(&repo_id, &[RepoChange::Refs, RepoChange::Config]);
@@ -971,7 +941,7 @@ async fn push_many(
         return Err(push_error(core, repo_id, &out).await);
     }
     if target.set_upstream && refs[0].status != PushRefStatus::Rejected {
-        with_lock_cancellable(core, repo_id, cancel, record_upstream(core, repo_id, &target.branch, &target.remote, &target.remote_ref))
+        core.with_lock_cancellable(repo_id, cancel, record_upstream(core, repo_id, &target.branch, &target.remote, &target.remote_ref))
             .await?;
     }
     Ok(PushResult::Multi { remote: target.remote, atomic, refs })
@@ -1055,7 +1025,7 @@ pub(crate) async fn push_transfer(
 
     let outcome = parse_push_porcelain(&out.stdout, &remote_ref);
     if set_upstream && out.success() && matches!(outcome, Some((flag, _)) if flag != '!') {
-        with_lock_cancellable(core, repo_id, cancel, record_upstream(core, repo_id, &branch, &remote, &remote_ref)).await?;
+        core.with_lock_cancellable(repo_id, cancel, record_upstream(core, repo_id, &branch, &remote, &remote_ref)).await?;
     }
     match outcome {
         Some(('!', detail)) => {
@@ -1110,7 +1080,7 @@ fn server_said(stderr: &str) -> String {
 pub async fn branch_delete_remote(core: &Core, repo_id: String, job_id: String, remote: String, name: String) -> CoreResult<PushResult> {
     let job = core.start_job(&job_id, Some(&repo_id))?;
     let result =
-        with_network_lock(core, &repo_id, job.token(), delete_remote_branch(core, &repo_id, &job, remote.trim(), name.trim())).await;
+        core.with_network_lock(&repo_id, job.token(), delete_remote_branch(core, &repo_id, &job, remote.trim(), name.trim())).await;
     if result.is_ok() {
         core.emit_repo_changed(&repo_id, &[RepoChange::Refs]);
     }
@@ -1157,7 +1127,7 @@ async fn delete_remote_branch(core: &Core, repo_id: &str, job: &Job, remote: &st
         _ if missing => {
             // Already gone on the remote: the stale remote branch here is cleaned up.
             if rev::try_resolve_commit(core, repo_id, &tracking).await?.is_some() {
-                with_lock_cancellable(core, repo_id, job.token(), async {
+                core.with_lock_cancellable(repo_id, job.token(), async {
                     core.git_for(repo_id)?.args(["update-ref", "-d", &tracking]).run().await?;
                     Ok(())
                 })

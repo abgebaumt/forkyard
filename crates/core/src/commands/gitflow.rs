@@ -329,7 +329,7 @@ pub async fn gitflow_finish(
         let (Some(job), OpResult::Done { sha, fast_forward, summary }) = (&job, &finished.result) else {
             return Ok(finished.result);
         };
-        let pushed = sync::with_network_lock(core, repo_id, job.token(), push_all(core, repo_id, job, &finished.pushes)).await;
+        let pushed = core.with_network_lock(repo_id, job.token(), push_all(core, repo_id, job, &finished.pushes)).await;
         core.emit_repo_changed(repo_id, &[RepoChange::Refs, RepoChange::Config]);
         match pushed {
             Ok(()) => Ok(OpResult::Done { sha: sha.clone(), fast_forward: *fast_forward, summary: format!("{summary}; pushed") }),
