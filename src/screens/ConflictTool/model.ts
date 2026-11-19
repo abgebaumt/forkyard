@@ -595,6 +595,28 @@ export interface RowModel {
 }
 
 /**
+ * Base cells of a block, top-aligned. A `same` block keeps one row per shared line: its base lines are
+ * aligned against them, and a shared line the ancestor did not have gets no cell (merged neighbours
+ * may hold base lines both sides deleted, or shared lines both sides added).
+ */
+function baseCellsOf(chunk: Chunk): (SideCell | null)[] {
+  const at = (index: number, offset: number): SideCell => ({ line: chunk.baseStart + index, offset, text: chunk.base[index]! });
+  if (chunk.kind !== "same") return chunk.base.map((_, index) => at(index, index));
+  const cells: (SideCell | null)[] = [];
+  let basePos = 0;
+  const matched = (until: number) => {
+    while (cells.length < until) cells.push(at(basePos++, cells.length));
+  };
+  for (const edit of diffLines(chunk.base, chunk.ours)) {
+    matched(edit.bStart);
+    basePos = edit.aStart + edit.aLength;
+    for (let index = 0; index < edit.bLength; index++) cells.push(null);
+  }
+  matched(chunk.ours.length);
+  return cells;
+}
+
+/**
  * Both sides next to each other, block by block of equal height (missing lines are padded) –
  * this way both columns run in one scroll area. Conflicts and automatically taken blocks get a
  * header row.
@@ -605,10 +627,8 @@ export function buildRows(model: MergeModel, withBase = false): RowModel {
   for (const chunk of model.chunks) {
     chunkStart.push(rows.length);
     if (chunk.kind !== "same") rows.push({ type: "head", chunk: chunk.id });
-    // A `same` block shows its shared text as base: merged neighbours may hold base lines both sides deleted, which would misalign the column.
-    const base = chunk.kind === "same" ? chunk.ours : chunk.base;
-    const baseStart = chunk.kind === "same" ? chunk.oursStart : chunk.baseStart;
-    const height = Math.max(chunk.ours.length, chunk.theirs.length, withBase ? base.length : 0);
+    const baseCells = withBase ? baseCellsOf(chunk) : [];
+    const height = Math.max(chunk.ours.length, chunk.theirs.length, baseCells.length);
     for (let offset = 0; offset < height; offset++) {
       const cell = (lines: string[], start: number): SideCell | null =>
         offset >= lines.length ? null : { line: start + offset, offset, text: lines[offset]! };
@@ -616,7 +636,7 @@ export function buildRows(model: MergeModel, withBase = false): RowModel {
         type: "line",
         chunk: chunk.id,
         ours: cell(chunk.ours, chunk.oursStart),
-        base: withBase ? cell(base, baseStart) : null,
+        base: baseCells[offset] ?? null,
         theirs: cell(chunk.theirs, chunk.theirsStart),
       });
     }
@@ -689,17 +709,4 @@ export function baseColumn(input: { setting: boolean; hasBase: boolean; wide: bo
 } {
   const disabled = !input.hasBase ? "noBase" : !input.wide ? "narrow" : null;
   return { shown: input.setting && disabled === null, disabled };
-}
-
-/** Whether a `same` block's ancestor had exactly its lines (otherwise both sides deleted some of them). */
-export const sameMatchesBase = (chunk: Chunk): boolean =>
-  chunk.base.length === chunk.ours.length && chunk.base.every((line, index) => line === chunk.ours[index]);
-
-/**
- * Line (0-based) in the ancestor of a base cell, or null when it has none: `same` blocks show the
- * ours text as base (see buildRows), whose line numbers only hold for the ancestor when `exact`.
- */
-export function baseLine(chunk: Chunk, cell: SideCell, exact: boolean): number | null {
-  if (chunk.kind !== "same") return cell.line;
-  return exact ? chunk.baseStart + cell.offset : null;
 }

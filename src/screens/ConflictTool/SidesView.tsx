@@ -26,9 +26,7 @@ import type { CodeSettings } from "../../components/code/settings";
 import { IconButton } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import {
-  baseLine,
   blockState,
-  sameMatchesBase,
   sideState,
   type BlockState,
   type Choice,
@@ -138,8 +136,6 @@ interface RowViewProps {
   focusKey: string;
   digits: number;
   showBase: boolean;
-  /** For `same` blocks: the ancestor had exactly these lines (see sameMatchesBase). */
-  exactBase: boolean;
   tokens: { ours: LineTokens | null; base: LineTokens | null; theirs: LineTokens | null };
   onCell: (item: Item) => void;
   onSwap: (chunk: number) => void;
@@ -156,7 +152,6 @@ const RowView = memo(function RowView({
   focusKey,
   digits,
   showBase,
-  exactBase,
   tokens,
   onCell,
   onSwap,
@@ -311,9 +306,6 @@ const RowView = memo(function RowView({
     // Display only: no checkbox, not reachable by keyboard.
     const border = "min-w-0 border-l border-border";
     const cell = row.type === "line" ? row.base : null;
-    const line = cell ? baseLine(chunk, cell, exactBase) : null;
-    // Without an ancestor line the cell shows the ours text: highlight it from there.
-    const lineTokens = line === null ? (cell ? tokens.ours?.[cell.line] : undefined) : tokens.base?.[line];
     cells.splice(
       1,
       0,
@@ -322,17 +314,12 @@ const RowView = memo(function RowView({
       ) : !cell ? (
         <div key="base" aria-hidden className={cn("gc-cf-filler", border)} />
       ) : (
-        <div
-          key="base"
-          data-base-cell=""
-          data-line={line === null ? undefined : line + 1}
-          className={cn("flex items-start gap-1.5 pl-2", border)}
-        >
+        <div key="base" data-base-cell="" data-line={cell.line + 1} className={cn("flex items-start gap-1.5 pl-2", border)}>
           <span className="shrink-0 pr-2 text-right text-text-muted tabular-nums select-none" style={gutter}>
-            {line === null ? "" : line + 1}
+            {cell.line + 1}
           </span>
           <span className="min-w-0 flex-1 break-all whitespace-pre-wrap text-text" data-line-text="">
-            <CodeText text={cell.text} tokens={lineTokens} />
+            <CodeText text={cell.text} tokens={tokens.base?.[cell.line]} />
           </span>
         </div>
       ),
@@ -373,18 +360,21 @@ export const SidesView = forwardRef<SidesViewHandle, SidesViewProps>(function Si
   const current = focus && (!single || focus.side === single) ? focus : focus && single ? nearest(bySide[single], focus.row) : focus;
   const focusKey = current ? itemKey(current.row, current.side) : "";
 
-  const exactBase = useMemo(() => model.chunks.map((chunk) => chunk.kind === "same" && sameMatchesBase(chunk)), [model]);
   const digits = useMemo(
     () =>
       String(
         Math.max(
           1,
           ...model.chunks.map((chunk) =>
-            Math.max(chunk.oursStart + chunk.ours.length, chunk.theirsStart + chunk.theirs.length, chunk.baseStart + chunk.base.length),
+            Math.max(
+              chunk.oursStart + chunk.ours.length,
+              chunk.theirsStart + chunk.theirs.length,
+              showBase ? chunk.baseStart + chunk.base.length : 0,
+            ),
           ),
         ),
       ).length,
-    [model],
+    [model, showBase],
   );
 
   // --- Virtualisierung -----------------------------------------------------------------
@@ -602,7 +592,6 @@ export const SidesView = forwardRef<SidesViewHandle, SidesViewProps>(function Si
                   focusKey={focusKey}
                   digits={digits}
                   showBase={showBase}
-                  exactBase={exactBase[row.chunk] ?? false}
                   tokens={tokens}
                   onCell={onCell}
                   onSwap={props.onSwap}

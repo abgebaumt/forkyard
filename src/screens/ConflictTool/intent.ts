@@ -62,24 +62,34 @@ export interface IntentResult {
   decisions: Partial<Record<number, IntentDecision>>;
 }
 
-const undecided = (result: IntentResult) =>
-  result.intent.blocks.filter(canApply).filter((block) => result.decisions[block.block] === undefined);
+/** Current text of a conflict block in the result. */
+export type BlockText = (conflict: number) => string;
 
-/** Proposals the user has neither applied nor discarded (blocks edited by hand included). */
-export const openProposals = (result: IntentResult): number => undecided(result).length;
+// A proposal equal to the block's current text has no “Apply” on its card, so it does not count here either.
+const undecided = (result: IntentResult, blockText: BlockText) =>
+  result.intent.blocks
+    .filter(canApply)
+    .filter((block) => result.decisions[block.block] === undefined && hasChange(suggestionDiff(blockText(block.block), block.text)));
 
 /** “Apply all”: every undecided proposal, except blocks edited by hand – those are only reported. */
 export function planApplyAll(
   result: IntentResult,
+  blockText: BlockText,
   isManual: (conflict: number) => boolean,
 ): { apply: { conflict: number; text: string }[]; skipped: number[] } {
   const apply: { conflict: number; text: string }[] = [];
   const skipped: number[] = [];
-  for (const block of undecided(result)) {
+  for (const block of undecided(result, blockText)) {
     if (isManual(block.block)) skipped.push(block.block);
     else apply.push({ conflict: block.block, text: block.text });
   }
   return { apply, skipped };
+}
+
+/** “Apply all” shows from two open proposals on, and only while at least one of them is not edited by hand. */
+export function showApplyAll(result: IntentResult, blockText: BlockText, isManual: (conflict: number) => boolean): boolean {
+  const plan = planApplyAll(result, blockText, isManual);
+  return plan.apply.length + plan.skipped.length >= 2 && plan.apply.length > 0;
 }
 
 const OPEN_KEY = "gc.conflictIntentOpen";
