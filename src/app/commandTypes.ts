@@ -97,7 +97,8 @@ export function parseShortcut(shortcut: string): ParsedShortcut {
     ctrl: modifiers.has("ctrl"),
     alt: modifiers.has("alt"),
     shift: modifiers.has("shift"),
-    key: key.length === 1 ? key.toLowerCase() : key,
+    // Only A–Z: other letters keep their case ("Ü" is Shift+ü), and "ß".toUpperCase() would be "SS".
+    key: /^[A-Z]$/.test(key) ? key.toLowerCase() : key,
   };
 }
 

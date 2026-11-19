@@ -11,6 +11,8 @@ import { t } from "../../i18n";
 export interface FixedKey {
   keys: string[];
   label: string;
+  /** Registry commands these keys belong to (listed here because they also work in this view): rebindable. */
+  commands?: string[];
 }
 
 export interface FixedKeyGroup {
@@ -158,7 +160,7 @@ export const fixedKeyGroups: FixedKeyGroup[] = [
     where: t("shortcuts.fixed.file.where"),
     entries: [
       { keys: ["Mod+S"], label: t("ui.save") },
-      { keys: ["Mod+Shift+H"], label: t("ui.fileHistory") },
+      { keys: ["Mod+Shift+H"], label: t("ui.fileHistory"), commands: ["file.history"] },
       { keys: ["Escape"], label: t("shortcuts.fixed.file.entries.close") },
     ],
   },
@@ -167,8 +169,16 @@ export const fixedKeyGroups: FixedKeyGroup[] = [
     title: t("ui.terminal"),
     where: t("shortcuts.fixed.terminal.where"),
     entries: [
-      { keys: ["F6", "Shift+F6"], label: t("shortcuts.fixed.terminal.entries.leaveNextPrevious") },
-      { keys: ["Alt+1", "Alt+2", "Alt+3"], label: t("shortcuts.fixed.terminal.entries.leaveArea") },
+      {
+        keys: ["F6", "Shift+F6"],
+        label: t("shortcuts.fixed.terminal.entries.leaveNextPrevious"),
+        commands: ["focus.next", "focus.previous"],
+      },
+      {
+        keys: ["Alt+1", "Alt+2", "Alt+3"],
+        label: t("shortcuts.fixed.terminal.entries.leaveArea"),
+        commands: ["focus.leftPanel", "focus.center", "focus.commitPanel"],
+      },
       { keys: ["Mod+Shift+C"], label: t("shortcuts.fixed.terminal.entries.copy") },
       { keys: ["Mod+Shift+V", "Shift+Insert"], label: t("ui.paste") },
       { keys: ["Shift+PageUp", "Shift+PageDown"], label: t("shortcuts.fixed.terminal.entries.scroll") },
