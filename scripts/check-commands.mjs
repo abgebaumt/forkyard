@@ -1,11 +1,13 @@
 // Checks the contract: methods of CoreCommands in src/core/api.ts against
-//   1. the #[tauri::command] functions in src-tauri/src/commands.rs (names and parameters),
-//   2. the list in tauri::generate_handler![…] in src-tauri/src/lib.rs,
+//   1. the commands in src-tauri/src/commands.rs (names and parameters): the lines of the
+//      `commands! { … }` table plus the hand-written #[tauri::command] functions,
+//   2. the registration: table lines and the `hand_written:` list (the macro's `handler()`,
+//      which lib.rs must pass to `invoke_handler`),
 //   3. the functions in crates/core/src/commands/**/*.rs (names).
 // Usage: node scripts/check-commands.mjs   (exit code 1 on mismatches)
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { compareErrorCodes, readErrorCodeSources } from "./error-codes.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -89,47 +91,52 @@ function parseApi() {
 /** Parameters that Tauri supplies itself and that don't come from the input object. */
 const INJECTED = /^(tauri::)?(State|AppHandle|Window|WebviewWindow|ipc::Request|Request)\b/;
 
-function parseBindings() {
-  const source = read("src-tauri", "src", "commands.rs");
-  const commands = new Map();
-  const pattern = /((?:^[ \t]*\/\/.*\n)*)^#\[tauri::command\]\s*\n(?:^#\[[^\]]*\]\s*\n)*^pub async fn (\w+)\(/gm;
-  let match;
-  while ((match = pattern.exec(source))) {
-    const name = match[2];
-    const params = balanced(source, match.index + match[0].length - 1);
-    const annotated = /gc:params\s+([\w,]+)/.exec(match[1]);
-    let keys;
-    if (annotated) keys = annotated[1].split(",").filter(Boolean);
-    else {
-      keys = [];
-      for (const param of splitTopLevel(params, ",")) {
-        const colon = param.indexOf(":");
-        const type = param.slice(colon + 1).trim();
-        if (INJECTED.test(type)) continue;
-        keys.push(
-          toCamel(
-            param
-              .slice(0, colon)
-              .trim()
-              .replace(/^mut\s+/, ""),
-          ),
-        );
-      }
-    }
-    commands.set(name, keys);
+/** Parameter keys of a Rust parameter list, without the ones Tauri injects. */
+function paramKeys(params) {
+  const keys = [];
+  for (const param of splitTopLevel(params, ",")) {
+    const colon = param.indexOf(":");
+    if (INJECTED.test(param.slice(colon + 1).trim())) continue;
+    keys.push(
+      toCamel(
+        param
+          .slice(0, colon)
+          .trim()
+          .replace(/^mut\s+/, ""),
+      ),
+    );
   }
-  return commands;
+  return keys;
 }
 
-function parseHandlerList() {
-  const source = read("src-tauri", "src", "lib.rs");
-  const start = source.indexOf("generate_handler![");
-  if (start < 0) throw new Error("generate_handler! not found in lib.rs");
-  const list = balanced(source, source.indexOf("[", start));
-  return list
-    .split(",")
-    .map((entry) => entry.trim().replace(/^commands::/, ""))
-    .filter(Boolean);
+/**
+ * Reads commands.rs: `bindings` (name -> parameter keys) from the `commands! { … }` table and the
+ * hand-written functions, `handlers` (registered names) from the table and its `hand_written:` list.
+ */
+export function parseBindings(source) {
+  const bindings = new Map();
+  const handlers = [];
+  const start = source.search(/^commands! \{/m);
+  if (start < 0) throw new Error("commands! { … } table not found in commands.rs");
+  const table = balanced(source, source.indexOf("{", start)).replace(/\/\/.*$/gm, "");
+  const hand = /hand_written:([^;]*);/.exec(table);
+  if (!hand) throw new Error("hand_written: list not found in the commands! table");
+  handlers.push(...splitTopLevel(hand[1], ","));
+  for (const match of table.matchAll(/^\s*(\w+)\s*=>\s*\w+::\w+\(/gm)) {
+    bindings.set(match[1], paramKeys(balanced(table, match.index + match[0].length - 1)));
+    handlers.push(match[1]);
+  }
+  const pattern = /((?:^[ \t]*\/\/.*\n)*)^#\[tauri::command\]\s*\n(?:^#\[[^\]]*\]\s*\n)*^pub async fn (\w+)\(/gm;
+  for (const match of source.matchAll(pattern)) {
+    const name = match[2];
+    if (bindings.has(name)) throw new Error(`${name} is both in the table and hand-written`);
+    const annotated = /gc:params\s+([\w,]+)/.exec(match[1]);
+    bindings.set(
+      name,
+      annotated ? annotated[1].split(",").filter(Boolean) : paramKeys(balanced(source, match.index + match[0].length - 1)),
+    );
+  }
+  return { bindings, handlers };
 }
 
 function parseCore() {
@@ -146,44 +153,50 @@ function parseCore() {
 
 // --- Comparison -------------------------------------------------------------
 
-const api = parseApi();
-const bindings = parseBindings();
-const handlers = parseHandlerList();
-const core = parseCore();
-const problems = [];
-
-for (const [name, keys] of api) {
-  if (!bindings.has(name)) problems.push(`Binding missing in src-tauri/src/commands.rs: ${name}`);
-  else {
-    const got = bindings.get(name);
-    const missing = keys.filter((key) => !got.includes(key));
-    const extra = got.filter((key) => !keys.includes(key));
-    if (missing.length || extra.length) {
-      problems.push(`Parameters differ for ${name}: api.ts [${keys.join(", ")}] / Rust [${got.join(", ")}]`);
-    }
+function main() {
+  const api = parseApi();
+  const { bindings, handlers } = parseBindings(read("src-tauri", "src", "commands.rs"));
+  const core = parseCore();
+  const problems = [];
+  if (!read("src-tauri", "src", "lib.rs").includes(".invoke_handler(commands::handler())")) {
+    problems.push("lib.rs does not register commands::handler() with invoke_handler");
   }
-  if (!handlers.includes(name)) problems.push(`Not registered in generate_handler!: ${name}`);
-  if (!core.has(name)) problems.push(`Missing in crates/core/src/commands: ${name}`);
-}
-for (const name of bindings.keys()) {
-  if (!api.has(name)) problems.push(`Binding without an entry in api.ts: ${name}`);
-}
-for (const name of handlers) {
-  if (!api.has(name)) problems.push(`Registered, but not in api.ts: ${name}`);
-  if (!bindings.has(name)) problems.push(`Registered, but no binding: ${name}`);
-}
-const seen = new Set();
-for (const name of handlers) {
-  if (seen.has(name)) problems.push(`Registered twice: ${name}`);
-  seen.add(name);
+
+  for (const [name, keys] of api) {
+    if (!bindings.has(name)) problems.push(`Binding missing in src-tauri/src/commands.rs: ${name}`);
+    else {
+      const got = bindings.get(name);
+      const missing = keys.filter((key) => !got.includes(key));
+      const extra = got.filter((key) => !keys.includes(key));
+      if (missing.length || extra.length) {
+        problems.push(`Parameters differ for ${name}: api.ts [${keys.join(", ")}] / Rust [${got.join(", ")}]`);
+      }
+    }
+    if (!handlers.includes(name)) problems.push(`Not registered (table or hand_written list): ${name}`);
+    if (!core.has(name)) problems.push(`Missing in crates/core/src/commands: ${name}`);
+  }
+  for (const name of bindings.keys()) {
+    if (!api.has(name)) problems.push(`Binding without an entry in api.ts: ${name}`);
+  }
+  for (const name of handlers) {
+    if (!api.has(name)) problems.push(`Registered, but not in api.ts: ${name}`);
+    if (!bindings.has(name)) problems.push(`Registered, but no binding: ${name}`);
+  }
+  const seen = new Set();
+  for (const name of handlers) {
+    if (seen.has(name)) problems.push(`Registered twice: ${name}`);
+    seen.add(name);
+  }
+
+  // The error codes: Rust enum, TS union, errors.ts record and both locale files (scripts/error-codes.mjs).
+  problems.push(...compareErrorCodes(readErrorCodeSources(root)));
+
+  if (problems.length) {
+    console.error(`check-commands: ${problems.length} mismatch(es)`);
+    for (const problem of problems) console.error(`  - ${problem}`);
+    process.exit(1);
+  }
+  console.log(`check-commands: ${api.size} commands in api.ts, ${bindings.size} bindings, ${handlers.length} registered – no mismatches.`);
 }
 
-// The error codes: Rust enum, TS union, errors.ts record and both locale files (scripts/error-codes.mjs).
-problems.push(...compareErrorCodes(readErrorCodeSources(root)));
-
-if (problems.length) {
-  console.error(`check-commands: ${problems.length} mismatch(es)`);
-  for (const problem of problems) console.error(`  - ${problem}`);
-  process.exit(1);
-}
-console.log(`check-commands: ${api.size} commands in api.ts, ${bindings.size} bindings, ${handlers.length} registered – no mismatches.`);
+if (import.meta.url === pathToFileURL(process.argv[1]).href) main();

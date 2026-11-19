@@ -45,8 +45,9 @@ cargo test --workspace
 - `src-tauri` – a thin Tauri binding; one `#[tauri::command]` per core command.
 - `src` – the React UI. It never runs Git itself; it calls the core through `src/core`.
 
-A new or changed command touches four places: `src/core/api.ts`, `crates/core/src/commands/<area>.rs`,
-`src-tauri/src/commands.rs` and `src-tauri/src/lib.rs`. `npm run check:commands` verifies they match.
+A new or changed command touches three places: `src/core/api.ts`, `crates/core/src/commands/<area>.rs`
+and one line in the `commands! { … }` table in `src-tauri/src/commands.rs`. `npm run check:commands`
+verifies they match.
 
 A few rules the code relies on:
 

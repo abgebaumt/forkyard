@@ -37,7 +37,7 @@
     "test": "vitest run",
     "check:commands": "node scripts/check-commands.mjs",
     "check:case": "node scripts/check-case.mjs",
-    "test:scripts": "node --test scripts/error-codes.test.mjs",
+    "test:scripts": "node --test scripts/error-codes.test.mjs scripts/check-commands.test.mjs",
     "e2e:wd:prepare": "node e2e/prepare.mjs",
     "e2e:wd": "node e2e/run.mjs",
     "lint": "biome check",
