@@ -340,7 +340,7 @@ fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
     let Some(core) = window.try_state::<Core>() else { return };
     let core: Core = (*core).clone();
     let guard = core.state::<gitcore::commands::app::CloseGuard>();
-    if guard.intercept() {
+    if guard.intercept(window.label()) {
         api.prevent_close();
         core.events.emit(gitcore::events::names::APP_CLOSE_REQUESTED, serde_json::json!({}));
         return;

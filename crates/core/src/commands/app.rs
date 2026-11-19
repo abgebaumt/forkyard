@@ -1,5 +1,8 @@
 //! App information.
 
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use crate::app::Core;
 use crate::error::CoreResult;
 use crate::git::MIN_VERSION_TEXT;
@@ -35,23 +38,26 @@ pub async fn app_recheck_git(core: &Core) -> CoreResult<AppInfo> {
 }
 
 // ---------------------------------------------------------------------------
-// Closing the window
+// Closing windows
 // ---------------------------------------------------------------------------
 
-/// What applies when the window is closed. The UI reports via `app_close_guard` whether something
-/// would be lost (unsaved text in the editor, a running action); the window (src-tauri) asks here
-/// before it closes and otherwise sends `app:close_requested`.
+/// What applies when a window is closed. The UI of each window reports via `app_close_guard`
+/// whether something would be lost (unsaved text in the editor, a running action); the window
+/// (src-tauri) asks here before it closes and otherwise sends `app:close_requested`.
 #[derive(Default)]
 pub struct CloseGuard {
-    state: parking_lot::Mutex<CloseState>,
+    /// By window label.
+    windows: parking_lot::Mutex<HashMap<String, CloseState>>,
+    /// The user confirmed quitting (`app_quit`).
+    quitting: AtomicBool,
 }
 
 #[derive(Default)]
 struct CloseState {
     /// The UI has something to lose.
     active: bool,
-    /// The user confirmed quitting (`app_quit`).
-    quitting: bool,
+    /// The user confirmed closing this window (`window_close`).
+    closing: bool,
     /// When the UI was last asked without having reported back since.
     asked: Option<std::time::Instant>,
 }
@@ -61,12 +67,13 @@ struct CloseState {
 const CLOSE_ANSWER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
 
 impl CloseGuard {
-    /// For the window: `true` = do not close, let the UI ask instead.
-    pub fn intercept(&self) -> bool {
-        let mut state = self.state.lock();
-        if state.quitting || !state.active {
+    /// For the window `label`: `true` = do not close, let the UI ask instead.
+    pub fn intercept(&self, label: &str) -> bool {
+        if self.quitting() {
             return false;
         }
+        let mut windows = self.windows.lock();
+        let Some(state) = windows.get_mut(label).filter(|s| s.active && !s.closing) else { return false };
         if state.asked.is_some_and(|at| at.elapsed() > CLOSE_ANSWER_TIMEOUT) {
             // Already asked once, no reaction: the user can always get out of the app.
             return false;
@@ -75,9 +82,23 @@ impl CloseGuard {
         true
     }
 
+    /// Whether closing the window `label` is confirmed.
+    pub fn closing(&self, label: &str) -> bool {
+        self.windows.lock().get(label).is_some_and(|s| s.closing)
+    }
+
     /// Whether quitting is confirmed.
     pub fn quitting(&self) -> bool {
-        self.state.lock().quitting
+        self.quitting.load(Ordering::SeqCst)
+    }
+
+    pub(crate) fn set_closing(&self, label: &str) {
+        self.windows.lock().entry(label.to_string()).or_default().closing = true;
+    }
+
+    /// The window is gone; a later window with the same label (`main`) starts unguarded.
+    pub(crate) fn forget(&self, label: &str) {
+        self.windows.lock().remove(label);
     }
 }
 
@@ -89,11 +110,13 @@ pub async fn app_startup_report(core: &Core, report: crate::model::StartupReport
     Ok(())
 }
 
-/// The UI reports whether something would be lost when the window is closed. Every call also
-/// counts as a sign of life for an open request from the window.
+/// The calling window's UI reports whether something would be lost when it is closed. Every call
+/// also counts as a sign of life for an open request from the window.
 pub async fn app_close_guard(core: &Core, active: bool) -> CoreResult<()> {
+    let label = crate::commands::window::calling_window(core);
     let guard = core.state::<CloseGuard>();
-    let mut state = guard.state.lock();
+    let mut windows = guard.windows.lock();
+    let state = windows.entry(label).or_default();
     state.active = active;
     state.asked = None;
     Ok(())
@@ -103,18 +126,24 @@ pub async fn app_close_guard(core: &Core, active: bool) -> CoreResult<()> {
 /// Git process keeps running without the app and a half-finished clone gets cleaned up; then
 /// the window closes without another prompt.
 pub async fn app_quit(core: &Core) -> CoreResult<()> {
-    core.state::<CloseGuard>().state.lock().quitting = true;
+    core.state::<CloseGuard>().quitting.store(true, Ordering::SeqCst);
     stop_running_jobs(core).await;
     Ok(())
 }
 
 /// Cancels all running jobs and waits briefly until they have cleaned up.
 pub async fn stop_running_jobs(core: &Core) {
-    if core.jobs.cancel_all() == 0 {
+    let cancelled = core.jobs.cancel_all();
+    wait_until_stopped(cancelled, || core.jobs.running()).await;
+}
+
+/// After `cancelled` jobs were cancelled: waits up to 8 s until `running` is 0.
+pub(crate) async fn wait_until_stopped(cancelled: usize, running: impl Fn() -> usize) {
+    if cancelled == 0 {
         return;
     }
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(8);
-    while core.jobs.running() > 0 && std::time::Instant::now() < deadline {
+    while running() > 0 && std::time::Instant::now() < deadline {
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 }
@@ -124,24 +153,37 @@ mod tests {
     use super::*;
     use crate::testkit::TestCore;
 
+    const W: &str = "w-0123456789abcdef0123456789abcdef";
+
     /// The window closes without a prompt only when there is nothing to lose; a UI that does not
     /// answer does not hold the user captive.
     #[tokio::test]
     async fn close_guard_asks_only_when_there_is_something_to_lose() {
         let tc = TestCore::new().await;
         let guard = tc.state::<CloseGuard>();
-        assert!(!guard.intercept(), "without a report from the UI the window closes");
+        assert!(!guard.intercept("main"), "without a report from the UI the window closes");
         app_close_guard(&tc, true).await.unwrap();
-        assert!(guard.intercept(), "with unsaved work it asks");
-        assert!(guard.intercept(), "also on a second close right after");
+        assert!(guard.intercept("main"), "with unsaved work it asks");
+        assert!(guard.intercept("main"), "also on a second close right after");
         // The UI does not react: after the timeout the window closes anyway.
-        guard.state.lock().asked = Some(std::time::Instant::now() - CLOSE_ANSWER_TIMEOUT - std::time::Duration::from_secs(1));
-        assert!(!guard.intercept());
+        guard.windows.lock().get_mut("main").unwrap().asked =
+            Some(std::time::Instant::now() - CLOSE_ANSWER_TIMEOUT - std::time::Duration::from_secs(1));
+        assert!(!guard.intercept("main"));
         // A sign of life from the UI restores the protection.
         app_close_guard(&tc, true).await.unwrap();
-        assert!(guard.intercept());
+        assert!(guard.intercept("main"));
         app_quit(&tc).await.unwrap();
-        assert!(!guard.intercept() && guard.quitting(), "after confirmation it closes");
+        assert!(!guard.intercept("main") && guard.quitting(), "after confirmation it closes");
+    }
+
+    #[tokio::test]
+    async fn the_close_guard_is_per_window() {
+        let tc = TestCore::new().await;
+        let guard = tc.state::<CloseGuard>();
+        crate::windowing::scoped(W.into(), app_close_guard(&tc, true)).await.unwrap();
+        assert!(guard.intercept(W));
+        assert!(!guard.intercept("main"));
+        assert!(!guard.closing(W) && !guard.quitting());
     }
 
     #[tokio::test]

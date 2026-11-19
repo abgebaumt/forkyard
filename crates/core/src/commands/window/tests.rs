@@ -122,7 +122,7 @@ async fn without_remember_tabs_only_main_survives_a_restart() {
 // --- Window commands and lifecycle -------------------------------------------
 
 use super::*;
-use crate::commands::app::app_quit;
+use crate::commands::app::{app_close_guard, app_quit, CloseGuard};
 use crate::events::names;
 use crate::model::{ScreenPoint, ScreenRect, StripReport, WindowFrameInput};
 
@@ -431,4 +431,56 @@ async fn calls_without_a_window_act_in_the_last_focused_one() {
     assert!(tabs.iter().all(|t| t.window == W) && tabs.len() == 2, "no tab under a window without a row");
     note_focus(&tc, W);
     assert_eq!(calling_window(&tc), W);
+    let later = "w-ffffffffffffffffffffffffffffffff";
+    tc.db.tx(|tx| db::windows::insert(tx, &db::profiles::active_id(tx)?, later, None)).unwrap();
+    assert_eq!(calling_window(&tc), W);
+    note_focus(&tc, later);
+    assert_eq!(calling_window(&tc), later, "focus beats position");
+}
+
+/// A job started from `label` (`None`: in the background) that ends once it is cancelled, as a real one does.
+async fn job_in(tc: &TestCore, label: Option<&str>, id: &str) -> tokio::task::JoinHandle<()> {
+    let job = match label {
+        Some(label) => in_w(label, async { tc.start_job(id, None) }).await,
+        None => tc.start_job(id, None),
+    }
+    .unwrap();
+    tokio::spawn(async move {
+        job.token().cancelled().await;
+        job.finish::<()>(&Err(crate::error::CoreError::cancelled()));
+    })
+}
+
+#[tokio::test]
+async fn closing_a_window_cancels_only_the_jobs_it_started() {
+    let tc = TestCore::new().await;
+    add_window(&tc);
+    let a = job_in(&tc, Some("main"), "a").await;
+    let background = job_in(&tc, None, "bg").await;
+    let b = job_in(&tc, Some(W), "b").await;
+    in_w("main", app_close_guard(&tc, true)).await.unwrap();
+    in_w(W, app_close_guard(&tc, true)).await.unwrap();
+
+    assert!(!in_w(W, window_close(&tc)).await.unwrap());
+    assert!(!tc.jobs.is_running("b"), "W's job stopped before the window closes");
+    assert!(tc.jobs.is_running("a") && tc.jobs.is_running("bg"));
+    b.await.unwrap();
+    let guard = tc.state::<CloseGuard>();
+    assert!(guard.closing(W) && !guard.intercept(W), "W closes without asking again");
+    assert!(!guard.closing("main") && guard.intercept("main") && !guard.quitting());
+    tc.jobs.cancel_all();
+    a.await.unwrap();
+    background.await.unwrap();
+}
+
+#[tokio::test]
+async fn closing_the_last_window_quits() {
+    let tc = TestCore::new().await;
+    let a = job_in(&tc, Some("main"), "a").await;
+    let background = job_in(&tc, None, "bg").await;
+    assert!(in_w("main", window_close(&tc)).await.unwrap());
+    assert_eq!(tc.jobs.running(), 0);
+    a.await.unwrap();
+    background.await.unwrap();
+    assert!(tc.state::<CloseGuard>().quitting());
 }

@@ -1,10 +1,11 @@
 //! The window that called the current command. The binding wraps every command in `scoped`,
 //! so the core reads its caller without a parameter. Outside a scope (tests, start-up) there is none.
-//! Spawned tasks lose the scope, so jobs they start count as `main`.
+//! Spawned tasks lose the scope: jobs they start belong to no window, and commands act in the last
+//! focused one (`commands::window::calling_window`).
 
 use std::future::Future;
 
-/// Label of the first window. Jobs and calls without a scope belong to it.
+/// Label of the first window at start.
 pub const MAIN: &str = "main";
 
 tokio::task_local! {
@@ -19,11 +20,6 @@ pub async fn scoped<F: Future>(label: String, f: F) -> F::Output {
 /// The calling window, `None` outside a scope.
 pub fn caller() -> Option<String> {
     CALLER.try_with(Clone::clone).ok()
-}
-
-/// The calling window, `main` outside a scope.
-pub fn caller_or_main() -> String {
-    caller().unwrap_or_else(|| MAIN.to_string())
 }
 
 /// A fresh label for a further window: `w-` and 32 lowercase hex characters.
@@ -49,7 +45,6 @@ mod tests {
         })
         .await;
         assert_eq!(seen.as_deref(), Some("w-0123456789abcdef0123456789abcdef"));
-        assert_eq!(caller_or_main(), "main");
     }
 
     #[test]

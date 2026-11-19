@@ -7,7 +7,7 @@ use parking_lot::Mutex;
 use rusqlite::Connection;
 
 use crate::app::Core;
-use crate::commands::repos;
+use crate::commands::{app, repos};
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::events::names;
@@ -206,6 +206,22 @@ pub async fn window_layout(core: &Core, frames: Vec<WindowFrameInput>, cursor: O
     Ok(WindowLayout { frames, cursor, positions_known })
 }
 
+/// Closing the calling window is confirmed (or nothing would be lost). As the only window it quits
+/// the app (`app_quit`) and returns `true`. Otherwise it stops the jobs the window started, waits
+/// briefly until they have cleaned up and returns `false`; the window then closes without asking.
+pub async fn window_close(core: &Core) -> CoreResult<bool> {
+    let label = calling_window(core);
+    let only = core.db.with(|c| Ok(db::windows::list(c, &db::profiles::active_id(c)?)?.iter().all(|w| w.label == label)))?;
+    if only {
+        app::app_quit(core).await?;
+        return Ok(true);
+    }
+    core.state::<app::CloseGuard>().set_closing(&label);
+    let cancelled = core.jobs.cancel_from(&label);
+    app::wait_until_stopped(cancelled, || core.jobs.running_from(&label)).await;
+    Ok(false)
+}
+
 // --- For the binding ---------------------------------------------------------
 
 /// The windows of the active profile to open at start.
@@ -236,7 +252,9 @@ pub fn save_geometry(core: &Core, label: &str) {
 /// The window is gone. Unless the app is quitting or it was the last window, its row and tabs go too.
 pub fn window_closed(core: &Core, label: &str) {
     core.state::<Windows>().strips.lock().remove(label);
-    if core.state::<crate::commands::app::CloseGuard>().quitting() {
+    let guard = core.state::<app::CloseGuard>();
+    guard.forget(label);
+    if guard.quitting() {
         return;
     }
     let closed = core.db.tx(|tx| {
@@ -277,9 +295,12 @@ pub(crate) fn forget_geometry(core: &Core) {
 /// The window a command acts in: the caller, or for a call without one (tests, spawned tasks) the most
 /// recently focused window, so that no tab lands in a window without a row.
 pub fn calling_window(core: &Core) -> String {
-    windowing::caller().unwrap_or_else(|| {
-        core.db.with(|c| db::windows::fallback(c, &db::profiles::active_id(c)?)).unwrap_or_else(|_| windowing::MAIN.to_string())
-    })
+    windowing::caller().unwrap_or_else(|| last_focused(core))
+}
+
+/// The most recently focused window of the active profile (see `db::windows::fallback`).
+pub fn last_focused(core: &Core) -> String {
+    core.db.with(|c| db::windows::fallback(c, &db::profiles::active_id(c)?)).unwrap_or_else(|_| windowing::MAIN.to_string())
 }
 
 #[cfg(test)]

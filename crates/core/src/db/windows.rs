@@ -120,6 +120,13 @@ pub fn focus_order(conn: &Connection, profile_id: &str) -> CoreResult<Vec<String
     Ok(rows)
 }
 
+/// Whether any window of the profile ever had the focus.
+pub fn ever_focused(conn: &Connection, profile_id: &str) -> CoreResult<bool> {
+    let focused: Option<String> =
+        conn.query_row("select max(focused_at) from profile_windows where profile_id = ?1", [profile_id], |r| r.get(0))?;
+    Ok(focused.is_some())
+}
+
 /// The window an unscoped call acts in: the most recently focused one (never focused: the first by
 /// position), `main` when the profile has none yet.
 pub fn fallback(conn: &Connection, profile_id: &str) -> CoreResult<String> {
