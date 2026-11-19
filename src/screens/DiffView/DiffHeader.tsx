@@ -26,8 +26,8 @@ import { SegmentedControl } from "../../ui/Field";
 import { StatusBadge } from "../../ui/Git";
 import { Tip } from "../../ui/Tooltip";
 import { modeLabels } from "./actions";
-import { splitPath } from "./model";
 import { locale, t } from "../../i18n";
+import { splitPath } from "../../app/paths";
 
 export interface DiffHeaderProps {
   path: string;

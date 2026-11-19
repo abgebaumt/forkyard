@@ -12,18 +12,8 @@ import { Button } from "../../ui/Button";
 import { cn, laneColor } from "../../ui/cn";
 import { t } from "../../i18n";
 import { SUMMARY_LIMIT } from "../../core/limits";
-import {
-  SKIP,
-  brokenNeeds,
-  commitProblems,
-  peekOf,
-  splitPath,
-  unitDetail,
-  type Arrangement,
-  type Review,
-  type Selection,
-  type Units,
-} from "./model";
+import { SKIP, brokenNeeds, commitProblems, peekOf, unitDetail, type Arrangement, type Review, type Selection, type Units } from "./model";
+import { splitPath } from "../../app/paths";
 
 /** Movement from which a press becomes a drag (CSS pixels). */
 const DRAG_THRESHOLD = 4;

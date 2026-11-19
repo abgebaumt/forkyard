@@ -27,7 +27,6 @@ import {
   reproposed,
   selectOne,
   setTitle,
-  splitPath,
   stepTarget,
   summaryOf,
   toggleSelection,
@@ -304,8 +303,6 @@ describe("Compose views", () => {
       { kind: "remove", text: "return endOfDay(days);" },
       { kind: "add", text: "" },
     ]);
-    expect(splitPath("src/admin/accounts/mfa.ts")).toEqual({ dir: "src/admin/accounts/", name: "mfa.ts" });
-    expect(splitPath(".env.local")).toEqual({ dir: "", name: ".env.local" });
   });
 
   it("the summary counts commits, units, what stays and what is missing", () => {

@@ -52,6 +52,7 @@ import { blameLineMenu } from "./lineMenu";
 import { AGE_STEPS, ageColor, blameGutter, buildModel, initials, type BlameBlock, type BlameColorMode } from "./model";
 import { locale, t } from "../../i18n";
 import { writeClipboard } from "../../app/actions/clipboard";
+import { baseName } from "../../app/paths";
 
 export interface BlameViewProps {
   repoId: Id;
@@ -378,7 +379,7 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
   ];
 
   // --- Inhalt ----------------------------------------------------------------------------------
-  const name = path.slice(path.lastIndexOf("/") + 1);
+  const name = baseName(path);
   let body: ReactNode;
   if (query.isPending) {
     body = <CodeSkeleton label={t("blame.loading", { name })} gutter />;

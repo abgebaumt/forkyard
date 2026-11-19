@@ -12,6 +12,7 @@ import { runAction } from "../../app/run";
 import { withStatus } from "../../app/statusCache";
 import { toast } from "../../ui/Feedback";
 import { t } from "../../i18n";
+import { baseName } from "../../app/paths";
 
 /**
  * Which revision a row of the history shows. For a deleting commit the file no longer exists
@@ -32,7 +33,7 @@ export async function restoreVersion(repoId: Id, entry: FileHistoryEntry): Promi
   const version = versionOf(entry);
   if (!version.sha) return false;
   const sha = version.sha;
-  const name = version.path.slice(version.path.lastIndexOf("/") + 1);
+  const name = baseName(version.path);
   const status = await loadStatus(repoId).catch(() => undefined);
   const local = [...(status?.unstaged ?? []), ...(status?.staged ?? []), ...(status?.conflicted ?? [])].some(
     (file) => file.path === version.path,

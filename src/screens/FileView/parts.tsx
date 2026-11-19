@@ -10,11 +10,7 @@ import { cn } from "../../ui/cn";
 import { Tip } from "../../ui/Tooltip";
 import { backLabel, goBack, useBackTarget } from "./nav";
 import { t } from "../../i18n";
-
-export function splitPath(path: string): { dir: string; name: string } {
-  const slash = path.lastIndexOf("/");
-  return slash >= 0 ? { dir: path.slice(0, slash + 1), name: path.slice(slash + 1) } : { dir: "", name: path };
-}
+import { splitPath } from "../../app/paths";
 
 export function Divider() {
   return <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-border" />;

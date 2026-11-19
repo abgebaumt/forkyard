@@ -28,6 +28,7 @@ import {
   type Rgb,
   type Size,
 } from "./imageDiffModel";
+import { baseName } from "../../app/paths";
 
 type ImageDiff = Extract<FileDiff, { kind: "image" }>;
 /** Natural size; null while loading, "failed" if the browser cannot decode the picture. */
@@ -294,7 +295,7 @@ function DifferenceView({ oldUrl, newUrl, name }: { oldUrl: string; newUrl: stri
 // ---------------------------------------------------------------------------
 
 export function ImageDiffView({ diff }: { diff: ImageDiff }) {
-  const name = diff.path.slice(diff.path.lastIndexOf("/") + 1);
+  const name = baseName(diff.path);
   const hasOld = diff.oldDataUrl !== null;
   const hasNew = diff.newDataUrl !== null;
   const [wanted, setWanted] = useState<ImageMode>(loadImageMode);

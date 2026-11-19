@@ -10,6 +10,7 @@ import { getTabView, useAppStore } from "../store";
 import { cachedStatus, clip, clipMiddle, loadStatus } from "./context";
 import { abortOperation, operationNames } from "./merge";
 import { stashChanges } from "./stash";
+import { baseName } from "../paths";
 
 /**
  * If the centre shows the diff of a file from "Unstaged" or "Staged" that no longer exists there
@@ -126,7 +127,7 @@ export async function discardPaths(repoId: Id, paths: string[] | null, options: 
 /** Path for a dialog title: the full file name, preceded by as much of the path as fits ("…/nord/datei.py"). */
 export function fileNameForTitle(path: string, max = 48): string {
   if (path.length <= max) return path;
-  const name = path.slice(path.lastIndexOf("/") + 1);
+  const name = baseName(path);
   if (name.length >= max - 2) return clipMiddle(name, max);
   const room = max - name.length - 2;
   const dir = path.slice(0, path.length - name.length - 1);
@@ -170,7 +171,7 @@ function escapeIgnore(path: string): string {
 }
 
 const extensionOf = (path: string) => {
-  const name = path.slice(path.lastIndexOf("/") + 1);
+  const name = baseName(path);
   const dot = name.lastIndexOf(".");
   return dot > 0 ? name.slice(dot) : null;
 };

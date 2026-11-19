@@ -52,10 +52,11 @@ import { Avatar, StatusBadge } from "../../ui/Git";
 import type { MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
 import { goBack, showInGraph } from "../FileView/nav";
-import { BackButton, Divider, FileTitle, Tag, isPlainEscape, ownsKey, splitPath } from "../FileView/parts";
+import { BackButton, Divider, FileTitle, Tag, isPlainEscape, ownsKey } from "../FileView/parts";
 import { DiffView } from "../DiffView";
 import { restoreBusyKey, restoreVersion, versionOf } from "./actions";
 import { t } from "../../i18n";
+import { splitPath } from "../../app/paths";
 
 export interface FileHistoryProps {
   repoId: Id;

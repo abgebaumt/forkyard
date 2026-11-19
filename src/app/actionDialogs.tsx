@@ -22,6 +22,7 @@ import { ReleaseTargets } from "../screens/ReleaseNotes/Targets";
 import { useReleaseNotesAvailability } from "../screens/ReleaseNotes/useAvailability";
 import { useReleaseNotesWriter } from "../screens/ReleaseNotes/useWriter";
 import { ReleaseNotesWriter } from "../screens/ReleaseNotes/Writer";
+import { refNameIssue, type RefNameIssue } from "./paths";
 
 /** Spaces turn into "-" while typing (branch and tag names). */
 const dashed = (value: string) => value.replace(/\s/g, "-");
@@ -30,17 +31,21 @@ const dashed = (value: string) => value.replace(/\s/g, "-");
  * Checks only Git's spelling rules for a ref name (not whether it already exists) –
  * for names on the remote, which the core only sees at push time.
  */
+const refNameTexts = (): Record<RefNameIssue, string> => ({
+  space: t("app.actionDialogs.refName.chars"),
+  char: t("app.actionDialogs.refName.chars"),
+  doubleDot: t("app.actionDialogs.refName.doubleDot"),
+  atBrace: t("app.actionDialogs.refName.atBrace"),
+  leadingDash: t("app.actionDialogs.refName.leadingDash"),
+  slashes: t("app.actionDialogs.refName.slashes"),
+  trailingDot: t("app.actionDialogs.refName.trailingDot"),
+  dotOrLock: t("app.actionDialogs.refName.dotOrLock"),
+  reserved: t("app.actionDialogs.refName.reserved"),
+});
+
 export function refNameSyntaxError(name: string): string | null {
-  if (!name) return null;
-  if (/[\s~^:?*[\\]/.test(name) || /[\u0000-\u001f\u007f]/.test(name)) return t("app.actionDialogs.refName.chars");
-  if (name.includes("..")) return t("app.actionDialogs.refName.doubleDot");
-  if (name.includes("@{")) return t("app.actionDialogs.refName.atBrace");
-  if (name.startsWith("-")) return t("app.actionDialogs.refName.leadingDash");
-  if (name.startsWith("/") || name.endsWith("/") || name.includes("//")) return t("app.actionDialogs.refName.slashes");
-  if (name.endsWith(".")) return t("app.actionDialogs.refName.trailingDot");
-  if (name.split("/").some((part) => part.startsWith(".") || part.endsWith(".lock"))) return t("app.actionDialogs.refName.dotOrLock");
-  if (name === "@" || name === "HEAD") return t("app.actionDialogs.refName.reserved");
-  return null;
+  const issue = name ? refNameIssue(name)?.issue : undefined;
+  return issue ? refNameTexts()[issue] : null;
 }
 
 // ---------------------------------------------------------------------------

@@ -19,6 +19,7 @@ import { ContextMenu, type MenuEntry } from "../ui/Menu";
 import { cn } from "../ui/cn";
 import { SegmentedControl } from "../ui/Field";
 import { locale, t } from "../i18n";
+import { baseName, splitPath } from "../app/paths";
 
 /** Switch between flat list and folder tree, the same in every file panel. */
 export function FileLayoutSwitch({ value, onChange }: { value: FileListView; onChange: (view: FileListView) => void }) {
@@ -202,9 +203,6 @@ export function treeRows(files: FileChange[], toggled: ReadonlySet<string>, coll
 /** Events from portals (menus of the row action) bubble through the row in React – they do not belong to it. */
 const fromOutside = (event: { currentTarget: EventTarget; target: EventTarget }) =>
   !(event.currentTarget as Node).contains(event.target as Node) || (event.target as HTMLElement).closest?.("[data-row-action]") !== null;
-
-const baseName = (path: string) => path.slice(path.lastIndexOf("/") + 1);
-const dirName = (path: string) => (path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "");
 
 /** Indentation per level: three units of the spacing grid (12 px), as in the ref list. */
 const indent = (depth: number): CSSProperties | undefined =>
@@ -546,7 +544,7 @@ export function FileList({
     const lock = lockFor?.(file.path);
     const hasCounts = file.added !== null || file.removed !== null;
     const name = baseName(file.path);
-    const dir = tree ? "" : dirName(file.path);
+    const dir = tree ? "" : splitPath(file.path).dir;
     return (
       <div
         key={row.key}

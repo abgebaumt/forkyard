@@ -16,6 +16,7 @@ import { Banner, toast } from "../../ui/Feedback";
 import { Checkbox, TextField } from "../../ui/Field";
 import { describeError } from "../../app/errors";
 import { t } from "../../i18n";
+import { hostKindOf, refNameIssue } from "../../app/paths";
 
 // ---------------------------------------------------------------------------
 // Detect the host from the URL (only for the badge at the field; the core is authoritative)
@@ -48,13 +49,8 @@ export function detectHost(url: string): DetectedHost | null {
     if (scpLike) host = scpLike[1] ?? null;
   }
   if (!host?.includes(".")) return null;
-  const name = host.toLowerCase();
-  if (name === "github.com" || name.endsWith(".github.com")) return { kind: "github", label: hostNames.github };
-  if (name === "gitlab.com" || name.startsWith("gitlab.")) return { kind: "gitlab", label: hostNames.gitlab };
-  if (name === "bitbucket.org" || name.startsWith("bitbucket.")) return { kind: "bitbucket", label: hostNames.bitbucket };
-  if (name === "dev.azure.com" || name.endsWith(".dev.azure.com") || name.endsWith(".visualstudio.com"))
-    return { kind: "azure", label: hostNames.azure };
-  return { kind: "other", label: host };
+  const kind = hostKindOf(host.toLowerCase());
+  return { kind, label: kind === "other" ? host : hostNames[kind] };
 }
 
 function HostBadge({ host }: { host: DetectedHost | null }) {
@@ -84,9 +80,10 @@ function HostBadge({ host }: { host: DetectedHost | null }) {
 
 function checkName(name: string, others: string[]): string | null {
   if (!name) return t("remotes.validation.nameMissing");
-  if (/\s/.test(name)) return t("remotes.validation.nameSpaces");
-  if (/\.\.|[~^:?*[\\]|@\{/.test(name)) return t("remotes.validation.nameChars");
-  if (/^[-/.]|[/.]$|\.lock$|\/\//.test(name)) return t("remotes.validation.nameEdges");
+  const issue = refNameIssue(name)?.issue;
+  if (issue === "space") return t("remotes.validation.nameSpaces");
+  if (issue === "char" || issue === "doubleDot" || issue === "atBrace") return t("remotes.validation.nameChars");
+  if (issue && issue !== "reserved") return t("remotes.validation.nameEdges");
   if (others.includes(name)) return t("remotes.validation.nameExists", { name });
   return null;
 }

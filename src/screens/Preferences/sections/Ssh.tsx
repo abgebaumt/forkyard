@@ -18,6 +18,7 @@ import { Badge, GroupTitle, LoadError, Mono, SectionHeader, SettingRow } from ".
 import { applySettings } from "../settings";
 import { t } from "../../../i18n";
 import { writeClipboard } from "../../../app/actions/clipboard";
+import { baseName } from "../../CloneDialog/paths";
 
 const setKeys = (keys: SshKey[]) => queryClient.setQueryData(qk.sshKeys, keys);
 
@@ -29,8 +30,6 @@ export function keyType(publicKey: string): string | null {
   if (first.startsWith("sk-")) return t("preferences.ssh.securityKey");
   return first.replace(/^ssh-/, "").toUpperCase();
 }
-
-const baseName = (path: string) => path.split(/[\\/]/).pop() ?? path;
 
 async function copyPublicKey(key: SshKey) {
   if (!key.publicKey) {

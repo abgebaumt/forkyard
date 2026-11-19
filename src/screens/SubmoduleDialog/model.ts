@@ -55,12 +55,6 @@ export function moveTargetProblem(raw: string, submodule: Pick<Submodule, "path"
   return pathProblem(raw, all);
 }
 
-/** Last part of the path and the folder before it (with slash), for "name first, folder dimmed". */
-export function splitPath(path: string): { name: string; dir: string } {
-  const index = path.lastIndexOf("/");
-  return index < 0 ? { name: path, dir: "" } : { name: path.slice(index + 1), dir: path.slice(0, index + 1) };
-}
-
 /** Second line: state as a word, followed by the commit. */
 export function submoduleSecondary(submodule: Submodule): string {
   const state = submoduleStateText[submodule.state];

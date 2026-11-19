@@ -11,11 +11,7 @@ import { StatusBadge } from "../../ui/Git";
 import { Tip } from "../../ui/Tooltip";
 import { t } from "../../i18n";
 import { Trans } from "react-i18next";
-
-export function splitPath(path: string): { dir: string; name: string } {
-  const slash = path.lastIndexOf("/");
-  return slash === -1 ? { dir: "", name: path } : { dir: path.slice(0, slash + 1), name: path.slice(slash + 1) };
-}
+import { splitPath } from "../../app/paths";
 
 export function Divider() {
   return <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-border" />;

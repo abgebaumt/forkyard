@@ -7,6 +7,7 @@ import { qk, queryClient } from "../../app/queries";
 import { runAction, type ActionResult } from "../../app/run";
 import { enqueueWrite } from "../../app/writeQueue";
 import { t } from "../../i18n";
+import { refNameIssue } from "../../app/paths";
 
 /** Errors shown at the field itself and therefore not raising a toast. */
 const FIELD_ERRORS: ErrorCode[] = ["invalid_name", "not_allowed", "name_exists"];
@@ -86,8 +87,9 @@ export function checkEmail(value: string): string | null {
 /** Rough pre-check of a branch name; the core has the final word. */
 export function checkBranchName(value: string): string | null {
   if (!value) return t("preferences.check.branchEmpty");
-  if (/\s/.test(value)) return t("preferences.check.branchSpaces");
-  if (/\.\.|[~^:?*[\\]|@\{/.test(value)) return t("preferences.check.branchChars");
-  if (/^[-/.]|[/.]$|\.lock$|\/\//.test(value)) return t("preferences.check.branchEdges");
+  const issue = refNameIssue(value)?.issue;
+  if (issue === "space") return t("preferences.check.branchSpaces");
+  if (issue === "char" || issue === "doubleDot" || issue === "atBrace") return t("preferences.check.branchChars");
+  if (issue && issue !== "reserved") return t("preferences.check.branchEdges");
   return null;
 }

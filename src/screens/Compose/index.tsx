@@ -65,7 +65,6 @@ import {
   reproposed,
   selectOne,
   setTitle,
-  splitPath,
   stepTarget,
   summaryOf,
   toggleSelection,
@@ -74,6 +73,7 @@ import {
   type Review,
   type Selection,
 } from "./model";
+import { splitPath } from "../../app/paths";
 
 type Request =
   | { kind: "idle" }

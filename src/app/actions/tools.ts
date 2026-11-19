@@ -10,8 +10,7 @@ import { describeError } from "../errors";
 import { runAction } from "../run";
 import { useAppStore } from "../store";
 import { clip } from "./context";
-
-const fileName = (path: string) => path.slice(path.lastIndexOf("/") + 1);
+import { baseName } from "../paths";
 
 function explain(title: string, error: unknown) {
   toast({
@@ -39,7 +38,7 @@ export async function openDiffTool(repoId: Id, path: string, source: DiffSource)
     toast({
       tone: "info",
       title: t("actions.tools.diffStarted"),
-      description: t("actions.tools.diffStartedDescription", { name: clip(fileName(path), 48) }),
+      description: t("actions.tools.diffStartedDescription", { name: clip(baseName(path), 48) }),
     });
   else if (result.error.code === "not_found") explain(t("actions.tools.diffFailed"), result.error);
   return result;
@@ -55,7 +54,7 @@ export async function openMergeTool(repoId: Id, path: string) {
     toast({
       tone: "info",
       title: t("actions.tools.mergeStarted"),
-      description: t("actions.tools.mergeStartedDescription", { name: clip(fileName(path), 48) }),
+      description: t("actions.tools.mergeStartedDescription", { name: clip(baseName(path), 48) }),
     });
   else if (result.error.code === "not_found") explain(t("actions.tools.mergeFailed"), result.error);
   return result;

@@ -12,8 +12,8 @@ import { withStatus } from "../../app/statusCache";
 import { getTabView, setCenterGuard, useAppStore } from "../../app/store";
 import { toast } from "../../ui/Feedback";
 import { dropSession } from "./session";
-import { splitPath } from "./parts";
 import { t } from "../../i18n";
+import { splitPath } from "../../app/paths";
 
 export const resolveBusyKey = (repoId: Id, path: string) => busyKeys.write(repoId, `conflict:${path}`);
 

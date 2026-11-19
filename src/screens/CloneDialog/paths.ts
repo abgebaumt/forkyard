@@ -3,6 +3,7 @@
  * folder exists is known only to the core.
  */
 import { t } from "../../i18n";
+import { refNameIssue } from "../../app/paths";
 
 const isWindowsPath = (path: string) => /^[A-Za-z]:/.test(path) || path.startsWith("\\\\") || (path.includes("\\") && !path.includes("/"));
 
@@ -80,15 +81,26 @@ export const MAX_NAME_LENGTH = 255;
 
 /** Rough check of a branch name while typing; Git does the exact one. */
 export function branchNameError(name: string): string | null {
-  if (!name) return null;
-  if (/\s/.test(name)) return t("clone.branchName.spaces");
-  if (name.startsWith("-")) return t("clone.branchName.dash");
-  const bad = /[~^:?*[\\]/.exec(name);
-  if (bad) return t("clone.branchName.char", { char: bad[0] });
-  if (name.includes("..") || name.includes("@{")) return t("clone.branchName.sequence");
-  if (name.startsWith("/") || name.endsWith("/") || name.includes("//")) return t("clone.branchName.slashes");
-  if (name.endsWith(".") || name.endsWith(".lock")) return t("clone.branchName.ending");
-  return null;
+  const found = name ? refNameIssue(name) : null;
+  switch (found?.issue) {
+    case undefined:
+    case "reserved":
+      return null;
+    case "space":
+      return t("clone.branchName.spaces");
+    case "leadingDash":
+      return t("clone.branchName.dash");
+    case "char":
+      return t("clone.branchName.char", { char: found.char });
+    case "doubleDot":
+    case "atBrace":
+      return t("clone.branchName.sequence");
+    case "slashes":
+      return t("clone.branchName.slashes");
+    case "trailingDot":
+    case "dotOrLock":
+      return t("clone.branchName.ending");
+  }
 }
 
 const PARENT_KEY = "gc.repoParent";

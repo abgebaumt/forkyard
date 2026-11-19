@@ -13,6 +13,7 @@ import { busyKeys } from "./keys";
 import { openFromOtherProfile } from "./otherProfile";
 import { switchProfile } from "./profiles";
 import type { ActionResult } from "../run";
+import { baseName } from "../paths";
 
 const setTabs = (tabs: Tab[]) => queryClient.setQueryData(qk.tabs, tabs);
 
@@ -104,7 +105,7 @@ export async function closeTab(tabId: Id) {
     const answer = await choose({
       title: single
         ? t("actions.repos.unsaved.titleOne", {
-            name: clip((unsaved[0]?.path ?? "").slice((unsaved[0]?.path ?? "").lastIndexOf("/") + 1), 40),
+            name: clip(baseName(unsaved[0]?.path ?? ""), 40),
           })
         : t("actions.repos.unsaved.titleMany", { count: unsaved.length }),
       description: t("actions.repos.unsaved.description"),
