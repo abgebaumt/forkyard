@@ -155,6 +155,17 @@ export function leaveGraphEdit(tabId: Id, notice?: "stale"): void {
   if (notice === "stale") toast({ tone: "info", title: t("commitGraph.edit.ended") });
 }
 
+/**
+ * Hands the edit over to the rebase tool: the rows are taken from the store and the edit (with its centre guard)
+ * ends first, so opening the tool asks nothing and nothing is lost.
+ */
+export function openGraphEditInTool(tabId: Id): void {
+  const edit = graphEditOf(tabId);
+  if (!edit) return;
+  leaveGraphEdit(tabId);
+  useAppStore.getState().openRebase(tabId, edit.plan.base, "interactive", [], { rows: edit.state.rows });
+}
+
 /** Whether any tab has unapplied history edits – also tabs whose graph is not mounted (and so not guarding the centre). */
 export function hasDirtyGraphEdit(): boolean {
   return Object.keys(useGraphEdit.getState().byTab).some((tabId) => guardFor(tabId).dirty());

@@ -3,7 +3,7 @@ import type { RebasePlan, RebasePlanRow } from "../../core";
 import { t } from "../../i18n";
 import type { OkPlan } from "./apply";
 import { qk, queryClient } from "../queries";
-import { hasDirtyCenter, setCenterGuard } from "../store";
+import { getTabView, hasDirtyCenter, setCenterGuard } from "../store";
 import { editStart, toggleDrop } from "./gestures";
 import {
   confirmLeaveGraphEdit,
@@ -14,6 +14,7 @@ import {
   hasDirtyGraphEdit,
   leaveAllGraphEdits,
   leaveGraphEdit,
+  openGraphEditInTool,
   registerEditGuard,
   staleAfter,
   updateGraphEdit,
@@ -105,5 +106,16 @@ describe("graph edit", () => {
     leaveAllGraphEdits();
     expect(hasDirtyGraphEdit()).toBe(false);
     expect(graphEditOf("t3")).toBeNull();
+  });
+  it("hands a dirty edit to the rebase tool without the discard question", async () => {
+    queryClient.setQueryData(qk.rebaseBranchPlan("r", null), okPlan(["a", "b"]));
+    await enterGraphEdit("r", "t4", { sha: "a" });
+    updateGraphEdit("t4", (edit) => ({ ...edit, state: toggleDrop(edit.state, "a") }));
+    registerEditGuard("t4");
+    const rows = graphEditOf("t4")!.state.rows;
+    openGraphEditInTool("t4");
+    expect(graphEditOf("t4")).toBeNull();
+    expect(hasDirtyCenter()).toBe(false);
+    expect(getTabView("t4").center).toMatchObject({ kind: "rebase", base: "base", mode: "interactive", rows });
   });
 });

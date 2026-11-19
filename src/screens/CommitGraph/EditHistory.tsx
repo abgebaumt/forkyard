@@ -30,6 +30,7 @@ import {
   type GraphEdit,
   graphEditOf,
   leaveGraphEdit,
+  openGraphEditInTool,
   staleAfter,
   updateGraphEdit,
 } from "../../app/rebasePlan/graphEdit";
@@ -45,7 +46,7 @@ import {
   shownSummary,
   splitMessage,
 } from "../../app/rebasePlan/model";
-import { useAppStore, useBusy } from "../../app/store";
+import { useBusy } from "../../app/store";
 import { keyBelongsToView, viewMayTakeFocus } from "../../app/viewFocus";
 import { ReorderList } from "../../components/ReorderList";
 import { t } from "../../i18n";
@@ -91,9 +92,14 @@ function RewordField({ initial, onDone }: { initial: string; onDone: (summary: s
       value={value}
       onChange={(event) => setValue(event.target.value)}
       onKeyDown={(event) => {
-        // Keys here belong to the field, not to the list around it.
+        // Ctrl+Enter commits the field and travels on to the view, which applies.
+        if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+          finish(value, true);
+          return;
+        }
+        // Other keys belong to the field, not to the list around it.
         event.stopPropagation();
-        if (event.key === "Enter" && !event.ctrlKey && !event.metaKey) {
+        if (event.key === "Enter") {
           event.preventDefault();
           finish(value, true);
         } else if (event.key === "Escape") {
@@ -169,7 +175,8 @@ export function EditHistory({ repoId, tabId, edit, flat }: { repoId: Id; tabId: 
   const apply = async () => {
     // Read the edit fresh: an inline field may have just applied its text on blur.
     const current = graphEditOf(tabId);
-    if (!current || applying || busy || blocked) return;
+    if (!current || applying || busy) return;
+    if (checkPlan(current.state.rows, current.plan.rows).blocked || dirtyWorktree) return;
     setApplying(true);
     try {
       const result = await applyRebasePlan(repoId, tabId, current.plan, payloadRows(current.state.rows), {
@@ -312,14 +319,7 @@ export function EditHistory({ repoId, tabId, edit, flat }: { repoId: Id; tabId: 
           <Button size="sm" variant="ghost" data-edit-discard="" onClick={() => void confirmLeaveGraphEdit(tabId)}>
             {t("commitGraph.edit.discard")}
           </Button>
-          <Button
-            size="sm"
-            data-edit-open-tool=""
-            onClick={() => {
-              useAppStore.getState().openRebase(tabId, plan.base, "interactive", [], { rows });
-              leaveGraphEdit(tabId);
-            }}
-          >
+          <Button size="sm" data-edit-open-tool="" onClick={() => openGraphEditInTool(tabId)}>
             {t("commitGraph.edit.openTool")}
           </Button>
           {dirtyWorktree ? (
@@ -327,6 +327,7 @@ export function EditHistory({ repoId, tabId, edit, flat }: { repoId: Id; tabId: 
               {t("ui.stashChanges")}
             </Button>
           ) : null}
+          {/* View-local on purpose: the chord is wip.commit's, and this view consumes it (preventDefault) while it is shown. */}
           <Tip label={blocked ?? t("commitGraph.edit.apply")} shortcut={blocked ? undefined : "Mod+Enter"}>
             <Button
               size="sm"
