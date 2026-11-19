@@ -33,8 +33,7 @@ import { allThrough, resultLines } from "../../screens/PushDialog/model";
 import { reviewFirst } from "../../screens/PushCheck/model";
 import { showPushReview, type ReviewTarget } from "../../screens/PushCheck/ReviewDialog";
 import { confirmSend } from "../ai/gate";
-import { openAiSetup } from "../ai/open";
-import { aiVisibility } from "../ai/visibility";
+import { checkProvider } from "../ai/checkProvider";
 
 export const pullModeLabels: Record<PullMode, string> = {
   ff: t("actions.sync.pullMode.ff"),
@@ -429,11 +428,8 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
  */
 export async function reviewAndPush(repoId: Id, options: PushOptions = {}): Promise<ActionResult<PushResult> | null> {
   const { status } = await reviewContext(repoId);
-  if (aiVisibility(status).elementsOpenSetup) {
-    // AI on without a provider: the element is visible, a click opens 1b's setup dialog.
-    void openAiSetup();
-    return null;
-  }
+  // AI on without a provider: the element is visible, a click opens 1b's setup dialog.
+  if (!checkProvider(status)) return null;
   const branch = options.branch ?? null;
   let target: ReviewTarget = { branch, remote: options.remote ?? null, remoteBranch: options.remoteBranch ?? null };
   const preview = () =>

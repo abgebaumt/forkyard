@@ -13,7 +13,7 @@ import { cachedAiStatus } from "../../app/actions/context";
 import { shortSha } from "../../app/format";
 import { signInInTerminal } from "../../app/ai/cliLogin";
 import { openAiSetup } from "../../app/ai/open";
-import { aiVisibility } from "../../app/ai/visibility";
+import { checkProvider } from "../../app/ai/checkProvider";
 import { showDialog } from "../../app/dialogs";
 import { useAiStatus, useReleaseNotesRange } from "../../app/queries";
 import { isCli } from "../Preferences/ai/model";
@@ -27,10 +27,7 @@ import { ReleaseNotesWriter } from "./Writer";
 export type ReleaseNotesSubject = { kind: "tag"; name: string } | { kind: "commit"; sha: Sha };
 
 export function openReleaseNotes(repoId: Id, subject: ReleaseNotesSubject): Promise<void> {
-  if (aiVisibility(cachedAiStatus()).elementsOpenSetup) {
-    void openAiSetup();
-    return Promise.resolve();
-  }
+  if (!checkProvider(cachedAiStatus())) return Promise.resolve();
   return showDialog<null>((done) => <ReleaseNotesDialog repoId={repoId} subject={subject} onDone={done} />).then(() => undefined);
 }
 
