@@ -26,6 +26,7 @@
   "notifyOnFetch": false,
   "notifyOnError": true,
   "checkForUpdates": true,
+  "conflictShowBase": false,
   "agentTemplates": [],
   "sshUseAgent": true,
   "proxyUrl": null,

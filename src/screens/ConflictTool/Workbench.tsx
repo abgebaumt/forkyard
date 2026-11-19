@@ -23,7 +23,7 @@ import {
 import type { ConflictFile, Id } from "../../core";
 import { aiVisibility, featureVisible } from "../../app/ai/visibility";
 import { choose, confirm } from "../../app/dialogs";
-import { useAiStatus, useRepoSettings } from "../../app/queries";
+import { useAiStatus, useRepoSettings, useSettings } from "../../app/queries";
 import { setCenterGuard, useBusy, type CenterGuard } from "../../app/store";
 import { useLineTokens } from "../../components/code/highlight";
 import { codeVars, useCodeSettings } from "../../components/code/settings";
@@ -31,9 +31,10 @@ import { Button, IconButton } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { SegmentedControl } from "../../ui/Field";
 import { Tip } from "../../ui/Tooltip";
-import { resolveBusyKey, resolveConflict } from "./actions";
+import { resolveBusyKey, resolveConflict, saveShowBase } from "./actions";
 import {
   buildModel,
+  baseColumn,
   buildRows,
   chunkText,
   detectEol,
@@ -121,7 +122,6 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
 
   // --- Modell -------------------------------------------------------------------------
   const model = useMemo(() => buildModel(base, ours, theirs), [base, ours, theirs]);
-  const rowModel = useMemo(() => buildRows(model), [model]);
   const labels = useMemo(
     () => ({ ours: file.oursLabel.trim() || "ours", theirs: file.theirsLabel.trim() || "theirs" }),
     [file.oursLabel, file.theirsLabel],
@@ -475,6 +475,17 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
   }, []);
   const [shownSide, setShownSide] = useState<Side>("ours");
   const single: Side | null = wide ? null : shownSide;
+  const { data: settings } = useSettings();
+  const baseView = baseColumn({ setting: settings?.conflictShowBase ?? false, hasBase: model.hasBase, wide });
+  const rowModel = useMemo(() => buildRows(model, baseView.shown), [model, baseView.shown]);
+  // The rows change with the column: keep the current conflict in view.
+  const baseShownBefore = useRef(baseView.shown);
+  useLayoutEffect(() => {
+    if (baseShownBefore.current === baseView.shown) return;
+    baseShownBefore.current = baseView.shown;
+    const id = model.conflicts[current];
+    if (id !== undefined) sides.current?.revealChunk(id, {});
+  }, [baseView.shown, model, current]);
 
   const [split, setSplitState] = useState(storedSplit);
   const setSplit = (value: number) => {
@@ -510,7 +521,7 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
     if (!active || active === document.body || container.current?.closest("[data-screen]")?.contains(active)) sides.current?.focus();
   }, []);
 
-  const tokens = { ours: useLineTokens(path, ours), theirs: useLineTokens(path, theirs) };
+  const tokens = { ours: useLineTokens(path, ours), base: useLineTokens(path, base ?? ""), theirs: useLineTokens(path, theirs) };
 
   // --- Intent -----------------------------------------------------
   const { data: aiStatus } = useAiStatus();
@@ -653,6 +664,28 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
               icon={<RotateCcw className="size-icon" aria-hidden />}
               onClick={() => void reset()}
             />
+            <Divider />
+            <Tip
+              label={
+                baseView.disabled === "noBase"
+                  ? t("conflict.base.unavailable")
+                  : baseView.disabled === "narrow"
+                    ? t("conflict.base.tooNarrow")
+                    : t("conflict.base.toggleTip")
+              }
+            >
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-pressed={baseView.shown}
+                disabled={baseView.disabled !== null}
+                data-base-toggle=""
+                className={baseView.shown ? "bg-surface-raised" : undefined}
+                onClick={() => void saveShowBase(!baseView.shown)}
+              >
+                {t("conflict.base.toggle")}
+              </Button>
+            </Tip>
             {intentAvailable ? (
               <>
                 <Divider />
@@ -729,8 +762,13 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
                 </Button>
               </div>
             ) : (
-              <div className="grid shrink-0 grid-cols-2 border-b border-border bg-surface">
+              <div className={cn("grid shrink-0 border-b border-border bg-surface", baseView.shown ? "grid-cols-3" : "grid-cols-2")}>
                 {sideHeading("ours", true)}
+                {baseView.shown ? (
+                  <div className="flex h-control-lg min-w-0 items-center border-l border-border pr-1 pl-3" data-side-heading="base">
+                    <h3 className="m-0 min-w-0 truncate text-sm font-medium text-text">{t("conflict.base.heading")}</h3>
+                  </div>
+                ) : null}
                 <div className="min-w-0 border-l border-border">{sideHeading("theirs", true)}</div>
               </div>
             )}
@@ -745,6 +783,7 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
                 single={single}
                 onSingleChange={setShownSide}
                 code={code}
+                showBase={baseView.shown}
                 tokens={tokens}
                 onToggleSide={onToggleSide}
                 onToggleLine={onToggleLine}

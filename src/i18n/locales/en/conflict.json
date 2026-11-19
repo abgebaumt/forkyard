@@ -191,7 +191,15 @@
   },
   "sides": {
     "single": "{{side}} – lines to take",
-    "both": "{{ours}} and {{theirs}} side by side"
+    "both": "{{ours}} and {{theirs}} side by side",
+    "withBase": "{{ours}}, base and {{theirs}} side by side"
+  },
+  "base": {
+    "toggle": "Show base",
+    "toggleTip": "Show the common ancestor between both sides",
+    "heading": "Base (common ancestor)",
+    "unavailable": "No base: both sides created this file.",
+    "tooNarrow": "The base needs the side-by-side layout – make the window wider."
   },
   "intent": {
     "toggleTip": "Show or hide the column that explains what both sides wanted",
