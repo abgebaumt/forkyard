@@ -17,7 +17,7 @@ mod tests;
 
 pub use locate::{GitInfo, MIN_VERSION, MIN_VERSION_TEXT};
 pub use netconfig::compose_ssh_command;
-pub use runner::{parse_progress, GitCmd, GitOutput, GitRunner, LineFn, RecordFn, NETWORK_IDLE_TIMEOUT, NETWORK_TIMEOUT};
+pub use runner::{parse_progress, GitCmd, GitOutput, GitRecordStream, GitRunner, LineFn, RecordFn, NETWORK_IDLE_TIMEOUT, NETWORK_TIMEOUT};
 
 /// `git apply` that neither warns about nor fixes whitespace, whatever the user's configuration says.
 pub const GIT_APPLY: [&str; 6] = ["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--whitespace=nowarn"];
