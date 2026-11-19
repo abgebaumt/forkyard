@@ -5,7 +5,8 @@
  */
 import { t } from "../../i18n";
 import { core, type GitflowKind, type Tab } from "../../core";
-import { cachedGitflow, gitflowBranch, kindLabels, loadGitflow } from "../../screens/Gitflow/actions";
+import { cachedGitflow, gitflowBranch, loadGitflow } from "../../screens/Gitflow/actions";
+import { kindLabels } from "../../screens/Gitflow/model";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
 import { qk, queryClient } from "../queries";
 import { openGitflow, openGitflowFinish } from "../../screens/Gitflow";
