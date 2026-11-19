@@ -12,17 +12,17 @@
  */
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { GitCommitHorizontal } from "lucide-react";
-import { core, type AiPreview, type AiStatus, type ComposeKeep, type ComposeNote, type ComposeState, type Id } from "../../core";
-import { confirmSend } from "../../app/ai/gate";
-import { showAiPreview } from "../../app/ai/PreviewDialog";
+import { core, type AiStatus, type ComposeKeep, type ComposeNote, type ComposeState, type Id } from "../../core";
+import { AiErrorNotice } from "../../app/ai/AiErrorNotice";
+import { askAi, showWhatIsSent } from "../../app/ai/gate";
 import { checkProvider } from "../../app/ai/checkProvider";
-import { errorView, loadingView, type AiErrorView } from "../../app/ai/requestState";
+import { useAiJob } from "../../app/ai/useAiJob";
 import { undo } from "../../app/actions/undo";
 import { confirm, hasOpenDialog } from "../../app/dialogs";
 import { describeError, toCoreError } from "../../app/errors";
 import { hasOpenMenu } from "../../app/menus/host";
 import { qk, queryClient, useAiStatus, useRepoSettings } from "../../app/queries";
-import { newJobId, runAction } from "../../app/run";
+import { newJobId } from "../../app/run";
 import { setCenterGuard, useAppStore, type CenterGuard } from "../../app/store";
 import { viewMayTakeFocus } from "../../app/viewFocus";
 import { Button } from "../../ui/Button";
@@ -39,7 +39,6 @@ import { CommitList } from "./CommitList";
 import { Detail } from "./Detail";
 import { FileMatrix } from "./FileMatrix";
 import { History } from "./History";
-import { RequestError } from "./RequestError";
 import {
   SKIP,
   blockedReason,
@@ -74,12 +73,6 @@ import {
 } from "./model";
 import { splitPath } from "../../app/paths";
 
-type Request =
-  | { kind: "idle" }
-  | { kind: "loading"; jobId: string; startedAt: number; instruction: string | null }
-  | { kind: "failed"; error: AiErrorView }
-  | { kind: "done"; enough: boolean };
-
 const EMPTY: Arrangement = { skip: [], commits: [] };
 const NO_REVIEW: Review = { pinned: new Set(), confirmed: new Set() };
 /** How long a notice under the list stays. */
@@ -110,9 +103,10 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const [moved, setMoved] = useState<ReadonlySet<string>>(new Set());
   const [notice, setNotice] = useState<{ text: string; id: number } | null>(null);
   const dirty = useRef(false);
-  const [request, setRequestState] = useState<Request>({ kind: "idle" });
-  const requestRef = useRef<Request>({ kind: "idle" });
-  const [now, setNow] = useState(() => Date.now());
+  /** The instruction of the running request (for the loading text); "enough": the answer was one commit. */
+  const [asked, setAsked] = useState<string | null>(null);
+  const [enough, setEnough] = useState(false);
+  const job = useAiJob(aiStatus?.local ?? false, asked ? t("wip.compose.proposingFor", { text: asked }) : t("wip.compose.proposing"));
   const [outdated, setOutdated] = useState(false);
   const [skipHooks, setSkipHooks] = useState(wip.skipHooks);
   const [instruction, setInstruction] = useState("");
@@ -123,10 +117,6 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const units = useMemo(() => new Map((state?.units ?? []).map((unit) => [unit.id, unit])), [state]);
   const unsure = useMemo(() => new Set(unsureUnits(arrangement, notes, review)), [arrangement, notes, review]);
 
-  const setRequest = (next: Request) => {
-    requestRef.current = next;
-    setRequestState(next);
-  };
   const show = (next: ComposeState) => {
     stateRef.current = next;
     setState(next);
@@ -192,76 +182,55 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
 
   /** `again`: the user asked for a new proposal (with or without an instruction). */
   const propose = async (text: string | null, again = text !== null) => {
-    if (requestRef.current.kind === "loading") return;
+    if (job.busy()) return;
     if (!checkProvider(queryClient.getQueryData<AiStatus>(qk.aiStatus))) return;
     const keep: ComposeKeep[] = keepOf(arrangementRef.current, reviewRef.current.pinned);
-    let preview: AiPreview;
-    try {
-      preview = await core.aiPreview({ repoId, feature: "compose", input: { kind: "compose", instruction: text, keep }, locale: locale() });
-    } catch (error) {
-      setRequest({ kind: "failed", error: errorView(error) });
-      return;
-    }
-    if (!(await confirmSend(repoId, "compose", preview))) {
-      setRequest({ kind: "idle" });
-      return;
-    }
-    const jobId = newJobId();
-    setRequest({ kind: "loading", jobId, startedAt: Date.now(), instruction: text });
-    try {
-      // The units placed meanwhile go along as well: they stay where the user put them.
-      const proposal = await core.composeProposal({
-        repoId,
-        jobId,
-        locale: locale(),
-        instruction: text,
-        keep: keepOf(arrangementRef.current, reviewRef.current.pinned),
-      });
-      const current = requestRef.current as Request;
-      // Cancelled or replaced meanwhile: the answer is dropped – there are no half results.
-      if (current.kind !== "loading" || current.jobId !== jobId) return;
-      show(proposal.state);
-      const ids = new Set(proposal.state.units.map((unit) => unit.id));
-      const pinned = new Set([...reviewRef.current.pinned].filter((id) => ids.has(id)));
-      const nextOrder = orderOf(proposal.state.units);
-      const fresh = fromProposal(proposal.state.units, proposal.groups);
-      const merged = reproposed(fresh, refreshed(arrangementRef.current, proposal.state.units), pinned, nextOrder);
-      arrange(merged, false);
-      dirty.current = pinned.size > 0;
-      setOriginal(fresh);
-      setNotes(notesOf(proposal.notes));
-      setReview({ pinned, confirmed: new Set() });
-      keepSelection(ids);
-      if (!selectionRef.current.cursor) {
-        const first = nextUnsure(merged, notesOf(proposal.notes), { pinned, confirmed: new Set() }, null) ?? displayOrder(merged)[0];
-        if (first) setSelection(selectOne(emptySelection, first));
-      }
-      setRequest({ kind: "done", enough: proposal.groups.length === 1 && pinned.size === 0 });
-      if (again) say(pinned.size > 0 ? t("wip.compose.reproposedKept", { count: pinned.size }) : t("wip.compose.reproposed"));
-      if (again) setInstruction("");
-    } catch (error) {
-      const current = requestRef.current as Request;
-      if (current.kind !== "loading" || current.jobId !== jobId) return;
-      const failed = errorView(error);
-      setRequest(failed.kind === "cancelled" ? { kind: "idle" } : { kind: "failed", error: failed });
-    }
-  };
-
-  const cancelRequest = () => {
-    const current = requestRef.current;
-    if (current.kind !== "loading") return;
-    setRequest({ kind: "idle" });
-    void core.jobCancel({ jobId: current.jobId });
-  };
-
-  const whatIsSent = async () => {
-    const keep = keepOf(arrangementRef.current, reviewRef.current.pinned);
-    const text = instruction.trim() || null;
-    const result = await runAction(t("ai.preview.loading"), () =>
-      core.aiPreview({ repoId, feature: "compose", input: { kind: "compose", instruction: text, keep }, locale: locale() }),
+    const proposal = await job.start(
+      (jobId) => {
+        setAsked(text);
+        setEnough(false);
+        // The units placed meanwhile go along as well: they stay where the user put them.
+        return core.composeProposal({
+          repoId,
+          jobId,
+          locale: locale(),
+          instruction: text,
+          keep: keepOf(arrangementRef.current, reviewRef.current.pinned),
+        });
+      },
+      () => askAi(repoId, "compose", { kind: "compose", instruction: text, keep }),
     );
-    if (result.ok) await showAiPreview(result.value, "look");
+    // Failed, cancelled or replaced meanwhile: the answer is dropped – there are no half results.
+    if (!proposal) return;
+    show(proposal.state);
+    const ids = new Set(proposal.state.units.map((unit) => unit.id));
+    const pinned = new Set([...reviewRef.current.pinned].filter((id) => ids.has(id)));
+    const nextOrder = orderOf(proposal.state.units);
+    const fresh = fromProposal(proposal.state.units, proposal.groups);
+    const merged = reproposed(fresh, refreshed(arrangementRef.current, proposal.state.units), pinned, nextOrder);
+    arrange(merged, false);
+    dirty.current = pinned.size > 0;
+    setOriginal(fresh);
+    setNotes(notesOf(proposal.notes));
+    setReview({ pinned, confirmed: new Set() });
+    keepSelection(ids);
+    if (!selectionRef.current.cursor) {
+      const first = nextUnsure(merged, notesOf(proposal.notes), { pinned, confirmed: new Set() }, null) ?? displayOrder(merged)[0];
+      if (first) setSelection(selectOne(emptySelection, first));
+    }
+    setEnough(proposal.groups.length === 1 && pinned.size === 0);
+    if (again) say(pinned.size > 0 ? t("wip.compose.reproposedKept", { count: pinned.size }) : t("wip.compose.reproposed"));
+    if (again) setInstruction("");
   };
+
+  const cancelRequest = job.cancel;
+
+  const whatIsSent = () =>
+    showWhatIsSent(repoId, "compose", {
+      kind: "compose",
+      instruction: instruction.trim() || null,
+      keep: keepOf(arrangementRef.current, reviewRef.current.pinned),
+    });
 
   // ---- Selection and moves -------------------------------------------------------------------
 
@@ -422,17 +391,10 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     });
     return () => {
       alive = false;
-      const current = requestRef.current;
-      if (current.kind === "loading") void core.jobCancel({ jobId: current.jobId });
+      job.cancel();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoId]);
-
-  useEffect(() => {
-    if (request.kind !== "loading") return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [request.kind]);
 
   // Changes from outside (terminal, editor, the Commit Panel): offer to read them again.
   // Only a real difference counts: the core's state token is compared (our own undo also sends events).
@@ -601,17 +563,10 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   if (!state) return shell(<SkeletonRows />);
   if (state.units.length === 0) return shell(<EmptyState title={t("wip.compose.empty")} />);
 
-  const loading =
-    request.kind === "loading"
-      ? loadingView(
-          now - request.startedAt,
-          aiStatus?.local ?? false,
-          request.instruction ? t("wip.compose.proposingFor", { text: request.instruction }) : t("wip.compose.proposing"),
-        )
-      : null;
+  const loading = job.loading;
   const statusText = loading
     ? [loading.text, loading.slow].filter(Boolean).join(" – ")
-    : request.kind === "done" && request.enough
+    : job.run.kind === "idle" && enough
       ? t("wip.compose.enough")
       : "";
   const summary = summaryOf(arrangement);
@@ -668,21 +623,22 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         ) : null}
       </div>
       <History arrangement={arrangement} units={units} branch={state.branch} headSubject={state.headSubject} onJump={jumpToCommit} />
-      {request.kind === "loading" || statusText ? (
+      {job.running || statusText ? (
         <div className="flex items-center gap-3 border-b border-border px-4 py-1.5">
           <p className="m-0 min-w-0 flex-1 truncate text-sm text-text-muted" aria-live="polite" data-compose-status="">
             {statusText}
           </p>
-          {request.kind === "loading" ? (
+          {job.running ? (
             <Button size="sm" variant="secondary" data-compose-cancel="" onClick={cancelRequest}>
               {t("ai.state.cancel")}
             </Button>
           ) : null}
         </div>
       ) : null}
-      {request.kind === "failed" ? (
-        <RequestError
-          error={request.error}
+      {job.run.kind === "failed" ? (
+        <AiErrorNotice
+          name="compose-error"
+          view={job.run.view}
           provider={aiStatus?.provider ?? null}
           onAgain={() => void propose(null)}
           onShowSent={() => void whatIsSent()}
@@ -775,7 +731,7 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
             placeholder={t("wip.compose.instructionPlaceholder")}
             className="h-control-md min-w-0 flex-1 rounded-md border border-border-input bg-surface-raised px-2.5 text-sm text-text outline-none placeholder:text-text-disabled focus-visible:border-accent"
           />
-          <Button type="submit" variant="secondary" data-compose-repropose="" disabled={request.kind === "loading"}>
+          <Button type="submit" variant="secondary" data-compose-repropose="" disabled={job.running}>
             {t("wip.compose.repropose")}
           </Button>
         </form>
