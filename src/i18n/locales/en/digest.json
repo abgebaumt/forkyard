@@ -1,0 +1,37 @@
+{
+  "title": "What's new since {{time}}",
+  "numbers": {
+    "commits_one": "{{count}} new commit",
+    "commits_other": "{{count}} new commits",
+    "prs_one": "{{count}} pull request changed",
+    "prs_other": "{{count}} pull requests changed",
+    "files_one": "{{count}} of your files affected",
+    "files_other": "{{count}} of your files affected"
+  },
+  "behind_one": "{{branch}} is {{count}} commit behind {{base}}",
+  "behind_other": "{{branch}} is {{count}} commits behind {{base}}",
+  "ref": {
+    "new": "{{name}} – new",
+    "updated": "{{name}} – updated",
+    "rewritten": "{{name}} – force-pushed",
+    "deleted": "{{name}} – deleted",
+    "newTag": "{{name}} – new tag"
+  },
+  "commit": "{{subject}} – {{author}}",
+  "pr": {
+    "opened": "#{{number}} {{title}} – opened",
+    "merged": "#{{number}} {{title}} – merged",
+    "closed": "#{{number}} {{title}} – closed",
+    "comments_one": "#{{number}} {{title}} – {{count}} new comment",
+    "comments_other": "#{{number}} {{title}} – {{count}} new comments"
+  },
+  "file": {
+    "local": "{{path}} – changed locally",
+    "onBranch": "{{path}} – changed on your branch"
+  },
+  "showAll": "Show all",
+  "prMissing": "Pull requests missing – no connection to {{host}}",
+  "markSeen": "Mark as seen",
+  "nothingNew": "Nothing new since {{time}}",
+  "rows": "Changes since you last looked"
+}

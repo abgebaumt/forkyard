@@ -1,0 +1,37 @@
+{
+  "title": "Neu seit {{time}}",
+  "numbers": {
+    "commits_one": "{{count}} neuer Commit",
+    "commits_other": "{{count}} neue Commits",
+    "prs_one": "{{count}} Pull Request geändert",
+    "prs_other": "{{count}} Pull Requests geändert",
+    "files_one": "{{count}} deiner Dateien betroffen",
+    "files_other": "{{count}} deiner Dateien betroffen"
+  },
+  "behind_one": "{{branch}} liegt {{count}} Commit hinter {{base}}",
+  "behind_other": "{{branch}} liegt {{count}} Commits hinter {{base}}",
+  "ref": {
+    "new": "{{name}} – neu",
+    "updated": "{{name}} – aktualisiert",
+    "rewritten": "{{name}} – force-gepusht",
+    "deleted": "{{name}} – gelöscht",
+    "newTag": "{{name}} – neuer Tag"
+  },
+  "commit": "{{subject}} – {{author}}",
+  "pr": {
+    "opened": "#{{number}} {{title}} – geöffnet",
+    "merged": "#{{number}} {{title}} – gemergt",
+    "closed": "#{{number}} {{title}} – geschlossen",
+    "comments_one": "#{{number}} {{title}} – {{count}} neuer Kommentar",
+    "comments_other": "#{{number}} {{title}} – {{count}} neue Kommentare"
+  },
+  "file": {
+    "local": "{{path}} – lokal geändert",
+    "onBranch": "{{path}} – auf deinem Branch geändert"
+  },
+  "showAll": "Alle zeigen",
+  "prMissing": "Pull Requests fehlen – keine Verbindung zu {{host}}",
+  "markSeen": "Als gesehen markieren",
+  "nothingNew": "Nichts Neues seit {{time}}",
+  "rows": "Änderungen seit deinem letzten Blick"
+}
