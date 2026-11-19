@@ -19,38 +19,13 @@ import { Tip } from "../../ui/Tooltip";
 import { cn } from "../../ui/cn";
 import { locale, t } from "../../i18n";
 import { writeClipboard } from "../../app/actions/clipboard";
+import { failed, formatDuration, formatLogTime, visibleEntries } from "./model";
 
 /** Height of a collapsed row in pixels – must match the row's `h-7` class. */
 const ROW_HEIGHT = 28;
 const PAGE_SIZE = 200;
 
-const clock = new Intl.DateTimeFormat(locale(), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-const dayAndClock = new Intl.DateTimeFormat(locale(), {
-  day: "2-digit",
-  month: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-});
 const fullTime = new Intl.DateTimeFormat(locale(), { dateStyle: "full", timeStyle: "medium" });
-
-/** Local time to the second; on other days with the date in front. */
-export function formatLogTime(iso: string, now = new Date()): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  const sameDay = date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
-  return sameDay ? clock.format(date) : dayAndClock.format(date).replace(",", "");
-}
-
-/** “840 ms”, “1.3 s”, “2 min 05 s”. */
-export function formatDuration(ms: number): string {
-  if (ms < 1000) return `${Math.max(0, Math.round(ms))} ms`;
-  if (ms < 60_000) return `${(ms / 1000).toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`;
-  const seconds = Math.round(ms / 1000);
-  return `${Math.floor(seconds / 60)} min ${String(seconds % 60).padStart(2, "0")} s`;
-}
-
-const failed = (entry: ActivityEntry) => entry.exitCode !== null && entry.exitCode !== 0;
 
 /** `done`: message after copying, e.g. “Command copied”. */
 async function copy(text: string, done: string) {
@@ -193,15 +168,7 @@ function LogList({ scope, repoId }: { scope: ActivityScope; repoId: Id | null })
   const entries = useMemo(() => activity.data?.pages.flatMap((page) => page.entries) ?? [], [activity.data]);
   const needle = query.trim().toLowerCase();
   const filtering = onlyErrors || needle.length > 0;
-  const rows = useMemo(
-    () =>
-      entries.filter((entry) => {
-        if (onlyErrors && !failed(entry)) return false;
-        if (needle && !entry.command.toLowerCase().includes(needle) && !entry.output.toLowerCase().includes(needle)) return false;
-        return true;
-      }),
-    [entries, onlyErrors, needle],
-  );
+  const rows = useMemo(() => visibleEntries(entries, onlyErrors, needle), [entries, onlyErrors, needle]);
   const errorCount = useMemo(() => entries.filter(failed).length, [entries]);
 
   const virtualizer = useVirtualizer({
