@@ -438,6 +438,7 @@ export function TabBar({
       elements[next]?.focus();
     }
   };
+  const newTabShortcut = useCommandShortcut("tab.new");
 
   return (
     <div ref={barRef} className="flex h-tabbar shrink-0 items-end gap-px bg-surface-sunken px-1">
@@ -576,7 +577,7 @@ export function TabBar({
           </button>
         </DropdownMenu>
       ) : null}
-      <Tip label={t("ui.tabs.new")} shortcut={useCommandShortcut("tab.new")}>
+      <Tip label={t("ui.tabs.new")} shortcut={newTabShortcut}>
         <button
           type="button"
           aria-label={t("ui.tabs.new")}

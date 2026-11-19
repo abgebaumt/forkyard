@@ -226,6 +226,7 @@
       "changesNone": "There are no uncommitted changes.",
       "untracked": "Untracked files stay where they are.",
       "undo": "Undo ({{shortcut}}) brings back the old state including the changes right afterwards.",
+      "undoNoKey": "Undo brings back the old state including the changes right afterwards.",
       "hardTitle": "Hard reset {{subject}} to {{sha}}?",
       "detailsLabel": "These changes are discarded",
       "hardAction": "Hard reset",
@@ -236,7 +237,8 @@
       "done": "{{subject}} is now at {{sha}}",
       "doneSoft": "{{kept}} are staged.",
       "doneMixed": "{{kept}} are in the working directory, unstaged.",
-      "doneHard": "The old state is discarded – Undo ({{shortcut}}) brings it back."
+      "doneHard": "The old state is discarded – Undo ({{shortcut}}) brings it back.",
+      "doneHardNoKey": "The old state is discarded – Undo brings it back."
     },
     "cherryPick": {
       "labelMany": "Cherry-pick of {{count}} commits",

@@ -226,6 +226,7 @@
       "changesNone": "Uncommittete Änderungen gibt es keine.",
       "untracked": "Nicht verfolgte Dateien bleiben liegen.",
       "undo": "Direkt danach holt Rückgängig ({{shortcut}}) den alten Stand samt der Änderungen zurück.",
+      "undoNoKey": "Direkt danach holt Rückgängig den alten Stand samt der Änderungen zurück.",
       "hardTitle": "{{subject}} hart auf {{sha}} zurücksetzen?",
       "detailsLabel": "Diese Änderungen werden verworfen",
       "hardAction": "Hart zurücksetzen",
@@ -236,7 +237,8 @@
       "done": "{{subject}} steht jetzt auf {{sha}}",
       "doneSoft": "{{kept}} liegen gestaged.",
       "doneMixed": "{{kept}} liegen im Arbeitsverzeichnis, nicht gestaged.",
-      "doneHard": "Der alte Stand ist verworfen – Rückgängig ({{shortcut}}) holt ihn zurück."
+      "doneHard": "Der alte Stand ist verworfen – Rückgängig ({{shortcut}}) holt ihn zurück.",
+      "doneHardNoKey": "Der alte Stand ist verworfen – Rückgängig holt ihn zurück."
     },
     "cherryPick": {
       "labelMany": "Cherry-Pick von {{count}} Commits",

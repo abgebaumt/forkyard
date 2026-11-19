@@ -116,6 +116,7 @@ function RightPanel({ repoId, tabId, view }: { repoId: Id; tabId: Id; view: TabV
 
 /** Narrow strip in place of a collapsed panel, so it can be brought back by mouse and keyboard. */
 function Rail({ side, onOpen }: { side: "left" | "right"; onOpen: () => void }) {
+  const shortcut = useCommandShortcut(side === "left" ? "view.toggleLeftPanel" : "view.toggleCommitPanel");
   return (
     <div
       data-rail={side}
@@ -128,7 +129,7 @@ function Rail({ side, onOpen }: { side: "left" | "right"; onOpen: () => void }) 
       <IconButton
         size="sm"
         label={side === "left" ? t("shell.workspace.showLeft") : t("shell.workspace.showRight")}
-        shortcut={useCommandShortcut(side === "left" ? "view.toggleLeftPanel" : "view.toggleCommitPanel")}
+        shortcut={shortcut}
         icon={side === "left" ? <PanelLeftOpen className="size-icon" aria-hidden /> : <PanelRightOpen className="size-icon" aria-hidden />}
         onClick={onOpen}
       />
