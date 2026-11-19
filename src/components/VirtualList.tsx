@@ -7,7 +7,7 @@
  */
 import { useEffect, useId, useMemo, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { cn } from "../../ui/cn";
+import { cn } from "../ui/cn";
 
 /** Row height from the token `size.row`. */
 function readRowHeight(): number {
