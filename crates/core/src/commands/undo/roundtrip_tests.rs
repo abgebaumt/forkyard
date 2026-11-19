@@ -1095,10 +1095,20 @@ async fn pull_finished_after_a_conflict_is_undoable() {
         let theirs = push_from_elsewhere(&remote, "README.md", "# Anderswo\n");
         let ours = fx.repo.commit_file("README.md", "# Lokal\n", "Lokal");
         assert_conflict(&pull(&fx.tc, fx.id(), util::new_id(), Some(mode)).await.unwrap());
-        assert!(fx.entries().is_empty());
+        if mode == PullMode::Rebase {
+            // The rebase keeps an open entry with the old tip backed up, like `rebase_start`.
+            let open = fx.top();
+            assert_eq!((open.payload["pending"].as_bool(), open.label.as_str()), (Some(true), "Undo pull from origin/main"));
+            assert_eq!(fx.sha(&format!("refs/forkyard/undo/{}/before", open.id)), ours);
+        } else {
+            assert!(fx.entries().is_empty());
+        }
         fx.take_theirs("README.md").await;
         let finished = done_sha(operation_continue(&fx.tc, fx.id(), None, None).await.unwrap());
         assert_eq!(fx.entries().len(), 1);
+        if mode == PullMode::Rebase {
+            assert_eq!(fx.top().label, "Undo pull from origin/main", "the open entry is completed");
+        }
         let action = if mode == PullMode::Rebase { "rebase" } else { "merge" };
         fx.round_trip(
             action,

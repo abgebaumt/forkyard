@@ -588,20 +588,6 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
             return Err(e);
         }
     };
-    if !out.success() {
-        let _ = undo::delete_backup_refs(core, repo_id, &undo_id).await;
-        let state = status::read_status(core, repo_id).await?;
-        if state.operation.is_some() || !state.conflicted.is_empty() {
-            return Ok(OpResult::Conflict {
-                files: state.conflicted.iter().map(|f| f.path.clone()).collect(),
-                operation: state.operation,
-                note: None,
-            });
-        }
-        return Err(errors::classify(subcommand, out.code, &out.stdout, &out.stderr));
-    }
-
-    let new_sha = rev::try_resolve_commit(core, repo_id, "HEAD").await?;
     let summary = if fast_forward {
         format!("Fast-forwarded to {upstream_name} ({}).", commits(behind))
     } else if rebase {
@@ -613,29 +599,57 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
         format!("Merged {upstream_name} ({} new).", commits(behind))
     };
     let head_ref = head.token();
-    undo::record(
-        core,
-        UndoRecord {
-            id: undo_id,
-            repo_id: repo_id.to_string(),
-            worktree_path: String::new(),
-            action: if rebase { UndoAction::Rebase } else { UndoAction::Merge },
-            label: format!("Undo pull from {upstream_name}"),
-            ref_name: Some(format!("refs/heads/{branch}")),
-            ref_before: old_sha,
-            ref_after: new_sha.clone(),
-            head_before: head_ref.clone(),
-            head_after: Some(head_ref),
-            payload: json!({
-                "branch": branch,
-                "upstream": upstream_name,
-                "summary": summary,
-                "pullMode": pull_mode_key(mode),
-                "fastForward": fast_forward,
-            }),
-        },
-    )
-    .await?;
+    let record = |ref_after: Option<String>| UndoRecord {
+        id: undo_id.clone(),
+        repo_id: repo_id.to_string(),
+        worktree_path: String::new(),
+        action: if rebase { UndoAction::Rebase } else { UndoAction::Merge },
+        label: format!("Undo pull from {upstream_name}"),
+        ref_name: Some(format!("refs/heads/{branch}")),
+        ref_before: old_sha.clone(),
+        head_before: head_ref.clone(),
+        // An open entry (rebase stopped) gets its end state when the operation finishes.
+        head_after: ref_after.is_some().then(|| head_ref.clone()),
+        payload: json!({
+            "branch": branch,
+            "upstream": upstream_name,
+            "summary": summary,
+            "pullMode": pull_mode_key(mode),
+            "fastForward": fast_forward,
+            "pending": ref_after.is_none(),
+        }),
+        ref_after,
+    };
+    if !out.success() {
+        let state = status::read_status(core, repo_id).await;
+        let stopped_rebase =
+            rebase && state.as_ref().is_ok_and(|s| s.operation.as_ref().is_some_and(|op| op.kind == crate::model::OperationKind::Rebase));
+        // A stopped rebase keeps an open entry (as `rebase_start` does): continuing completes it,
+        // aborting removes it. A conflicted merge gets its entry when it is completed.
+        let kept = stopped_rebase
+            && match undo::record(core, record(None)).await {
+                Ok(_) => true,
+                Err(e) => {
+                    log::warn!("Undo entry of the pull not saved: {}", e.message);
+                    false
+                }
+            };
+        if !kept {
+            let _ = undo::delete_backup_refs(core, repo_id, &undo_id).await;
+        }
+        let state = state?;
+        if state.operation.is_some() || !state.conflicted.is_empty() {
+            return Ok(OpResult::Conflict {
+                files: state.conflicted.iter().map(|f| f.path.clone()).collect(),
+                operation: state.operation,
+                note: None,
+            });
+        }
+        return Err(errors::classify(subcommand, out.code, &out.stdout, &out.stderr));
+    }
+
+    let new_sha = rev::try_resolve_commit(core, repo_id, "HEAD").await?;
+    undo::record(core, record(new_sha.clone())).await?;
     Ok(OpResult::Done { sha: new_sha, fast_forward, summary })
 }
 
