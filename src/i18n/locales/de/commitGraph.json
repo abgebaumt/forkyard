@@ -78,6 +78,7 @@
     "leaveTitle": "Änderungen am Verlauf verwerfen?",
     "leaveBody": "Noch wurde nichts angewendet.",
     "discard": "Verwerfen",
-    "ended": "Der Branch hat sich geändert – Bearbeiten beendet. Es wurde nichts angewendet."
+    "ended": "Der Branch hat sich geändert – Bearbeiten beendet. Es wurde nichts angewendet.",
+    "statsOpen": "Schließe zuerst die Statistik, um den Verlauf zu bearbeiten."
   }
 }

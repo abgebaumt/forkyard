@@ -5,7 +5,7 @@ import { DRAG_THRESHOLD } from "../../components/graph/useRefDrag";
 
 /**
  * Dragging a commit row (pointer events): once the pointer has moved `DRAG_THRESHOLD` px with the
- * primary button down, `onStart` gets the row's SHA and where the drag is. Ref labels keep their own drag.
+ * primary button down (no Shift, Ctrl or Cmd), `onStart` gets the row's SHA and where the drag is. Ref labels keep their own drag.
  */
 export function useRowDrag(options: { canStart: (index: number) => Sha | null; onStart: (sha: Sha, drag: PendingDrag) => void }): {
   onPointerDown: (event: ReactPointerEvent) => void;
@@ -16,7 +16,8 @@ export function useRowDrag(options: { canStart: (index: number) => Sha | null; o
   useEffect(() => () => stop.current?.(), []);
 
   const onPointerDown = useCallback((event: ReactPointerEvent) => {
-    if (event.button !== 0 || stop.current) return;
+    // Shift and Ctrl/Cmd clicks select rows; they never start a drag.
+    if (event.button !== 0 || event.shiftKey || event.ctrlKey || event.metaKey || stop.current) return;
     const target = event.target as Element;
     if (target.closest("[data-ref-full], button")) return;
     const index = Number(target.closest("[data-row-index]")?.getAttribute("data-row-index") ?? Number.NaN);

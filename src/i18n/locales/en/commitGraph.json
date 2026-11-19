@@ -78,6 +78,7 @@
     "leaveTitle": "Discard your history edits?",
     "leaveBody": "Nothing has been applied yet.",
     "discard": "Discard",
-    "ended": "The branch changed – history editing ended. Nothing was applied."
+    "ended": "The branch changed – history editing ended. Nothing was applied.",
+    "statsOpen": "Close the statistics first to edit the history."
   }
 }

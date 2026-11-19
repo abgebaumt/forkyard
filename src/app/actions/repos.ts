@@ -8,6 +8,7 @@ import { qk, queryClient } from "../queries";
 import { runAction } from "../run";
 import { enqueueWrite } from "../writeQueue";
 import { confirmLeaveCenter, useAppStore } from "../store";
+import { confirmLeaveGraphEdit } from "../rebasePlan/graphEdit";
 import { confirmCloseTerminal } from "../../screens/Terminal/actions";
 import { busyKeys } from "./keys";
 import { openFromOtherProfile } from "./otherProfile";
@@ -145,6 +146,8 @@ export function discardAfterLeaving(repoId: Id): void {
 export async function closeTab(tabId: Id) {
   // Ask about unsaved work in the centre (conflict tool) first.
   if (!(await confirmLeaveCenter(tabId))) return null;
+  // Also when the tab is in the background (its graph and guard are not mounted); ends the edit either way.
+  if (!(await confirmLeaveGraphEdit(tabId))) return null;
   const repoId = queryClient.getQueryData<Tab[]>(qk.tabs)?.find((item) => item.id === tabId)?.repoId ?? null;
   const settled = await settleUnsaved(repoId);
   if (!settled) return null;
