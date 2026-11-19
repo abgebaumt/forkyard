@@ -7,8 +7,8 @@ import {
   conflictRanges,
   hasChange,
   type IntentResult,
-  openProposals,
   planApplyAll,
+  showApplyAll,
   suggestionDiff,
 } from "./intent";
 import { buildModel, chunkText, emptyChoice, isResolved, manualOf, shiftBounds } from "./model";
@@ -138,18 +138,23 @@ describe("apply all", () => {
     intent: { path: "src/station.py", blocks: [full(0), full(1), full(2), shortened(3), full(4), full(5)] },
     decisions: { 1: "taken", 2: "discarded" },
   };
-  it("counts undecided proposals, hand-edited ones included", () => {
-    expect(openProposals(result)).toBe(3);
-    expect(openProposals({ ...result, decisions: { ...result.decisions, 0: "taken", 4: "discarded", 5: "taken" } })).toBe(0);
-  });
-  it("applies every undecided proposal and skips blocks edited by hand", () => {
-    expect(planApplyAll(result, (conflict) => conflict === 4)).toEqual({
+  // Block 6's proposal equals its current text: nothing to apply.
+  const withNoOp: IntentResult = { ...result, intent: { ...result.intent, blocks: [...result.intent.blocks, full(6)] } };
+  const blockText = (conflict: number) => (conflict === 6 ? "Vorschlag 6\n" : `Block ${conflict}\n`);
+  it("applies every undecided proposal, skips blocks edited by hand and leaves out proposals that change nothing", () => {
+    expect(planApplyAll(withNoOp, blockText, (conflict) => conflict === 4)).toEqual({
       apply: [
         { conflict: 0, text: "Vorschlag 0\n" },
         { conflict: 5, text: "Vorschlag 5\n" },
       ],
       skipped: [4],
     });
+  });
+  it("shows “Apply all” only while two proposals are open and one of them is not edited by hand", () => {
+    expect(showApplyAll(withNoOp, blockText, (conflict) => conflict === 4)).toBe(true);
+    expect(showApplyAll(withNoOp, blockText, () => true)).toBe(false);
+    const oneOpen = { ...withNoOp, decisions: { ...withNoOp.decisions, 0: "taken" as const, 4: "discarded" as const } };
+    expect(showApplyAll(oneOpen, blockText, () => false)).toBe(false);
   });
 });
 

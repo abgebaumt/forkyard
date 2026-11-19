@@ -21,8 +21,8 @@ import {
   blockNote,
   canApply,
   hasChange,
-  openProposals,
   planApplyAll,
+  showApplyAll,
   suggestionDiff,
   type DiffRow,
   type IntentDecision,
@@ -116,8 +116,8 @@ export function IntentColumn({
     cards.current.get(block.block)?.focus();
   };
 
-  const applyAll = (current: IntentResult) => {
-    const plan = planApplyAll(current, isManual);
+  const applyAll = (shown: IntentResult) => {
+    const plan = planApplyAll(shown, blockText, isManual);
     if (plan.apply.length > 0) onApply(plan.apply);
     const taken = Object.fromEntries(plan.apply.map(({ conflict }) => [conflict, "taken" as const]));
     setResult((r) => r && { ...r, decisions: { ...r.decisions, ...taken } });
@@ -128,10 +128,9 @@ export function IntentColumn({
     );
   };
 
-  // Shown from two open proposals on, and only while at least one of them is not edited by hand.
-  const applyAllShown = result !== null && openProposals(result) >= 2 && planApplyAll(result, isManual).apply.length > 0;
-  // Focus stays on “Apply all”; only when the button goes away does it move to the result line next to
-  // it instead of falling back to the page.
+  const applyAllShown = result !== null && showApplyAll(result, blockText, isManual);
+  // While “Apply all” stays, the focus stays on it; once it goes, the focus moves to the result line
+  // next to it instead of falling back to the page.
   const buttonGone = result !== null && !applyAllShown;
   useEffect(() => {
     if (applyAllNote !== null && buttonGone && document.activeElement === document.body) applyAllStatus.current?.focus();
@@ -179,7 +178,6 @@ export function IntentColumn({
     // The live region announces the “Apply all” result; the same text cannot follow itself, since
     // every “Apply all” takes at least one proposal and the button goes when none is left to take.
     announcement = applyAllNote ?? ready;
-    const open = openProposals(result);
     content = (
       <>
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-1.5">
@@ -188,7 +186,7 @@ export function IntentColumn({
           </p>
           {applyAllShown ? (
             <Button size="sm" data-intent-apply-all="" onClick={() => applyAll(result)}>
-              {t("conflict.intent.applyAll", { count: open })}
+              {t("conflict.intent.applyAll", { count: planApplyAll(result, blockText, isManual).apply.length })}
             </Button>
           ) : null}
           <Button size="sm" variant="ghost" data-intent-again="" onClick={() => void explain()}>

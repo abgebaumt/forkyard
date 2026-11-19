@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   buildModel,
   baseColumn,
-  baseLine,
   buildRows,
   chunkText,
   diffLines,
@@ -13,7 +12,6 @@ import {
   splitText,
   toggleLine,
   toggleSide,
-  sameMatchesBase,
   worktreeMatches,
   type Choice,
   type MergeModel,
@@ -228,27 +226,40 @@ describe("base column", () => {
     ]);
   });
 
-  it("lines both sides deleted do not stretch or misalign the base column", () => {
-    const model = buildModel("a\nb\nc\n", "a\nc\n", "a\nc\n");
-    expect(model.chunks).toHaveLength(1);
-    const plain = buildRows(model).rows;
-    const withBase = buildRows(model, true).rows;
-    expect(withBase).toEqual(plain.map((row) => (row.type === "line" ? { ...row, base: row.ours } : row)));
-    expect(withBase).toHaveLength(2);
+  const cell = (line: number, offset: number, text: string) => ({ line, offset, text });
+  const lineRow = (chunk: number, ours: ReturnType<typeof cell>, base: ReturnType<typeof cell> | null) => ({
+    type: "line",
+    chunk,
+    ours,
+    base,
+    theirs: ours,
   });
 
-  it("base line numbers in shared blocks count in the ancestor, or stay empty where it differs", () => {
-    const model = buildModel("a\nb\nc\nX\nd\n", "a\nb\nc\nY1\nY2\nY3\nd\n", "a\nb\nc\nZ\nd\n");
-    const last = model.chunks[model.chunks.length - 1]!;
-    expect([last.kind, last.ours, last.oursStart]).toEqual(["same", ["d"], 6]);
-    const cell = { line: 6, offset: 0, text: "d" };
-    expect(baseLine(last, cell, sameMatchesBase(last))).toBe(4);
-    const conflict = model.chunks[model.conflicts[0]!]!;
-    expect(baseLine(conflict, { line: 3, offset: 0, text: "X" }, sameMatchesBase(conflict))).toBe(3);
+  it("lines both sides deleted leave the base column aligned, numbered in the ancestor", () => {
+    const model = buildModel("a\nb\nc\n", "a\nc\n", "a\nc\n");
+    expect(model.chunks).toHaveLength(1);
+    expect(buildRows(model, true).rows).toEqual([
+      lineRow(0, cell(0, 0, "a"), cell(0, 0, "a")),
+      lineRow(0, cell(1, 1, "c"), cell(2, 1, "c")),
+    ]);
+  });
 
-    const deleted = buildModel("a\nb\nc\n", "a\nc\n", "a\nc\n").chunks[0]!;
-    expect(sameMatchesBase(deleted)).toBe(false);
-    expect(baseLine(deleted, { line: 1, offset: 1, text: "c" }, false)).toBeNull();
+  it("a shared line the ancestor never had shows a filler in the base column", () => {
+    const model = buildModel("p1\np2\np3\nx\nz\n", "p1\np2\np3\nshared line\nA\nz\n", "p1\np2\np3\nshared line\nB\nz\n");
+    expect(model.chunks.map((chunk) => [chunk.kind, chunk.ours, chunk.base])).toEqual([
+      ["same", ["p1", "p2", "p3", "shared line"], ["p1", "p2", "p3"]],
+      ["conflict", ["A"], ["x"]],
+      ["same", ["z"], ["z"]],
+    ]);
+    expect(buildRows(model, true).rows).toEqual([
+      lineRow(0, cell(0, 0, "p1"), cell(0, 0, "p1")),
+      lineRow(0, cell(1, 1, "p2"), cell(1, 1, "p2")),
+      lineRow(0, cell(2, 2, "p3"), cell(2, 2, "p3")),
+      lineRow(0, cell(3, 3, "shared line"), null),
+      { type: "head", chunk: 1 },
+      { type: "line", chunk: 1, ours: cell(4, 0, "A"), base: cell(3, 0, "x"), theirs: cell(4, 0, "B") },
+      lineRow(2, cell(5, 0, "z"), cell(4, 0, "z")),
+    ]);
   });
 
   it("without an ancestor every block has an empty base", () => {
