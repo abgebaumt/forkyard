@@ -11,25 +11,15 @@ import { Dialog } from "../../ui/Dialog";
 import { Banner, toast } from "../../ui/Feedback";
 import { Checkbox, TextField } from "../../ui/Field";
 import { Select, type SelectOption } from "../../ui/Select";
-import {
-  branchNameError,
-  folderNameError,
-  isAbsolutePath,
-  joinPath,
-  parentOf,
-  pathKey,
-  rememberParent,
-  rememberedParent,
-} from "../../app/osPaths";
+import { joinPath, parentOf, pathKey, rememberParent, rememberedParent } from "../../app/osPaths";
 import { WrappingPath } from "../CloneDialog/PathText";
+import { failureField, fieldErrors, firstBadField, type FieldName } from "./model";
 import { clearInitPreset, peekInitPreset } from "./preset";
 import { t } from "../../i18n";
 
 export interface InitDialogProps {
   onClose: () => void;
 }
-
-type FieldName = "name" | "parent" | "branch";
 
 const ALL_CODES = Object.keys(errorInfo) as ErrorCode[];
 const NONE = "none";
@@ -82,27 +72,7 @@ export function InitDialog({ onClose }: InitDialogProps) {
   const target = parent.trim() && name ? joinPath(parent, name) : "";
   const knownAtTarget = target ? repos?.find((repo) => pathKey(repo.path) === pathKey(target)) : undefined;
 
-  const errors: Record<FieldName, string | null> = {
-    name: name
-      ? (folderNameError(name) ??
-        (knownAtTarget ? t("clone.validation.repoAtTarget", { name: knownAtTarget.alias ?? knownAtTarget.name }) : null) ??
-        failureFor("name"))
-      : submitted
-        ? t("init.validation.nameMissing")
-        : null,
-    parent: parent.trim()
-      ? isAbsolutePath(parent)
-        ? failureFor("parent")
-        : t("clone.validation.parentNotAbsolute")
-      : submitted
-        ? t("init.validation.parentMissing")
-        : null,
-    branch: branch.trim()
-      ? (branchNameError(branch.trim()) ?? failureFor("branch"))
-      : submitted
-        ? t("init.validation.branchMissing")
-        : null,
-  };
+  const errors = fieldErrors({ name, parent, branch }, { submitted, knownAtTarget, failureFor });
 
   const browse = async () => {
     const picked = await core.pickFolder({ title: t("init.pickFolderTitle"), defaultPath: parent.trim() || undefined });
@@ -115,9 +85,7 @@ export function InitDialog({ onClose }: InitDialogProps) {
   const submit = async () => {
     if (busy) return;
     setSubmitted(true);
-    const required: Record<FieldName, boolean> = { name: !name, parent: !parent.trim(), branch: !branch.trim() };
-    const order: FieldName[] = ["name", "parent", "branch"];
-    const firstBad = order.find((field) => required[field] || (errors[field] !== null && errors[field] !== failureFor(field)));
+    const firstBad = firstBadField({ name, parent, branch }, errors, failureFor);
     if (firstBad) {
       focusField(firstBad);
       return;
@@ -160,19 +128,10 @@ export function InitDialog({ onClose }: InitDialogProps) {
     }
     const error = result.error;
     if (error.code === "duplicate") return;
-    if (error.code === "path_exists") {
-      setFieldFailure({
-        field: "name",
-        text: t("init.validation.pathExists"),
-      });
-      focusField("name");
-    } else if (error.code === "path_not_found") {
-      setFieldFailure({ field: "parent", text: t("init.validation.pathNotFound") });
-      focusField("parent");
-    } else if (error.code === "invalid_name") {
-      const field: FieldName = /branch/i.test(error.message) ? "branch" : "name";
-      setFieldFailure({ field, text: error.message });
-      focusField(field);
+    const failed = failureField(error);
+    if (failed) {
+      setFieldFailure(failed);
+      focusField(failed.field);
     } else {
       setFailure(error);
     }
