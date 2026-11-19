@@ -155,6 +155,16 @@ export function leaveGraphEdit(tabId: Id, notice?: "stale"): void {
   if (notice === "stale") toast({ tone: "info", title: t("commitGraph.edit.ended") });
 }
 
+/** Whether any tab has unapplied history edits – also tabs whose graph is not mounted (and so not guarding the centre). */
+export function hasDirtyGraphEdit(): boolean {
+  return Object.keys(useGraphEdit.getState().byTab).some((tabId) => guardFor(tabId).dirty());
+}
+
+/** Ends every edit (after the user agreed to lose them, e.g. on a profile switch). */
+export function leaveAllGraphEdits(): void {
+  for (const tabId of Object.keys(useGraphEdit.getState().byTab)) leaveGraphEdit(tabId);
+}
+
 /** Asks when the edit has changes; true = left (or nothing to lose). */
 export async function confirmLeaveGraphEdit(tabId: Id): Promise<boolean> {
   const guard = guards.get(tabId) ?? guardFor(tabId);

@@ -11,6 +11,8 @@ import {
   entryDecision,
   type GraphEdit,
   graphEditOf,
+  hasDirtyGraphEdit,
+  leaveAllGraphEdits,
   leaveGraphEdit,
   registerEditGuard,
   staleAfter,
@@ -89,5 +91,19 @@ describe("graph edit", () => {
     expect(hasDirtyCenter()).toBe(true);
     leaveGraphEdit("t2");
     expect(hasDirtyCenter()).toBe(false);
+  });
+  it("quit and profile switch still see a dirty edit whose graph is not mounted", async () => {
+    queryClient.setQueryData(qk.rebaseBranchPlan("r", null), okPlan(["a", "b"]));
+    await enterGraphEdit("r", "t3", { sha: "a" });
+    const unmount = registerEditGuard("t3");
+    expect(hasDirtyGraphEdit()).toBe(false);
+    updateGraphEdit("t3", (edit) => ({ ...edit, state: toggleDrop(edit.state, "b") }));
+    // Tab switch: the graph unmounts and its guard leaves the centre slot.
+    unmount();
+    expect(hasDirtyCenter()).toBe(false);
+    expect(hasDirtyGraphEdit()).toBe(true);
+    leaveAllGraphEdits();
+    expect(hasDirtyGraphEdit()).toBe(false);
+    expect(graphEditOf("t3")).toBeNull();
   });
 });

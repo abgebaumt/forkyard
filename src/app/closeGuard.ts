@@ -15,6 +15,7 @@ import { discardUnsaved, onUnsavedChange, saveUnsaved, unsavedFiles } from "../s
 import { liveProgramsHere, subscribeTerminalTabs } from "../screens/Terminal/sessions";
 import { choose, confirm } from "./dialogs";
 import { hasDirtyCenter, useAppStore } from "./store";
+import { hasDirtyGraphEdit } from "./rebasePlan/graphEdit";
 import { toast } from "../ui/Feedback";
 import { qk, queryClient } from "./queries";
 
@@ -39,7 +40,7 @@ function losses(appWide = lastWindow()): Losses {
   const state = useAppStore.getState();
   return {
     files: unsavedFiles().map((file) => file.path),
-    views: hasDirtyCenter(),
+    views: hasDirtyCenter() || hasDirtyGraphEdit(),
     jobs: Object.values(state.jobs)
       .filter((job) => job.askBeforeQuit)
       .map((job) => job.title),
