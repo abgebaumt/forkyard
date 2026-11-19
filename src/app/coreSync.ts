@@ -175,7 +175,7 @@ export function jobBelongsHere(jobId: string, repoId: Id | null, ownJobs: Readon
 }
 
 /** `jobBelongsHere` against this window's store (`runAction` registers its jobs before they start) and tabs. */
-function ownsJob(jobId: string, repoId: Id | null): boolean {
+export function ownsJob(jobId: string, repoId: Id | null): boolean {
   const tabRepoIds = new Set((queryClient.getQueryData<Tab[]>(qk.tabs) ?? []).flatMap((tab) => (tab.repoId ? [tab.repoId] : [])));
   return jobBelongsHere(jobId, repoId, new Set(Object.keys(useAppStore.getState().jobs)), tabRepoIds);
 }
