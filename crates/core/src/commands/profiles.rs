@@ -115,13 +115,17 @@ pub async fn profile_activate(core: &Core, id: String) -> CoreResult<Vec<Profile
         crate::commands::window::save_all_geometry(core, tx, &old)?;
         let old_tabs = db::tabs::list_all(tx, &old)?;
         db::profiles::set_active(tx, &id)?;
-        // Also runs `windows::ensure`.
+        // Renaming windows is safe only while none of them is open: not when re-activating the active profile.
+        if old != id {
+            db::windows::ensure(tx, &id)?;
+        }
         db::tabs::ensure_all(tx, &id)?;
         let new_repos = db::tabs::open_repo_ids(tx, &id)?;
         let windows = db::windows::list(tx, &id)?;
         let profile = db::profiles::get(tx, &id)?.ok_or_else(|| CoreError::not_found("Profile not found."))?;
         Ok((old_tabs, new_repos, windows, profile))
     })?;
+    crate::commands::window::forget_geometry(core);
     core.events.sync_windows(&windows, true);
     for tabs in old_tabs.chunk_by(|a, b| a.window == b.window) {
         crate::commands::window::tabs_left(core, &tabs[0].window, tabs);

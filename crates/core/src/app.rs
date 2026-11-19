@@ -226,10 +226,12 @@ impl Core {
             let profile_id = db::profiles::active_id(tx)?;
             if !settings.remember_tabs {
                 db::tabs::delete_all(tx, &profile_id)?;
-                for window in db::windows::list(tx, &profile_id)?.into_iter().filter(|w| w.label != db::windows::MAIN) {
+                // The first window stays (whatever its label); `ensure` makes it `main`.
+                for window in db::windows::list(tx, &profile_id)?.into_iter().skip(1) {
                     db::windows::delete(tx, &profile_id, &window.label)?;
                 }
             }
+            db::windows::ensure(tx, &profile_id)?;
             db::tabs::ensure_all(tx, &profile_id)
         })
     }

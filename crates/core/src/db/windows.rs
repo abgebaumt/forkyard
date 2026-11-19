@@ -1,5 +1,6 @@
-//! Table `profile_windows`: the app windows of a profile. `main` always exists and has the
-//! lowest position; the tabs of a window carry its label in `tabs.window_id`.
+//! Table `profile_windows`: the app windows of a profile; the tabs of a window carry its label in
+//! `tabs.window_id`. A profile always has at least one window. `main` can be closed during a session;
+//! `ensure` (start, profile switch: no window open yet) makes the first window `main` again.
 
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
@@ -34,6 +35,7 @@ pub fn list(conn: &Connection, profile_id: &str) -> CoreResult<Vec<WindowState>>
 
 /// At least one window, and the one with the lowest position is `main`. When it is not, a `main`
 /// further back swaps positions with it; without a `main` that window is relabelled, tabs included.
+/// Only while none of the profile's windows is open (start, profile switch): it renames windows.
 pub fn ensure(conn: &Connection, profile_id: &str) -> CoreResult<()> {
     let rows = list(conn, profile_id)?;
     let Some(first) = rows.first() else {
@@ -49,6 +51,8 @@ pub fn ensure(conn: &Connection, profile_id: &str) -> CoreResult<()> {
         conn.execute(set, params![profile_id, first.label, main.position])?;
         return Ok(());
     }
+    // Stray `main` tabs (no row) must not collide with the relabelled window's active tab.
+    conn.execute("update tabs set is_active = 0 where profile_id = ?1 and window_id = ?2", params![profile_id, MAIN])?;
     conn.execute("update profile_windows set label = ?3 where profile_id = ?1 and label = ?2", params![profile_id, first.label, MAIN])?;
     conn.execute("update tabs set window_id = ?3 where profile_id = ?1 and window_id = ?2", params![profile_id, first.label, MAIN])?;
     Ok(())
@@ -116,6 +120,12 @@ pub fn focus_order(conn: &Connection, profile_id: &str) -> CoreResult<Vec<String
     Ok(rows)
 }
 
+/// The window an unscoped call acts in: the most recently focused one (never focused: the first by
+/// position), `main` when the profile has none yet.
+pub fn fallback(conn: &Connection, profile_id: &str) -> CoreResult<String> {
+    Ok(focus_order(conn, profile_id)?.into_iter().next().unwrap_or_else(|| MAIN.to_string()))
+}
+
 /// Window that shows a prompt: the calling window while it exists, otherwise the last focused one.
 pub fn prompt_target(conn: &Connection, profile_id: &str, origin: Option<&str>) -> CoreResult<Option<String>> {
     if let Some(origin) = origin {
@@ -171,6 +181,25 @@ mod tests {
         assert_eq!(labels(&db), vec![("main".to_string(), 0), ("w-bbb222".to_string(), 1)]);
         let tab = db.with(|c| crate::db::tabs::require(c, "p", &tab)).unwrap();
         assert_eq!(tab.window, "main");
+    }
+
+    #[test]
+    fn relabelling_deactivates_stray_main_tabs() {
+        let db = db_with_profile();
+        let (stray, own) = db
+            .with(|c| {
+                insert(c, "p", "w-aaa111", None)?;
+                let stray = crate::db::tabs::append(c, "p", MAIN, crate::model::TabKind::Management, None)?;
+                crate::db::tabs::activate(c, "p", &stray)?;
+                let own = crate::db::tabs::append(c, "p", "w-aaa111", crate::model::TabKind::Management, None)?;
+                crate::db::tabs::activate(c, "p", &own)?;
+                ensure(c, "p")?;
+                Ok((stray, own))
+            })
+            .unwrap();
+        let active = |id: &str| db.with(|c| crate::db::tabs::require(c, "p", id)).unwrap();
+        assert_eq!((active(&own).window.as_str(), active(&own).is_active), ("main", true));
+        assert_eq!((active(&stray).window.as_str(), active(&stray).is_active), ("main", false));
     }
 
     #[test]

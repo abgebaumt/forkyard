@@ -187,20 +187,26 @@ pub fn ensure_consistent(conn: &Connection, profile_id: &str, window: &str) -> C
     Ok(())
 }
 
-/// `ensure_consistent` for every window of the profile: the windows exist (`windows::ensure`),
-/// tabs of a window without a row move to the end of `main`.
+/// `ensure_consistent` for every window of the profile; tabs of a window without a row move to the end of
+/// the first window. Safe during a session: it never renames a window (that is `windows::ensure`).
 pub fn ensure_all(conn: &Connection, profile_id: &str) -> CoreResult<()> {
-    windows::ensure(conn, profile_id)?;
+    let first = match windows::list(conn, profile_id)?.into_iter().next() {
+        Some(w) => w.label,
+        None => {
+            windows::insert(conn, profile_id, windows::MAIN, None)?;
+            windows::MAIN.to_string()
+        }
+    };
     let offset: i64 = conn.query_row(
         "select coalesce(max(position) + 1, 0) from tabs where profile_id = ?1 and window_id = ?2",
-        params![profile_id, windows::MAIN],
+        params![profile_id, first],
         |r| r.get(0),
     )?;
-    // Inactive: `main` may already have its active tab.
+    // Inactive: the first window may already have its active tab.
     conn.execute(
         "update tabs set window_id = ?2, is_active = 0, position = position + ?3
          where profile_id = ?1 and window_id not in (select label from profile_windows where profile_id = ?1)",
-        params![profile_id, windows::MAIN, offset],
+        params![profile_id, first, offset],
     )?;
     for window in windows::list(conn, profile_id)? {
         ensure_consistent(conn, profile_id, &window.label)?;
