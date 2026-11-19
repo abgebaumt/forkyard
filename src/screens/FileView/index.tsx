@@ -36,7 +36,7 @@ import { choose, hasOpenDialog } from "../../app/dialogs";
 import { toCoreError, describeError } from "../../app/errors";
 import { formatBytes, shortSha } from "../../app/format";
 import { hasOpenMenu } from "../../app/menus/host";
-import { viewMayTakeFocus } from "../../app/viewFocus";
+import { keyBelongsToView, viewMayTakeFocus } from "../../app/viewFocus";
 import { qk, queryClient, useDiff, useFileContent } from "../../app/queries";
 import { runAction } from "../../app/run";
 import { enqueueWrite } from "../../app/writeQueue";
@@ -67,7 +67,7 @@ import {
 } from "./buffer";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { goBack } from "./nav";
-import { BackButton, CodeSkeleton, Divider, FileTitle, Tag, isPlainEscape, ownsKey } from "./parts";
+import { BackButton, CodeSkeleton, Divider, FileTitle, Tag, isPlainEscape } from "./parts";
 import { baseName } from "../../app/paths";
 
 export interface FileViewProps {
@@ -292,7 +292,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
         return;
       }
       if (!isPlainEscape(event)) return;
-      if (!ownsKey(event, blocked)) return;
+      if (!keyBelongsToView(event)) return;
       // In edit mode Esc in the text stays with the editor (e.g. to dissolve a multi-selection).
       const inEditor = event.target instanceof Element && Boolean(event.target.closest(".cm-editor"));
       if (keys.current.editing && inEditor) return;

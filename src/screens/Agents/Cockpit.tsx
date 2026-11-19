@@ -13,12 +13,12 @@ import { describeError } from "../../app/errors";
 import { openMenuAt, openMenuAtElement } from "../../app/menus/host";
 import { useAgents } from "../../app/queries";
 import { useAppStore } from "../../app/store";
-import { viewMayTakeFocus } from "../../app/viewFocus";
+import { keyBelongsToView, viewMayTakeFocus } from "../../app/viewFocus";
 import { Button } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { Banner, EmptyState } from "../../ui/Feedback";
 import { t } from "../../i18n";
-import { isPlainEscape, ownsKey } from "../FileView/parts";
+import { isPlainEscape } from "../FileView/parts";
 import { closeCockpit } from "./actions";
 import { actionsFor, cockpitKeyAction, displayName, formatRuntime, hasSession, sortAgents, statusOrigin, testLabel } from "./model";
 import { StatusWord } from "./parts";
@@ -143,7 +143,7 @@ export function Cockpit({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       closeCockpit(tabId);
       return;
     }
-    if (!ownsKey(event.nativeEvent, hasOpenDialog())) return;
+    if (!keyBelongsToView(event.nativeEvent)) return;
     // Only on an agent row: Enter, Delete and the menu key on a button belong to that button.
     const rowId = event.target instanceof Element ? event.target.getAttribute("data-agent-row") : null;
     const action = cockpitKeyAction(event.key, event.shiftKey, rowId);

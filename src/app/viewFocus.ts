@@ -13,3 +13,18 @@ import { useAppStore } from "./store";
 export function viewMayTakeFocus(): boolean {
   return !hasOpenDialog() && !hasOpenMenu() && !useAppStore.getState().overlay;
 }
+
+/** Input, textarea or select – keys there belong to the field. */
+export const isTextField = (element: Element | null) =>
+  Boolean(element && (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT"));
+
+/**
+ * Whether a key press belongs to the view: not in text fields, menus, dialogs; not while a
+ * dialog, an overlay or a menu is open.
+ */
+export function keyBelongsToView(event: KeyboardEvent): boolean {
+  if (!viewMayTakeFocus()) return false;
+  const target = event.target instanceof Element ? event.target : null;
+  if (isTextField(target)) return false;
+  return !target?.closest('[role="menu"], [role="dialog"], [role="listbox"][data-radix-select-viewport], .cm-panels');
+}

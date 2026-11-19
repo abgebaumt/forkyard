@@ -17,20 +17,19 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboard
 import { core, type Id, type StackCheckResult, type StackCheckState, type StackStatus } from "../../core";
 import { hostKindLabels } from "../../app/actions/hostTypes";
 import { cachedPrForBranch, hostLink, refreshPullRequests } from "../../app/actions/pullrequests";
-import { confirm, hasOpenDialog } from "../../app/dialogs";
+import { confirm } from "../../app/dialogs";
 import { describeError, toCoreError } from "../../app/errors";
-import { hasOpenMenu } from "../../app/menus/host";
 import { qk, useRefs, useRepoSettings, useStackStatus } from "../../app/queries";
 import { newJobId, runAction } from "../../app/run";
 import { useAppStore } from "../../app/store";
-import { viewMayTakeFocus } from "../../app/viewFocus";
+import { keyBelongsToView, viewMayTakeFocus } from "../../app/viewFocus";
 import { Button } from "../../ui/Button";
 import { TextField } from "../../ui/Field";
 import { EmptyState, toast, Centered } from "../../ui/Feedback";
 import { Select } from "../../ui/Select";
 import { cn } from "../../ui/cn";
 import { goBack } from "../FileView/nav";
-import { BackButton, isPlainEscape, ownsKey } from "../FileView/parts";
+import { BackButton, isPlainEscape } from "../FileView/parts";
 import { t } from "../../i18n";
 import {
   allPushed,
@@ -84,7 +83,7 @@ export function StackView({ repoId, tabId, branch }: StackViewProps) {
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (!isPlainEscape(event)) return;
-      if (!ownsKey(event, hasOpenDialog() || hasOpenMenu() || Boolean(useAppStore.getState().overlay))) return;
+      if (!keyBelongsToView(event)) return;
       event.preventDefault();
       goBack(tabId);
     };

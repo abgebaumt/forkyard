@@ -10,6 +10,7 @@ import type { Id, Sha } from "../../core";
 import { hasOpenDialog } from "../../app/dialogs";
 import { hasOpenMenu } from "../../app/menus/host";
 import type { RebaseToolMode } from "../../app/store";
+import { isTextField } from "../../app/viewFocus";
 import { useAppStore } from "../../app/store";
 import { preventedByGuard } from "../../app/webviewGuards";
 import { CherryPickMode } from "./CherryPickMode";
@@ -28,9 +29,6 @@ export interface RebaseToolProps {
   /** Interactive mode: start from Git's autosquash order (fixup commits below their targets). */
   autosquash?: boolean;
 }
-
-const isTextField = (element: Element | null) =>
-  Boolean(element && (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT"));
 
 /** Reorder, combine, transfer commits. */
 export function RebaseTool({ repoId, tabId, base, mode, shas, autosquash = false }: RebaseToolProps) {

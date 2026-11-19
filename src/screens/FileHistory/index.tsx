@@ -37,12 +37,10 @@ import {
 } from "react";
 import type { FileHistoryEntry, Id } from "../../core";
 import { copyText } from "../../app/actions/clipboard";
-import { hasOpenDialog } from "../../app/dialogs";
 import { describeError, toCoreError } from "../../app/errors";
 import { formatDateTime, formatRelative, shortSha } from "../../app/format";
 import { openMenuAt } from "../../app/menus";
-import { hasOpenMenu } from "../../app/menus/host";
-import { viewMayTakeFocus } from "../../app/viewFocus";
+import { keyBelongsToView, viewMayTakeFocus } from "../../app/viewFocus";
 import { useFileHistory, useStatus } from "../../app/queries";
 import { useAppStore, useBusy } from "../../app/store";
 import { Button } from "../../ui/Button";
@@ -52,7 +50,7 @@ import { Avatar, StatusBadge } from "../../ui/Git";
 import type { MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
 import { goBack, showInGraph } from "../FileView/nav";
-import { BackButton, Divider, FileTitle, Tag, isPlainEscape, ownsKey } from "../FileView/parts";
+import { BackButton, Divider, FileTitle, Tag, isPlainEscape } from "../FileView/parts";
 import { DiffView } from "../DiffView";
 import { restoreBusyKey, restoreVersion, versionOf } from "./actions";
 import { t } from "../../i18n";
@@ -182,7 +180,7 @@ export function FileHistory({ repoId, tabId, path }: FileHistoryProps) {
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (!isPlainEscape(event)) return;
-      if (!ownsKey(event, hasOpenDialog() || hasOpenMenu() || Boolean(useAppStore.getState().overlay))) return;
+      if (!keyBelongsToView(event)) return;
       event.preventDefault();
       goBack(tabId);
     };

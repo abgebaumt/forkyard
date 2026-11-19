@@ -111,18 +111,3 @@ export function isPlainEscape(event: KeyboardEvent): boolean {
     Boolean(document.querySelector('[role="tooltip"]')) && !document.querySelector('[role="menu"], [role="dialog"], [role="alertdialog"]')
   );
 }
-
-const isTextField = (element: Element | null) =>
-  Boolean(element && (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT"));
-
-/**
- * Whether a key press belongs to the view: not in text fields, menus, dialogs; not while a
- * dialog, an overlay or a menu is open.
- */
-export function ownsKey(event: KeyboardEvent, blocked: boolean): boolean {
-  if (blocked) return false;
-  const target = event.target instanceof Element ? event.target : null;
-  if (isTextField(target)) return false;
-  if (target?.closest('[role="menu"], [role="dialog"], [role="listbox"][data-radix-select-viewport], .cm-panels')) return false;
-  return true;
-}
