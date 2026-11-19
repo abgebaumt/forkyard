@@ -598,8 +598,8 @@ export interface CoreCommands {
   fileBlame(input: R & { path: string; sha: Sha | null; encoding?: string | null }): Promise<BlameLine[]>;
   /**
    * `fileBlame` as job `jobId` (`jobCancel` → `cancelled`): sends `blame:chunk` (all lines first, then
-   * the spans as Git finds them) and `job:progress` (phase `blame`), resolves with the same lines as
-   * `fileBlame`. Results are cached (the 32 most recently used); a cached one sends no `blame:chunk`.
+   * the spans as Git finds them; `done`/`total` is the progress), resolves with the same lines as
+   * `fileBlame`. It sends no `job:progress`, so it never shows in the status bar. Results are cached (the 32 most recently used); a cached one sends no `blame:chunk`.
    */
   fileBlameJob(input: R & { jobId: string; path: string; sha: Sha | null; encoding?: string | null }): Promise<BlameLine[]>;
   /**
