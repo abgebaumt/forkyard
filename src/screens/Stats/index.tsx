@@ -20,7 +20,7 @@ import { cn } from "../../ui/cn";
 import { Banner, EmptyState } from "../../ui/Feedback";
 import { SegmentedControl } from "../../ui/Field";
 import { Select } from "../../ui/Select";
-import { showInGraph } from "../FileView/nav";
+import { showInGraph } from "../../app/backNav";
 import { leaveStats, rememberChoice, rememberedChoice } from "./actions";
 import {
   AuthorsList,

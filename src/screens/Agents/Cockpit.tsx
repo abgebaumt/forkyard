@@ -18,7 +18,7 @@ import { Button } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { Banner, EmptyState } from "../../ui/Feedback";
 import { t } from "../../i18n";
-import { isPlainEscape } from "../FileView/parts";
+import { isPlainEscape } from "../../components/ViewParts";
 import { closeCockpit } from "./actions";
 import { actionsFor, cockpitKeyAction, displayName, formatRuntime, hasSession, sortAgents, statusOrigin, testLabel } from "./model";
 import { StatusWord } from "./parts";

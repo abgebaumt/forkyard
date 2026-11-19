@@ -16,7 +16,7 @@ import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
 import { Banner } from "../../ui/Feedback";
 import { TextField } from "../../ui/Field";
-import { joinPath } from "../CloneDialog/paths";
+import { joinPath } from "../../app/osPaths";
 import { WrappingPath } from "../CloneDialog/PathText";
 import { describeUrl, parseCloneUrl, type ParsedUrl } from "../CloneDialog/url";
 import { t } from "../../i18n";

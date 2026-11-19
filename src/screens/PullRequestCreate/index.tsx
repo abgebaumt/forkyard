@@ -47,7 +47,7 @@ import { Banner, EmptyState } from "../../ui/Feedback";
 import { Checkbox, SegmentedControl, TextArea, TextField } from "../../ui/Field";
 import { Select } from "../../ui/Select";
 import { cn } from "../../ui/cn";
-import { isPlainEscape } from "../FileView/parts";
+import { isPlainEscape } from "../../components/ViewParts";
 import { SafeMarkdown } from "../PullRequestView/Markdown";
 import { openConnectDialog } from "../Hosts";
 import { t } from "../../i18n";

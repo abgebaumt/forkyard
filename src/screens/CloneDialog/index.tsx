@@ -11,7 +11,16 @@ import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
 import { Banner } from "../../ui/Feedback";
 import { Checkbox, SegmentedControl, TextArea, TextField } from "../../ui/Field";
-import { branchNameError, folderNameError, isAbsolutePath, joinPath, parentOf, pathKey, rememberParent, rememberedParent } from "./paths";
+import {
+  branchNameError,
+  folderNameError,
+  isAbsolutePath,
+  joinPath,
+  parentOf,
+  pathKey,
+  rememberParent,
+  rememberedParent,
+} from "../../app/osPaths";
 import { WrappingPath } from "./PathText";
 import { describeUrl, parseCloneUrl, type ParsedUrl } from "./url";
 import { t } from "../../i18n";

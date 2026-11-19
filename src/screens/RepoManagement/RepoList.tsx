@@ -25,7 +25,7 @@ import { formatDateTime, formatRelative } from "../../app/format";
 import { IconButton } from "../../ui/Button";
 import { cn, laneColor } from "../../ui/cn";
 import { ContextMenu, DropdownMenu, type MenuEntry } from "../../ui/Menu";
-import { splitForDisplay } from "../CloneDialog/paths";
+import { splitForDisplay } from "../../app/osPaths";
 import { openRepoCleanup } from "../RepoCleanup";
 import { openGroupSync } from "./GroupSync";
 import {

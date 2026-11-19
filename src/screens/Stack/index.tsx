@@ -28,8 +28,8 @@ import { TextField } from "../../ui/Field";
 import { EmptyState, toast, Centered } from "../../ui/Feedback";
 import { Select } from "../../ui/Select";
 import { cn } from "../../ui/cn";
-import { goBack } from "../FileView/nav";
-import { BackButton, isPlainEscape } from "../FileView/parts";
+import { goBack } from "../../app/backNav";
+import { BackButton, isPlainEscape } from "../../components/ViewParts";
 import { t } from "../../i18n";
 import {
   allPushed,

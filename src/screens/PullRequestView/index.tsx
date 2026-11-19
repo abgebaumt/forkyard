@@ -54,7 +54,7 @@ import { TextArea } from "../../ui/Field";
 import { Avatar } from "../../ui/Git";
 import { cn } from "../../ui/cn";
 import { t } from "../../i18n";
-import { isPlainEscape } from "../FileView/parts";
+import { isPlainEscape } from "../../components/ViewParts";
 import { openConnectDialog } from "../Hosts";
 import { PrFiles } from "./Files";
 import { SafeMarkdown } from "./Markdown";

@@ -21,8 +21,8 @@ import { cn } from "../../ui/cn";
 import { EmptyState, Centered } from "../../ui/Feedback";
 import type { MenuEntry } from "../../ui/Menu";
 import { Select } from "../../ui/Select";
-import { goBack } from "../FileView/nav";
-import { BackButton, isPlainEscape } from "../FileView/parts";
+import { goBack } from "../../app/backNav";
+import { BackButton, isPlainEscape } from "../../components/ViewParts";
 import { actionLabel, entryKey, entryToSelect, refFromValue, refOptions, refValue, resolveSelection, type ReflogSelection } from "./model";
 import { t } from "../../i18n";
 

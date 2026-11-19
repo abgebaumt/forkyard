@@ -3,7 +3,7 @@
  * repository. The dialog reads the preset when opening and clears it when closing.
  */
 import { useAppStore } from "../../app/store";
-import { baseName, parentOf } from "../CloneDialog/paths";
+import { baseName, parentOf } from "../../app/osPaths";
 
 export interface InitPreset {
   parent: string;

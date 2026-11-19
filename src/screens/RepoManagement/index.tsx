@@ -10,7 +10,7 @@ import { Banner, EmptyState } from "../../ui/Feedback";
 import { SegmentedControl } from "../../ui/Field";
 import { cn } from "../../ui/cn";
 import { WrappingPath } from "../CloneDialog/PathText";
-import { baseName } from "../CloneDialog/paths";
+import { baseName } from "../../app/osPaths";
 import { openInitDialogAt } from "../InitDialog/preset";
 import { ReadmePreview } from "./ReadmePreview";
 import { AiSetupEntry } from "./AiSetupEntry";

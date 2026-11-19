@@ -13,9 +13,9 @@
  * - Only the mode of the file view changes (view ↔ edit): remember nothing.
  */
 import { useSyncExternalStore } from "react";
-import type { Id } from "../../core";
-import { useAppStore, type CenterView } from "../../app/store";
-import { t } from "../../i18n";
+import type { Id } from "../core";
+import { useAppStore, type CenterView } from "./store";
+import { t } from "../i18n";
 
 const OWN = new Set<CenterView["kind"]>(["file", "history", "blame"]);
 const MAX_DEPTH = 20;

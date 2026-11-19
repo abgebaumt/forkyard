@@ -5,7 +5,7 @@ import { choose, confirm, promptText } from "../../app/dialogs";
 import { qk, queryClient } from "../../app/queries";
 import { runAction } from "../../app/run";
 import { toast } from "../../ui/Feedback";
-import { pathKey } from "../CloneDialog/paths";
+import { pathKey } from "../../app/osPaths";
 import { t } from "../../i18n";
 
 /** The eight lane colours as markers, with names for the menu (never colour alone). */

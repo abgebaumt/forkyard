@@ -18,7 +18,7 @@ import { Badge, GroupTitle, LoadError, Mono, SectionHeader, SettingRow } from ".
 import { applySettings } from "../settings";
 import { t } from "../../../i18n";
 import { writeClipboard } from "../../../app/actions/clipboard";
-import { baseName } from "../../CloneDialog/paths";
+import { baseName } from "../../../app/osPaths";
 
 const setKeys = (keys: SshKey[]) => queryClient.setQueryData(qk.sshKeys, keys);
 

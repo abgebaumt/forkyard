@@ -2,8 +2,8 @@
  * Path helpers for cloning and creating (also used by the repository manager and the init dialog). Text only – whether a
  * folder exists is known only to the core.
  */
-import { t } from "../../i18n";
-import { refNameIssue } from "../../app/paths";
+import { t } from "../i18n";
+import { refNameIssue } from "./paths";
 
 const isWindowsPath = (path: string) => /^[A-Za-z]:/.test(path) || path.startsWith("\\\\") || (path.includes("\\") && !path.includes("/"));
 

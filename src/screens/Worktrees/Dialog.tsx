@@ -17,7 +17,7 @@ import { Banner, toast } from "../../ui/Feedback";
 import { Checkbox, SegmentedControl, TextField } from "../../ui/Field";
 import { Select, type SelectOption } from "../../ui/Select";
 import { t } from "../../i18n";
-import { folderNameError, isAbsolutePath, joinPath, parentOf } from "../CloneDialog/paths";
+import { folderNameError, isAbsolutePath, joinPath, parentOf } from "../../app/osPaths";
 import { WrappingPath } from "../CloneDialog/PathText";
 import { branchBlock, suggestFolder } from "./model";
 

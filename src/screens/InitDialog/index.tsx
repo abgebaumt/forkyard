@@ -20,7 +20,7 @@ import {
   pathKey,
   rememberParent,
   rememberedParent,
-} from "../CloneDialog/paths";
+} from "../../app/osPaths";
 import { WrappingPath } from "../CloneDialog/PathText";
 import { clearInitPreset, peekInitPreset } from "./preset";
 import { t } from "../../i18n";
