@@ -308,6 +308,7 @@ pub struct Ref {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
 #[serde(tag = "kind", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum Head {
     Branch {
@@ -669,6 +670,7 @@ pub struct Operation {
 
 /// Verdict on a commit during a bisect.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum BisectVerdict {
     Good,
@@ -743,6 +745,7 @@ pub enum BisectAutopilotPhase {
 
 /// One tested commit of an autopilot run.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct BisectAutopilotStep {
     pub sha: Sha,
@@ -3829,6 +3832,7 @@ impl HostKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HostUser {
     pub login: String,
@@ -3978,6 +3982,7 @@ pub enum PrReviewState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HostLabel {
     pub name: String,
@@ -4021,6 +4026,7 @@ pub struct PrReviewer {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HostComment {
     pub id: String,
@@ -4223,6 +4229,7 @@ pub enum PrMergeMethod {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum IssueState {
     Open,
@@ -4238,6 +4245,7 @@ pub enum IssueListState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct IssueSummary {
     pub number: u64,
@@ -4253,6 +4261,7 @@ pub struct IssueSummary {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct IssuePage {
     pub items: Vec<IssueSummary>,
@@ -4260,6 +4269,7 @@ pub struct IssuePage {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct IssueDetails {
     #[serde(flatten)]
