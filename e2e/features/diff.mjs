@@ -971,19 +971,20 @@ scenario("blame: a large file fills in while git blame runs, the second open is 
       "blocks like git blame",
     );
     await app.press("Escape");
+    await app.waitFor(() => app.exec((sel) => !document.querySelector(sel), BL), 5_000, { message: "blame closed before the reopen" });
+    // A mutation observer sees every frame, so a cache miss cannot slip between two polls.
+    // Drop the UI's own query result, so the reopen really asks the core (and its blame cache).
+    await app.exec((sel) => {
+      window.__gc.queryClient.removeQueries({ predicate: (query) => query.queryKey[2] === "blame" });
+      window.__blameOverlap = false;
+      const check = () => {
+        if (document.querySelector(`${sel} .cm-line`) && document.querySelector(`${sel} [data-loading]`)) window.__blameOverlap = true;
+      };
+      new MutationObserver(check).observe(document.body, { childList: true, subtree: true, attributes: true });
+    }, BL);
     await store(app, "openBlame", tabId, file, null);
-    let overlap = false;
-    await app.waitFor(
-      async () => {
-        const s = await state(app);
-        if (s.lines > 0 && s.loading) overlap = true;
-        return s.lines > 0 && !s.loading;
-      },
-      30_000,
-      { message: "second open complete" },
-    );
     await blameReady(app, file);
-    assert(!overlap, "the second open (cache) never shows the progress row with text present");
+    assert(!(await app.exec(() => window.__blameOverlap)), "the second open (cache) never shows the progress row with text present");
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
