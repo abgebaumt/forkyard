@@ -9,18 +9,17 @@
  * anything, never takes the focus, and a cancelled request is discarded.
  */
 import { X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { AiInput, Id } from "../../core";
+import { useMemo, useState, type ReactNode } from "react";
+import type { AiInput, ArchaeologyAnswer, Id } from "../../core";
 import { core } from "../../core";
 import { signInInTerminal } from "../../app/ai/cliLogin";
-import { confirmSend, showWhatIsSent } from "../../app/ai/gate";
+import { askAi, showWhatIsSent } from "../../app/ai/gate";
+import { useAiJob } from "../../app/ai/useAiJob";
 import { openAiSetup } from "../../app/ai/open";
-import { errorView } from "../../app/ai/requestState";
 import { aiVisibility, featureVisible } from "../../app/ai/visibility";
 import { describeError, toCoreError } from "../../app/errors";
 import { formatDateTime, formatRelative } from "../../app/format";
 import { useAiStatus, useLineArchaeology, useRepoSettings } from "../../app/queries";
-import { newJobId } from "../../app/run";
 import { useAppStore, type ArchaeologyTarget } from "../../app/store";
 import { TicketLink } from "../../components/LinkedText";
 import { Button, IconButton } from "../../ui/Button";
@@ -44,72 +43,41 @@ export function ArchaeologyPanel({ repoId, tabId, target }: ArchaeologyPanelProp
   const aiVisible = featureVisible(aiStatus, "archaeology", repoSettings?.aiOff ?? false);
   const opensSetup = aiVisibility(aiStatus).elementsOpenSetup;
 
-  const [state, setState] = useState<ExplainState>({ kind: "idle" });
-  const [now, setNow] = useState(() => Date.now());
-  const running = useRef<string | null>(null);
-  const answer = state.kind === "done" ? state.answer : null;
+  const job = useAiJob(aiStatus?.local ?? false, t("blame.archaeology.explaining"));
+  const [answer, setAnswer] = useState<ArchaeologyAnswer | null>(null);
+  const state: ExplainState = job.loading
+    ? { kind: "loading", shown: job.loading }
+    : job.run.kind === "failed"
+      ? { kind: "error", error: job.run.view }
+      : answer
+        ? { kind: "done", answer }
+        : { kind: "idle" };
   const rows = useMemo(() => (query.data ? timelineRows(query.data, answer) : []), [query.data, answer]);
-  const view = explainView(state, now, aiStatus?.local ?? false);
+  const view = explainView(state);
   const provider = aiStatus?.provider ?? null;
   const actions = state.kind === "error" ? errorActions(state.error, provider) : [];
   // Without an open repository tab there is no terminal for the sign-in: say so instead.
   const [noTerminal, setNoTerminal] = useState(false);
   const input: AiInput = { kind: "archaeology", path: target.path, line: target.line, sha: target.sha };
 
-  useEffect(() => {
-    if (state.kind !== "loading") return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [state.kind]);
-
-  // The panel is keyed by its line: closing it or picking another line ends a running request.
-  useEffect(
-    () => () => {
-      const jobId = running.current;
-      running.current = null;
-      if (jobId) void core.jobCancel({ jobId }).catch(() => undefined);
-    },
-    [],
-  );
-
+  // The panel is keyed by its line: closing it or picking another line ends a running request (useAiJob).
   const explain = async () => {
     if (opensSetup) {
       void openAiSetup();
       return;
     }
-    const jobId = newJobId();
-    const startedAt = Date.now();
-    running.current = jobId;
     setNoTerminal(false);
-    setNow(startedAt);
-    setState({ kind: "loading", jobId, startedAt });
-    const settle = (next: ExplainState) => {
-      if (running.current !== jobId) return;
-      running.current = null;
-      setState(next);
-    };
-    try {
-      const preview = await core.aiPreview({ repoId, feature: "archaeology", input, locale: locale() });
-      if (running.current !== jobId) return;
-      if (!(await confirmSend(repoId, "archaeology", preview))) {
-        settle({ kind: "idle" });
-        return;
-      }
-      if (running.current !== jobId) return;
-      const result = await core.aiArchaeology({ repoId, jobId, path: target.path, line: target.line, sha: target.sha, locale: locale() });
-      settle({ kind: "done", answer: result });
-    } catch (error) {
-      const shown = errorView(error);
-      settle(shown.kind === "cancelled" ? { kind: "idle" } : { kind: "error", error: shown });
-    }
+    const result = await job.start(
+      (jobId) => {
+        setAnswer(null);
+        return core.aiArchaeology({ repoId, jobId, path: target.path, line: target.line, sha: target.sha, locale: locale() });
+      },
+      () => askAi(repoId, "archaeology", input),
+    );
+    if (result) setAnswer(result);
   };
 
-  const cancel = () => {
-    const jobId = running.current;
-    running.current = null;
-    setState({ kind: "idle" });
-    if (jobId) void core.jobCancel({ jobId }).catch(() => undefined);
-  };
+  const cancel = job.cancel;
 
   const data = query.data;
   let body: ReactNode;

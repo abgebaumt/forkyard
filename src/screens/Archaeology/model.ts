@@ -14,7 +14,7 @@ import {
   type Sha,
 } from "../../core";
 import { shortSha } from "../../app/format";
-import { loadingView, type AiErrorView } from "../../app/ai/requestState";
+import type { AiErrorView, AiLoadingView } from "../../app/ai/requestState";
 import type { ArchaeologyTarget } from "../../app/store";
 import type { MenuEntry } from "../../ui/Menu";
 import { locale, t } from "../../i18n";
@@ -142,7 +142,7 @@ export function confidenceLabel(confidence: ArchaeologyConfidence): string {
 /** State of “Explain” in the panel. A cancelled request returns to `idle` – there are no half results. */
 export type ExplainState =
   | { kind: "idle" }
-  | { kind: "loading"; jobId: string; startedAt: number }
+  | { kind: "loading"; shown: AiLoadingView }
   | { kind: "done"; answer: ArchaeologyAnswer }
   | { kind: "error"; error: Exclude<AiErrorView, { kind: "cancelled" }> };
 
@@ -158,14 +158,12 @@ export interface ExplainView {
   urgent: boolean;
 }
 
-export function explainView(state: ExplainState, now: number, local: boolean): ExplainView {
+export function explainView(state: ExplainState): ExplainView {
   switch (state.kind) {
     case "idle":
       return { button: "explain", label: t("blame.archaeology.explain"), status: null, slow: null, urgent: false };
-    case "loading": {
-      const shown = loadingView(now - state.startedAt, local, t("blame.archaeology.explaining"));
-      return { button: "cancel", label: t("blame.archaeology.cancel"), status: shown.text, slow: shown.slow, urgent: false };
-    }
+    case "loading":
+      return { button: "cancel", label: t("blame.archaeology.cancel"), status: state.shown.text, slow: state.shown.slow, urgent: false };
     case "done":
       return { button: "again", label: t("blame.archaeology.again"), status: t("blame.archaeology.done"), slow: null, urgent: false };
     case "error":

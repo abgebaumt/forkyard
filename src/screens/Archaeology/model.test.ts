@@ -168,24 +168,21 @@ describe("explainView", () => {
   const answer = { summary: "s", notes: [], confidence: "high" as const, costUsd: null };
 
   it("idle explains, loading cancels with a seconds counter from 3 s, done offers again", () => {
-    expect(explainView({ kind: "idle" }, 0, false)).toEqual({
+    expect(explainView({ kind: "idle" })).toEqual({
       button: "explain",
       label: "Explain",
       status: null,
       slow: null,
       urgent: false,
     });
-    const started = 1_000_000;
-    expect(explainView({ kind: "loading", jobId: "j", startedAt: started }, started + 1_000, false)).toMatchObject({
+    expect(explainView({ kind: "loading", shown: { text: "Explaining … (12 s)", slow: "slow" } })).toEqual({
       button: "cancel",
       label: "Cancel",
-      status: "Explaining …",
-      slow: null,
+      status: "Explaining … (12 s)",
+      slow: "slow",
+      urgent: false,
     });
-    expect(explainView({ kind: "loading", jobId: "j", startedAt: started }, started + 12_400, false).status).toBe("Explaining … (12 s)");
-    expect(explainView({ kind: "loading", jobId: "j", startedAt: started }, started + 31_000, true).slow).toBe(t("ai.state.slowLocal"));
-    expect(explainView({ kind: "loading", jobId: "j", startedAt: started }, started + 31_000, false).slow).toBe(t("ai.state.slowRemote"));
-    expect(explainView({ kind: "done", answer }, 0, false)).toEqual({
+    expect(explainView({ kind: "done", answer })).toEqual({
       button: "again",
       label: "Explain again",
       status: "Explanation ready",
@@ -196,11 +193,7 @@ describe("explainView", () => {
 
   it("errors are announced urgently with their text", () => {
     expect(
-      explainView(
-        { kind: "error", error: { kind: "unavailable", text: "Ollama is not responding (127.0.0.1:11434).", retryAt: null } },
-        0,
-        true,
-      ),
+      explainView({ kind: "error", error: { kind: "unavailable", text: "Ollama is not responding (127.0.0.1:11434).", retryAt: null } }),
     ).toEqual({
       button: "again",
       label: "Explain again",
