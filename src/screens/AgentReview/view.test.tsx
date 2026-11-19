@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it } from "vitest";
-import type { Agent, AgentReview, CommitDetails, DiffLine, FileChange, TextDiff } from "../../core";
+import type { Agent, AgentReview, CommitDetails, DiffLine, FileChange, FileDiff } from "../../core";
 import type { AgentReviewShow } from "../../app/store";
 import { qk } from "../../app/queries";
 import { AgentReviewView } from "./index";
@@ -71,7 +71,7 @@ const line = (kind: DiffLine["kind"], text: string, oldNo: number | null, newNo:
   newNo,
   noNewline: false,
 });
-const listDiff: TextDiff = {
+const listDiff: Extract<FileDiff, { kind: "text" }> = {
   kind: "text",
   path: "liste.txt",
   oldPath: null,

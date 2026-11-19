@@ -156,7 +156,8 @@ const FULL_SHA = /^[0-9a-f]{40}$/;
 const shown = (value: string) => (FULL_SHA.test(value) ? value.slice(0, 7) : value);
 
 function argText(step: PlanStep, name: string): string {
-  const value: PlanArgValue | undefined = step.args[name];
+  // The core sends any JSON value; its allow list only accepts these shapes for plan arguments.
+  const value = step.args[name] as PlanArgValue | undefined;
   if (Array.isArray(value)) return value.map(shown).join(", ");
   return typeof value === "string" ? shown(value) : "";
 }

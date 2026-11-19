@@ -64,6 +64,9 @@ const status = (patch: Partial<Status> = {}): Status => ({
   conflicted: [],
   operation: null,
   identitySet: true,
+  resolvedConflicts: [],
+  foreignOperation: null,
+  leftBehind: null,
   token: "t",
   ...patch,
 });

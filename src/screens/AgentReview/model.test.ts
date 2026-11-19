@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Agent, AgentReview, DiffLine, FileChange, FileDiff, TextDiff } from "../../core";
+import type { Agent, AgentReview, DiffLine, FileChange, FileDiff } from "../../core";
 import {
   blocker,
   buildSelections,
@@ -27,7 +27,7 @@ const line = (kind: DiffLine["kind"], text: string, oldNo: number | null, newNo:
 });
 
 /** Two hunks of a long list. Git numbered them 3 and 7 (their `index`), the view shows them at positions 0 and 1. */
-const diff: TextDiff = {
+const diff: Extract<FileDiff, { kind: "text" }> = {
   kind: "text",
   path: "liste.txt",
   oldPath: null,
