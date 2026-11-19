@@ -94,7 +94,8 @@ only the jobs it started, closing the last one quits. A window hidden while it c
 loses its row and tabs. Jobs have an origin window (`Jobs::cancel_from`); terminals have an owner window,
 set at `terminal_open`, handed to the target by a tab move (`tab_handoff_put` names them) and taken by
 the window that resizes them; closing the owner ends them (`terminal::close_owned_by`). Coding agents'
-terminals have no owner and run until the app quits. A profile switch is refused while another window
+terminals have no owner in the core; a window showing one ends it when it closes (its close prompt
+names them), otherwise they end when the app quits. A profile switch is refused while another window
 reports something to lose, since the switch destroys those windows without their close guard.
 
 ## Hard rules

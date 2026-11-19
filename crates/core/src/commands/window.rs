@@ -123,7 +123,7 @@ pub async fn tab_move_to_window(core: &Core, tab_id: String, window: String, pos
         Ok((db::tabs::list(tx, &profile_id, &source)?, tab, windows))
     })?;
     // Before the emptied source closes: it would end them.
-    hand_over_terminals(core, &tab_id, &window);
+    hand_over_terminals(core, &tab_id, &source, &window);
     if let Some(windows) = windows {
         core.events.sync_windows(&windows, false);
     }
@@ -154,7 +154,7 @@ pub async fn tab_move_to_new_window(core: &Core, tab_id: String, at: Option<Scre
         move_tab(tx, &profile_id, &tab, &label, 0)?;
         Ok((tab, db::windows::list(tx, &profile_id)?))
     })?;
-    hand_over_terminals(core, &tab_id, &label);
+    hand_over_terminals(core, &tab_id, &source, &label);
     core.events.sync_windows(&windows, false);
     tabs_left(core, &source, &[moved]);
     core.emit_app_changed(&[AppChange::Tabs, AppChange::Windows]);
@@ -183,10 +183,10 @@ pub async fn tab_handoff_take(core: &Core, tab_id: String) -> CoreResult<Option<
     Ok(handoffs.remove(&tab_id).map(|(h, _, _)| h))
 }
 
-/// The terminals of `tab_id`'s hand-over now belong to `window`.
-fn hand_over_terminals(core: &Core, tab_id: &str, window: &str) {
+/// The terminals of `tab_id`'s hand-over move from `source` to `window`.
+fn hand_over_terminals(core: &Core, tab_id: &str, source: &str, window: &str) {
     let ids = core.state::<Windows>().handoffs.lock().get(tab_id).map(|(_, ids, _)| ids.clone()).unwrap_or_default();
-    terminal::hand_over(core, &ids, window);
+    terminal::hand_over(core, &ids, source, window);
 }
 
 /// The calling window's tab strip (client coordinates); `None` forgets it.

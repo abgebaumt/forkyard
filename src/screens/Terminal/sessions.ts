@@ -873,6 +873,18 @@ export function disposeSession(tabId: Id): void {
   notifyTabs();
 }
 
+/** Running programs (coding agents) shown in this window: closing the window ends them (pagehide). */
+export function liveProgramsHere(): number {
+  let count = 0;
+  for (const group of groups.values()) {
+    for (const entry of group.tabs.entries) {
+      const session = group.sessions.get(entry.key);
+      if (entry.kind === "program" && session && isLiveStatus(session.getStatus())) count++;
+    }
+  }
+  return count;
+}
+
 /** End the sessions of tabs that no longer exist (or that show a different repository). */
 function reconcileWithTabs(): void {
   if (groups.size === 0) return;

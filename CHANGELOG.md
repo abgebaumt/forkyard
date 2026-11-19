@@ -28,7 +28,7 @@ All notable changes to Forkyard are listed here. The format follows
   windows; changes show up in all of them. "Quit Forkyard" (Ctrl+Q) asks once for every window and
   quits; the next start reopens every window with its place, size and tabs, per profile. A window
   closed on its own is forgotten with its tabs, and closing it only cancels what was started in it
-  and ends the shells in its terminals. A profile switch waits until no other window has unsaved work.
+  and ends the shells in its terminals. A profile switch is refused while another window has unsaved work.
 - Conflict tool: “Show base” adds the common ancestor as a third column between both sides, aligned
   block by block and scrolling with them; the choice is remembered. Without a common ancestor the switch
   is off and says why. In the intent column, “Apply all” applies every undecided proposal at once – one
