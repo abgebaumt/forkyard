@@ -310,10 +310,14 @@ async fn in_w<F: std::future::Future>(label: &str, fut: F) -> F::Output {
 }
 
 fn add_window(tc: &TestCore) {
+    add_window_named(tc, W);
+}
+
+fn add_window_named(tc: &TestCore, label: &str) {
     tc.db
         .tx(|tx| {
             let profile_id = crate::db::profiles::active_id(tx)?;
-            crate::db::windows::insert(tx, &profile_id, W, None)
+            crate::db::windows::insert(tx, &profile_id, label, None)
         })
         .unwrap();
 }
@@ -356,4 +360,23 @@ async fn a_moved_terminal_survives_closing_its_old_window() {
     in_w(W, terminal_resize(&tc, terminal.clone(), 80, 24)).await.unwrap();
     window_closed(&tc, W);
     wait_until("the terminal ends with its new owner", || !exit_events(&tc, &terminal).is_empty()).await;
+}
+
+#[tokio::test]
+async fn a_hand_over_cannot_take_another_windows_terminal() {
+    use crate::commands::window::{tab_handoff_put, tab_move_to_window, window_closed};
+    const W2: &str = "w-fedcba9876543210fedcba9876543210";
+    let (tc, _repo, id) = setup().await;
+    add_window(&tc);
+    add_window_named(&tc, W2);
+    let foreign = in_w(W2, terminal_open(&tc, id.clone(), 80, 24)).await.unwrap();
+    let tab = in_w(W, crate::commands::repos::tabs_list(&tc)).await.unwrap().remove(0);
+
+    // W names W2's terminal in its hand-over to main: it stays W2's.
+    in_w(W, tab_handoff_put(&tc, tab.id.clone(), "{}".into(), vec![foreign.clone()])).await.unwrap();
+    in_w(W, tab_move_to_window(&tc, tab.id.clone(), "main".into(), 0)).await.unwrap();
+    window_closed(&tc, "main");
+    answers(&tc, &foreign).await;
+    window_closed(&tc, W2);
+    wait_until("the terminal ends with W2", || !exit_events(&tc, &foreign).is_empty()).await;
 }

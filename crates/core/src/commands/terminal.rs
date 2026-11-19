@@ -73,7 +73,8 @@ struct Session {
     info: Mutex<TerminalInfo>,
     observer: Option<Arc<dyn TerminalObserver>>,
     /// The window whose tab shows the terminal; it ends with that window (`close_owned_by`).
-    /// `None` for coding agents, which run until the app quits.
+    /// `None` for coding agents: the core leaves them running, but the window showing one ends it
+    /// when it closes (after its prompt); otherwise they end when the app quits.
     owner: Mutex<Option<String>>,
 }
 
@@ -772,14 +773,23 @@ impl Session {
             *owner = window;
         }
     }
+
+    /// Moves the terminal to `to` only if `from` owns it.
+    fn claim_from(&self, from: &str, to: &str) {
+        let mut owner = self.owner.lock();
+        if owner.as_deref() == Some(from) {
+            *owner = Some(to.to_string());
+        }
+    }
 }
 
-/// The terminals `ids` move with their tab into `window` (before the source window may close).
-pub(crate) fn hand_over(core: &Core, ids: &[String], window: &str) {
+/// The terminals `ids` of window `from` move with their tab into `to` (before `from` may close). Ids
+/// of other windows' terminals are ignored.
+pub(crate) fn hand_over(core: &Core, ids: &[String], from: &str, to: &str) {
     let state = core.state::<TerminalState>();
     let sessions = state.sessions.lock();
     for session in ids.iter().filter_map(|id| sessions.get(id)) {
-        session.claim(window.to_string());
+        session.claim_from(from, to);
     }
 }
 

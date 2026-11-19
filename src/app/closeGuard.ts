@@ -12,6 +12,7 @@ import { QueryObserver } from "@tanstack/react-query";
 import { core, type WindowInfo } from "../core";
 import { otherLanguageChosen, t } from "../i18n";
 import { discardUnsaved, onUnsavedChange, saveUnsaved, unsavedFiles } from "../screens/FileView/buffer";
+import { liveProgramsHere, subscribeTerminalTabs } from "../screens/Terminal/sessions";
 import { choose, confirm } from "./dialogs";
 import { hasDirtyCenter, useAppStore } from "./store";
 import { toast } from "../ui/Feedback";
@@ -24,7 +25,7 @@ export interface Losses {
   views: boolean;
   /** Titles of the running actions. */
   jobs: string[];
-  /** Coding agents whose programs run (they are ended only when the last window closes). */
+  /** Coding agents whose programs run: all of them when the app ends, else those shown in this window. */
   agents: number;
 }
 
@@ -42,7 +43,7 @@ function losses(appWide = lastWindow()): Losses {
     jobs: Object.values(state.jobs)
       .filter((job) => job.askBeforeQuit)
       .map((job) => job.title),
-    agents: appWide ? state.agentsRunning : 0,
+    agents: appWide ? state.agentsRunning : liveProgramsHere(),
   };
 }
 
@@ -154,6 +155,7 @@ async function leave(quit: boolean) {
 /** Call once at startup. */
 export function installCloseGuard(): void {
   onUnsavedChange(sync);
+  subscribeTerminalTabs(sync);
   useAppStore.subscribe((state, previous) => {
     if (state.jobs !== previous.jobs || state.agentsRunning !== previous.agentsRunning) sync();
   });
