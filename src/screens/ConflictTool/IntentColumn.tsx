@@ -128,9 +128,11 @@ export function IntentColumn({
     );
   };
 
-  // Focus stays on “Apply all”; only when the button goes away (fewer than two proposals left) does it
-  // move to the result line next to it instead of falling back to the page.
-  const buttonGone = result !== null && openProposals(result) < 2;
+  // Shown from two open proposals on, and only while at least one of them is not edited by hand.
+  const applyAllShown = result !== null && openProposals(result) >= 2 && planApplyAll(result, isManual).apply.length > 0;
+  // Focus stays on “Apply all”; only when the button goes away does it move to the result line next to
+  // it instead of falling back to the page.
+  const buttonGone = result !== null && !applyAllShown;
   useEffect(() => {
     if (applyAllNote !== null && buttonGone && document.activeElement === document.body) applyAllStatus.current?.focus();
   }, [applyAllNote, buttonGone]);
@@ -173,15 +175,18 @@ export function IntentColumn({
       </div>
     );
   } else {
-    announcement = t("conflict.intent.ready", { count: result.intent.blocks.length });
+    const ready = t("conflict.intent.ready", { count: result.intent.blocks.length });
+    // The live region announces the “Apply all” result; the same text cannot follow itself, since
+    // every “Apply all” takes at least one proposal and the button goes when none is left to take.
+    announcement = applyAllNote ?? ready;
     const open = openProposals(result);
     content = (
       <>
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-1.5">
           <p className="m-0 min-w-0 flex-1 text-sm text-text-muted" data-intent-status="ready">
-            {announcement}
+            {ready}
           </p>
-          {open >= 2 ? (
+          {applyAllShown ? (
             <Button size="sm" data-intent-apply-all="" onClick={() => applyAll(result)}>
               {t("conflict.intent.applyAll", { count: open })}
             </Button>
@@ -190,13 +195,7 @@ export function IntentColumn({
             {t("conflict.intent.again")}
           </Button>
           {applyAllNote !== null ? (
-            <p
-              ref={applyAllStatus}
-              tabIndex={-1}
-              role="status"
-              data-intent-apply-all-result=""
-              className="m-0 basis-full text-sm text-text outline-none"
-            >
+            <p ref={applyAllStatus} tabIndex={-1} data-intent-apply-all-result="" className="m-0 basis-full text-sm text-text outline-none">
               {applyAllNote}
             </p>
           ) : null}
