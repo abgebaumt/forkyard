@@ -27,6 +27,11 @@ describe("settings navigation", () => {
     expect(hits.get("p-git")).toBeGreaterThan(0);
     expect(hits.has("appearance")).toBe(false);
   });
+  it("finds the branch cleaner settings", () => {
+    const hits = searchSections("stale", visibleSections(true));
+    expect(hits.get("git") ?? 0).toBeGreaterThan(0);
+    expect(searchSections("protected", visibleSections(true)).get("p-git") ?? 0).toBeGreaterThan(0);
+  });
   it("ignores case and surrounding spaces; an empty search finds nothing", () => {
     expect(searchSections("  ZOOM ", SECTIONS).get("appearance")).toBe(1);
     expect(searchSections("", SECTIONS).size).toBe(0);
