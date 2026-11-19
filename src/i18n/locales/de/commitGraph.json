@@ -79,6 +79,24 @@
     "leaveBody": "Noch wurde nichts angewendet.",
     "discard": "Verwerfen",
     "ended": "Der Branch hat sich geändert – Bearbeiten beendet. Es wurde nichts angewendet.",
-    "statsOpen": "Schließe zuerst die Statistik, um den Verlauf zu bearbeiten."
+    "statsOpen": "Schließe zuerst die Statistik, um den Verlauf zu bearbeiten.",
+    "title": "Verlauf bearbeiten",
+    "changes_one": "{{count}} Änderung",
+    "changes_other": "{{count}} Änderungen",
+    "noConflicts": "Keine Konflikte",
+    "conflictAt": "Konflikt in Schritt {{step}}: {{file}}",
+    "pushed": "Einige dieser Commits sind schon auf einem Remote – danach ist ein Force-Push nötig (mit Lease).",
+    "hidden_one": "{{count}} weiterer Commit ausgeblendet, solange du bearbeitest",
+    "hidden_other": "{{count}} weitere Commits ausgeblendet, solange du bearbeitest",
+    "apply": "Anwenden",
+    "openTool": "Im Rebase-Werkzeug öffnen",
+    "editMessage": "Nachricht bearbeiten …",
+    "chip": {
+      "squash": "squash",
+      "fixup": "fixup",
+      "reword": "reword",
+      "drop": "drop",
+      "moved": "verschoben"
+    }
   }
 }
