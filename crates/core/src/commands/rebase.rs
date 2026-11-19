@@ -99,9 +99,11 @@ const COMMIT_FIELDS: usize = HEADER_FIELDS + 2;
 /// From this version on, `git cherry-pick` knows the option `--empty=drop`.
 const CHERRY_PICK_EMPTY_DROP: (u32, u32, u32) = (2, 45, 0);
 
+mod branch_plan;
 mod cherry_pick;
 mod squash;
 mod todo;
+pub use branch_plan::*;
 pub use cherry_pick::*;
 use squash::*;
 pub use todo::*;
@@ -167,10 +169,16 @@ pub async fn rebase_dependents(core: &Core, repo_id: String, onto: String, branc
     Ok(dependent_refs(core, repo_id, &onto_sha, &tip, &target).await?.into_iter().map(|(name, _)| name).collect())
 }
 
-/// Commits between `base` and HEAD as a plan, with the preconditions checked.
-pub async fn rebase_plan(core: &Core, repo_id: String, base: String) -> CoreResult<RebasePlan> {
-    let repo_id = repo_id.as_str();
-    let refused = |reason, message: &str| Ok(RebasePlan::Refused { reason, detail: None, message: message.to_string() });
+const UNRELATED_HISTORY: &str = "The selected commit and the checked-out branch have no history in common.";
+
+/// Running operation, detached or unborn HEAD as a refusal (shared by `rebase_plan`); `None` = go on.
+pub(super) async fn refusal_before_base(core: &Core, repo_id: &str) -> CoreResult<Option<RebasePlan>> {
+    Ok(head_or_refusal(core, repo_id).await?.err())
+}
+
+/// The checked-out branch and its tip, or the refusal of `refusal_before_base`.
+async fn head_or_refusal(core: &Core, repo_id: &str) -> CoreResult<Result<(String, String), RebasePlan>> {
+    let refused = |reason, message: &str| Ok(Err(RebasePlan::Refused { reason, detail: None, message: message.to_string() }));
     // A running operation is not an error of the call but a reason the UI can explain.
     if let Some(op) = crate::git::repo::read_operation(core, repo_id).await? {
         let name = match op.kind {
@@ -184,15 +192,23 @@ pub async fn rebase_plan(core: &Core, repo_id: String, base: String) -> CoreResu
             &format!("There is still {name} in progress. Finish or abort it first – then you can plan an interactive rebase."),
         );
     }
-    let (branch, head_sha) = match crate::git::repo::read_head(core, repo_id).await? {
-        Head::Branch { branch, sha } => (branch, sha),
-        Head::Detached { .. } => {
-            return refused(
-                RebaseRefusal::Detached,
-                "HEAD doesn't point to a branch (detached HEAD). Check out a branch first to start an interactive rebase.",
-            )
-        }
-        Head::Unborn { .. } => return refused(RebaseRefusal::NothingToRebase, "The repository doesn't have any commits yet."),
+    match crate::git::repo::read_head(core, repo_id).await? {
+        Head::Detached { .. } => refused(
+            RebaseRefusal::Detached,
+            "HEAD doesn't point to a branch (detached HEAD). Check out a branch first to start an interactive rebase.",
+        ),
+        Head::Unborn { .. } => refused(RebaseRefusal::NothingToRebase, "The repository doesn't have any commits yet."),
+        Head::Branch { branch, sha } => Ok(Ok((branch, sha))),
+    }
+}
+
+/// Commits between `base` and HEAD as a plan, with the preconditions checked.
+pub async fn rebase_plan(core: &Core, repo_id: String, base: String) -> CoreResult<RebasePlan> {
+    let repo_id = repo_id.as_str();
+    let refused = |reason, message: &str| Ok(RebasePlan::Refused { reason, detail: None, message: message.to_string() });
+    let (branch, head_sha) = match head_or_refusal(core, repo_id).await? {
+        Ok(head) => head,
+        Err(refusal) => return Ok(refusal),
     };
     let base_sha = rev::resolve_commit(core, repo_id, &base).await?;
     if base_sha == head_sha {
@@ -206,7 +222,7 @@ pub async fn rebase_plan(core: &Core, repo_id: String, base: String) -> CoreResu
                 "The selected commit isn't an ancestor of the checked-out branch. An interactive rebase needs a commit from the branch's own history as its base.",
             )
         } else {
-            (RebaseRefusalDetail::UnrelatedHistory, "The selected commit and the checked-out branch have no history in common.")
+            (RebaseRefusalDetail::UnrelatedHistory, UNRELATED_HISTORY)
         };
         return Ok(RebasePlan::Refused { reason: RebaseRefusal::NoCommonAncestor, detail: Some(detail), message: message.to_string() });
     }
@@ -1280,3 +1296,9 @@ mod update_refs_tests;
 
 #[cfg(test)]
 mod autosquash_tests;
+
+#[cfg(test)]
+mod branch_plan_tests;
+
+#[cfg(test)]
+mod graph_oracle_tests;

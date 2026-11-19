@@ -132,6 +132,7 @@ commands! {
     operation_abort => merge::operation_abort(repo_id: String) -> Status;
     rebase_start => rebase::rebase_start_with(repo_id: String, onto: String, branch: Option<String>, update_refs: Option<bool>) -> OpResult;
     rebase_plan => rebase::rebase_plan_with(repo_id: String, base: String, autosquash: Option<bool>) -> RebasePlan;
+    rebase_branch_plan => rebase::rebase_branch_plan(repo_id: String, from: Option<String>) -> RebasePlan;
     rebase_dependents => rebase::rebase_dependents(repo_id: String, onto: String, branch: Option<String>) -> Vec<String>;
     rebase_apply => rebase::rebase_apply_with(repo_id: String, base: String, rows: Vec<RebasePlanRow>, update_refs: Option<bool>) -> OpResult;
     cherry_pick => rebase::cherry_pick(repo_id: String, shas: Vec<String>) -> OpResult;

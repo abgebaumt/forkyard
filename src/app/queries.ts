@@ -126,6 +126,7 @@ export const qk = {
   conflictAll: (repoId: Id) => ["repo", repoId, "conflict"] as const,
   rebasePlan: (repoId: Id, base: string, autosquash = false) => ["repo", repoId, "rebasePlan", base, autosquash] as const,
   rebasePlanAll: (repoId: Id) => ["repo", repoId, "rebasePlan"] as const,
+  rebaseBranchPlan: (repoId: Id, from: Sha | null) => ["repo", repoId, "rebasePlan", "branch", from ?? ""] as const,
   worktrees: (repoId: Id) => ["repo", repoId, "worktrees"] as const,
   agents: (repoId: Id) => ["repo", repoId, "agents"] as const,
   agentReview: (repoId: Id, agentId: Id, source: AgentReviewSource) => ["repo", repoId, "agents", "review", agentId, source] as const,
@@ -471,6 +472,14 @@ export const useRebasePlan = (repoId: Id | null | undefined, base: string | null
     queryKey: qk.rebasePlan(repoId ?? "", base ?? "", autosquash),
     queryFn: () => core.rebasePlan({ repoId: repoId!, base: base!, autosquash }),
     enabled: enabledFor(repoId) && Boolean(base),
+  });
+
+/** The plan for editing the history in the graph (`from: null` = the branch since the default branch). */
+export const useRebaseBranchPlan = (repoId: Id | null | undefined, from: Sha | null, enabled = true) =>
+  useQuery({
+    queryKey: qk.rebaseBranchPlan(repoId ?? "", from),
+    queryFn: () => core.rebaseBranchPlan({ repoId: repoId!, from }),
+    enabled: enabledFor(repoId) && enabled,
   });
 
 /** All working directories of the repository; the main worktree comes first. */
