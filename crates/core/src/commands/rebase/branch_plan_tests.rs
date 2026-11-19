@@ -120,3 +120,32 @@ async fn refusals_come_before_the_range() {
     let plan = rebase_branch_plan(&tc, id.clone(), None).await.unwrap();
     assert_eq!(reason(&plan), (RebaseRefusal::Detached, None));
 }
+
+#[tokio::test]
+async fn a_local_upstream_of_the_default_branch_counts() {
+    let repo = TestRepo::new();
+    repo.commit_file("m1.txt", "m1\n", "m1");
+    let m2 = repo.commit_file("m2.txt", "m2\n", "m2");
+    repo.branch("grundlage/ä");
+    repo.git(&["branch", "--set-upstream-to=grundlage/ä", "main"]);
+    repo.commit_file("l1.txt", "l1\n", "l1");
+    let (tc, id) = open(&repo).await;
+    let plan = rebase_branch_plan(&tc, id.clone(), None).await.unwrap();
+    assert_eq!(ok(&plan), (m2, vec!["l1".to_string()]));
+}
+
+#[tokio::test]
+async fn unrelated_history_is_a_refusal_and_a_broken_history_an_error() {
+    let (repo, _, _, _) = feature_fixture();
+    let (tc, id) = open(&repo).await;
+    repo.git(&["checkout", "-q", "--orphan", "waise"]);
+    repo.commit_file("w.txt", "w\n", "w1");
+    let plan = rebase_branch_plan(&tc, id.clone(), None).await.unwrap();
+    assert_eq!(reason(&plan), (RebaseRefusal::NoCommonAncestor, Some(RebaseRefusalDetail::UnrelatedHistory)));
+
+    // A missing commit object in the default branch: `merge-base` fails with 128, not 1.
+    repo.checkout("feature/ä");
+    let m2 = repo.git(&["rev-parse", "main^"]);
+    std::fs::remove_file(repo.path().join(".git/objects").join(&m2[..2]).join(&m2[2..])).unwrap();
+    assert_eq!(rebase_branch_plan(&tc, id.clone(), None).await.unwrap_err().code, ErrorCode::Io);
+}
