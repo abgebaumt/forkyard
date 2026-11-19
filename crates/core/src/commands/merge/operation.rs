@@ -197,11 +197,19 @@ pub async fn operation_abort(core: &Core, repo_id: String) -> CoreResult<Status>
         // What the user did to UNRELATED files during the operation does not belong to the
         // operation: `rebase --abort` resets hard, `merge --abort` discards staged changes.
         // Without its backup (kept under a backup ref until it is written back) there is no abort.
-        let extra = ExtraWork::find(core, repo_id, &op).await?;
+        let extra = ExtraWork::find(core, repo_id, &op).await.map_err(|e| {
+            let mut refused = CoreError::new(
+                e.code,
+                format!("Not aborted: your other changes couldn’t be backed up ({}). Fix or close that file, then abort again.", e.message),
+            );
+            refused.git_output = e.git_output;
+            refused
+        })?;
         let backup = match &extra {
             Some(extra) => Pending::new(repo_id).keep(core, "worktree", &extra.snapshot.commit).await?,
             None => Pending::new(repo_id),
         };
+        let head_before = extra.as_ref().map(|extra| extra.head.clone());
         let aborted = async {
             let out = core.git_for(repo_id)?.args([subcommand, "--abort"]).run_raw().await?;
             if !out.success() {
@@ -210,17 +218,26 @@ pub async fn operation_abort(core: &Core, repo_id: String) -> CoreResult<Status>
             Ok::<_, CoreError>(())
         }
         .await;
-        let restored = match (&aborted, extra) {
-            (Ok(()), Some(extra)) => extra.restore(core, repo_id).await,
-            _ => Ok(()),
+        // The backup goes only when the work is back, or when the abort failed on a lock before
+        // touching anything (HEAD unchanged). Otherwise Git may have reset part of it: it stays.
+        let safe = match (&aborted, extra) {
+            (Ok(()), Some(extra)) => match extra.restore(core, repo_id).await {
+                Ok(()) => true,
+                Err(e) => {
+                    log::warn!("Extra work not restored after the abort: {}", e.message);
+                    false
+                }
+            },
+            (Ok(()), None) => true,
+            (Err(e), _) => {
+                e.is(ErrorCode::Locked)
+                    && rev::rev_parse(core, repo_id, "HEAD^{commit}").await.ok().flatten().as_deref() == head_before.as_deref()
+            }
         };
-        match restored {
-            Ok(()) => backup.forget(core).await,
-            Err(e) => log::warn!(
-                "Extra work not restored after the abort; it stays in {}: {}",
-                undo::backup_ref_name(backup.id(), "worktree"),
-                e.message
-            ),
+        if safe || head_before.is_none() {
+            backup.forget(core).await;
+        } else {
+            log::warn!("Extra work of the abort kept in {}", undo::backup_ref_name(backup.id(), "worktree"));
         }
         aborted?;
         // An open undo entry of the aborted operation disappears (the branch is back at the
