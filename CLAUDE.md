@@ -9,8 +9,12 @@ accounts, no telemetry. Main targets are Windows and Linux; macOS builds but is 
 
 Linux system packages (Ubuntu): `libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev libdbus-1-dev`. The core itself already needs `libdbus-1-dev` (keychain via Secret Service).
 
-The UI is English by default with German selectable (i18n, see below). Code, comments and docs are
-English; German appears only as test data and in `src/i18n/locales/de`.
+The UI is English by default with German selectable. Code, comments and docs are English; German
+appears only as test data and in `src/i18n/locales/de`.
+
+Read before touching code:
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): crates, the command contract, hard rules, security, database, undo, AI, E2E.
+- [docs/CONVENTIONS.md](docs/CONVENTIONS.md): module and test layout, where helpers live, adding a command, screen convention, UI rules, i18n, tokens, checks.
 
 ## Commands
 
@@ -34,7 +38,7 @@ cargo build                                  # target/debug/forkyard (needed by 
 cargo test --workspace                       # Rust tests against real temp repositories
 cargo test -p gitcore <testname>             # single Rust test
 cargo fmt --all                              # rustfmt.toml: max_width 140
-cargo clippy --workspace --all-targets       # expect 0 warnings
+cargo clippy --workspace --all-targets -- -D warnings   # expect 0 warnings
 ```
 
 README screenshots (Linux, needs Xvfb, ImageMagick and ffmpeg): `cargo build && node scripts/screenshots/shoot.mjs` and `node scripts/screenshots/record-gif.mjs`.
@@ -42,12 +46,7 @@ The demo repository comes from `scripts/screenshots/demo-repo.mjs`, the views fr
 
 ### E2E
 
-`e2e/` drives the real debug app over W3C WebDriver (`tauri-driver` + WebKitWebDriver on Linux; Windows
-is prepared but untested; macOS has no WebDriver). Each launch gets its own Xvfb display, ports, data
-dir, gitconfig and keychain service; the UI comes from its own Vite server from port 1431 (no HMR,
-page error hook). Features live in `e2e/features/*.mjs` (`scenario(name, "main"|"edge", fn)` from
-`e2e/lib.mjs`), shared fixtures (repositories, host mock, local Git servers) in `e2e/fixtures/`.
-Details and the API: `e2e/README.md`.
+`e2e/` drives the real debug app over WebDriver (Linux; details in `e2e/README.md`).
 
 ```bash
 npm run e2e:wd:prepare                    # cargo build + copy to target/e2e-wd/bin/<mtime>/
@@ -59,72 +58,21 @@ E2E_WD_ONLY="undo" node e2e/features/dataloss.mjs   # one feature, only scenario
 If a test turns red under load, fix the cause (wait for the concrete condition), never just raise
 timeouts.
 
-## Architecture
+## Must know
 
-```
-React UI --invoke--> src-tauri (thin binding) --> crates/core (gitcore) --process--> git
-     ^                                              |--> SQLite (app state)
-     +---------------- events (repo:changed, job:*, …) ---+--> OS keychain (secrets)
-```
+Hard rules (details in docs/ARCHITECTURE.md):
+1. Git is the source of truth; SQLite holds app state only.
+2. One write operation per repository at a time; reads run in parallel; never delete a foreign `index.lock`.
+3. The UI never runs Git and never builds command lines.
+4. `LC_ALL=C`, fixed `--format`, `-z`; paths and contents stay bytes, never lossy UTF-8.
+5. Check the expected state (HEAD, blob) before every write; abort and reload on mismatch.
+6. Back up under `refs/forkyard/undo/` before destructive steps (`Pending`); force push only as `--force-with-lease`.
+7. Read running merges, rebases and cherry-picks from `.git`, never from memory.
 
-Workspace crates:
-- `crates/core` (`gitcore`): all logic, no Tauri. `commands/*.rs` has one function per command. Plus `git/` (runner, errors, redaction in `redact.rs`, repository state in `repo.rs`, temp index in `index.rs`), `auth/` (credential broker, keychain, SSH keys), `util/` (time, text, path, fs helpers), `proc.rs` (non-Git processes, process trees), `db/` (SQLite, schema in `db/schema.sql`, migrations), `secrets.rs`, `http.rs` (ureq/rustls for GitHub/GitLab), `watcher.rs`, `autofetch.rs`, `undo.rs`. Feature `testkit` provides `TestCore`/`TestRepo`. `bin/forkyard-editor.rs` is the sequence editor for interactive rebase.
-- `crates/askpass`: helper for `GIT_ASKPASS`/`SSH_ASKPASS`. Forwards prompts over a local channel (127.0.0.1, one-time token) as `credential:request` to the UI. std only; `src-tauri/build.rs` compiles it with rustc as a sidecar into `src-tauri/binaries/`.
-- `src-tauri`: one `#[tauri::command]` per command in `commands.rs` that only delegates to `gitcore::commands`. Plain ones are lines of the `commands! { … }` table (the macro emits the wrapper and `handler()` = `generate_handler![…]`, which `lib.rs` registers); the few with special bodies are hand-written below it and listed in its `hand_written:` line.
-
-### The command contract (most important seam)
-
-`src/core/api.ts` (`CoreCommands`) is authoritative. A new or changed command always touches **three
-places**: `src/core/api.ts`, `crates/core/src/commands/<area>.rs` and
-one table line `name => area::core_fn(param: Type, …) -> Ret;` in `src-tauri/src/commands.rs` (or a
-hand-written `#[tauri::command]` below the table plus its name in `hand_written:`). Then run
-`npm run check:commands`. camelCase in
-TS maps to snake_case in Rust. Param/result/event types live in Rust only (`crates/core/src/model/<area>.rs`,
-`error.rs`, each with `#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "<area>.ts"))]`);
-`npm run gen:types` (= `cargo test -p gitcore --features ts --lib export_bindings` + biome) writes them and
-`Settings::default()` (`settingsDefaults.json`) to `src/core/generated/` (committed, CI fails on drift), and
-`src/core/types.ts` re-exports them next to the few TS-only types. Never change the wire shape just for TS:
-use `#[ts(...)]` attributes (e.g. `optional = nullable` for input fields the UI may omit). Errors always arrive as `{ code, message, gitOutput }` (`CoreError`). The
-UI talks to the core only through `src/core/index.ts`.
-
-### Hard rules
-
-1. **Git is the source of truth.** Commits, refs, stashes and remotes are never mirrored into SQLite. SQLite holds app state only (profiles, tabs, settings, undo, activity …).
-2. **One write operation per repository at a time** (queue in the core). Reads run in parallel. Background reads use `GIT_OPTIONAL_LOCKS=0`. A foreign `index.lock` is never deleted.
-3. **The UI never runs Git and never builds command lines.**
-4. Git runs with `LC_ALL=C`, fixed `--format` strings and `-z`. Paths and contents stay bytes / `OsString`, never lossy UTF-8 – especially for line staging (CRLF, missing final newline, Latin-1).
-5. Before every write, check the expected state (HEAD, blob). If it does not match, abort and reload.
-6. Destructive actions first create backups under `refs/forkyard/undo/`. Force push only as `--force-with-lease`.
-7. Running merges, rebases and cherry-picks are always read from `.git`, never from memory.
-
-### Security
-
-- Secrets live **only in the OS keychain** (`secrets.rs`, service `forkyard`), never in SQLite, logs, events or the UI (at most the last four characters). Everything that goes to the log, errors or events passes through `git/redact.rs` or `secrets::scrub`.
-- **Repository trust:** a repo whose config or hooks start programs stays locked (`repo_untrusted`) until the user agrees (`commands/trust.rs`, block list in `trust::config_reason`).
-- Inputs are validated in the core: paths via `normalize_rel_path` / `util::join_from_git`, refs without a leading `-`, `--` before paths.
-- Strict CSP in `src-tauri/tauri.conf.json`. Markdown from repositories goes through DOMPurify. Dev and test switches (`FORKYARD_*`, `window.__gcTest*`) only work in debug builds; the variables are listed in `.env.example`.
-- Tests never call real services. They use local mocks: `testkit/mock_http.rs`, `host/tests/mocks.rs`, `e2e/fixtures/host-mock.mjs`.
-
-### Database
-
-The complete current schema is `crates/core/src/db/schema.sql`; new databases are created from it.
-Existing ones are migrated step by step through `UPGRADES` in `crates/core/src/db.rs`
-(`pragma user_version`). A schema change touches **both** places; the test
-`existing_databases_are_upgraded_step_by_step` checks they agree.
-
-Settings have three levels: **global** (`app_settings`; which `Settings` fields are global is defined by
-`db::app_settings::GLOBAL_KEYS`), **per profile** (`settings`) and **per repository** (`repo_settings` or
-`.git/config`). `settingsSet` routes the fields itself. Each profile has its own repo list
-(`profile_repositories`: last opened, favourite, group); path, alias, colour and trust live in
-`repositories`. `repo_open` reports `repo_other_profile` when only other profiles list the repo.
-
-### UI (`src/`)
-
-- `src/screens/<Name>/`: one folder per screen: `index.tsx` (view), `model.ts` (pure logic, tested in `model.test.ts`), `actions.ts` (core calls), further parts as `.tsx`. Layers: `ui` imports neither `app` nor `components`/`screens`; `components` does not import `screens`; helpers used by several screens live in `components/` or `app/`.
-- `src/app/`: shell, state (`store.ts`, Zustand), reads via TanStack Query (`queries.ts`, keys `qk`; refetch on core events in `coreSync.ts`), write queue (`writeQueue.ts`), error display (`run.ts`), focus and Escape guards.
-- **Command registry:** every file `src/app/commands/*.ts` exporting `export const commands: AppCommand[]` is collected automatically via `import.meta.glob` (command palette, shortcuts, menus). Action logic lives in `src/app/actions/`.
-- `src/ui/`: primitives on top of Radix. `src/components/graph`: canvas commit graph; the lane layout is computed by the core (`graph_page`), the UI only draws.
-- **i18n:** `src/i18n` (i18next). Every visible string is `t("<area>.<key>")` with the text in `src/i18n/locales/en/<area>.json` and `de/<area>.json` (same keys; `src/i18n/i18n.test.ts` checks this and that every literal key exists). `t()` works at module level; changing the language reloads the window. Use `locale()` for `Intl` formats. Messages from the Rust core are English.
-- **Design tokens only**, no raw hex or pixel values in components. Source is `design/tokens.json`; `src/styles/tokens.css` and `theme.css` are generated (`npm run tokens`), never edited by hand.
-- Focus handling is a frequent source of bugs: views must not take focus while a dialog, menu or overlay is open (`src/app/viewFocus.ts`).
-- `?scenario=<Folder>.<name>` runs a scenario from `src/dev/scenarios/<Folder>/scenario.ts` after start (screenshots, tests; dev builds only, loaded by dynamic import).
+Also:
+- Secrets only in the OS keychain; logs, errors and events go through `git/redact.rs` or `secrets::scrub`. Untrusted repositories stay locked.
+- A command lives in `src/core/api.ts`, `crates/core/src/commands/<area>.rs` and one line of the `commands! { … }` table in `src-tauri/src/commands.rs`. Types live in Rust (`crates/core/src/model/`); run `npm run gen:types` and `npm run check:commands`.
+- A schema change touches `crates/core/src/db/schema.sql` and `UPGRADES` in `crates/core/src/db.rs`.
+- Every visible string is `t("<area>.<key>")` in both `src/i18n/locales/en` and `de`. Design tokens only; `src/styles/tokens.css` and `theme.css` are generated.
+- Views must not take focus while a dialog, menu or overlay is open (`src/app/viewFocus.ts`).
+- `?scenario=<Folder>.<name>` runs a scenario from `src/dev/scenarios/<Folder>/scenario.ts` (dev builds only).
