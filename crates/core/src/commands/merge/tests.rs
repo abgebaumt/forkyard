@@ -1547,10 +1547,15 @@ async fn abort_refuses_when_unrelated_work_cannot_be_backed_up() {
     repo.write_file("gesperrt.txt", "x\n");
     let locked = repo.path().join("gesperrt.txt");
     std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
+    if std::fs::read(&locked).is_ok() {
+        // Running as root: permissions don't stop reading, the case cannot be built.
+        return;
+    }
 
     let result = operation_abort(&tc, id.clone()).await;
     std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o644)).unwrap();
-    assert!(result.is_err(), "the abort ran without a backup of the unrelated work");
+    let error = result.expect_err("the abort ran without a backup of the unrelated work");
+    assert!(error.message.starts_with("Not aborted: your other changes couldn’t be backed up"), "{}", error.message);
     assert_eq!(repo.read_file("x.txt"), b"eigene Arbeit\n");
     assert!(read_status(&tc, &id).await.unwrap().operation.is_some());
 
@@ -1558,4 +1563,30 @@ async fn abort_refuses_when_unrelated_work_cannot_be_backed_up() {
     let status = operation_abort(&tc, id).await.unwrap();
     assert!(status.operation.is_none());
     assert_eq!(repo.read_file("x.txt"), b"eigene Arbeit\n");
+}
+
+/// An abort that fails after the backup of the unrelated work was taken keeps that backup: Git
+/// may already have reset part of it.
+#[tokio::test]
+async fn failed_abort_keeps_the_backup_of_unrelated_work() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::new();
+    repo.write_file("a.txt", "basis\n");
+    repo.write_file("x.txt", "basis\n");
+    repo.commit("Basis");
+    repo.checkout_new("feature");
+    repo.commit_file("a.txt", "feature\n", "Feature ändert a");
+    repo.commit_file("c.txt", "neu\n", "Feature ergänzt c");
+    repo.checkout("main");
+    repo.commit_file("a.txt", "main\n", "Main ändert a");
+    repo.checkout("feature");
+    assert!(!repo.git_output(&["rebase", "main"]).status.success());
+    let id = open(&tc, &repo).await;
+    repo.write_file("x.txt", "eigene Arbeit\n");
+    // A differing leftover makes the abort fail.
+    repo.write_file("c.txt", "eigene Notiz\n");
+    assert!(operation_abort(&tc, id).await.is_err());
+    let refs = repo.git(&["for-each-ref", "--format=%(refname)", "refs/forkyard/undo/"]);
+    let backup = refs.lines().find(|name| name.ends_with("/worktree")).unwrap_or_else(|| panic!("backup gone: {refs:?}"));
+    assert_eq!(repo.git(&["show", &format!("{backup}:x.txt")]), "eigene Arbeit");
 }
