@@ -76,8 +76,12 @@ export const README_PREVIEW_LIMIT = 200_000;
 /** Embedded raster images need no network and may stay. */
 const INLINE_IMAGE = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=\s]+$/i;
 
+declare const sanitised: unique symbol;
+/** HTML that went through `renderReadme` (DOMPurify + link and image rules). Nothing else produces it. */
+export type SanitisedHtml = string & { readonly [sanitised]: true };
+
 export interface RenderedReadme {
-  html: string;
+  html: SanitisedHtml;
   /** The text was longer than README_PREVIEW_LIMIT. */
   truncated: boolean;
   /** Images that were replaced by a placeholder. */
@@ -159,5 +163,5 @@ export function renderReadme(source: string): RenderedReadme {
     input.replaceWith(box);
   }
 
-  return { html: doc.body.innerHTML, truncated, blockedImages };
+  return { html: doc.body.innerHTML as SanitisedHtml, truncated, blockedImages };
 }

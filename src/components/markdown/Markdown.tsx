@@ -8,7 +8,7 @@ import type { HTMLAttributes, KeyboardEvent, MouseEvent } from "react";
 import { confirm } from "../../app/dialogs";
 import { runAction } from "../../app/run";
 import { cn } from "../../ui/cn";
-import { externalTarget } from "./render";
+import { externalTarget, type SanitisedHtml } from "./render";
 
 declare global {
   interface Window {
@@ -96,8 +96,8 @@ function linkTarget(element: EventTarget | null): string | null {
 }
 
 export interface MarkdownHtmlProps extends HTMLAttributes<HTMLElement> {
-  /** Output of `renderReadme` – never anything else. */
-  html: string;
+  /** Output of `renderReadme` – the type admits nothing else. */
+  html: SanitisedHtml;
   prompt: LinkPrompt;
   as?: "div" | "article";
   [data: `data-${string}`]: string | undefined;
