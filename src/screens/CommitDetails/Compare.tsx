@@ -17,7 +17,7 @@ import { useCommitBriefs, type CommitBriefs } from "./briefs";
 import { FilesSection } from "./FilesSection";
 import { analyzeSelection, orderNewestFirst, type CommitBrief } from "./logic";
 import { errorParts, HeaderSkeleton, PanelBar, PanelError, SectionLabel } from "./parts";
-import { VirtualList } from "./VirtualList";
+import { VirtualList } from "../../components/VirtualList";
 import { Trans } from "react-i18next";
 import { t } from "../../i18n";
 

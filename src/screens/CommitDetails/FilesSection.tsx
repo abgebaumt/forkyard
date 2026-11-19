@@ -17,7 +17,7 @@ import { SegmentedControl } from "../../ui/Field";
 import type { MenuEntry } from "../../ui/Menu";
 import { errorParts, LineCounts, PanelError, SectionLabel } from "./parts";
 import { writeClipboard } from "../../app/actions/clipboard";
-import { VirtualList } from "./VirtualList";
+import { VirtualList } from "../../components/VirtualList";
 import { locale, t } from "../../i18n";
 
 type FilesMode = "changed" | "all";
