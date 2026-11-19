@@ -2,7 +2,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { Core, CoreCommands, CoreSystem } from "./api";
-import { t } from "../i18n";
 import { CoreError, type CoreErrorData, type CoreEvents } from "./types";
 import { setStartupSender, traceCall } from "./startupTrace";
 
@@ -12,12 +11,14 @@ export type { Core, CoreCommands, CommandName, Unsubscribe } from "./api";
 
 const toSnake = (name: string) => name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
-function toCoreError(error: unknown): CoreError {
+/** Any thrown value as a CoreError; without a message, `describeError` falls back to the generic text. */
+export function toCoreError(error: unknown): CoreError {
   if (error instanceof CoreError) return error;
   if (error && typeof error === "object" && "code" in error && "message" in error) {
     return new CoreError(error as CoreErrorData);
   }
-  return new CoreError({ code: "unknown", message: typeof error === "string" ? error : t("app.core.unknownError"), gitOutput: null });
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  return new CoreError({ code: "unknown", message, gitOutput: null });
 }
 
 /**

@@ -7,7 +7,8 @@ import { runAction, showError, type ActionResult } from "../run";
 import { withFreshStatus, withStatus } from "../statusCache";
 import { useAppStore, type Selection } from "../store";
 import { commitsBetween, isAncestor, loadGraphIndex } from "./ancestry";
-import { cachedGraphRows, cachedRefs, clip, currentBranch, headSha, loadRefs, short } from "./context";
+import { cachedGraphRows, cachedRefs, clip, currentBranch, headSha, loadRefs } from "./context";
+import { shortSha } from "../format";
 import { busyKeys } from "./keys";
 import { blockingFiles } from "./merge";
 import { stashChanges } from "./stash";
@@ -31,7 +32,7 @@ export function refNameValidator(repoId: Id, kind: "branch" | "tag") {
 }
 
 /** How a start point is called in texts: short SHA or the name. */
-const pointName = (value: string) => (/^[0-9a-f]{40}$/.test(value) ? short(value) : value);
+const pointName = (value: string) => (/^[0-9a-f]{40}$/.test(value) ? shortSha(value) : value);
 
 /**
  * Uncommitted changes block a switch: name the affected files and offer
@@ -205,7 +206,7 @@ function reportCheckout(repoId: Id, status: Status, tabId?: Id | null) {
   if (head.kind === "detached") {
     toast({
       tone: "info",
-      title: t("actions.branches.checkout.detached.title", { sha: short(head.sha) }),
+      title: t("actions.branches.checkout.detached.title", { sha: shortSha(head.sha) }),
       description: t("actions.branches.checkout.detached.description"),
       action: { label: t("actions.branches.checkout.detached.action"), onClick: () => void createBranch(repoId, { tabId }) },
     });
@@ -225,7 +226,7 @@ function reportCheckout(repoId: Id, status: Status, tabId?: Id | null) {
       tone: "warning",
       sticky: true,
       title: t("actions.branches.leftBehind.title", { count: left.count }),
-      description: t("actions.branches.leftBehind.description", { count: left.count, sha: short(left.sha) }),
+      description: t("actions.branches.leftBehind.description", { count: left.count, sha: shortSha(left.sha) }),
       action: {
         label: t("actions.branches.leftBehind.action"),
         onClick: () => void createBranch(repoId, { start: left.sha, checkout: false, tabId }),

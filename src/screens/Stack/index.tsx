@@ -55,6 +55,7 @@ import {
 } from "./model";
 import { pushStack } from "./push";
 import { useStackSuggest } from "./Suggest";
+import { shortSha } from "../../app/format";
 
 /** Titles typed before "Create", for the pull requests of that stack (in memory, per repository). */
 const rememberedTitles = new Map<Id, Record<string, string>>();
@@ -464,7 +465,7 @@ function Planner({ repoId, tabId, branch }: StackViewProps) {
                     className={cn("flex items-center gap-2 px-3 py-1 text-sm text-text", index === selected && "bg-accent-surface")}
                   >
                     <span className="min-w-0 flex-1 truncate">{commit.subject}</span>
-                    <span className="font-mono text-code text-text-muted">{commit.sha.slice(0, 7)}</span>
+                    <span className="font-mono text-code text-text-muted">{shortSha(commit.sha)}</span>
                     <span className="text-text-muted">{t("pullRequest.stack.stat", { added: commit.added, deleted: commit.deleted })}</span>
                   </div>
                 );

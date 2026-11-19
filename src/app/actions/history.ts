@@ -9,7 +9,8 @@ import { runAction } from "../run";
 import { withFreshStatus, withStatus } from "../statusCache";
 import { useAppStore } from "../store";
 import { commitsBetween, consecutiveOnHead, findRow, loadGraphIndex, oldestFirst, type GraphIndex, type OutsideParents } from "./ancestry";
-import { clip, currentBranch, headSha, loadStatus, short } from "./context";
+import { clip, currentBranch, headSha, loadStatus } from "./context";
+import { shortSha } from "../format";
 import { copyText } from "./clipboard";
 import { busyKeys } from "./keys";
 import { preflight } from "./preflight";
@@ -46,7 +47,7 @@ async function parentsOutsideGraph(repoId: Id, index: GraphIndex, sha: Sha, limi
 /** Reverts a commit with a new commit. Conflict → WIP view. */
 export async function revertCommit(repoId: Id, sha: Sha, tabId?: Id | null) {
   const choice = await preflight(repoId, {
-    title: t("preflight.revertTitle", { sha: short(sha) }),
+    title: t("preflight.revertTitle", { sha: shortSha(sha) }),
     confirmLabel: t("actions.history.revert.label"),
     op: { kind: "revert", commits: [sha] },
   });
@@ -61,7 +62,7 @@ export async function revertCommit(repoId: Id, sha: Sha, tabId?: Id | null) {
       toast({
         tone: "info",
         title: t("actions.history.revert.nothing"),
-        description: t("actions.history.revert.nothingDescription", { sha: short(sha) }),
+        description: t("actions.history.revert.nothingDescription", { sha: shortSha(sha) }),
       });
     } else {
       reportOpResult(t("actions.history.revert.label"), result.value, tabId, { reveal: true });
@@ -123,7 +124,7 @@ export async function resetBranch(repoId: Id, sha: Sha, mode: ResetMode, tabId?:
         ? t("actions.history.reset.changes", { count: files.length })
         : t("actions.history.reset.changesNone");
     const ok = await confirm({
-      title: t("actions.history.reset.hardTitle", { subject, sha: short(sha) }),
+      title: t("actions.history.reset.hardTitle", { subject, sha: shortSha(sha) }),
       body: [
         commits,
         changes,
@@ -151,7 +152,7 @@ export async function resetBranch(repoId: Id, sha: Sha, mode: ResetMode, tabId?:
   const kept = dropped ? t("actions.history.reset.keptCount", { count: dropped }) : t("actions.history.reset.kept");
   toast({
     tone: "success",
-    title: t("actions.history.reset.done", { subject, sha: short(sha) }),
+    title: t("actions.history.reset.done", { subject, sha: shortSha(sha) }),
     description:
       mode === "soft"
         ? t("actions.history.reset.doneSoft", { kept })
@@ -270,7 +271,7 @@ export async function rewordHead(repoId: Id, sha: Sha, tabId?: Id | null) {
     toast({
       tone: "danger",
       title: t("actions.history.reword.failed"),
-      description: t("actions.history.commitNotLoaded", { sha: short(sha) }),
+      description: t("actions.history.commitNotLoaded", { sha: shortSha(sha) }),
     });
     return null;
   }
@@ -316,8 +317,8 @@ export async function restoreFile(repoId: Id, sha: Sha, paths: string[]) {
   if (overwritten.length) {
     const ok = await confirm({
       title: single
-        ? t("actions.history.restore.titleOne", { path: clip(paths[0]!, 44), sha: short(sha) })
-        : t("actions.history.restore.titleMany", { count: paths.length, sha: short(sha) }),
+        ? t("actions.history.restore.titleOne", { path: clip(paths[0]!, 44), sha: shortSha(sha) })
+        : t("actions.history.restore.titleMany", { count: paths.length, sha: shortSha(sha) }),
       body:
         overwritten.length === 1 && single
           ? t("actions.history.restore.bodyOne")
@@ -334,8 +335,8 @@ export async function restoreFile(repoId: Id, sha: Sha, paths: string[]) {
     withStatus(repoId, () => core.fileRestore({ repoId, sha, paths })),
     {
       success: single
-        ? t("actions.history.restore.doneOne", { path: clip(paths[0]!, 44), sha: short(sha) })
-        : t("actions.history.restore.doneMany", { count: paths.length, sha: short(sha) }),
+        ? t("actions.history.restore.doneOne", { path: clip(paths[0]!, 44), sha: shortSha(sha) })
+        : t("actions.history.restore.doneMany", { count: paths.length, sha: shortSha(sha) }),
     },
   );
   return result;
@@ -354,7 +355,11 @@ export async function copyCommitMessage(repoId: Id, sha: Sha) {
   const details = await loadCommit(repoId, sha).catch(() => null);
   const commit = details?.commit;
   if (!commit) {
-    toast({ tone: "danger", title: t("actions.clipboard.failed"), description: t("actions.history.commitNotLoaded", { sha: short(sha) }) });
+    toast({
+      tone: "danger",
+      title: t("actions.clipboard.failed"),
+      description: t("actions.history.commitNotLoaded", { sha: shortSha(sha) }),
+    });
     return false;
   }
   return copyText(

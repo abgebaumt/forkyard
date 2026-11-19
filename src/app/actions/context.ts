@@ -82,9 +82,6 @@ export const loadRemotes = (repoId: Id): Promise<Remote[]> => {
   return cached ? Promise.resolve(cached) : fresh(qk.remotes(repoId), () => core.remoteList({ repoId }));
 };
 
-/** Short form of a SHA for texts. */
-export const short = (sha: Sha) => sha.slice(0, 7);
-
 /** Shortens long names and summaries for titles of dialogs and messages; the full text is shown elsewhere. */
 export function clip(text: string, max = 60): string {
   const line = text.split("\n")[0] ?? "";

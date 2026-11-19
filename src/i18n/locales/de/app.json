@@ -76,9 +76,6 @@
   "common": {
     "cancel": "Abbrechen"
   },
-  "core": {
-    "unknownError": "Unbekannter Fehler im Kern."
-  },
   "dialogs": {
     "andMore_one": "und {{formatted}} weitere",
     "andMore_other": "und {{formatted}} weitere",

@@ -23,8 +23,8 @@ import {
   loadRefs,
   loadRemotes,
   loadStatus,
-  short,
 } from "./context";
+import { shortSha } from "../format";
 import { busyKeys } from "./keys";
 import { blockingFiles, reportOpResult } from "./merge";
 import { popStash, stashChanges } from "./stash";
@@ -287,7 +287,7 @@ async function confirmForcePush(
     const index = await loadGraphIndex(repoId, { fresh: true });
     const range = index ? commitsBetween(index, local.sha, remoteRef.sha) : null;
     if (range) {
-      details = range.rows.map((row) => `${short(row.sha!)}  ${clip(row.summary, 80)} · ${row.authorName}`);
+      details = range.rows.map((row) => `${shortSha(row.sha!)}  ${clip(row.summary, 80)} · ${row.authorName}`);
       lost = range.partial ? Math.max(lost, range.rows.length) : range.rows.length;
     }
   }
@@ -306,6 +306,11 @@ async function confirmForcePush(
   // The state the prompt showed is passed along: if the app (auto-fetch) fetches something new
   // in the meantime, the core refuses instead of overwriting commits that were never named here.
   return ok ? { expected: remoteRef?.sha ?? null } : null;
+}
+
+/** The toast after a push the remote refused (non-fast-forward, protected branch …). */
+export function toastPushRejected(reason: string) {
+  toast({ tone: "danger", title: t("actions.pullrequests.pushRejected"), description: reason });
 }
 
 /**
@@ -347,7 +352,7 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
       return result;
     }
     if (result.value.status === "rejected") {
-      toast({ tone: "danger", title: t("actions.pullrequests.pushRejected"), description: result.value.reason });
+      toastPushRejected(result.value.reason);
       desktopNotify(cachedSettings()?.notifyOnError, t("actions.pullrequests.pushRejected"), result.value.reason);
       return result;
     }

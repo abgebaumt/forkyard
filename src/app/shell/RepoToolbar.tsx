@@ -32,6 +32,7 @@ import { nothingToPush, outgoing, statusPublishState } from "../publishState";
 
 import { useAppStore, useBusy, useTabView } from "../store";
 import { t } from "../../i18n";
+import { shortSha } from "../format";
 
 const icon = (Component: typeof Undo2) => <Component className="size-icon" aria-hidden />;
 
@@ -246,9 +247,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         compact={compact}
         busy={branching || rewriting}
         disabled={Boolean(branchBlocked)}
-        hint={
-          branchBlocked ?? (branchStart ? t("shell.toolbar.branchAt", { sha: branchStart.slice(0, 7) }) : t("shell.toolbar.branchHint"))
-        }
+        hint={branchBlocked ?? (branchStart ? t("shell.toolbar.branchAt", { sha: shortSha(branchStart) }) : t("shell.toolbar.branchHint"))}
         onClick={() => void createBranch(repoId, { start: branchStart, tabId })}
       />
       <ToolbarButton

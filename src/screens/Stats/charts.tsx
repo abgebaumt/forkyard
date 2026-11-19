@@ -10,6 +10,7 @@ import { locale, t } from "../../i18n";
 import { cn } from "../../ui/cn";
 import { folderSegments, hotspotSeverity, initials, timeTicks, type AuthorPalette, type Severity } from "./layout";
 import { ageShares, heatLevels, squarify, type AgeKey, type TreeNode } from "./model";
+import { shortSha } from "../../app/format";
 
 const numbers = new Intl.NumberFormat(locale());
 const compact = new Intl.NumberFormat(locale(), { notation: "compact", maximumFractionDigits: 1 });
@@ -224,11 +225,11 @@ export function Records({
             <button
               type="button"
               data-record-commit={biggestCommit.sha}
-              title={t("stats.records.showCommit", { sha: biggestCommit.sha.slice(0, 7) })}
+              title={t("stats.records.showCommit", { sha: shortSha(biggestCommit.sha) })}
               className="max-w-full truncate text-left hover:text-text hover:underline"
               onClick={() => onCommit(biggestCommit.sha)}
             >
-              {biggest ? `${biggest.summary} · ${biggest.author}` : t("stats.records.showCommit", { sha: biggestCommit.sha.slice(0, 7) })}
+              {biggest ? `${biggest.summary} · ${biggest.author}` : t("stats.records.showCommit", { sha: shortSha(biggestCommit.sha) })}
             </button>
           ) : undefined
         }
