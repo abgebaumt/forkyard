@@ -1,7 +1,7 @@
 /**
  * UI translations (i18next). Each area has its own file per language
  * `locales/<language>/<area>.json`; its content sits under the key `<area>`, so
- * `t("ui.appearance")` for `locales/en/preferences.json` › `appearance.title`.
+ * `t("preferences.appearance.title")` for `locales/en/preferences.json` › `appearance.title`.
  *
  * The language is stored in localStorage and set synchronously when the module loads, so that
  * module-level texts (command lists, menus) are translated too. A change reloads the UI.
