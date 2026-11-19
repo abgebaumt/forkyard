@@ -76,6 +76,13 @@
   font-style: italic;
 }
 
+/* Not assigned yet (blame still running): only a muted bar, also when coloured by age. */
+[data-screen="blame"] .gc-blame-cell.gc-blame-pending {
+  --gc-blame-color: var(--gc-border);
+  background: none;
+  cursor: default;
+}
+
 .gc-blame-cell:hover,
 .gc-blame-cell[data-active] {
   background: var(--gc-surface-raised);

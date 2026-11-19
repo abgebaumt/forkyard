@@ -2,6 +2,8 @@
   "ariaLabel": "Blame von {{path}}",
   "loading": "Blame von {{name}} wird geladen",
   "uncommitted": "Noch nicht committet",
+  "progress": "Zeilen werden zugeordnet … {{percent}} %",
+  "pending": "Noch nicht zugeordnet",
   "line": "Zeile {{line}}",
   "lineRange": "Zeilen {{from}}–{{to}}",
   "stand": {
