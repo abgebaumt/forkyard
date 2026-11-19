@@ -7,7 +7,7 @@ use parking_lot::Mutex;
 use rusqlite::Connection;
 
 use crate::app::Core;
-use crate::commands::{app, repos};
+use crate::commands::{app, launch, repos};
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::events::names;
@@ -218,7 +218,8 @@ pub async fn window_close(core: &Core) -> CoreResult<bool> {
     }
     core.state::<app::CloseGuard>().set_closing(&label);
     let cancelled = core.jobs.cancel_from(&label);
-    app::wait_until_stopped(cancelled, || core.jobs.running_from(&label)).await;
+    // Cancelling again on every check also stops a job the window started while it closes.
+    app::wait_until_stopped(cancelled, || core.jobs.cancel_from(&label)).await;
     Ok(false)
 }
 
@@ -234,6 +235,7 @@ pub fn note_focus(core: &Core, label: &str) {
     if let Err(e) = core.db.with(|c| db::windows::note_focus(c, &db::profiles::active_id(c)?, label)) {
         log::warn!("Focus of window {label} not recorded: {}", e.message);
     }
+    launch::focused(core, label);
 }
 
 /// The window moved or was resized (memory only; see `save_geometry`).
@@ -254,6 +256,7 @@ pub fn window_closed(core: &Core, label: &str) {
     core.state::<Windows>().strips.lock().remove(label);
     let guard = core.state::<app::CloseGuard>();
     guard.forget(label);
+    launch::window_closed(core, label);
     if guard.quitting() {
         return;
     }
@@ -270,6 +273,7 @@ pub fn window_closed(core: &Core, label: &str) {
     match closed {
         Ok(Some(tabs)) => {
             core.state::<Windows>().geometry.lock().remove(label);
+            core.git.broker().window_closed(label);
             tabs_left(core, label, &tabs);
             core.emit_app_changed(&[AppChange::Tabs, AppChange::Windows]);
         }

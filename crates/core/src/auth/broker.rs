@@ -121,6 +121,8 @@ struct Reply {
 struct Pending {
     token: String,
     tx: oneshot::Sender<Reply>,
+    /// The `credential:request` sent, for showing it again in another window.
+    request: serde_json::Value,
 }
 
 #[derive(Default)]
@@ -357,6 +359,39 @@ impl Broker {
         }
     }
 
+    /// Sends a `credential:request` to the window that shows it (see `db::windows::prompt_target`);
+    /// to all windows when there is none.
+    fn show(&self, profile_id: &str, origin: Option<&str>, request: serde_json::Value) {
+        if request.is_null() {
+            return;
+        }
+        match self.db.with(|c| db::windows::prompt_target(c, profile_id, origin)) {
+            Ok(Some(window)) => self.events.emit_to(&window, names::CREDENTIAL_REQUEST, request),
+            _ => self.events.emit(names::CREDENTIAL_REQUEST, request),
+        }
+    }
+
+    /// The window `label` closed: its open prompts move to the window that shows prompts now, and
+    /// its sessions ask there from now on.
+    pub fn window_closed(&self, label: &str) {
+        let moved: Vec<(String, serde_json::Value)> = {
+            let mut state = self.state.lock();
+            let State { sessions, pending } = &mut *state;
+            let mut tokens = Vec::new();
+            for (token, session) in sessions.iter_mut().filter(|(_, s)| s.origin.as_deref() == Some(label)) {
+                session.origin = None;
+                tokens.push((token.clone(), session.profile_id.clone()));
+            }
+            pending
+                .values()
+                .filter_map(|p| tokens.iter().find(|(t, _)| *t == p.token).map(|(_, profile_id)| (profile_id.clone(), p.request.clone())))
+                .collect()
+        };
+        for (profile_id, request) in moved {
+            self.show(&profile_id, None, request);
+        }
+    }
+
     /// Number of prompts currently waiting for the UI.
     pub fn pending_count(&self) -> usize {
         self.state.lock().pending.len()
@@ -418,12 +453,6 @@ impl Broker {
 
         let can_remember = question.store.is_some() && question.kind != CredentialKind::Username && self.keyring_available().await;
         let request_id = util::new_id();
-        let (tx, rx) = oneshot::channel();
-        {
-            let mut state = self.state.lock();
-            state.sessions.get_mut(token)?.waiting += 1;
-            state.pending.insert(request_id.clone(), Pending { token: token.to_string(), tx });
-        }
         let request = CredentialRequest {
             request_id: request_id.clone(),
             kind: question.kind,
@@ -433,13 +462,20 @@ impl Broker {
             prompt: display_prompt(prompt),
             can_remember,
         };
-        match serde_json::to_value(&request) {
-            Ok(payload) => match self.db.with(|c| db::windows::prompt_target(c, &profile_id, origin.as_deref())) {
-                Ok(Some(window)) => self.events.emit_to(&window, names::CREDENTIAL_REQUEST, payload),
-                _ => self.events.emit(names::CREDENTIAL_REQUEST, payload),
-            },
-            Err(e) => log::warn!("credential:request not serializable: {e}"),
+        let request = match serde_json::to_value(&request) {
+            Ok(payload) => payload,
+            Err(e) => {
+                log::warn!("credential:request not serializable: {e}");
+                serde_json::Value::Null
+            }
+        };
+        let (tx, rx) = oneshot::channel();
+        {
+            let mut state = self.state.lock();
+            state.sessions.get_mut(token)?.waiting += 1;
+            state.pending.insert(request_id.clone(), Pending { token: token.to_string(), tx, request: request.clone() });
         }
+        self.show(&profile_id, origin.as_deref(), request);
 
         let outcome = tokio::select! {
             reply = rx => match reply {
