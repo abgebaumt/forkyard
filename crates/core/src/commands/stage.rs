@@ -22,6 +22,7 @@ use crate::commands::diff::patch::{self, Direction};
 use crate::commands::diff::patch_basis;
 use crate::commands::status::{parse_porcelain_v2, read_status, EntryKind, StatusEntry};
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::bulk;
 use crate::git::index::TempIndex;
 use crate::git::repo::read_head;
 use crate::git::rev;
@@ -30,7 +31,6 @@ use crate::model::{Head, PatchSelection, RepoChange, Status};
 use crate::undo::{self, UndoAction, UndoRecord};
 use crate::util;
 
-pub(crate) mod bulk;
 #[cfg(test)]
 mod bulk_tests;
 #[cfg(test)]
