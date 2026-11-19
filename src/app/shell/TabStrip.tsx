@@ -9,6 +9,7 @@ import { openExternal } from "../actions/files";
 import { openRepoCleanup } from "../../screens/RepoCleanup";
 import { activateTab, closeOtherTabs, closeTab, moveTab, newTab } from "../actions/repos";
 import { qk, useRepos } from "../queries";
+import { commandShortcut } from "../registry";
 import { readStatus } from "../statusOrder";
 import { ProfileChip } from "./ProfileChip";
 import { onTabRenameRequest, setTabAlias } from "./tabAlias";
@@ -74,7 +75,11 @@ export function TabStrip({ tabs }: { tabs: Tab[] }) {
     if (!tab) return [];
     const repo = repoOf(tab);
     const entries: MenuEntry[] = [
-      { label: t("shell.tabMenu.close"), shortcut: tab.isActive ? "Mod+W" : undefined, onSelect: () => void closeTab(tab.id) },
+      {
+        label: t("shell.tabMenu.close"),
+        shortcut: tab.isActive ? commandShortcut("tab.close") : undefined,
+        onSelect: () => void closeTab(tab.id),
+      },
       { label: t("shell.tabMenu.closeOthers"), disabled: tabs.length < 2, onSelect: () => void closeOtherTabs(tab.id) },
       { type: "separator" },
       // The alias is only a display name; the input opens directly on the tab.
@@ -123,7 +128,7 @@ export function TabStrip({ tabs }: { tabs: Tab[] }) {
         },
       );
     }
-    entries.push({ type: "separator" }, { label: t("ui.tabs.new"), shortcut: "Mod+T", onSelect: () => void newTab() });
+    entries.push({ type: "separator" }, { label: t("ui.tabs.new"), shortcut: commandShortcut("tab.new"), onSelect: () => void newTab() });
     return entries;
   };
 

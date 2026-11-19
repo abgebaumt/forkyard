@@ -120,6 +120,7 @@ import { isPinned, togglePinned } from "../actions/graphView";
 import { isHidden, isSolo, toggleHidden, toggleSolo } from "../actions/view";
 import { t } from "../../i18n";
 import { nothingToPush, publishTarget, refPublishState } from "../publishState";
+import { commandShortcut } from "../registry";
 import { useAppStore } from "../store";
 import { customCommandEntries } from "./custom";
 import { openGitflowFinish } from "../../screens/Gitflow";
@@ -242,8 +243,12 @@ function mergeEntries(ctx: MenuBase, sha: Sha, row: GraphRow | undefined): MenuE
           ),
         ]
       : []),
-    item(t("menus.commit.collapseAll"), ChevronsDownUp, () => void setAllMergesCollapsed(ctx.repoId, true), { shortcut: "Mod+Shift+[" }),
-    item(t("menus.commit.expandAll"), ChevronsUpDown, () => void setAllMergesCollapsed(ctx.repoId, false), { shortcut: "Mod+Shift+]" }),
+    item(t("menus.commit.collapseAll"), ChevronsDownUp, () => void setAllMergesCollapsed(ctx.repoId, true), {
+      shortcut: commandShortcut("graph.collapseAllMerges"),
+    }),
+    item(t("menus.commit.expandAll"), ChevronsUpDown, () => void setAllMergesCollapsed(ctx.repoId, false), {
+      shortcut: commandShortcut("graph.expandAllMerges"),
+    }),
   ];
 }
 
@@ -377,15 +382,18 @@ export function wipMenu(ctx: MenuBase): MenuEntry[] {
     status?.head.kind === "unborn" ? t("menus.wip.needsCommit") : conflicted ? t("menus.wip.resolveConflictsFirst") : noChanges;
   return tidy([
     item(t("menus.wip.stageAll"), Plus, () => void stagePaths(repoId, null), {
-      shortcut: "Mod+Shift+S",
+      shortcut: commandShortcut("wip.stageAll"),
       blocked: status && unstaged === 0 ? t("menus.wip.nothingToStage") : null,
     }),
     item(t("menus.wip.unstageAll"), Minus, () => void unstagePaths(repoId, null), {
-      shortcut: "Mod+Shift+U",
+      shortcut: commandShortcut("wip.unstageAll"),
       blocked: status && staged === 0 ? t("menus.wip.nothingStaged") : null,
     }),
     SEPARATOR,
-    item(t("menus.wip.stash"), Archive, () => void stashChanges(repoId), { shortcut: "Alt+S", blocked: stashBlock }),
+    item(t("menus.wip.stash"), Archive, () => void stashChanges(repoId), {
+      shortcut: commandShortcut("stash.create"),
+      blocked: stashBlock,
+    }),
     item(t("menus.wip.stashWithMessage"), Archive, () => useAppStore.getState().openStashForm(tabId), { blocked: stashBlock }),
     SEPARATOR,
     item(t("menus.wip.patchFromChanges"), FileDiff, () => void patchFromWip(repoId), { blocked: noChanges }),
@@ -546,7 +554,7 @@ function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
       : null,
     ref.isHead
       ? item(t("menus.branch.pull"), ArrowDownToLine, () => void pull(repoId, null, tabId), {
-          shortcut: "Mod+Shift+D",
+          shortcut: commandShortcut("sync.pull"),
           blocked: busy ?? (!hasRemote ? t("menus.noRemote") : !upstream ? t("menus.branch.noUpstream") : null),
         })
       : // Not checked out: fetch, then only the ref moves (no checkout).
@@ -570,7 +578,7 @@ function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
                     : null),
         }),
     item(t("menus.branch.push"), ArrowUpFromLine, () => void push(repoId, { branch: ref.isHead ? null : ref.name, tabId }), {
-      shortcut: ref.isHead ? "Mod+Shift+P" : undefined,
+      shortcut: ref.isHead ? commandShortcut("sync.push") : undefined,
       hint: !hasRemote ? undefined : pushHint(ref, cachedRemotes(repoId)?.map((remote) => remote.name) ?? []),
       blocked: !hasRemote ? t("menus.noRemote") : nothingToPush(refPublishState(ref)) ? t("menus.nothingToPush") : null,
     }),
@@ -778,7 +786,7 @@ export function stashMenu(ctx: MenuBase & { stash: Stash }): MenuEntry[] {
       blocked: conflicted,
     }),
     item(t("menus.stash.pop"), ArchiveRestore, () => void popStash(repoId, stash, tabId), {
-      shortcut: stash.index === 0 ? "Alt+P" : undefined,
+      shortcut: stash.index === 0 ? commandShortcut("stash.pop") : undefined,
       hint: conflicted || stash.index === 0 ? undefined : t("menus.stash.popHint"),
       blocked: conflicted,
     }),

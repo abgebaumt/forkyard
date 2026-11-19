@@ -37,6 +37,11 @@ export function getCommands(): AppCommand[] {
   return registered;
 }
 
+/** Shortcut of a registered command – menus show the registry's, never a copy. */
+export function commandShortcut(id: string): string | undefined {
+  return registered.find((command) => command.id === id)?.shortcut;
+}
+
 /** Register further commands at runtime (e.g. depending on the screen). The return value unregisters them. */
 export function registerCommands(commands: AppCommand[]): () => void {
   registered = [...registered.filter((item) => !commands.some((command) => command.id === item.id)), ...commands];

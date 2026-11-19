@@ -8,7 +8,7 @@ vi.stubGlobal("window", { requestAnimationFrame: (run: (time: number) => void) =
 import type { FileChange, Ref, RefsSnapshot, Stash, Status } from "../../core";
 import type { MenuAction, MenuEntry } from "../../ui/Menu";
 import { qk, queryClient } from "../queries";
-import { branchMenu, commitMenu, fileMenu } from "./entries";
+import { branchMenu, commitMenu, fileMenu, stashMenu, wipMenu } from "./entries";
 
 const stash: Stash = {
   index: 0,
@@ -274,5 +274,14 @@ describe("bisect autopilot in the commit menu", () => {
       queryClient.setQueryData(qk.repoSettings("r1"), settings);
       expect(find(commitMenu({ repoId: "r1", tabId: "t1", shas: two }), label), JSON.stringify({ status, settings })).toBeUndefined();
     }
+  });
+});
+
+describe("shortcuts in menus", () => {
+  // They come from the command registry by id; a renamed id would silently drop the shortcut.
+  it("shows the registered commands' shortcuts", () => {
+    const shortcuts = (entries: MenuEntry[]) => entries.flatMap((entry) => ("shortcut" in entry && entry.shortcut ? [entry.shortcut] : []));
+    expect(shortcuts(wipMenu({ repoId: "r1", tabId: "t1" }))).toEqual(["Mod+Shift+S", "Mod+Shift+U", "Alt+S"]);
+    expect(shortcuts(stashMenu({ repoId: "r1", tabId: "t1", stash }))).toEqual(["Alt+P"]);
   });
 });
