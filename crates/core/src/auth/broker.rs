@@ -123,6 +123,8 @@ struct Pending {
     tx: oneshot::Sender<Reply>,
     /// The `credential:request` sent, for showing it again in another window.
     request: serde_json::Value,
+    /// The window it was last sent to; `None` = all windows.
+    shown_in: Option<String>,
 }
 
 #[derive(Default)]
@@ -359,36 +361,43 @@ impl Broker {
         }
     }
 
-    /// Sends a `credential:request` to the window that shows it (see `db::windows::prompt_target`);
-    /// to all windows when there is none.
-    fn show(&self, profile_id: &str, origin: Option<&str>, request: serde_json::Value) {
+    /// Sends the `credential:request` of the pending prompt `request_id` to the window that shows it
+    /// (see `db::windows::prompt_target`), to all windows when there is none, and remembers where it went.
+    fn show(&self, request_id: &str, profile_id: &str, origin: Option<&str>, request: serde_json::Value) {
         if request.is_null() {
             return;
         }
-        match self.db.with(|c| db::windows::prompt_target(c, profile_id, origin)) {
-            Ok(Some(window)) => self.events.emit_to(&window, names::CREDENTIAL_REQUEST, request),
-            _ => self.events.emit(names::CREDENTIAL_REQUEST, request),
+        let target = self.db.with(|c| db::windows::prompt_target(c, profile_id, origin)).ok().flatten();
+        if let Some(pending) = self.state.lock().pending.get_mut(request_id) {
+            pending.shown_in = target.clone();
+        }
+        match target {
+            Some(window) => self.events.emit_to(&window, names::CREDENTIAL_REQUEST, request),
+            None => self.events.emit(names::CREDENTIAL_REQUEST, request),
         }
     }
 
-    /// The window `label` closed: its open prompts move to the window that shows prompts now, and
-    /// its sessions ask there from now on.
+    /// The window `label` closed: its sessions ask in the window that shows prompts now, and the open
+    /// prompts of those sessions or last sent to `label` move there.
     pub fn window_closed(&self, label: &str) {
-        let moved: Vec<(String, serde_json::Value)> = {
+        let moved: Vec<(String, String, Option<String>, serde_json::Value)> = {
             let mut state = self.state.lock();
             let State { sessions, pending } = &mut *state;
             let mut tokens = Vec::new();
             for (token, session) in sessions.iter_mut().filter(|(_, s)| s.origin.as_deref() == Some(label)) {
                 session.origin = None;
-                tokens.push((token.clone(), session.profile_id.clone()));
+                tokens.push(token.clone());
             }
             pending
-                .values()
-                .filter_map(|p| tokens.iter().find(|(t, _)| *t == p.token).map(|(_, profile_id)| (profile_id.clone(), p.request.clone())))
+                .iter()
+                .filter(|(_, p)| tokens.contains(&p.token) || p.shown_in.as_deref() == Some(label))
+                .filter_map(|(id, p)| {
+                    sessions.get(&p.token).map(|s| (id.clone(), s.profile_id.clone(), s.origin.clone(), p.request.clone()))
+                })
                 .collect()
         };
-        for (profile_id, request) in moved {
-            self.show(&profile_id, None, request);
+        for (request_id, profile_id, origin, request) in moved {
+            self.show(&request_id, &profile_id, origin.as_deref(), request);
         }
     }
 
@@ -473,9 +482,9 @@ impl Broker {
         {
             let mut state = self.state.lock();
             state.sessions.get_mut(token)?.waiting += 1;
-            state.pending.insert(request_id.clone(), Pending { token: token.to_string(), tx, request: request.clone() });
+            state.pending.insert(request_id.clone(), Pending { token: token.to_string(), tx, request: request.clone(), shown_in: None });
         }
-        self.show(&profile_id, origin.as_deref(), request);
+        self.show(&request_id, &profile_id, origin.as_deref(), request);
 
         let outcome = tokio::select! {
             reply = rx => match reply {

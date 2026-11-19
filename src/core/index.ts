@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { Core, CoreCommands, CoreSystem } from "./api";
 import { CoreError, type CoreErrorData, type CoreEvents } from "./types";
@@ -32,6 +33,15 @@ declare global {
   }
 }
 
+/** This window's label: events the core sends to one window reach only that window. None outside Tauri. */
+function ownWindow(): string | undefined {
+  try {
+    return getCurrentWebviewWindow().label;
+  } catch {
+    return undefined;
+  }
+}
+
 const system: CoreSystem = {
   async pickFolder({ title, defaultPath }) {
     if (import.meta.env.DEV && window.__gcTestPicks?.length) return window.__gcTestPicks.shift() ?? null;
@@ -46,9 +56,13 @@ const system: CoreSystem = {
   on(event, handler) {
     let active = true;
     let unlisten: (() => void) | undefined;
-    const ready = listen<CoreEvents[typeof event]>(event, (message) => {
-      if (active) handler(message.payload);
-    }).then(
+    const ready = listen<CoreEvents[typeof event]>(
+      event,
+      (message) => {
+        if (active) handler(message.payload);
+      },
+      { target: ownWindow() },
+    ).then(
       (stop) => {
         if (active) unlisten = stop;
         else stop();
