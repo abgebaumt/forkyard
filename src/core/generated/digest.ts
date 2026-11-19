@@ -95,7 +95,7 @@ export type DigestRef = {
   newSha: string | null;
   /**
    * Foreign commits not reachable from any seen ref. At most 500 commits are read per ref, own
-   * ones are dropped afterwards. 0 for a ref when the seen state had no ref at all.
+   * ones are dropped afterwards. 0 for a ref when the seen state had no ref still present in the repository.
    */
   newCommits: number;
   /**
