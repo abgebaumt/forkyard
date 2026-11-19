@@ -253,3 +253,55 @@ async fn a_clean_filter_that_changes_the_lines_falls_back_to_gits_text() {
     assert_eq!(job(&tc, &id, "a.dat", None).await.unwrap(), lines, "cached");
     assert!(!spawned_blame(&tc));
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_cancel_during_the_fallback_caches_nothing() {
+    let repo = TestRepo::new();
+    repo.commit_file("a.dat", "eins\nzwei\n", "Eins");
+    repo.write_file(".gitattributes", "*.dat filter=dbl\n");
+    // Run 1 is `blame --incremental`; from run 2 on (the fallback `file_blame`) the filter waits for `go`.
+    let git_dir = repo.path().join(".git").display().to_string();
+    repo.write_file(
+        "filter.sh",
+        format!(
+            "n=$(cat '{git_dir}/runs' 2>/dev/null || echo 0); echo $((n + 1)) > '{git_dir}/runs'\n\
+             if [ \"$n\" -ge 1 ]; then touch '{git_dir}/waiting'; while [ ! -e '{git_dir}/go' ]; do sleep 0.01; done; fi\n\
+             sed p\n"
+        ),
+    );
+    let filter = repo.path().join("filter.sh").display().to_string();
+    repo.git(&["config", "filter.dbl.clean", &format!("sh '{filter}'")]);
+    let (tc, id) = setup(&repo).await;
+
+    let job_id = new_job_id();
+    let waiting = repo.path().join(".git/waiting");
+    let cancel = async {
+        while !waiting.exists() {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        tc.jobs.cancel(&job_id);
+        std::fs::write(repo.path().join(".git/go"), "").unwrap();
+    };
+    let (result, ()) = tokio::join!(file_blame_job(&tc, id.clone(), job_id.clone(), "a.dat".into(), None, None), cancel);
+    assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
+
+    tc.git.take_spawned();
+    assert_eq!(job(&tc, &id, "a.dat", None).await.unwrap().len(), 4);
+    assert!(spawned_blame(&tc), "nothing was cached");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn worktree_files_that_clean_to_the_same_blob_do_not_share_a_cache_entry() {
+    let repo = TestRepo::new();
+    repo.commit_file("a.up", "EINS\n", "Eins");
+    repo.write_file(".gitattributes", "*.up filter=up\n");
+    repo.git(&["config", "filter.up.clean", "tr a-z A-Z"]);
+    repo.write_file("a.up", "eins\n");
+    let (tc, id) = setup(&repo).await;
+
+    assert_eq!(job(&tc, &id, "a.up", None).await.unwrap()[0].text, "eins");
+    repo.write_file("a.up", "Eins\n");
+    assert_eq!(job(&tc, &id, "a.up", None).await.unwrap()[0].text, "Eins", "the displayed bytes changed");
+}
