@@ -12,6 +12,7 @@ use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::rev;
 use crate::model::{AppChange, RepoChange, Worktree};
+use crate::undo;
 use crate::util;
 
 /// One entry from `git worktree list --porcelain -z`.
@@ -321,6 +322,20 @@ pub async fn worktree_remove(core: &Core, repo_id: String, path: String, force: 
                 format!("The worktree “{shown}” contains uncommitted changes or untracked files. They would be lost on removal."),
             ));
         }
+        // Opened as a repository of its own, the worktree has its own write lock: nothing may
+        // write there while it goes.
+        let own_row = core.db.with(|c| db::repos::find_by_path(c, &target))?;
+        let _own_lock = match &own_row {
+            Some(row) => Some(core.write_lock(&row.id).await),
+            None => None,
+        };
+        // Forced, its changes are lost: backed up first (orphaned backup ref, listed by cleanup).
+        if force && entry.prunable.is_none() && has_changes(core, repo_id, &target).await {
+            let snapshot = undo::snapshot_at(core, repo_id, &target, None).await?;
+            let backup = undo::new_id();
+            undo::create_backup_ref(core, repo_id, &backup, "worktree", &snapshot.commit).await?;
+            log::info!("Changes of the removed worktree “{shown}” backed up as {}", undo::backup_ref_name(&backup, "worktree"));
+        }
         stop_watching(core, &target);
         let mut cmd = core.git_for(repo_id)?.args(["worktree", "remove"]);
         if force {
@@ -615,5 +630,32 @@ worktree C:/r/weg\0HEAD 3333333333333333333333333333333333333333\0branch refs/he
         worktree_unlock(&tc, id.clone(), kept.clone()).await.unwrap();
         let list = worktree_remove(&tc, id.clone(), kept, false).await.unwrap();
         assert_eq!(list.len(), 1);
+    }
+
+    /// Forced removal destroys the worktree's changes: they are backed up first (a backup ref
+    /// in the repository), and a worktree open as a repository of its own is removed only under
+    /// its own write lock too.
+    #[tokio::test]
+    async fn forced_removal_backs_up_the_changes_under_both_locks() {
+        let (tc, repo, id) = setup().await;
+        let one = sibling(&repo, "eins");
+        worktree_add(&tc, id.clone(), one.clone(), "b1".into(), true, None).await.unwrap();
+        std::fs::write(Path::new(&one).join("README.md"), "geändert\n").unwrap();
+        std::fs::write(Path::new(&one).join("unverfolgt.txt"), "neu\n").unwrap();
+        let opened = crate::commands::repos::repo_open(&tc, one.clone()).await.unwrap();
+
+        let guard = tc.write_lock(&opened.repo.id).await;
+        let waiting =
+            tokio::time::timeout(std::time::Duration::from_millis(300), worktree_remove(&tc, id.clone(), one.clone(), true)).await;
+        assert!(waiting.is_err(), "removed while the worktree's own write lock was held");
+        assert!(Path::new(&one).exists());
+        drop(guard);
+
+        worktree_remove(&tc, id.clone(), one.clone(), true).await.unwrap();
+        assert!(!Path::new(&one).exists());
+        let backups = repo.git(&["for-each-ref", "--format=%(refname)", "refs/forkyard/undo/"]);
+        let backup = backups.lines().find(|name| name.ends_with("/worktree")).unwrap_or_else(|| panic!("no backup: {backups:?}"));
+        assert_eq!(repo.git(&["show", &format!("{backup}:README.md")]), "geändert");
+        assert_eq!(repo.git(&["show", &format!("{backup}:unverfolgt.txt")]), "neu");
     }
 }
