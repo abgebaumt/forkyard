@@ -172,6 +172,11 @@ export function ReorderList(props: ReorderListProps) {
     const onPointerMove = (event: PointerEvent) => {
       const state = dragRef.current;
       if (!state || event.pointerId !== state.pointerId) return;
+      // Released before this list saw the pointerup (a handed-over drag flicked fast): end it without dropping.
+      if (state.started && event.buttons === 0) {
+        update(null);
+        return;
+      }
       const started = state.started || Math.abs(event.clientY - state.startY) > DRAG_THRESHOLD;
       update({ ...state, started, lastX: event.clientX, lastY: event.clientY, ...(started ? targetAt(event.clientY, state.from) : {}) });
     };

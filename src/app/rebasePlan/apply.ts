@@ -56,16 +56,16 @@ export async function confirmRewrite(plan: OkPlan, rows: RebasePlanRow[], option
   });
 }
 
-/** checkPlan → confirmRewrite → rebaseApply → reportOpResult; "stale" on stale_state. */
+/** checkPlan ("blocked") → confirmRewrite ("cancelled") → rebaseApply → reportOpResult; "stale" on stale_state. */
 export async function applyRebasePlan(
   repoId: Id,
   tabId: Id,
   plan: OkPlan,
   rows: RebasePlanRow[],
   options: { updateRefs: boolean; askForPushed: boolean; label: string },
-): Promise<"done" | "up_to_date" | "stale" | "failed" | "cancelled"> {
+): Promise<"done" | "up_to_date" | "stale" | "failed" | "cancelled" | "blocked"> {
   // A blocked plan never starts; the views show the reason and keep the start button locked.
-  if (checkPlan(rows, plan.rows).blocked) return "cancelled";
+  if (checkPlan(rows, plan.rows).blocked) return "blocked";
   if (!(await confirmRewrite(plan, rows, { askForPushed: options.askForPushed }))) return "cancelled";
   const result = await runAction(
     options.label,

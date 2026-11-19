@@ -75,6 +75,7 @@ function Center({ repoId, tabId, center }: { repoId: Id; tabId: Id; center: Cent
           shas={center.shas}
           autosquash={center.autosquash ?? false}
           rows={center.rows}
+          handover={center.handover}
         />
       );
     case "pr_create":

@@ -38,23 +38,28 @@ export function moveDisplayed(state: EditState, from: number, to: number): EditS
   return { rows: next.reverse(), moved: state.moved.includes(sha) ? state.moved : [...state.moved, sha] };
 }
 
-/** Folds `sha` into the group of `onto` (placed after the group's last member); no-op onto itself or a dropped row. */
+/**
+ * Folds `sha` into the group of `onto` (placed after the group's last member); no-op onto itself or a dropped row.
+ * A row already in that group only changes between squash and fixup in place. A group root carries its
+ * squashed rows along: the whole group folds into the target, the members keep their action.
+ */
 export function squashOnto(state: EditState, sha: Sha, onto: Sha, fixup: boolean): EditState {
   const { rows } = state;
   const ontoIndex = rows.findIndex((row) => row.sha === onto);
   const fromIndex = rows.findIndex((row) => row.sha === sha);
   if (sha === onto || ontoIndex < 0 || fromIndex < 0 || rows[ontoIndex]!.action === "drop") return state;
   const roles = rowRoles(rows);
-  const root = rows[ontoIndex]!.action === "pick" || rows[ontoIndex]!.action === "reword" ? ontoIndex : roles[ontoIndex]!.target;
+  const isRoot = (index: number) => rows[index]!.action === "pick" || rows[index]!.action === "reword";
+  const root = isRoot(ontoIndex) ? ontoIndex : roles[ontoIndex]!.target;
+  const action = fixup ? "fixup" : "squash";
   // A group root cannot fold into its own group.
   if (root === fromIndex) return state;
+  if (root !== null && roles[fromIndex]!.target === root) return patchRow(state, sha, (row) => (row.action === action ? null : { action }));
+  const members = isRoot(fromIndex) ? roles[fromIndex]!.squashed.map((index) => rows[index]!) : [];
+  const moving = new Set([sha, ...members.map((row) => row.sha)]);
   const lastSha = rows[root === null ? ontoIndex : (roles[root]!.squashed.at(-1) ?? root)]!.sha;
-  const next = rows.filter((row) => row.sha !== sha);
-  next.splice(next.findIndex((row) => row.sha === lastSha) + 1, 0, {
-    ...rows[fromIndex]!,
-    action: fixup ? "fixup" : "squash",
-    message: null,
-  });
+  const next = rows.filter((row) => !moving.has(row.sha));
+  next.splice(next.findIndex((row) => row.sha === lastSha) + 1, 0, { ...rows[fromIndex]!, action, message: null }, ...members);
   return withRows(state, next);
 }
 
@@ -71,10 +76,11 @@ export function setRowAction(state: EditState, sha: Sha, action: Exclude<RebaseA
   );
 }
 
-/** New summary, description kept; equal to the original → pick without message. */
+/** New summary, description kept (from the row's own message if it has one); equal to the original → pick without message. */
 export function rewordSummary(state: EditState, sha: Sha, summary: string): EditState {
   return patchRow(state, sha, (row) => {
-    const description = row.action === "reword" && row.message ? splitMessage(row.message).description : row.description;
+    // Like the tool's reword dialog: an own message (reword, or a group's result message) is the base.
+    const description = row.message ? splitMessage(row.message).description : row.description;
     const message = joinMessage({ summary, description });
     return message === joinMessage({ summary: row.summary, description: row.description })
       ? { action: "pick", message: null }

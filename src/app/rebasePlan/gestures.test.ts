@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RebasePlanRow } from "../../core";
-import { changeCount, editStart, moveDisplayed, rewordSummary, rowChip, squashOnto, todoLines, toggleDrop } from "./gestures";
+import { changeCount, editStart, moveDisplayed, rewordSummary, rowChip, setMessage, squashOnto, todoLines, toggleDrop } from "./gestures";
 
 const rows = (...shas: string[]): RebasePlanRow[] =>
   shas.map((sha) => ({
@@ -35,6 +35,18 @@ describe("rebase plan gestures", () => {
     expect(squashOnto(start, "c2", "c2", false)).toBe(start);
     expect(squashOnto(toggleDrop(start, "c1"), "c2", "c1", false).rows).toEqual(toggleDrop(start, "c1").rows);
   });
+  it("a row already in the group stays in place and only switches between squash and fixup", () => {
+    const grouped = squashOnto(squashOnto(start, "c4", "c1", false), "c3", "c4", false); // pick c1, squash c4, squash c3, pick c2, pick c5
+    expect(squashOnto(grouped, "c3", "c1", false)).toBe(grouped);
+    expect(squashOnto(grouped, "c4", "c1", false)).toBe(grouped);
+    expect(todoLines(squashOnto(grouped, "c3", "c4", true).rows)).toEqual(["pick c1", "squash c4", "fixup c3", "pick c2", "pick c5"]);
+  });
+  it("folding a group root carries its members along", () => {
+    let grouped = squashOnto(start, "c4", "c1", false);
+    grouped = squashOnto(grouped, "c3", "c4", true); // pick c1, squash c4, fixup c3, pick c2, pick c5
+    expect(todoLines(squashOnto(grouped, "c1", "c5", false).rows)).toEqual(["pick c2", "pick c5", "squash c1", "squash c4", "fixup c3"]);
+    expect(todoLines(squashOnto(grouped, "c1", "c2", true).rows)).toEqual(["pick c2", "fixup c1", "squash c4", "fixup c3", "pick c5"]);
+  });
   it("Del drops and Del again picks", () => {
     const dropped = toggleDrop(start, "c2");
     expect(todoLines(dropped.rows)[1]).toBe("drop c2");
@@ -44,6 +56,10 @@ describe("rebase plan gestures", () => {
     const next = rewordSummary(start, "c3", "Neu: Übersicht");
     expect(next.rows[2]).toMatchObject({ action: "reword", message: "Neu: Übersicht\n\nKörper" });
     expect(rewordSummary(next, "c3", "c3").rows[2]).toMatchObject({ action: "pick", message: null });
+  });
+  it("rewording a pick with a group result message keeps that message's description", () => {
+    const grouped = setMessage(squashOnto(start, "c4", "c1", false), "c1", "Gruppe\n\nAlles zusammen");
+    expect(rewordSummary(grouped, "c1", "Neu").rows[0]).toMatchObject({ action: "reword", message: "Neu\n\nAlles zusammen" });
   });
   it("combined gesture gives the todo of the Rust oracle", () => {
     let s = squashOnto(start, "c4", "c1", false);
