@@ -36,7 +36,6 @@ import {
   core,
   CoreError,
   startupMark,
-  type GraphPage,
   type GraphRow,
   type Id,
   type Ref,
@@ -112,6 +111,18 @@ import type { MenuEntry } from "../../ui/Menu";
 import { cn } from "../../ui/cn";
 import { Trans } from "react-i18next";
 import { t } from "../../i18n";
+import {
+  childIndex,
+  filterText,
+  flatten,
+  graphKey,
+  isCommitRow,
+  moveTarget,
+  parentIndex,
+  rangeShas,
+  smartText,
+  type FlatGraph,
+} from "./model";
 
 export interface CommitGraphProps {
   repoId: Id;
@@ -122,92 +133,6 @@ export interface CommitGraphProps {
 const LOAD_AHEAD = 150;
 /** “Show this commit”: at most this many pages (500 commits each) are loaded for it. */
 const REVEAL_PAGES = 30;
-const STASH_REF = "refs/stash";
-
-/** Shown at the top while the graph has no row of its own for the local changes (yet). */
-const QUIET_WIP: GraphRow = Object.freeze({
-  id: "wip",
-  kind: "wip",
-  sha: null,
-  lane: -1,
-  color: 0,
-  edges: [],
-  parents: [],
-  summary: "",
-  authorName: "",
-  authorEmail: "",
-  authoredAt: null,
-  refs: [],
-  isHead: false,
-  stashIndex: null,
-  wipCount: null,
-  collapsedCount: null,
-  collapseTooLarge: false,
-  collapsible: false,
-  sync: "none",
-}) as GraphRow;
-
-interface FlatGraph {
-  /** Index 0 is always the local changes row. */
-  rows: GraphRow[];
-  indexByKey: Map<string, number>;
-  hasWip: boolean;
-  maxLane: number;
-  commitCount: number;
-}
-
-function flatten(pages: GraphPage[] | undefined): FlatGraph {
-  let wip: GraphRow | null = null;
-  let maxLane = 0;
-  let commitCount = 0;
-  const rows: GraphRow[] = [QUIET_WIP];
-  const indexByKey = new Map<string, number>([["wip", 0]]);
-  for (const page of pages ?? []) {
-    maxLane = Math.max(maxLane, page.maxLane);
-    for (const row of page.rows) {
-      if (row.kind === "wip") {
-        wip = row;
-        continue;
-      }
-      const key = rowKey(row);
-      if (indexByKey.has(key)) continue;
-      indexByKey.set(key, rows.length);
-      rows.push(row);
-      if (row.kind !== "stash") commitCount += 1;
-    }
-  }
-  if (wip) rows[0] = wip;
-  return { rows, indexByKey, hasWip: wip !== null, maxLane, commitCount };
-}
-
-const isCommitRow = (row: GraphRow | undefined): row is GraphRow & { sha: Sha } =>
-  Boolean(row?.sha && (row.kind === "commit" || row.kind === "merge"));
-
-const shortRefName = (fullName: string) =>
-  fullName === STASH_REF ? t("commitGraph.filter.stashes") : fullName.replace(/^refs\/(heads|remotes|tags)\//, "");
-
-/** “main, origin/main and develop” – what the selection “current branch, upstream, target” shows. */
-function smartText(selection: SmartSelection): string {
-  const names = [selection.current.name, selection.upstream?.name, selection.target?.name].filter((name): name is string => Boolean(name));
-  return names.length <= 1
-    ? (names[0] ?? "")
-    : t("commitGraph.filter.list", { first: names.slice(0, -1).join(", "), last: names[names.length - 1] });
-}
-
-function filterText(view: RepoViewState, smart: SmartSelection | null): string {
-  if (smart) {
-    const parts = [
-      t("commitGraph.filter.currentBranch"),
-      smart.upstream ? t("commitGraph.filter.upstream") : null,
-      smart.target ? t("commitGraph.filter.target") : null,
-    ].filter(Boolean);
-    return t("commitGraph.filter.smart", { names: smartText(smart), parts: parts.join(", ") });
-  }
-  if (view.soloRefs.length === 1) return t("commitGraph.filter.soloOne", { name: shortRefName(view.soloRefs[0]!) });
-  if (view.soloRefs.length > 1) return t("commitGraph.filter.soloMany", { count: view.soloRefs.length });
-  if (view.hiddenRefs.length === 1) return t("commitGraph.filter.hiddenOne", { name: shortRefName(view.hiddenRefs[0]!) });
-  return t("commitGraph.filter.hiddenMany", { count: view.hiddenRefs.length });
-}
 
 /** Load the graph from the start: keep only the first page so that not all loaded pages are fetched again. */
 function reloadGraph(repoId: Id) {
@@ -669,12 +594,7 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
           (anchor.current !== null ? indexByKeyRef.current.get(anchor.current) : undefined) ??
           indexByKeyRef.current.get(activeKey(selection) ?? "") ??
           index;
-        const step = from <= index ? 1 : -1;
-        const shas: Sha[] = [];
-        for (let at = from; at !== index + step; at += step) {
-          const between = list[at];
-          if (isCommitRow(between)) shas.push(between.sha);
-        }
+        const shas = rangeShas(list, from, index);
         if (shas.length > 0) {
           store.selectCommits(tabId, shas);
           return;
@@ -689,14 +609,8 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
   const cursorIndex = () => (activeIndex >= 0 ? activeIndex : (focusedIndex ?? items[0]?.index ?? 0));
 
   const moveTo = (target: number, extend: boolean) => {
-    const cursor = cursorIndex();
-    let next = Math.max(0, Math.min(rows.length - 1, target));
-    if (extend) {
-      // A range consists of commits only: skip stash rows and the local changes.
-      const step = next >= cursor ? 1 : -1;
-      while (rows[next] && !isCommitRow(rows[next])) next += step;
-      if (!rows[next]) return;
-    }
+    const next = moveTarget(rows, cursorIndex(), target, extend);
+    if (next === null) return;
     select(next, extend ? "range" : "single");
     pendingFocus.current = next;
     virtualizer.scrollToIndex(next, { align: "auto" });
@@ -921,76 +835,61 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
     if (event.defaultPrevented) return;
     const target = event.target as Element;
     if (target.closest("button") || !target.closest("[data-row-index]")) return;
-    const plain = !event.ctrlKey && !event.metaKey && !event.altKey;
-    const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
     const cursor = cursorIndex();
     const page = Math.max(1, Math.floor((scrollerRef.current?.clientHeight ?? rowHeight) / rowHeight) - 1);
-    let next: number;
-    if (plain && (key === "ArrowDown" || key === "j")) next = cursor + 1;
-    else if (plain && (key === "ArrowUp" || key === "k")) next = cursor - 1;
-    else if (key === "Home" && !event.altKey) next = 0;
-    else if (key === "End" && !event.altKey) next = rows.length - 1;
-    else if (plain && key === "PageDown") next = cursor + page;
-    else if (plain && key === "PageUp") next = cursor - page;
-    else if (plain && !event.shiftKey && (key === "h" || key === "l")) {
-      // H follows the line to the (first) parent commit, L back to the child – also across rows of other branches.
-      event.preventDefault();
-      const row = rows[cursor];
-      if (!isCommitRow(row)) return;
-      let target = -1;
-      if (key === "h") {
-        const parent = row.parents[0];
-        target = parent ? (indexByKey.get(parent) ?? -1) : -1;
-      } else {
-        // The nearest child above; one that has this commit as its first parent takes precedence.
-        let other = -1;
-        for (let index = cursor - 1; index >= 0 && target < 0; index--) {
-          const candidate = rows[index];
-          if (!isCommitRow(candidate) || !candidate.parents.includes(row.sha)) continue;
-          if (candidate.parents[0] === row.sha) target = index;
-          else if (other < 0) other = index;
-        }
-        if (target < 0) target = other;
+    const action = graphKey(event, cursor, page, rows.length);
+    switch (action?.kind) {
+      case "move":
+        event.preventDefault();
+        moveTo(action.to, event.shiftKey);
+        return;
+      case "parent":
+      case "child": {
+        // H follows the line to the (first) parent commit, L back to the child – also across rows of other branches.
+        event.preventDefault();
+        const next = action.kind === "parent" ? parentIndex(rows, indexByKey, cursor) : childIndex(rows, cursor);
+        if (next >= 0) moveTo(next, false);
+        return;
       }
-      if (target >= 0) moveTo(target, false);
-      return;
-    } else if (plain && !event.shiftKey && key === "b") {
-      // B highlights this row's branch – its own label, otherwise the nearest branch that contains the commit.
-      event.preventDefault();
-      const label = branchLabelOf(rows[cursor]) ?? nearestBranch(rows, cursor)?.ref ?? null;
-      if (label) toggleStickyHighlight(repoId, label.fullName);
-      else toast({ tone: "info", title: t("commitGraph.highlight.noneTitle"), description: t("commitGraph.highlight.noneText") });
-      return;
-    } else if (key === "Escape" && plain && !event.shiftKey && currentHighlight(repoId)?.sticky) {
-      event.preventDefault();
-      clearHighlight(repoId);
-      return;
-    } else if (plain && !event.shiftKey && key === "Enter") {
-      event.preventDefault();
-      openDetails(cursor);
-      return;
-    } else if (plain && !event.shiftKey && (key === "ArrowLeft" || key === "ArrowRight")) {
-      // ← collapses the selected merge, → expands it again. On other rows – and on a merge with nothing
-      // to hide – the keys keep their default.
-      const row = rows[cursor];
-      if (row?.kind !== "merge" || !row.sha || !row.collapsible) return;
-      event.preventDefault();
-      void setMergeCollapsed(repoId, row.sha, key === "ArrowLeft");
-      return;
-    } else if (key === "ContextMenu" || (key === "F10" && event.shiftKey)) {
-      event.preventDefault();
-      const element = rowElement(cursor);
-      const rect = element?.getBoundingClientRect();
-      const zoom = rootZoom();
-      // Below the row, at the start of the message.
-      const opened = rect
-        ? openRowMenu(cursor, { x: rect.left + (layout.widths.refs + layout.widths.graph + 8) * zoom, y: rect.bottom })
-        : false;
-      if (opened) keyboardMenuAt.current = Date.now();
-      return;
-    } else return;
-    event.preventDefault();
-    moveTo(next, event.shiftKey);
+      case "highlight": {
+        // B highlights this row's branch – its own label, otherwise the nearest branch that contains the commit.
+        event.preventDefault();
+        const label = branchLabelOf(rows[cursor]) ?? nearestBranch(rows, cursor)?.ref ?? null;
+        if (label) toggleStickyHighlight(repoId, label.fullName);
+        else toast({ tone: "info", title: t("commitGraph.highlight.noneTitle"), description: t("commitGraph.highlight.noneText") });
+        return;
+      }
+      case "escape":
+        if (!currentHighlight(repoId)?.sticky) return;
+        event.preventDefault();
+        clearHighlight(repoId);
+        return;
+      case "details":
+        event.preventDefault();
+        openDetails(cursor);
+        return;
+      case "collapse": {
+        // ← collapses the selected merge, → expands it again. On other rows – and on a merge with nothing
+        // to hide – the keys keep their default.
+        const row = rows[cursor];
+        if (row?.kind !== "merge" || !row.sha || !row.collapsible) return;
+        event.preventDefault();
+        void setMergeCollapsed(repoId, row.sha, action.collapse);
+        return;
+      }
+      case "menu": {
+        event.preventDefault();
+        const element = rowElement(cursor);
+        const rect = element?.getBoundingClientRect();
+        const zoom = rootZoom();
+        // Below the row, at the start of the message.
+        const opened = rect
+          ? openRowMenu(cursor, { x: rect.left + (layout.widths.refs + layout.widths.graph + 8) * zoom, y: rect.bottom })
+          : false;
+        if (opened) keyboardMenuAt.current = Date.now();
+        return;
+      }
+    }
   };
 
   const onFocus = (event: FocusEvent) => {
