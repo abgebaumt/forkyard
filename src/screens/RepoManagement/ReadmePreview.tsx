@@ -9,7 +9,7 @@ import { runAction } from "../../app/run";
 import { Button } from "../../ui/Button";
 import { EmptyState } from "../../ui/Feedback";
 import { cn } from "../../ui/cn";
-import { README_PREVIEW_LIMIT, externalTarget, renderReadme } from "./markdown";
+import { README_PREVIEW_LIMIT, externalTarget, renderReadme } from "../../components/markdown/render";
 import { displayName } from "./repoActions";
 import { locale, t } from "../../i18n";
 

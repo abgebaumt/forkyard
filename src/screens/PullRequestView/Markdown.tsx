@@ -11,7 +11,7 @@ import { confirm } from "../../app/dialogs";
 import { t } from "../../i18n";
 import { runAction } from "../../app/run";
 import { cn } from "../../ui/cn";
-import { externalTarget, renderReadme } from "../RepoManagement/markdown";
+import { externalTarget, renderReadme } from "../../components/markdown/render";
 
 /** Typography – tokens only; set tighter than a whole README. */
 const prose = cn(
