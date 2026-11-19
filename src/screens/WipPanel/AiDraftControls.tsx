@@ -15,7 +15,7 @@ import { loadingView, type AiErrorView } from "../../app/ai/requestState";
 import { Button } from "../../ui/Button";
 import { Tip } from "../../ui/Tooltip";
 import { t } from "../../i18n";
-import { isCli } from "../Preferences/ai/model";
+import { isCli } from "../../app/ai/providers";
 import { writeBlocked, writeLabel, type AiDraftPhase } from "./aiDraft";
 import { acceptOffer, toggleWriteMessage, useAiDraft, writeMessage } from "./aiDraftActions";
 

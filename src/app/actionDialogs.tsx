@@ -16,7 +16,7 @@ import { showDialog } from "./dialogs";
 import { signInInTerminal } from "./ai/cliLogin";
 import { openAiSettings } from "./ai/open";
 import { useAiStatus } from "./queries";
-import { isCli } from "../screens/Preferences/ai/model";
+import { isCli } from "./ai/providers";
 import { availableTargets, type ReleaseTarget } from "../screens/ReleaseNotes/model";
 import { ReleaseTargets } from "../screens/ReleaseNotes/Targets";
 import { useReleaseNotesAvailability } from "../screens/ReleaseNotes/useAvailability";

@@ -18,7 +18,7 @@ import type { AiErrorView, AiLoadingView } from "../../app/ai/requestState";
 import type { ArchaeologyTarget } from "../../app/store";
 import type { MenuEntry } from "../../ui/Menu";
 import { locale, t } from "../../i18n";
-import { isCli } from "../Preferences/ai/model";
+import { isCli } from "../../app/ai/providers";
 
 export type TargetOrReason = { target: ArchaeologyTarget } | { reason: string };
 

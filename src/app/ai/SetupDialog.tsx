@@ -17,7 +17,8 @@ import {
   type Tab,
 } from "../../core";
 import { applySettings } from "../../screens/Preferences/settings";
-import { acceptsKey, FEATURES, featureToggle, isCli, PROVIDERS, usesBaseUrl } from "../../screens/Preferences/ai/model";
+import { acceptsKey, FEATURES, featureToggle, PROVIDERS, usesBaseUrl } from "../../screens/Preferences/ai/model";
+import { isCli } from "./providers";
 import { Button } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { Dialog } from "../../ui/Dialog";
