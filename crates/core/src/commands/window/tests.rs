@@ -484,3 +484,20 @@ async fn closing_the_last_window_quits() {
     background.await.unwrap();
     assert!(tc.state::<CloseGuard>().quitting());
 }
+
+#[tokio::test]
+async fn a_closing_window_is_no_target() {
+    let tc = TestCore::new().await;
+    let a = tabs_list(&tc).await.unwrap().remove(0);
+    add_window(&tc);
+    in_w(W, tabs_list(&tc)).await.unwrap();
+    assert!(!in_w(W, window_close(&tc)).await.unwrap());
+
+    assert_eq!(window_list(&tc).await.unwrap().iter().map(|w| w.label.as_str()).collect::<Vec<_>>(), vec!["main"]);
+    let rect = Some(ScreenRect { x: 0.0, y: 0.0, width: 800.0, height: 600.0 });
+    let frames = vec![WindowFrameInput { label: "main".into(), inner: rect }, WindowFrameInput { label: W.into(), inner: rect }];
+    let layout = window_layout(&tc, frames, None).await.unwrap();
+    assert_eq!(layout.frames.iter().map(|f| f.label.as_str()).collect::<Vec<_>>(), vec!["main"]);
+    assert_eq!(tab_move_to_window(&tc, a.id.clone(), W.into(), 0).await.unwrap_err().code, ErrorCode::NotAllowed);
+    assert_eq!(tabs_list(&tc).await.unwrap().iter().map(|t| t.id.as_str()).collect::<Vec<_>>(), vec![a.id.as_str()]);
+}

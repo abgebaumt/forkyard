@@ -53,8 +53,11 @@ pub async fn window_list(core: &Core) -> CoreResult<Vec<WindowInfo>> {
         let focused = db::windows::focus_order(c, &profile_id)?.into_iter().next();
         let tabs = db::tabs::list_all(c, &profile_id)?;
         let windows = db::windows::list(c, &profile_id)?;
+        let guard = core.state::<app::CloseGuard>();
         Ok(windows
             .into_iter()
+            // A window hidden while it closes is no target any more.
+            .filter(|w| !guard.closing(&w.label))
             .map(|w| {
                 let own: Vec<&Tab> = tabs.iter().filter(|t| t.window == w.label).collect();
                 WindowInfo {
@@ -105,6 +108,9 @@ pub async fn tab_move_to_window(core: &Core, tab_id: String, window: String, pos
     let source = calling_window(core);
     if window == source {
         return repos::tab_move(core, tab_id, position).await;
+    }
+    if core.state::<app::CloseGuard>().closing(&window) {
+        return Err(CoreError::not_allowed("The window is closing."));
     }
     let (tabs, moved, windows) = core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
@@ -188,8 +194,11 @@ pub async fn window_layout(core: &Core, frames: Vec<WindowFrameInput>, cursor: O
     let order = core.db.with(|c| db::windows::focus_order(c, &db::profiles::active_id(c)?))?;
     let state = core.state::<Windows>();
     let strips = state.strips.lock();
+    let guard = core.state::<app::CloseGuard>();
     let frames: Vec<WindowFrame> = frames
         .into_iter()
+        // A window hidden while it closes is no drop target.
+        .filter(|f| !guard.closing(&f.label))
         .filter_map(|f| {
             let focus_rank = order.iter().position(|l| *l == f.label)? as u32;
             let placed = f.inner.zip(strips.get(&f.label));
@@ -217,6 +226,8 @@ pub async fn window_close(core: &Core) -> CoreResult<bool> {
         return Ok(true);
     }
     core.state::<app::CloseGuard>().set_closing(&label);
+    // The other windows' "Move to window" menus drop it.
+    core.emit_app_changed(&[AppChange::Windows]);
     let cancelled = core.jobs.cancel_from(&label);
     // Cancelling again on every check also stops a job the window started while it closes.
     app::wait_until_stopped(cancelled, || core.jobs.cancel_from(&label)).await;

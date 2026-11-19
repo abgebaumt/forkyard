@@ -540,6 +540,9 @@
       "last": "Go to last tab",
       "number": "Go to tab {{number}}"
     },
+    "moveToNewWindow": {
+      "keywords": "window, tear out, detach, separate window"
+    },
     "new": {
       "keywords": "repository management, open"
     },
@@ -603,6 +606,11 @@
     },
     "toggleLeftPanel": {
       "title": "Show or hide sidebar"
+    }
+  },
+  "window": {
+    "new": {
+      "keywords": "window, open, another window"
     }
   },
   "wip": {

@@ -14,7 +14,10 @@ import { ChevronDown, FolderGit2, FolderX, LibraryBig, Plus, X } from "lucide-re
 import { cn } from "../../ui/cn";
 import { ContextMenu, DropdownMenu, type MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
+import { appliedZoom } from "../../ui/zoom";
 import { t } from "../../i18n";
+import type { ScreenPoint, StripReport } from "../../core";
+import { leftStrip } from "./tabDrag";
 
 // ---------------------------------------------------------------------------
 // Tab bar
@@ -59,6 +62,13 @@ export interface TabBarProps {
   renameRequest?: { id: string; nonce: number } | null;
   /** Placed before the tabs (the profile chip). */
   lead?: ReactNode;
+  /**
+   * A tab let go outside the strip: `screen` is the pointer on the screen, `insideSelf` whether it
+   * is still inside this window. Without it, dragging only reorders.
+   */
+  onDragOut?: (id: string, screen: ScreenPoint, insideSelf: boolean) => void;
+  /** Where the bar and the tab middles are (client coordinates); `null` once the bar is gone. */
+  onStripReport?: (report: StripReport | null) => void;
 }
 
 const DRAG_THRESHOLD = 4;
@@ -159,12 +169,37 @@ function TabRename({ tab, onDone }: { tab: RepoTab; onDone: (value: string | nul
   );
 }
 
-export function TabBar({ tabs, activeId, onActivate, onClose, onNew, onMove, onRename, menuFor, renameRequest, lead }: TabBarProps) {
+interface PointerAt {
+  clientX: number;
+  clientY: number;
+  screenX: number;
+  screenY: number;
+}
+
+/** How often the strip reports where it is while the window is resized. */
+const STRIP_REPORT_DEBOUNCE_MS = 100;
+
+export function TabBar({
+  tabs,
+  activeId,
+  onActivate,
+  onClose,
+  onNew,
+  onMove,
+  onRename,
+  menuFor,
+  renameRequest,
+  lead,
+  onDragOut,
+  onStripReport,
+}: TabBarProps) {
+  const barRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [drag, setDrag] = useState<{ id: string; target: number } | null>(null);
-  const pointer = useRef<{ id: string; x: number; active: boolean } | null>(null);
+  /** `out`: the pointer (client) while it is outside the strip – the ghost follows it. */
+  const [drag, setDrag] = useState<{ id: string; target: number; out: { x: number; y: number } | null } | null>(null);
+  const pointer = useRef<{ id: string; x: number; active: boolean; last: PointerAt } | null>(null);
   const suppressClick = useRef(false);
 
   const activeRef = useRef(activeId);
@@ -230,6 +265,45 @@ export function TabBar({ tabs, activeId, onActivate, onClose, onNew, onMove, onR
 
   const tabElements = () => Array.from(listRef.current?.querySelectorAll<HTMLElement>("[data-tab-id]") ?? []);
 
+  // The core places drops from other windows by the strip; it hears again when the layout changes.
+  const report = useRef(onStripReport);
+  report.current = onStripReport;
+  const layoutKey = `${tabs.map((tab) => `${tab.id}\t${tab.title}`).join("\n")}\n${activeId}\n${overflow}`;
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!bar || !report.current) return;
+    let timer: number | undefined;
+    const send = () => {
+      const rect = bar.getBoundingClientRect();
+      const tabMids = tabElements().map((element) => {
+        const box = element.getBoundingClientRect();
+        return box.left + box.width / 2;
+      });
+      report.current?.({ strip: { x: rect.left, y: rect.top, width: rect.width, height: rect.height }, tabMids });
+    };
+    const schedule = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(send, STRIP_REPORT_DEBOUNCE_MS);
+    };
+    schedule();
+    const observer = new ResizeObserver(schedule);
+    observer.observe(bar);
+    window.addEventListener("resize", schedule);
+    return () => {
+      window.clearTimeout(timer);
+      observer.disconnect();
+      window.removeEventListener("resize", schedule);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layoutKey]);
+  useEffect(() => () => report.current?.(null), []);
+
+  /** Out of the strip: beyond the margin around the whole bar. */
+  const outside = (at: PointerAt) => {
+    const bar = barRef.current?.getBoundingClientRect();
+    return Boolean(onDragOut && bar && leftStrip(bar, at.clientX, at.clientY));
+  };
+
   /** Insertion position (0…n) under the mouse pointer. */
   const indexAt = (clientX: number) => {
     const elements = tabElements();
@@ -242,7 +316,7 @@ export function TabBar({ tabs, activeId, onActivate, onClose, onNew, onMove, onR
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>, id: string) => {
     if (event.button !== 0 || !onMove) return;
-    pointer.current = { id, x: event.clientX, active: false };
+    pointer.current = { id, x: event.clientX, active: false, last: pointerAt(event) };
   };
 
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
@@ -253,25 +327,32 @@ export function TabBar({ tabs, activeId, onActivate, onClose, onNew, onMove, onR
       state.active = true;
       event.currentTarget.setPointerCapture(event.pointerId);
     }
-    setDrag({ id: state.id, target: indexAt(event.clientX) });
+    state.last = pointerAt(event);
+    const out = outside(state.last) ? { x: event.clientX, y: event.clientY } : null;
+    setDrag({ id: state.id, target: indexAt(event.clientX), out });
   };
 
+  // Also from `lostpointercapture`: some systems end the drag outside the window without a pointerup.
   const onPointerUp = () => {
     const state = pointer.current;
     pointer.current = null;
-    if (!state?.active || !drag) {
-      setDrag(null);
-      return;
-    }
+    setDrag(null);
+    if (!state?.active) return;
     // The click after releasing should not additionally activate the tab; release again afterwards.
     suppressClick.current = true;
     window.setTimeout(() => {
       suppressClick.current = false;
     }, 0);
-    const from = tabs.findIndex((tab) => tab.id === drag.id);
-    const to = drag.target > from ? drag.target - 1 : drag.target;
-    setDrag(null);
-    if (from >= 0 && to !== from) onMove?.(drag.id, to);
+    const { last } = state;
+    if (outside(last)) {
+      const inside = last.clientX >= 0 && last.clientY >= 0 && last.clientX < window.innerWidth && last.clientY < window.innerHeight;
+      onDragOut?.(state.id, { x: last.screenX, y: last.screenY }, inside);
+      return;
+    }
+    const from = tabs.findIndex((tab) => tab.id === state.id);
+    const target = indexAt(last.clientX);
+    const to = target > from ? target - 1 : target;
+    if (from >= 0 && to !== from) onMove?.(state.id, to);
   };
 
   const onListKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -313,7 +394,7 @@ export function TabBar({ tabs, activeId, onActivate, onClose, onNew, onMove, onR
   };
 
   return (
-    <div className="flex h-tabbar shrink-0 items-end gap-px bg-surface-sunken px-1">
+    <div ref={barRef} className="flex h-tabbar shrink-0 items-end gap-px bg-surface-sunken px-1">
       {lead ? <div className="flex shrink-0 self-center pr-1">{lead}</div> : null}
       <div
         ref={listRef}
@@ -327,8 +408,9 @@ export function TabBar({ tabs, activeId, onActivate, onClose, onNew, onMove, onR
           const label = tabLabel(tab);
           const renaming = editing === tab.id;
           // Insertion marker while dragging: on the left before this tab or on the right after the last one.
-          const markLeft = drag !== null && drag.target === index && drag.id !== tab.id;
-          const markRight = drag !== null && index === tabs.length - 1 && drag.target === tabs.length && drag.id !== tab.id;
+          const marking = drag !== null && drag.out === null && drag.id !== tab.id;
+          const markLeft = marking && drag.target === index;
+          const markRight = marking && index === tabs.length - 1 && drag.target === tabs.length;
           const body = (
             <div
               key={tab.id}
@@ -336,6 +418,9 @@ export function TabBar({ tabs, activeId, onActivate, onClose, onNew, onMove, onR
               onPointerDown={(event) => onPointerDown(event, tab.id)}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
+              onLostPointerCapture={() => {
+                if (pointer.current?.active) onPointerUp();
+              }}
               onPointerCancel={() => {
                 pointer.current = null;
                 setDrag(null);
@@ -457,6 +542,35 @@ export function TabBar({ tabs, activeId, onActivate, onClose, onNew, onMove, onR
       </Tip>
       {/* Free space to the right of the tabs */}
       <div className="flex-1" />
+      {drag?.out ? <DragGhost tab={tabs.find((tab) => tab.id === drag.id)} at={drag.out} /> : null}
+    </div>
+  );
+}
+
+const pointerAt = (event: PointerEvent): PointerAt => ({
+  clientX: event.clientX,
+  clientY: event.clientY,
+  screenX: event.screenX,
+  screenY: event.screenY,
+});
+
+/** The dragged tab under the pointer while it is outside the strip. */
+function DragGhost({ tab, at }: { tab: RepoTab | undefined; at: { x: number; y: number } }) {
+  if (!tab) return null;
+  // Positioned inside the zoomed root element: pointer pixels become layout pixels.
+  const zoom = appliedZoom();
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none fixed z-50 flex h-7.5 max-w-52 min-w-32 items-center gap-1.5 rounded-md border border-border bg-surface-raised px-2.5 text-base text-text opacity-90 shadow-pop"
+      style={{ left: at.x / zoom + 8, top: at.y / zoom + 8 }}
+    >
+      {tab.kind === "management" ? (
+        <LibraryBig className="size-3.5 shrink-0" aria-hidden />
+      ) : (
+        <FolderGit2 className="size-3.5 shrink-0" aria-hidden />
+      )}
+      <MiddleText text={tabLabel(tab)} />
     </div>
   );
 }
