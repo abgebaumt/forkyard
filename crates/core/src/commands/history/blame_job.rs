@@ -59,9 +59,8 @@ async fn blame_job(
         Some(file) => {
             let head = rev::resolve_commit(core, repo_id, "HEAD").await?;
             let bytes = tokio::fs::read(file).await?;
-            // Exactly the bytes shown, hashed as Git would store them at this path (filters).
-            let blob =
-                core.git_for(repo_id)?.args(["hash-object", "--stdin", &format!("--path={rel}")]).stdin(bytes.clone()).read().run().await?;
+            // Exactly the bytes shown, without filters: two files that clean to the same blob differ.
+            let blob = core.git_for(repo_id)?.args(["hash-object", "--stdin", "--no-filters"]).stdin(bytes.clone()).read().run().await?;
             (None, format!("worktree@{head}"), blob.stdout_text(), Some(bytes))
         }
         None => {
@@ -132,6 +131,8 @@ async fn blame_job(
         // Git blamed other lines than the ones read (e.g. a clean filter changed them): Git's own text.
         None => file_blame(core, repo_id.to_string(), path.to_string(), sha.map(str::to_string), encoding.map(str::to_string)).await?,
     };
+    // The fallback `file_blame` does not watch the token.
+    job.token().check()?;
     let n = lines.len();
     job.progress(PHASE_BLAME, Some(100), &format!("{n}/{n}"));
     cache.put(key, Arc::new(lines.clone()));
