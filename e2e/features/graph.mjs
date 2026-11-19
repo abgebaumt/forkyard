@@ -415,6 +415,11 @@ scenario("graph: a long history loads further pages while scrolling", "edge", as
     const rows = (await loadedRows(app, repoId)).filter((row) => row.kind !== "wip");
     assertEqual(rows.length, total, "loaded rows = git rev-list --all --count");
     assertEqual(new Set(rows.map((row) => row.sha)).size, total, "no row twice across page borders");
+    assertEqual(
+      rows.map((row) => row.sha),
+      lines(repo.git("log", "--date-order", "--format=%H", "HEAD", "--branches", "--remotes", "--tags")),
+      "pages in git log --date-order order",
+    );
     await app.waitFor(() => app.byText(`End of history · ${total.toLocaleString("en")} commits`), 10_000, {
       message: "end-of-history footer",
     });
