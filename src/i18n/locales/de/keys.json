@@ -1,0 +1,24 @@
+{
+  "change": "Kürzel für {{command}} ändern",
+  "none": "Kein Kürzel",
+  "recording": "Drücke neue Kombination …",
+  "recordingHint": "Esc bricht ab, Rücktaste entfernt das Kürzel.",
+  "conflict": "Belegt von {{command}}",
+  "assignAnyway": "Trotzdem zuweisen",
+  "refused": "Nicht zuweisbar: {{reason}}",
+  "reason": {
+    "plain": "Listen und Textfelder nutzen diese Taste",
+    "fixed": "belegt in {{group}} ({{label}})",
+    "text": "zum Bearbeiten von Text nötig",
+    "system": "vom Betriebssystem belegt"
+  },
+  "resetAll": {
+    "label": "Alle zurücksetzen",
+    "title": "Alle Tastenkürzel zurücksetzen?",
+    "body": "Jeder Befehl bekommt sein Standardkürzel zurück. Deine eigenen Kürzel werden entfernt."
+  },
+  "fixedNote": "Diese Tasten gehören zu ihrer Ansicht und sind fest.",
+  "description": "Klicke auf ein Kürzel und drücke die neue Kombination. Änderungen gelten sofort.",
+  "filter": "Kürzel filtern",
+  "empty": "Kein Befehl passt zu „{{query}}“."
+}

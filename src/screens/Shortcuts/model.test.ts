@@ -48,3 +48,25 @@ describe("shortcut overview", () => {
     expect(keys([command("file.history", "File")]), "without a key the row is left out").toBeUndefined();
   });
 });
+
+describe("shortcut overview in edit mode", () => {
+  const tabs = [
+    command("tab.new", "Tabs", "Mod+T"),
+    ...Array.from({ length: 8 }, (_, index) => command(`tab.goto.${index + 1}`, "Tabs", `Mod+${index + 1}`)),
+  ];
+  const ids = (sections: ReturnType<typeof registrySections>) => sections.flatMap((section) => section.entries.map((entry) => entry.key));
+
+  it("in edit mode every command is a row, also without a key", () => {
+    const list = [command("app.palette", "General", "Mod+K"), command("no.keys", "General")];
+    expect(ids(registrySections(list, { editing: true }))).toEqual(["app.palette", "no.keys"]);
+    expect(ids(registrySections(list))).toEqual(["app.palette"]);
+    expect(registrySections(list, { editing: true })[0]!.entries[1]!.keys).toEqual([]);
+  });
+
+  it("the tab range collapses only with all defaults", () => {
+    expect(ids(registrySections(tabs))).toEqual(["tab.new", "tab.goto.range"]);
+    const rebound = tabs.map((item) => (item.id === "tab.goto.3" ? { ...item, shortcut: "Mod+Alt+3" } : item));
+    expect(ids(registrySections(rebound))).toHaveLength(9);
+    expect(ids(registrySections(tabs, { editing: true })), "each tab is editable").toHaveLength(9);
+  });
+});

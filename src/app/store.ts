@@ -126,7 +126,8 @@ export type PreferencesSection =
   | "editor"
   | "terminal"
   | "repo"
-  | "ai";
+  | "ai"
+  | "keys";
 
 export type Overlay =
   | null

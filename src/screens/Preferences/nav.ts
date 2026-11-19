@@ -12,6 +12,7 @@ export type SectionId =
   | "diff"
   | "external"
   | "commands"
+  | "keys"
   | "notifications"
   | "ai"
   | "agents"
@@ -48,6 +49,7 @@ export const SECTIONS: SectionDef[] = [
   section("diff", "global", "diff"),
   section("external", "global", "external"),
   section("commands", "global", "commands"),
+  section("keys", "global", "keys"),
   section("notifications", "global", "notifications"),
   section("ai", "global", "ai"),
   section("agents", "global", "agents"),

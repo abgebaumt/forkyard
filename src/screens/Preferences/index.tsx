@@ -14,6 +14,7 @@ import {
   GitBranch,
   Globe,
   Info,
+  Keyboard,
   KeyRound,
   Link2,
   Network,
@@ -51,6 +52,7 @@ import { ProjectFilesSection, ProjectGitSection, ProjectIdentitySection } from "
 import { TicketLinksSection } from "./sections/TicketLinks";
 import { SshSection } from "./sections/Ssh";
 import { NetworkSection } from "./sections/Network";
+import { KeysSection } from "./sections/Keys";
 import { HostsSection } from "../Hosts";
 import { CustomCommandsSection } from "../CustomCommands/Section";
 import { AgentTemplatesSection } from "../Agents/SettingsSection";
@@ -71,6 +73,7 @@ const fromStore: Record<PreferencesSection, SectionId> = {
   repo: "p-identity",
   ai: "ai",
   agents: "agents",
+  keys: "keys",
 };
 
 const iconClass = "size-icon shrink-0";
@@ -79,6 +82,7 @@ const icons: Record<SectionId, ReactNode> = {
   diff: <TextCursorInput className={iconClass} aria-hidden />,
   external: <SquareTerminal className={iconClass} aria-hidden />,
   commands: <CommandIcon className={iconClass} aria-hidden />,
+  keys: <Keyboard className={iconClass} aria-hidden />,
   notifications: <Bell className={iconClass} aria-hidden />,
   ai: <Cpu className={iconClass} aria-hidden />,
   agents: <Bot className={iconClass} aria-hidden />,
@@ -234,6 +238,8 @@ export function Preferences({
         return withSettings((value) => <ExternalSection settings={value} />);
       case "commands":
         return <CustomCommandsSection repoId={repo?.trusted ? repoId : null} />;
+      case "keys":
+        return <KeysSection />;
       case "notifications":
         return withSettings((value) => <NotificationsSection settings={value} />);
       case "ai":

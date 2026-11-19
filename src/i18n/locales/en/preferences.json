@@ -38,6 +38,10 @@
       "label": "Custom commands",
       "keywords": "Custom commands|Script|Program|Placeholder|Import|Export|.forkyard/commands.json"
     },
+    "keys": {
+      "label": "Keyboard shortcuts",
+      "keywords": "shortcut|keys|hotkey|keyboard|rebind"
+    },
     "notifications": {
       "label": "Notifications",
       "keywords": "On fetch results|On background errors"

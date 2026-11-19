@@ -1,0 +1,24 @@
+{
+  "change": "Change shortcut for {{command}}",
+  "none": "No shortcut",
+  "recording": "Press the new combination …",
+  "recordingHint": "Esc cancels, Backspace removes the shortcut.",
+  "conflict": "Used by {{command}}",
+  "assignAnyway": "Assign anyway",
+  "refused": "Can't be assigned: {{reason}}",
+  "reason": {
+    "plain": "lists and text fields use this key",
+    "fixed": "used in {{group}} ({{label}})",
+    "text": "needed for editing text",
+    "system": "taken by the operating system"
+  },
+  "resetAll": {
+    "label": "Reset all",
+    "title": "Reset all shortcuts?",
+    "body": "Every command gets its default shortcut back. Your own shortcuts are removed."
+  },
+  "fixedNote": "These keys belong to their view and can't be changed.",
+  "description": "Click a shortcut and press the new combination. Changes apply at once.",
+  "filter": "Filter shortcuts",
+  "empty": "No command matches “{{query}}”."
+}

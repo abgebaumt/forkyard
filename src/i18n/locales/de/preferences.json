@@ -38,6 +38,10 @@
       "label": "Eigene Befehle",
       "keywords": "Eigene Befehle|Skript|Programm|Platzhalter|Import|Export|.forkyard/commands.json"
     },
+    "keys": {
+      "label": "Tastenkürzel",
+      "keywords": "Kürzel|Tasten|Tastatur|Tastenkombination|belegen"
+    },
     "notifications": {
       "label": "Benachrichtigungen",
       "keywords": "Bei Fetch-Ergebnissen|Bei Fehlern im Hintergrund"
