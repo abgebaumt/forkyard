@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { PushResult, Ref, RefsSnapshot, StackCommit, StackStatus } from "../../core";
+import { t } from "../../i18n";
 import {
   allPushed,
+  createBlocked,
+  createdTitles,
+  prsBlocked,
   baseOptions,
   checkTone,
   cutsOf,
@@ -282,5 +286,30 @@ describe("states and keys", () => {
     expect(listKey(" ", false, 1, 4)).toEqual({ kind: "toggle" });
     expect(listKey(" ", true, 1, 4)).toBe(null);
     expect(listKey("a", false, 1, 4)).toBe(null);
+  });
+});
+
+describe("stack creation and pull request gates", () => {
+  const part = (end: number, title: string | null = null): DraftPart => ({ end, name: "", title, why: null });
+
+  it("remembers each created branch's title: its own or the first subject of its part", () => {
+    expect(createdTitles(["s/1", "s/2", "s/3"], [part(1), part(3, "Import und Auswertung")], COMMITS)).toEqual({
+      "s/1": "Datenmodell für Stationen",
+      "s/2": "Import und Auswertung",
+      "s/3": "",
+    });
+  });
+
+  it("needs two parts and no naming problem to create", () => {
+    expect(createBlocked([part(4)], false)).toBe(t("pullRequest.stack.needTwo"));
+    expect(createBlocked([part(1), part(4)], true)).toBe(t("pullRequest.stack.fixNames"));
+    expect(createBlocked([part(1), part(4)], false)).toBeNull();
+  });
+
+  it("opens pull requests only when connected, pushed and some part has none", () => {
+    expect(prsBlocked(false, false, 0, 2)).toBe(t("pullRequest.stack.prsNoHost"));
+    expect(prsBlocked(true, false, 0, 2)).toBe(t("pullRequest.stack.prsNotPushed"));
+    expect(prsBlocked(true, true, 2, 2)).toBe(t("pullRequest.stack.prsAllOpen"));
+    expect(prsBlocked(true, true, 1, 2)).toBeNull();
   });
 });
