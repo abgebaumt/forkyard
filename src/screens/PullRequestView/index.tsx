@@ -39,7 +39,7 @@ import {
   type PrComment,
   type PrCommit,
   type PrDetails,
-} from "../../app/actions/hostTypes";
+} from "../../app/hosts";
 import { checkoutPr, closePr, commentOnPr, mergeBlock, prBusyKeys, refreshPullRequests, reopenPr } from "../../app/actions/pullrequests";
 import { busyKeys } from "../../app/actions/keys";
 import { fetchAll } from "../../app/actions/sync";

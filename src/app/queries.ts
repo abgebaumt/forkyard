@@ -24,7 +24,7 @@ import {
   type StackStatus,
   type Tab,
 } from "../core";
-import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./actions/hostTypes";
+import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./hosts";
 import { issueApi, type IssueFilter } from "../screens/Issues/api";
 import { isFixedRev } from "../screens/Archaeology/model";
 import { readStatus } from "./statusOrder";

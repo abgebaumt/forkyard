@@ -15,7 +15,7 @@ import {
   toPrSummary,
   toUser,
   type HostKind,
-} from "./hostTypes";
+} from "../hosts";
 import { accountHost, accountState, connectInputs, connectTarget, organizationOf, parseBaseUrl, scrubSecret, tokenPageUrl } from "./hosts";
 import { issuesWebUrl } from "../../screens/Issues/actions";
 import { mergeBlock, pushState, suggestTitle, titleFromBranch } from "./pullrequests";

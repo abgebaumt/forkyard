@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { GitMerge } from "lucide-react";
 import type { Id } from "../../core";
-import type { HostCapabilities, MergeMethod, PrDetails } from "../../app/actions/hostTypes";
+import type { HostCapabilities, MergeMethod, PrDetails } from "../../app/hosts";
 import { mergeMethodHints, mergeMethodLabels, mergePr, prBusyKeys } from "../../app/actions/pullrequests";
 import { showDialog } from "../../app/dialogs";
 import { useBusy } from "../../app/store";

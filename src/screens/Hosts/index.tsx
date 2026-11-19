@@ -14,7 +14,7 @@ import {
   hostBusyKeys,
   type AccountState,
 } from "../../app/actions/hosts";
-import { describeHostError, hostKindLabels, type HostAccountInfo } from "../../app/actions/hostTypes";
+import { describeHostError, hostKindLabels, type HostAccountInfo } from "../../app/hosts";
 import { describeError } from "../../app/errors";
 import { qk, queryClient, useHostAccounts, useKeyringAvailable } from "../../app/queries";
 import { useBusy } from "../../app/store";

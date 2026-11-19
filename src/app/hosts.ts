@@ -7,8 +7,8 @@
  * "name as text instead of object" everywhere. The token itself never comes back: the core
  * stores it in the system keychain and reveals at most the last characters (`tokenHint`).
  */
-import { core, CoreError, EMPTY_TREE_SHA, type Id, type ReviewReply, type ReviewThread, type Sha, type Status } from "../../core";
-import { locale, t } from "../../i18n";
+import { core, CoreError, EMPTY_TREE_SHA, type Id, type ReviewReply, type ReviewThread, type Sha, type Status } from "../core";
+import { locale, t } from "../i18n";
 
 export type HostKind = "github" | "gitlab" | "gitea" | "bitbucket" | "azure_devops";
 

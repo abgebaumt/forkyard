@@ -4,7 +4,7 @@
  * they can be found there; everything else in our own words.
  */
 import { accountPerson, type AccountState } from "../../app/actions/hosts";
-import type { HostAccountInfo, HostKind } from "../../app/actions/hostTypes";
+import type { HostAccountInfo, HostKind } from "../../app/hosts";
 import { t } from "../../i18n";
 
 export interface TokenPermission {

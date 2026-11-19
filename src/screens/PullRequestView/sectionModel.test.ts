@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PrSummary } from "../../app/actions/hostTypes";
+import type { PrSummary } from "../../app/hosts";
 import { parentRemote, splitNames, targetBranches } from "../PullRequestCreate/model";
 import { checksText, prPhase, reviewLabel } from "./parts";
 import { groupPrs, matchesPr } from "./sectionModel";

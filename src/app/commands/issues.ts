@@ -5,7 +5,7 @@
 import { t } from "../../i18n";
 import type { InfiniteData } from "@tanstack/react-query";
 import { openInBrowser } from "../actions/hosts";
-import type { HostRepo } from "../actions/hostTypes";
+import type { HostRepo } from "../hosts";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
 import { qk } from "../queries";
 import { createIssueBranch, issuesWebUrl, openIssues, refreshIssues } from "../../screens/Issues/actions";

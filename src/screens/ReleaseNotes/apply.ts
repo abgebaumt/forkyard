@@ -8,7 +8,7 @@ import { core, type Id } from "../../core";
 import { t } from "../../i18n";
 import { toast } from "../../ui/Feedback";
 import { copyText } from "../../app/actions/clipboard";
-import { hostApi, hostKindLabels, type HostAccountInfo } from "../../app/actions/hostTypes";
+import { hostApi, hostKindLabels, type HostAccountInfo } from "../../app/hosts";
 import { openInBrowser, runHostAction } from "../../app/actions/hosts";
 import { pushTag } from "../../app/actions/tags";
 import { confirm } from "../../app/dialogs";

@@ -1,4 +1,4 @@
-import type { PrSummary } from "../../app/actions/hostTypes";
+import type { PrSummary } from "../../app/hosts";
 import { t } from "../../i18n";
 
 export type PrGroup = "mine" | "review" | "all";

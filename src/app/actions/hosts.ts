@@ -24,7 +24,7 @@ import {
   type HostAccountInfo,
   type HostErrorText,
   type HostKind,
-} from "./hostTypes";
+} from "../hosts";
 
 /** Error codes of the host integration (the core adds them to `ErrorCode`). */
 const HOST_CODES = [

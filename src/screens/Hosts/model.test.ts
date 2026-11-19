@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { HostAccountInfo, HostKind } from "../../app/actions/hostTypes";
+import type { HostAccountInfo, HostKind } from "../../app/hosts";
 import { t } from "../../i18n";
 import { instanceLabels, stateText, tokenGuides } from "./model";
 

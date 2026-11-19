@@ -11,7 +11,7 @@ import { CircleDot, Copy, ExternalLink, GitBranchPlus, Link2, ListFilter, Plug, 
 import type { Id } from "../../core";
 import { copyText } from "../../app/actions/clipboard";
 import { openInBrowser, openIntegrations } from "../../app/actions/hosts";
-import { describeHostError, hostKindLabels } from "../../app/actions/hostTypes";
+import { describeHostError, hostKindLabels } from "../../app/hosts";
 import { useHostRepo, useIssues } from "../../app/queries";
 import { useTabView } from "../../app/store";
 import { Marked, MENU_SEPARATOR, menuItem, SideEmpty, SideSection, SideSkeleton, type SideRowState } from "../../components/SideSection";

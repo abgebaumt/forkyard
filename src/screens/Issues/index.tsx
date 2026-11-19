@@ -12,7 +12,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type Keyb
 import { CircleDot, ExternalLink, Inbox, MousePointerClick, Plus, RefreshCw, Search, SearchX, TriangleAlert, X } from "lucide-react";
 import type { Id } from "../../core";
 import { openInBrowser, openIntegrations } from "../../app/actions/hosts";
-import { describeHostError, hostKindLabels } from "../../app/actions/hostTypes";
+import { describeHostError, hostKindLabels } from "../../app/hosts";
 import { hasOpenDialog } from "../../app/dialogs";
 import { hasOpenMenu } from "../../app/menus/host";
 import { useHostRepo, useIssues } from "../../app/queries";
