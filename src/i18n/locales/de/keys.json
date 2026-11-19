@@ -1,8 +1,9 @@
 {
-  "change": "Kürzel für {{command}} ändern",
+  "change": "Kürzel für {{command}} ändern, derzeit {{keys}}",
   "none": "Kein Kürzel",
   "recording": "Drücke neue Kombination …",
   "recordingHint": "Esc bricht ab, Rücktaste entfernt das Kürzel.",
+  "recordingHintMac": "Esc bricht ab, die Löschtaste entfernt das Kürzel.",
   "conflict": "Belegt von {{command}}",
   "assignAnyway": "Trotzdem zuweisen",
   "refused": "Nicht zuweisbar: {{reason}}",
@@ -18,6 +19,7 @@
     "body": "Jeder Befehl bekommt sein Standardkürzel zurück. Deine eigenen Kürzel werden entfernt."
   },
   "fixedNote": "Diese Tasten gehören zu ihrer Ansicht und sind fest.",
+  "fixedElsewhere": "Tasten in Listen und Ansichten sind fest; die Kürzelübersicht zeigt sie.",
   "description": "Klicke auf ein Kürzel und drücke die neue Kombination. Änderungen gelten sofort.",
   "filter": "Kürzel filtern",
   "empty": "Kein Befehl passt zu „{{query}}“."

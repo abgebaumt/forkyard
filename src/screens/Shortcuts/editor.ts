@@ -1,6 +1,6 @@
 /** Pure state of recording one shortcut in the keybinding editor. */
 import type { AppCommand } from "../../app/commandTypes";
-import { conflictWith, defaultKeys, refusal, type Refusal } from "../../app/keybindings";
+import { assign, canonical, conflictWith, defaultKeys, refusal, reset, type Keybindings, type Refusal } from "../../app/keybindings";
 import type { ShortcutPlatform } from "../../ui/shortcut";
 
 export type RecordState =
@@ -36,4 +36,17 @@ export function onRecordKey(
   const other = conflictWith(combo, commandId, ctx.effective, ctx.platform);
   if (other) return { state: { kind: "conflict", commandId, combo, other: { id: other.id, title: other.title } }, action: none };
   return { state: { kind: "idle" }, action: { kind: "set", combo } };
+}
+
+/** `assign`, but a command that gets exactly its default key back loses its override instead. */
+export function assignKey(
+  overrides: Keybindings,
+  commandId: string,
+  combo: string,
+  ctx: { effective: readonly AppCommand[]; base: readonly AppCommand[]; platform: ShortcutPlatform },
+): Keybindings {
+  const next = assign(overrides, commandId, combo, ctx.effective, ctx.platform);
+  const own = ctx.base.find((command) => command.id === commandId);
+  const defaults = own ? defaultKeys(own).map((key) => canonical(key, ctx.platform)) : [];
+  return defaults.length === 1 && defaults[0] === canonical(combo, ctx.platform) ? reset(next, commandId) : next;
 }

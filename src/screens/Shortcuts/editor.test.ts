@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AppCommand } from "../../app/commandTypes";
-import { onRecordKey, type RecordState } from "./editor";
+import { assignKey, onRecordKey, type RecordState } from "./editor";
 
 const command = (id: string, shortcut?: string): AppCommand =>
   ({ id, title: `Title ${id}`, group: "General", shortcut, run: () => undefined }) as AppCommand;
@@ -55,5 +55,15 @@ describe("recording a shortcut", () => {
     const conflict = onRecordKey(recording, "Mod+B", "b", ctx).state;
     expect(onRecordKey(conflict, "Mod+Alt+K", "k", ctx)).toEqual({ state: conflict, action: { kind: "none" } });
     expect(onRecordKey(conflict, "Escape", "Escape", ctx).state).toEqual({ kind: "idle" });
+  });
+});
+
+describe("assigning a recorded shortcut", () => {
+  it("the command's own default resets instead of writing an equal override", () => {
+    expect(assignKey({ "sync.push": ["Mod+Alt+K"], other: null }, "sync.push", "Mod+Shift+U", ctx)).toEqual({ other: null });
+  });
+
+  it("another key is stored and taken from the command that had it", () => {
+    expect(assignKey({}, "sync.push", "Mod+B", ctx)).toEqual({ "sync.push": ["Mod+B"], "branch.create": null });
   });
 });

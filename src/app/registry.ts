@@ -84,7 +84,9 @@ function subscribe(listener: () => void) {
 }
 
 export function useCommands(): AppCommand[] {
-  return useSyncExternalStore(subscribe, () => registered);
+  const snapshot = () => registered;
+  // Also as the server snapshot: views are rendered to static markup in tests.
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 
 /** Effective shortcut of a command, for tooltips; re-renders when it changes. */
