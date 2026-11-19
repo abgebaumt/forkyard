@@ -9,7 +9,7 @@
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Dialog as RadixDialog } from "radix-ui";
 import { Search, SearchX, X } from "lucide-react";
-import { useCommands } from "../../app/registry";
+import { commandShortcut, useCommands } from "../../app/registry";
 import { useAppStore } from "../../app/store";
 import { afterFocusReturn, useFocusReturn } from "../../app/focusReturn";
 import { Button } from "../../ui/Button";
@@ -91,7 +91,8 @@ export function ShortcutOverlay({ onClose }: ShortcutOverlayProps) {
   const focusReturn = useFocusReturn();
   const general = useMemo(() => registrySections(commands), [commands]);
   const shownGeneral = filterSections(general, query);
-  const shownFixed = filterSections(fixedSections, query);
+  const fixed = useMemo(() => fixedSections(commands), [commands]);
+  const shownFixed = filterSections(fixed, query);
   const count = [...shownGeneral, ...shownFixed].reduce((sum, section) => sum + section.entries.length, 0);
 
   /** Scroll from within the search field: focus stays in the field, the list scrolls. */
@@ -128,7 +129,8 @@ export function ShortcutOverlay({ onClose }: ShortcutOverlayProps) {
           }}
           onKeyDown={(event) => {
             // The same shortcut closes the overview again (global shortcuts rest while a dialog is open).
-            if (matchesShortcut(event.nativeEvent, "Mod+/", isMacShortcuts())) {
+            const own = commandShortcut("app.shortcuts");
+            if (own && matchesShortcut(event.nativeEvent, own, isMacShortcuts())) {
               event.preventDefault();
               onClose();
             }

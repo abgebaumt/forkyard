@@ -8,6 +8,7 @@ import type { AppInfo, Status, Tab } from "../core";
 import type { AppCommand, CommandContext } from "./commandTypes";
 import { hasCommandModifier, matchesShortcut } from "./commandTypes";
 import { hasOpenDialog } from "./dialogs";
+import { applyKeybindings, type Keybindings } from "./keybindings";
 import { qk, queryClient } from "./queries";
 import { showError } from "./run";
 import { useAppStore } from "./store";
@@ -17,6 +18,9 @@ export type { AppCommand, CommandContext, CommandGroup } from "./commandTypes";
 
 const modules = import.meta.glob<{ commands?: AppCommand[] }>("./commands/*.ts", { eager: true });
 
+/** Commands as declared; `registered` is them with the user's own shortcuts applied. */
+let base: AppCommand[] = [];
+let overrides: Keybindings = {};
 let registered: AppCommand[] = [];
 const listeners = new Set<() => void>();
 
@@ -30,9 +34,31 @@ function collect(): AppCommand[] {
   }
   return [...seen.values()];
 }
-registered = collect();
+base = collect();
+registered = base;
 
-/** All commands (including those currently unavailable). */
+function recompute() {
+  registered = applyKeybindings(base, overrides);
+  listeners.forEach((listener) => listener());
+}
+
+/** The user's own shortcuts (setting `keybindings`). */
+export function setKeybindings(next: Keybindings): void {
+  overrides = next;
+  recompute();
+}
+
+/** Commands with their declared shortcuts (defaults, reset). */
+export function getBaseCommands(): AppCommand[] {
+  return base;
+}
+
+/** Applies the setting; mount exactly once in the shell. */
+export function useKeybindings(next: Keybindings | undefined): void {
+  useEffect(() => setKeybindings(next ?? {}), [next]);
+}
+
+/** All commands (including those currently unavailable), with the effective shortcuts. */
 export function getCommands(): AppCommand[] {
   return registered;
 }
@@ -44,22 +70,28 @@ export function commandShortcut(id: string): string | undefined {
 
 /** Register further commands at runtime (e.g. depending on the screen). The return value unregisters them. */
 export function registerCommands(commands: AppCommand[]): () => void {
-  registered = [...registered.filter((item) => !commands.some((command) => command.id === item.id)), ...commands];
-  listeners.forEach((listener) => listener());
+  base = [...base.filter((item) => !commands.some((command) => command.id === item.id)), ...commands];
+  recompute();
   return () => {
-    registered = registered.filter((item) => !commands.includes(item));
-    listeners.forEach((listener) => listener());
+    base = base.filter((item) => !commands.includes(item));
+    recompute();
   };
 }
 
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
 export function useCommands(): AppCommand[] {
-  return useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-    () => registered,
-  );
+  return useSyncExternalStore(subscribe, () => registered);
+}
+
+/** Effective shortcut of a command, for tooltips; re-renders when it changes. */
+export function useCommandShortcut(id: string): string | undefined {
+  const snapshot = () => commandShortcut(id);
+  // Also as the server snapshot: views are rendered to static markup in tests and scenarios.
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 
 /** Context at the time of the call, fresh from the query cache and store. */

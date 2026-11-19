@@ -30,7 +30,7 @@ import { openExternal } from "../../app/actions/files";
 import { matchesShortcut } from "../../app/commandTypes";
 import { openMenuAt } from "../../app/menus/host";
 import { useAppInfo, useRepo } from "../../app/queries";
-import { getCommands } from "../../app/registry";
+import { getCommands, useCommandShortcut } from "../../app/registry";
 import { useCodeSettings } from "../../components/code/settings";
 import { Button, IconButton, Spinner } from "../../ui/Button";
 import { Banner, toast } from "../../ui/Feedback";
@@ -344,6 +344,8 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
   const height = shownTerminalHeight(wish, available);
   const path = repo?.path ?? "";
 
+  const externalShortcut = useCommandShortcut("repo.openTerminal");
+  const hideShortcut = useCommandShortcut("view.terminal");
   const restart = () => void restartTerminal(tabId);
 
   return (
@@ -398,7 +400,7 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
           <IconButton
             size="sm"
             label={t("terminal.external")}
-            shortcut="Alt+T"
+            shortcut={externalShortcut}
             data-action="external"
             icon={<ExternalLink className="size-icon" aria-hidden />}
             onClick={() => void openExternal(repoId, "terminal")}
@@ -414,7 +416,7 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
           <IconButton
             size="sm"
             label={t("terminal.hide")}
-            shortcut="Mod+`"
+            shortcut={hideShortcut}
             data-action="hide"
             icon={<ChevronDown className="size-icon" aria-hidden />}
             onClick={() => hideTerminal(tabId)}

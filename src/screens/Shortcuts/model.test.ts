@@ -34,7 +34,17 @@ describe("shortcut overview", () => {
   });
 
   it("lists every fixed key group with entries", () => {
-    expect(fixedSections.length).toBeGreaterThan(3);
-    for (const section of fixedSections) expect(section.entries.length, section.id).toBeGreaterThan(0);
+    const sections = fixedSections(commands);
+    expect(sections.length).toBeGreaterThan(3);
+    for (const section of sections) expect(section.entries.length, section.id).toBeGreaterThan(0);
+  });
+
+  it("shows the effective keys of the registry commands among the fixed keys", () => {
+    const keys = (list: AppCommand[]) =>
+      fixedSections(list)
+        .find((section) => section.id === "fixed-file")!
+        .entries.find((entry) => entry.label === t("ui.fileHistory"))?.keys;
+    expect(keys([command("file.history", "File", "Alt+H")])).toEqual([["Alt+H"]]);
+    expect(keys([command("file.history", "File")]), "without a key the row is left out").toBeUndefined();
   });
 });

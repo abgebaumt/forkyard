@@ -20,6 +20,7 @@ import { fileMenu } from "../../app/menus";
 import { useStatus } from "../../app/queries";
 import { fileLock, useLockIndex } from "../Lfs/locks";
 import { getTabView, useAppStore, useBusy } from "../../app/store";
+import { useCommandShortcut } from "../../app/registry";
 import { FileLayoutSwitch, FileList, type FileSelectModifiers } from "../../components/FileList";
 import { Button, IconButton } from "../../ui/Button";
 import { Banner, EmptyState } from "../../ui/Feedback";
@@ -325,6 +326,8 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
   }, [operationKey, paths.conflicts, tabId, store]);
 
   const layout = useSectionLayout(lists, split, [view, openSections.unstaged, openSections.staged, Boolean(status)]);
+  const stageAllShortcut = useCommandShortcut("wip.stageAll");
+  const unstageAllShortcut = useCommandShortcut("wip.unstageAll");
   const firstStyle: CSSProperties = layout.first === null ? { flex: `${split} 1 0%` } : { flex: `0 0 ${layout.first}px` };
   const secondStyle: CSSProperties = layout.first === null ? { flex: `${Math.round((1 - split) * 100) / 100} 1 0%` } : { flex: "1 1 0%" };
 
@@ -552,7 +555,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
             open={openSections.unstaged}
             onOpenChange={(next) => setOpenSections((current) => ({ ...current, unstaged: next }))}
             pinnedActions={
-              <Tip label={t("ui.stageAllChanges")} shortcut="Mod+Shift+S">
+              <Tip label={t("ui.stageAllChanges")} shortcut={stageAllShortcut}>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -639,7 +642,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
             open={openSections.staged}
             onOpenChange={(next) => setOpenSections((current) => ({ ...current, staged: next }))}
             pinnedActions={
-              <Tip label={t("wip.panel.unstageAllTip")} shortcut="Mod+Shift+U">
+              <Tip label={t("wip.panel.unstageAllTip")} shortcut={unstageAllShortcut}>
                 <Button
                   size="sm"
                   variant="ghost"
