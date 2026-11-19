@@ -9,7 +9,7 @@ import { ClipboardCopy, FileDiff, RefreshCw, Save } from "lucide-react";
 import { core, EMPTY_TREE_SHA, type DiffSource, type Id } from "../../core";
 import { openExternal } from "../../app/actions/files";
 import { describeError } from "../../app/errors";
-import { useAppInfo, useRepo, useStatus } from "../../app/queries";
+import { qk, useAppInfo, useRepo, useStatus } from "../../app/queries";
 import { showError } from "../../app/run";
 import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
@@ -62,7 +62,7 @@ export function CreatePatchDialog({ repoId, request, onClose }: { repoId: Id; re
   }, [request.source, scope, status, head]);
 
   const patch = useQuery({
-    queryKey: ["repo", repoId, "patch", source, request.paths] as const,
+    queryKey: qk.patch(repoId, source, request.paths),
     queryFn: () => core.patchCreate({ repoId, source: source!, paths: request.paths }),
     enabled: source !== null,
     staleTime: 0,

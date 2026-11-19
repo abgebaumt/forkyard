@@ -11,8 +11,7 @@ import { newJobId, runAction } from "../run";
 import { withFreshStatus } from "../statusCache";
 import { showWip } from "./merge";
 
-export const gitflowKey = (repoId: Id) => [...qk.repo(repoId), "gitflow"] as const;
-export const cachedGitflow = (repoId: Id) => queryClient.getQueryData<GitflowStatus>(gitflowKey(repoId));
+export const cachedGitflow = (repoId: Id) => queryClient.getQueryData<GitflowStatus>(qk.gitflow(repoId));
 export const gitflowBusyKey = (repoId: Id) => `${repoId}:gitflow`;
 
 export const kindLabels: Record<GitflowKind, string> = {
@@ -31,7 +30,7 @@ export function gitflowBranch(repoId: Id, branch: string | null) {
 /** Loads the state fresh and puts it into the cache. */
 export async function loadGitflow(repoId: Id): Promise<GitflowStatus> {
   const status = await core.gitflowStatus({ repoId });
-  queryClient.setQueryData(gitflowKey(repoId), status);
+  queryClient.setQueryData(qk.gitflow(repoId), status);
   return status;
 }
 
@@ -48,7 +47,7 @@ export async function initGitflow(repoId: Id, input: { main: string; develop: st
     quiet: ["invalid_name", "not_found", "not_allowed"],
   });
   if (result.ok) {
-    queryClient.setQueryData(gitflowKey(repoId), result.value);
+    queryClient.setQueryData(qk.gitflow(repoId), result.value);
     refreshRepo(repoId);
     toast({
       tone: "success",
@@ -70,7 +69,7 @@ export async function startGitflow(repoId: Id, kind: GitflowKind, name: string) 
     },
   );
   if (result.ok) {
-    queryClient.setQueryData(gitflowKey(repoId), result.value);
+    queryClient.setQueryData(qk.gitflow(repoId), result.value);
     refreshRepo(repoId);
     const branch = result.value.active.find((item) => item.kind === kind && item.name === name)?.branch ?? name;
     toast({

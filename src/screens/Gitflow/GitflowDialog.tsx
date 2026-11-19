@@ -8,9 +8,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Trans } from "react-i18next";
 import { ArrowLeft, Check, GitBranch, GitMerge, RefreshCw, Settings2, Workflow } from "lucide-react";
 import { core, type GitflowKind, type GitflowPrefixes, type GitflowStatus, type Id } from "../../core";
-import { gitflowBusyKey, gitflowKey, initGitflow, kindLabels, startGitflow } from "../../app/actions/gitflow";
+import { gitflowBusyKey, initGitflow, kindLabels, startGitflow } from "../../app/actions/gitflow";
 import { describeError } from "../../app/errors";
-import { useRefs, useStatus } from "../../app/queries";
+import { qk, useRefs, useStatus } from "../../app/queries";
 import { useBusy } from "../../app/store";
 import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
@@ -20,7 +20,7 @@ import { Select } from "../../ui/Select";
 import { cn } from "../../ui/cn";
 import { t } from "../../i18n";
 
-export const useGitflow = (repoId: Id) => useQuery({ queryKey: gitflowKey(repoId), queryFn: () => core.gitflowStatus({ repoId }) });
+export const useGitflow = (repoId: Id) => useQuery({ queryKey: qk.gitflow(repoId), queryFn: () => core.gitflowStatus({ repoId }) });
 
 const kinds: GitflowKind[] = ["feature", "release", "hotfix"];
 /** Spaces turn into "-" while typing (as with branch names everywhere in the app). */

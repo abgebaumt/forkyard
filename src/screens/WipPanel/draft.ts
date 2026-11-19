@@ -116,7 +116,7 @@ export function useCommitTemplate(repoId: Id): MessageParts | null {
   const fromCore = settings?.commitTemplateText ?? null;
   const value = settings?.commitTemplate?.trim() ?? "";
   const { data: fallback } = useQuery({
-    queryKey: [...qk.repoSettings(repoId), "templateText", value] as const,
+    queryKey: qk.templateText(repoId, value),
     enabled: fromCore === null && value.length > 0,
     queryFn: async (): Promise<string | null> => {
       const multiline = /[\r\n]/.test(value);

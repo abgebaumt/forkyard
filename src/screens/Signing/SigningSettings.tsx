@@ -7,7 +7,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ShieldCheck, ShieldOff, Undo2 } from "lucide-react";
 import { core, type Id, type SigningFormat, type SigningStatus, type SshKey } from "../../core";
-import { queryClient, useSshKeys } from "../../app/queries";
+import { qk, queryClient, useSshKeys } from "../../app/queries";
 import { runAction } from "../../app/run";
 import { writesSettled } from "../../app/writeQueue";
 import { Button } from "../../ui/Button";
@@ -17,11 +17,9 @@ import { Badge, CommitText, GroupTitle, LoadError, Mono, SettingRow, SettingsSke
 import { enqueue } from "../Preferences/settings";
 import { t } from "../../i18n";
 
-export const signingKey = (repoId: Id | null) => (repoId ? (["repo", repoId, "signing"] as const) : (["app", "signing"] as const));
-
 // Reads happen only once no change is in flight anymore (see src/app/writeQueue.ts).
 export const useSigning = (repoId: Id | null) =>
-  useQuery({ queryKey: signingKey(repoId), queryFn: () => writesSettled().then(() => core.signingStatus({ repoId })) });
+  useQuery({ queryKey: qk.signing(repoId), queryFn: () => writesSettled().then(() => core.signingStatus({ repoId })) });
 
 const formats: { value: SigningFormat; label: string }[] = [
   { value: "openpgp", label: "OpenPGP (GPG)" },
@@ -51,11 +49,11 @@ const keyLabel = (key: SshKey) =>
 function applySigning(repoId: Id | null, wanted: { enabled: boolean; format: SigningFormat | null; key: string | null }) {
   return enqueue(async () => {
     // A query already in flight read the state before this change: it no longer counts.
-    await queryClient.cancelQueries({ queryKey: signingKey(repoId) });
+    await queryClient.cancelQueries({ queryKey: qk.signing(repoId) });
     // The repository only holds what differs from the global setting: format and key that apply there
     // just the same stay inherited (null removes the entry) – a later change of the global key then
     // applies here too.
-    const global = repoId ? queryClient.getQueryData<SigningStatus>(signingKey(null)) : undefined;
+    const global = repoId ? queryClient.getQueryData<SigningStatus>(qk.signing(null)) : undefined;
     const next = global
       ? {
           enabled: wanted.enabled,
@@ -64,8 +62,8 @@ function applySigning(repoId: Id | null, wanted: { enabled: boolean; format: Sig
         }
       : wanted;
     const result = await runAction(t("signing.save"), () => core.signingSet({ repoId, ...next }));
-    if (result.ok) queryClient.setQueryData(signingKey(repoId), result.value);
-    else void queryClient.invalidateQueries({ queryKey: signingKey(repoId) });
+    if (result.ok) queryClient.setQueryData(qk.signing(repoId), result.value);
+    else void queryClient.invalidateQueries({ queryKey: qk.signing(repoId) });
     return result;
   });
 }
