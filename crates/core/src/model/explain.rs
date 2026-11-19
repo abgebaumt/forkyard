@@ -631,7 +631,8 @@ pub struct RepoSettings {
     #[serde(default)]
     pub ai_commit_instruction: Option<String>,
     /// Branch cleaner: own patterns of protected branches, on top of the defaults (only `*` is a
-    /// wildcard and also crosses `/`). Trimmed, without empty entries and duplicates.
+    /// wildcard and also crosses `/`; ASCII case-insensitive, so `Release/*` protects `release/1.0`).
+    /// Trimmed, without empty entries and duplicates.
     #[serde(default)]
     pub protected_branch_patterns: Vec<String>,
 }

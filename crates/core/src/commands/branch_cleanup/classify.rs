@@ -13,7 +13,9 @@ pub(crate) fn is_protected(name: &str, own: &[String]) -> bool {
 }
 
 /// `*`-only glob, anchored at both ends: the pieces between the stars must appear in order.
+/// ASCII case-insensitive (refs are case-insensitive on Windows; protecting more is the safe side).
 fn glob_matches(pattern: &str, name: &str) -> bool {
+    let (pattern, name) = (pattern.to_ascii_lowercase(), name.to_ascii_lowercase());
     let mut pieces = pattern.split('*');
     let first = pieces.next().unwrap_or_default();
     let Some(mut rest) = name.strip_prefix(first) else { return false };
@@ -210,5 +212,18 @@ mod tests {
         let own = vec!["team/*".to_string(), "v1.?".to_string()];
         assert!(is_protected("team/a/b", &own));
         assert!(is_protected("v1.?", &own) && !is_protected("v1.2", &own), "only * is a wildcard");
+        assert!(is_protected("Release/1.0", &[]) && is_protected("MAIN", &[]), "ASCII case-insensitive");
+        assert!(is_protected("release/1.0", &["Release/*".to_string()]));
+    }
+
+    #[test]
+    fn glob_edge_cases() {
+        assert!(glob_matches("a*b*c", "abc") && glob_matches("a*b*c", "a-b-b-c") && glob_matches("a*b*c", "a/x/b/y/c"));
+        assert!(!glob_matches("a*b*c", "acb") && !glob_matches("a*b*c", "abcd"));
+        assert!(!glob_matches("a*a", "a"), "prefix and suffix must not overlap");
+        assert!(glob_matches("a*a", "aa") && glob_matches("a*a", "aba"));
+        assert!(glob_matches("*", "") && glob_matches("*", "x/y"));
+        assert!(glob_matches("", "") && !glob_matches("", "x"), "empty pattern matches only the empty name");
+        assert!(glob_matches("Team/*", "team/Übung") && !glob_matches("team/ü*", "team/Übung"), "case folding is ASCII only");
     }
 }

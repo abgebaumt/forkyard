@@ -29,6 +29,7 @@ import type {
   AiStatus,
   AiUsageSummary,
   ArchaeologyAnswer,
+  BranchCleanupList,
   Agent,
   AgentCleanupPreview,
   AgentSuggestion,
@@ -393,6 +394,8 @@ export interface CoreCommands {
   branchRename(input: R & { name: string; newName: string }): Promise<RefsSnapshot>;
   /** Without `force`, deleting unmerged branches fails with `not_merged`. */
   branchDelete(input: R & { names: string[]; force: boolean }): Promise<RefsSnapshot>;
+  /** Branch cleaner: local branches that can go, with class and reasons (without the current and the default branch). */
+  branchCleanupCandidates(input: R): Promise<BranchCleanupList>;
   /**
    * Deletes the branch `name` on the remote (`git push <remote> --delete <name>`); `name` without
    * the remote prefix (`origin/x` works too). `done`: deleted; `up_to_date`: did not exist there

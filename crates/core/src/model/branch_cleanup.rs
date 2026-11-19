@@ -5,6 +5,7 @@ use super::*;
 /// Why a branch is listed or what speaks against deleting it. Always in this order.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "branch_cleanup.ts"))]
+// camelCase: the kinds double as i18n keys `cleanupBranches.reason.<kind>`.
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum BranchCleanupReason {
     /// Fully contained in the default branch.

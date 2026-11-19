@@ -5,6 +5,7 @@
 mod archaeology_tests;
 mod azure_tests;
 mod bitbucket_tests;
+mod branch_cleanup_tests;
 mod conflict_intent_tests;
 mod gitea_tests;
 mod github_tests;
@@ -47,6 +48,8 @@ pub(crate) struct MockState {
     pub no_review_threads: bool,
     /// Bodies of the review comments posted to the test server (Gitea), oldest first.
     pub review_bodies: Vec<String>,
+    /// Head commit per pull request number instead of the made-up one (GitHub).
+    pub head_shas: Vec<(u64, String)>,
 }
 
 pub(crate) struct Fixture {
