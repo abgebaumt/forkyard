@@ -690,3 +690,16 @@ export function baseColumn(input: { setting: boolean; hasBase: boolean; wide: bo
   const disabled = !input.hasBase ? "noBase" : !input.wide ? "narrow" : null;
   return { shown: input.setting && disabled === null, disabled };
 }
+
+/** Whether a `same` block's ancestor had exactly its lines (otherwise both sides deleted some of them). */
+export const sameMatchesBase = (chunk: Chunk): boolean =>
+  chunk.base.length === chunk.ours.length && chunk.base.every((line, index) => line === chunk.ours[index]);
+
+/**
+ * Line (0-based) in the ancestor of a base cell, or null when it has none: `same` blocks show the
+ * ours text as base (see buildRows), whose line numbers only hold for the ancestor when `exact`.
+ */
+export function baseLine(chunk: Chunk, cell: SideCell, exact: boolean): number | null {
+  if (chunk.kind !== "same") return cell.line;
+  return exact ? chunk.baseStart + cell.offset : null;
+}

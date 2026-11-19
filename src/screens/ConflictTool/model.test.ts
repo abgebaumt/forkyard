@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildModel,
   baseColumn,
+  baseLine,
   buildRows,
   chunkText,
   diffLines,
@@ -12,6 +13,7 @@ import {
   splitText,
   toggleLine,
   toggleSide,
+  sameMatchesBase,
   worktreeMatches,
   type Choice,
   type MergeModel,
@@ -233,6 +235,20 @@ describe("base column", () => {
     const withBase = buildRows(model, true).rows;
     expect(withBase).toEqual(plain.map((row) => (row.type === "line" ? { ...row, base: row.ours } : row)));
     expect(withBase).toHaveLength(2);
+  });
+
+  it("base line numbers in shared blocks count in the ancestor, or stay empty where it differs", () => {
+    const model = buildModel("a\nb\nc\nX\nd\n", "a\nb\nc\nY1\nY2\nY3\nd\n", "a\nb\nc\nZ\nd\n");
+    const last = model.chunks[model.chunks.length - 1]!;
+    expect([last.kind, last.ours, last.oursStart]).toEqual(["same", ["d"], 6]);
+    const cell = { line: 6, offset: 0, text: "d" };
+    expect(baseLine(last, cell, sameMatchesBase(last))).toBe(4);
+    const conflict = model.chunks[model.conflicts[0]!]!;
+    expect(baseLine(conflict, { line: 3, offset: 0, text: "X" }, sameMatchesBase(conflict))).toBe(3);
+
+    const deleted = buildModel("a\nb\nc\n", "a\nc\n", "a\nc\n").chunks[0]!;
+    expect(sameMatchesBase(deleted)).toBe(false);
+    expect(baseLine(deleted, { line: 1, offset: 1, text: "c" }, false)).toBeNull();
   });
 
   it("without an ancestor every block has an empty base", () => {

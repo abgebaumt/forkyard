@@ -6,7 +6,7 @@
  * types, each block is compared to check whether the text still matches what the selection would
  * produce – if not, the block counts as “edited by hand”.
  */
-import { ChevronDown, ChevronUp, CircleAlert, CircleCheck, Link2, Link2Off, RotateCcw, Save, Search } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, CircleAlert, CircleCheck, Link2, Link2Off, RotateCcw, Save, Search } from "lucide-react";
 import {
   forwardRef,
   useCallback,
@@ -521,7 +521,11 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
     if (!active || active === document.body || container.current?.closest("[data-screen]")?.contains(active)) sides.current?.focus();
   }, []);
 
-  const tokens = { ours: useLineTokens(path, ours), base: useLineTokens(path, base ?? ""), theirs: useLineTokens(path, theirs) };
+  const tokens = {
+    ours: useLineTokens(path, ours),
+    base: useLineTokens(path, baseView.shown ? (base ?? "") : ""),
+    theirs: useLineTokens(path, theirs),
+  };
 
   // --- Intent -----------------------------------------------------
   const { data: aiStatus } = useAiStatus();
@@ -575,6 +579,9 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
   // --- Darstellung ----------------------------------------------------------------------
   const allDone = total > 0 && open === 0;
   const counter = total === 0 ? t("conflict.counter.none") : t("conflict.counter.resolved", { resolved, count: total });
+
+  const baseReason =
+    baseView.disabled === "noBase" ? t("conflict.base.unavailable") : baseView.disabled === "narrow" ? t("conflict.base.tooNarrow") : null;
 
   const sideHeading = (side: Side, withButton: boolean) => (
     <div className="flex h-control-lg min-w-0 items-center gap-2 pr-1 pl-3" data-side-heading={side}>
@@ -665,27 +672,35 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
               onClick={() => void reset()}
             />
             <Divider />
-            <Tip
-              label={
-                baseView.disabled === "noBase"
-                  ? t("conflict.base.unavailable")
-                  : baseView.disabled === "narrow"
-                    ? t("conflict.base.tooNarrow")
-                    : t("conflict.base.toggleTip")
-              }
-            >
+            <Tip label={baseReason ?? t("conflict.base.toggleTip")}>
+              {/* aria-disabled instead of disabled: the button stays hoverable and focusable, so the reason shows. */}
               <Button
                 size="sm"
                 variant="ghost"
                 aria-pressed={baseView.shown}
-                disabled={baseView.disabled !== null}
+                aria-disabled={baseReason ? true : undefined}
+                aria-describedby={baseReason ? `conflict-base-reason-${tabId}` : undefined}
                 data-base-toggle=""
-                className={baseView.shown ? "bg-surface-raised" : undefined}
-                onClick={() => void saveShowBase(!baseView.shown)}
+                icon={baseView.shown ? <Check className="size-icon" aria-hidden /> : undefined}
+                className={
+                  baseReason
+                    ? "text-text-disabled hover:bg-transparent active:bg-transparent"
+                    : baseView.shown
+                      ? "bg-surface-raised"
+                      : undefined
+                }
+                onClick={() => {
+                  if (!baseReason) void saveShowBase(!baseView.shown);
+                }}
               >
                 {t("conflict.base.toggle")}
               </Button>
             </Tip>
+            {baseReason ? (
+              <span id={`conflict-base-reason-${tabId}`} className="sr-only">
+                {baseReason}
+              </span>
+            ) : null}
             {intentAvailable ? (
               <>
                 <Divider />
