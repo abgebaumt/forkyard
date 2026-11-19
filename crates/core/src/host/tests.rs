@@ -7,6 +7,7 @@ mod azure_tests;
 mod bitbucket_tests;
 mod branch_cleanup_tests;
 mod conflict_intent_tests;
+mod digest_tests;
 mod gitea_tests;
 mod github_tests;
 mod gitlab_tests;
@@ -52,6 +53,8 @@ pub(crate) struct MockState {
     pub head_shas: Vec<(u64, String)>,
     /// Details of a single pull request fail with 500 while the list works (GitHub).
     pub pr_details_fail: bool,
+    /// Author login per pull request number instead of `jonas` (GitHub).
+    pub pr_authors: Vec<(u64, String)>,
 }
 
 pub(crate) struct Fixture {

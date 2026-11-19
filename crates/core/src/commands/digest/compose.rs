@@ -14,7 +14,7 @@ use crate::host;
 use crate::model::{Digest, DigestBehind, DigestCommit, DigestFile, DigestRef, DigestRefChange, Head, HostKind, RefKind, RefsSnapshot};
 use crate::util;
 
-use super::seen;
+use super::{prs, seen};
 
 /// Commits read per ref, before own commits are dropped; also the limit for "your files".
 const MAX_COMMITS: &str = "--max-count=500";
@@ -30,13 +30,14 @@ struct LogCommit {
     paths: Vec<String>,
 }
 
-/// The digest against `seen`, without pull requests.
+/// The digest against `seen`.
 pub(crate) async fn compose_at(core: &Core, repo_id: &str, seen: &SeenRow) -> CoreResult<Digest> {
-    let (current, snapshot, status, own) = tokio::join!(
+    let (current, snapshot, status, own, (prs, pr_data_missing, pr_max_number)) = tokio::join!(
         seen::current_refs(core, repo_id),
         refs::read_refs(core, repo_id),
         status::read_status(core, repo_id),
         own_emails(core, repo_id),
+        prs::pr_part(core, repo_id, seen),
     );
     let (current, snapshot, status) = (current?, snapshot?, status?);
     let names: BTreeSet<&String> = seen.refs.keys().chain(current.keys()).collect();
@@ -124,16 +125,17 @@ pub(crate) async fn compose_at(core: &Core, repo_id: &str, seen: &SeenRow) -> Co
         (Head::Branch { branch, .. }, Some(base)) if default.as_ref() != Some(branch) => behind_of(core, repo_id, branch, base).await?,
         _ => None,
     };
-    let is_empty = digest_refs.is_empty();
+    let is_empty = digest_refs.is_empty() && !prs.as_ref().is_some_and(|p| !p.changed.is_empty() || !p.comments.is_empty());
     Ok(Digest {
         seen_at: seen.seen_at.clone(),
         refs: digest_refs,
         new_commits: foreign.len() as u32,
         your_files,
         behind,
-        prs: None,
-        pr_data_missing: None,
-        pr_max_number: seen.pr_max_number,
+        prs,
+        pr_data_missing,
+        // Never below the stored number: without PR data marking as seen keeps it.
+        pr_max_number: pr_max_number.max(seen.pr_max_number),
         is_empty,
     })
 }

@@ -115,7 +115,7 @@ fn gh_pr(base: &str, number: u64, state: &MockState) -> Value {
         "state": if status == "open" { "open" } else { "closed" },
         "merged_at": if status == "merged" { json!("2026-09-20T10:00:00Z") } else { Value::Null },
         "draft": number == 3,
-        "user": gh_user("jonas"),
+        "user": gh_user(state.pr_authors.iter().find(|(n, _)| *n == number).map_or("jonas", |(_, login)| login.as_str())),
         "body": format!("Beschreibung zu **Thema {number}**.\n\n- [x] Tests"),
         "head": { "ref": source_branch(number), "sha": head_sha, "repo": { "full_name": head_repo } },
         "base": { "ref": "main", "sha": sha(1000), "repo": { "full_name": "octo/demo" } },

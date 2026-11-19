@@ -1,6 +1,7 @@
 //! "What's new since …": what changed in a repository since the user last looked.
 
 mod compose;
+mod prs;
 pub(crate) mod seen;
 
 use compose::compose_at;
