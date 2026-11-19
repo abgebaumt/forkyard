@@ -120,7 +120,7 @@ Settings have three levels: **global** (`app_settings`; which `Settings` fields 
 
 ### UI (`src/`)
 
-- `src/screens/<Name>/`: one folder per screen.
+- `src/screens/<Name>/`: one folder per screen: `index.tsx` (view), `model.ts` (pure logic, tested in `model.test.ts`), `actions.ts` (core calls), further parts as `.tsx`. Layers: `ui` imports neither `app` nor `components`/`screens`; `components` does not import `screens`; helpers used by several screens live in `components/` or `app/`.
 - `src/app/`: shell, state (`store.ts`, Zustand), reads via TanStack Query (`queries.ts`, keys `qk`; refetch on core events in `coreSync.ts`), write queue (`writeQueue.ts`), error display (`run.ts`), focus and Escape guards.
 - **Command registry:** every file `src/app/commands/*.ts` exporting `export const commands: AppCommand[]` is collected automatically via `import.meta.glob` (command palette, shortcuts, menus). Action logic lives in `src/app/actions/`.
 - `src/ui/`: primitives on top of Radix. `src/components/graph`: canvas commit graph; the lane layout is computed by the core (`graph_page`), the UI only draws.
