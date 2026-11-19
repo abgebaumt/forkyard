@@ -64,6 +64,7 @@ import {
   useViewState,
 } from "../../app/queries";
 import { runAction } from "../../app/run";
+import { noteGraphTop } from "../../app/windows/handoff";
 import { useAppStore } from "../../app/store";
 import { layoutColumns, normalizeColumns, type ColumnState } from "../../components/graph/columns";
 import {
@@ -917,7 +918,7 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
 
   // --- “Show this commit” ---------------------------------------------------------------------------
   const reveal = useAppStore((state) => state.views[tabId]?.reveal ?? null);
-  const [seeking, setSeeking] = useState<{ sha: Sha; nonce: number; key?: string } | null>(null);
+  const [seeking, setSeeking] = useState<{ sha: Sha; nonce: number; key?: string; top?: boolean } | null>(null);
   const seekBudget = useRef(0);
   const handledReveal = useRef(0);
   useEffect(() => {
@@ -930,11 +931,16 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
     if (!seeking) return;
     const index = indexByKey.get(seeking.key ?? seeking.sha);
     if (index !== undefined) {
-      virtualizer.scrollToIndex(index, { align: "center" });
+      virtualizer.scrollToIndex(index, { align: seeking.top ? "start" : "center" });
       setSeeking(null);
       return;
     }
     if (isFetching) return;
+    // A moved tab's scroll position: not worth a message when the row is gone.
+    if (seeking.top && (!hasNextPage || seekBudget.current <= 0)) {
+      setSeeking(null);
+      return;
+    }
     const name = shortSha(seeking.sha);
     if (!hasNextPage) {
       const filtered = Boolean(viewState && (viewState.hiddenRefs.length > 0 || viewState.soloRefs.length > 0));
@@ -992,6 +998,10 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
 
   const rendered = new Set(items.map((item) => item.index));
   const firstVisible = items.find((item) => item.start + item.size > (scrollerRef.current?.scrollTop ?? 0))?.index ?? 0;
+  const firstRow = rows[firstVisible];
+  const topSha = firstRow && isCommitRow(firstRow) ? firstRow.sha : null;
+  // For a move to another window (src/app/windows/handoff.ts).
+  useEffect(() => noteGraphTop(tabId, topSha), [tabId, topSha]);
   const tabStop =
     activeIndex >= 0 && rendered.has(activeIndex)
       ? activeIndex

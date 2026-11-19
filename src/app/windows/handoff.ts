@@ -2,7 +2,7 @@
  * A tab's view state for the window it moves to: the `TabView`, its terminal sessions and the top
  * graph row. It travels as opaque JSON through the core (`tabHandoffPut` / `tabHandoffTake`).
  */
-import type { Id, Sha } from "../../core";
+import { core, type Id, type Sha } from "../../core";
 import { adoptSessions, releaseSessions, type TerminalHandoff } from "../../screens/Terminal/sessions";
 import { qk, queryClient } from "../queries";
 import { defaultTabView, getTabView, useAppStore, type TabView } from "../store";
@@ -16,6 +16,12 @@ export interface TabHandoff {
 
 /** Top graph row per tab, as the graph last reported it. */
 const graphTops = new Map<Id, Sha>();
+
+// A closed tab's entry goes with its view.
+useAppStore.subscribe((state, previous) => {
+  if (state.views === previous.views) return;
+  for (const tabId of Object.keys(previous.views)) if (!(tabId in state.views)) graphTops.delete(tabId);
+});
 
 /** The graph reports its top visible commit here, so a move can restore the scroll position. */
 export function noteGraphTop(tabId: Id, sha: Sha | null): void {
@@ -55,9 +61,13 @@ let revealNonce = 0;
 export function applyHandoff(tabId: Id, repoId: Id | null, h: TabHandoff): void {
   // The source's reveal request was handled there; only the top row is asked for again.
   // Negative nonces cannot collide with the store's own counter (1, 2, …).
-  const reveal = h.topSha ? { sha: h.topSha, nonce: -++revealNonce } : null;
+  const reveal = h.topSha ? { sha: h.topSha, nonce: -++revealNonce, top: true } : null;
   useAppStore.setState((state) => ({ views: { ...state.views, [tabId]: { ...defaultTabView(), ...h.view, reveal } } }));
-  if (!repoId) return;
+  if (!repoId) {
+    // Released by the source: nobody else would end them before the app quits.
+    for (const { terminalId } of h.terminals) void core.terminalClose({ terminalId }).catch(() => undefined);
+    return;
+  }
   adoptSessions(tabId, repoId, h.terminals);
   // The source flushed the draft into the core before the move.
   void queryClient.invalidateQueries({ queryKey: qk.draft(repoId) });

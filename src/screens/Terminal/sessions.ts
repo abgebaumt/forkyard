@@ -805,11 +805,15 @@ export interface TerminalHandoff {
   program: boolean;
   /** The last 1000 lines, plain text. */
   scrollback: string;
+  /** The shown one in its terminal tab strip. */
+  active: boolean;
 }
 
 /**
  * Takes the tab's sessions out of this window without ending them, before the tab list changes
  * (`reconcileWithTabs` would end them). Ended sessions are dropped.
+ * shortcut: output between release here and adoption there is lost; upgrade if users miss lines after a move.
+ * shortcut: a shell still starting (no terminal id yet) is ended, not moved; upgrade if moves right after opening matter.
  */
 export function releaseSessions(tabId: Id): TerminalHandoff[] {
   const group = groups.get(tabId);
@@ -820,7 +824,14 @@ export function releaseSessions(tabId: Id): TerminalHandoff[] {
     const terminalId = session && isLiveStatus(session.getStatus()) ? session.id : null;
     if (!session || !terminalId) continue;
     const scrollback = session.bufferText().split("\n").slice(-HANDOFF_LINES).join("\n");
-    list.push({ terminalId, key: entry.key, title: entry.title, program: entry.kind === "program", scrollback });
+    list.push({
+      terminalId,
+      key: entry.key,
+      title: entry.title,
+      program: entry.kind === "program",
+      scrollback,
+      active: entry.key === group.tabs.active,
+    });
     session.handOver();
   }
   disposeSession(tabId);
@@ -848,6 +859,8 @@ export function adoptSessions(tabId: Id, repoId: Id, list: TerminalHandoff[]): v
     session.start();
     if (item.scrollback) session.term.write(`${item.scrollback.replace(/\n/g, "\r\n")}\r\n`);
   }
+  const active = list.find((item) => item.active);
+  if (active) selectSession(tabId, active.key);
 }
 
 /** Ends every session of the tab. */

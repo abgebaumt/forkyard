@@ -10,8 +10,18 @@ const shell: TerminalHandoff = {
   title: "Shell",
   program: false,
   scrollback: "$ git status\nAuf Branch main",
+  active: true,
 };
+const closed: string[] = [];
 
+vi.mock("../../core", () => ({
+  core: {
+    terminalClose: ({ terminalId }: { terminalId: string }) => {
+      closed.push(terminalId);
+      return Promise.resolve();
+    },
+  },
+}));
 vi.mock("../queries", () => ({
   qk: { draft: (repoId: string) => ["repo", repoId, "draft"] },
   queryClient: { invalidateQueries: (filter: unknown) => invalidated.push(filter) },
@@ -31,6 +41,7 @@ beforeEach(() => {
   invalidated.length = 0;
   adopted.length = 0;
   released.length = 0;
+  closed.length = 0;
 });
 
 describe("hand-over", () => {
@@ -66,7 +77,7 @@ describe("hand-over", () => {
     const now = getTabView("tab-9");
     expect(now.selection).toEqual({ kind: "commits", shas: ["d4e5f6"] });
     expect(now.terminalOpen).toBe(true);
-    expect(now.reveal?.sha).toBe("0badc0de");
+    expect(now.reveal).toMatchObject({ sha: "0badc0de", top: true });
     expect(adopted).toEqual([{ tabId: "tab-9", repoId: "r1", list: [shell] }]);
   });
 
@@ -76,9 +87,17 @@ describe("hand-over", () => {
     expect(getTabView("tab-9").reveal).toBeNull();
   });
 
-  test("without a repository nothing is adopted or invalidated", () => {
+  test("without a repository the released terminals are ended, not adopted", () => {
     applyHandoff("tab-9", null, { version: 1, view: getTabView("none"), terminals: [shell], topSha: null });
     expect(adopted).toEqual([]);
     expect(invalidated).toEqual([]);
+    expect(closed).toEqual(["t-7"]);
+  });
+
+  test("a closed tab forgets its top row", () => {
+    useAppStore.getState().setSearchOpen("tab-5", true);
+    noteGraphTop("tab-5", "0badc0de");
+    useAppStore.getState().dropTabView("tab-5");
+    expect(buildHandoff("tab-5").topSha).toBeNull();
   });
 });

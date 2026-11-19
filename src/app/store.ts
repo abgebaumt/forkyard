@@ -83,7 +83,8 @@ export interface TabView {
   rightCollapsed: boolean;
   /** Request to the graph to scroll to this commit. `nonce` changes with every request. */
   /** `key`: graph row to scroll to when it is not the commit row itself (a stash row). */
-  reveal: { sha: Sha; nonce: number; key?: string } | null;
+  /** `top`: put the row at the top and stay silent when it cannot be found (a moved tab's scroll position). */
+  reveal: { sha: Sha; nonce: number; key?: string; top?: boolean } | null;
   /** Line shown in the right panel (`rightPanel: "archaeology"`). */
   archaeology: ArchaeologyTarget | null;
 }
