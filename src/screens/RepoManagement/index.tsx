@@ -14,7 +14,8 @@ import { baseName } from "../../app/osPaths";
 import { openInitDialogAt } from "../InitDialog/preset";
 import { ReadmePreview } from "./ReadmePreview";
 import { AiSetupEntry } from "./AiSetupEntry";
-import { RepoList, type ListItem, type RepoListHandle } from "./RepoList";
+import { RepoList, type RepoListHandle } from "./RepoList";
+import { buildItems, groupNames, matches, type Grouping } from "./model";
 import { resolveMissing } from "./repoActions";
 import { locale, t } from "../../i18n";
 
@@ -23,7 +24,6 @@ export interface RepoManagementProps {
   tabId: Id | null;
 }
 
-type Grouping = "recent" | "groups";
 type Notice = { kind: "not_a_repo" | "path_not_found"; path: string };
 
 /** From this many entries on there is a filter field. */
@@ -37,48 +37,6 @@ function loadGrouping(): Grouping {
   } catch {
     return "recent";
   }
-}
-
-const collator = new Intl.Collator(locale(), { sensitivity: "base", numeric: true });
-
-function matches(repo: Repo, words: string[]): boolean {
-  if (!words.length) return true;
-  const text = `${repo.alias ?? ""}\n${repo.name}\n${repo.path}\n${repo.groupName ?? ""}`.toLocaleLowerCase(locale());
-  return words.every((word) => text.includes(word));
-}
-
-function buildItems(repos: Repo[], grouping: Grouping): ListItem[] {
-  const items: ListItem[] = [];
-  const section = (key: string, label: string, list: Repo[], group?: string) => {
-    if (!list.length) return;
-    items.push({ kind: "header", key: `header:${key}`, label, count: list.length, group });
-    for (const repo of list) items.push({ kind: "repo", key: repo.id, repo });
-  };
-  // The core already returns the list sorted by "last opened".
-  section(
-    "favorites",
-    t("repos.sections.favorites"),
-    repos.filter((repo) => repo.isFavorite),
-  );
-  const rest = repos.filter((repo) => !repo.isFavorite);
-  if (grouping === "groups") {
-    const names = [...new Set(rest.flatMap((repo) => (repo.groupName ? [repo.groupName] : [])))].sort(collator.compare);
-    for (const name of names)
-      section(
-        `group:${name}`,
-        name,
-        rest.filter((repo) => repo.groupName === name),
-        name,
-      );
-    section(
-      "ungrouped",
-      t("repos.sections.ungrouped"),
-      rest.filter((repo) => !repo.groupName),
-    );
-  } else {
-    section("recent", t("repos.sections.recent"), rest);
-  }
-  return items;
 }
 
 function EntryButtons({ onOpen }: { onOpen: () => void }) {
@@ -128,10 +86,7 @@ export function RepoManagement({ tabId: _tabId }: RepoManagementProps) {
   const filterRef = useRef<HTMLInputElement>(null);
 
   const hasGroups = Boolean(repos?.some((repo) => repo.groupName));
-  const groups = useMemo(
-    () => [...new Set((repos ?? []).flatMap((repo) => (repo.groupName ? [repo.groupName] : [])))].sort(collator.compare),
-    [repos],
-  );
+  const groups = useMemo(() => groupNames(repos ?? []), [repos]);
   const effectiveGrouping: Grouping = hasGroups ? grouping : "recent";
   const showFilter = (repos?.length ?? 0) >= FILTER_FROM;
   const words = useMemo(() => (showFilter ? filter.toLocaleLowerCase("de").split(/\s+/).filter(Boolean) : []), [filter, showFilter]);
