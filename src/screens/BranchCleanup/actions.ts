@@ -73,7 +73,14 @@ export async function deleteSelected(
         job: { id: jobId, title: t("actions.sync.deleteRemote.job", { target: clip(label, 32) }), repoId },
       },
     );
-    if (result.ok) succeeded++;
+    // Already gone there: the core removed the stale remote branch here; say so instead of counting it as deleted.
+    if (result.ok && result.value.status === "up_to_date")
+      toast({
+        tone: "info",
+        title: t("actions.sync.deleteRemote.gone", { target: clip(label) }),
+        description: t("actions.sync.deleteRemote.goneDescription"),
+      });
+    else if (result.ok) succeeded++;
   }
   afterNetwork(repoId);
   void queryClient.invalidateQueries({ queryKey: qk.refs(repoId) });

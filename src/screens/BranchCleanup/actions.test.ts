@@ -98,6 +98,17 @@ describe("deleteSelected", () => {
     expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ title: "3 branches deleted" }));
   });
 
+  it("a remote branch already gone there is reported as such, not counted as deleted", async () => {
+    branchDeleteRemote.mockImplementation(async (input) =>
+      input.name === "fertig" ? ({ status: "up_to_date" } as PushResult) : done(input.remote, input.name),
+    );
+    await deleteSelected(REPO, list, new Set(["fertig", "zweig"]), true);
+    expect(toastSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ tone: "info", title: "“origin/fertig” was already gone on the server" }),
+    );
+    expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ tone: "success", title: "1 remote branch deleted" }));
+  });
+
   it("cancelling the remote confirmation cancels everything", async () => {
     confirmSpy.mockResolvedValue(false);
     await deleteSelected(REPO, list, new Set(["fertig"]), true);
