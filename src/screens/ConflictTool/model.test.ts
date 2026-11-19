@@ -226,10 +226,27 @@ describe("base column", () => {
     ]);
   });
 
+  it("lines both sides deleted do not stretch or misalign the base column", () => {
+    const model = buildModel("a\nb\nc\n", "a\nc\n", "a\nc\n");
+    expect(model.chunks).toHaveLength(1);
+    const plain = buildRows(model).rows;
+    const withBase = buildRows(model, true).rows;
+    expect(withBase).toEqual(plain.map((row) => (row.type === "line" ? { ...row, base: row.ours } : row)));
+    expect(withBase).toHaveLength(2);
+  });
+
   it("without an ancestor every block has an empty base", () => {
     const model = buildModel(null, "a\nb\n", "a\nc\n");
     expect(model.hasBase).toBe(false);
     expect(model.chunks.every((chunk) => chunk.base.length === 0)).toBe(true);
+  });
+
+  it("the base does not change the blocks, also when a both-deleted block drops out", () => {
+    const model = buildModel("a\nb\nc\nd\n", "a\nc\nD1\n", "a\nc\nD2\n");
+    expect(model.chunks.map((chunk) => [chunk.kind, chunk.ours, chunk.theirs])).toEqual([
+      ["same", ["a", "c"], ["a", "c"]],
+      ["conflict", ["D1"], ["D2"]],
+    ]);
   });
 
   it("the base does not change the blocks", () => {

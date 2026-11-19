@@ -605,7 +605,10 @@ export function buildRows(model: MergeModel, withBase = false): RowModel {
   for (const chunk of model.chunks) {
     chunkStart.push(rows.length);
     if (chunk.kind !== "same") rows.push({ type: "head", chunk: chunk.id });
-    const height = Math.max(chunk.ours.length, chunk.theirs.length, withBase ? chunk.base.length : 0);
+    // A `same` block shows its shared text as base: merged neighbours may hold base lines both sides deleted, which would misalign the column.
+    const base = chunk.kind === "same" ? chunk.ours : chunk.base;
+    const baseStart = chunk.kind === "same" ? chunk.oursStart : chunk.baseStart;
+    const height = Math.max(chunk.ours.length, chunk.theirs.length, withBase ? base.length : 0);
     for (let offset = 0; offset < height; offset++) {
       const cell = (lines: string[], start: number): SideCell | null =>
         offset >= lines.length ? null : { line: start + offset, offset, text: lines[offset]! };
@@ -613,7 +616,7 @@ export function buildRows(model: MergeModel, withBase = false): RowModel {
         type: "line",
         chunk: chunk.id,
         ours: cell(chunk.ours, chunk.oursStart),
-        base: withBase ? cell(chunk.base, chunk.baseStart) : null,
+        base: withBase ? cell(base, baseStart) : null,
         theirs: cell(chunk.theirs, chunk.theirsStart),
       });
     }
