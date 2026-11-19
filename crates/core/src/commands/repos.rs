@@ -8,7 +8,7 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors;
 use crate::model::{AppChange, OpenedRepo, ProfileRef, Repo, Tab, TabKind};
 use crate::util;
-use crate::{autofetch, watcher};
+use crate::{autofetch, watcher, windowing};
 
 /// Largest README read for the preview.
 const README_MAX_BYTES: u64 = 1024 * 1024;
@@ -110,6 +110,7 @@ pub async fn repo_open_with(core: &Core, path: String, add_to_profile: bool) -> 
         return Err(CoreError::not_a_repo(trimmed));
     }
     let root = resolve_root(core, &input).await?;
+    let window = windowing::caller_or_main();
     let opened = core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
         let row = db::repos::upsert(tx, &root)?;
@@ -122,16 +123,16 @@ pub async fn repo_open_with(core: &Core, path: String, add_to_profile: bool) -> 
             }
         }
         db::repos::touch_opened(tx, &row.id)?;
-        let tab_id = match db::tabs::find_by_repo(tx, &profile_id, db::windows::MAIN, &row.id)? {
+        let tab_id = match db::tabs::find_by_repo(tx, &profile_id, &window, &row.id)? {
             Some(tab) => tab.id,
             None => {
-                let active = db::tabs::list(tx, &profile_id, db::windows::MAIN)?.into_iter().find(|t| t.is_active);
+                let active = db::tabs::list(tx, &profile_id, &window)?.into_iter().find(|t| t.is_active);
                 match active {
                     Some(t) if t.kind == TabKind::Management => {
                         db::tabs::set_repo(tx, &t.id, &row.id)?;
                         t.id
                     }
-                    _ => db::tabs::append(tx, &profile_id, db::windows::MAIN, TabKind::Repo, Some(&row.id))?,
+                    _ => db::tabs::append(tx, &profile_id, &window, TabKind::Repo, Some(&row.id))?,
                 }
             }
         };
@@ -205,24 +206,29 @@ pub async fn repo_update(
 /// lists it any more, the entry is dropped too, including trust and view state. Deletes nothing
 /// on disk.
 pub async fn repo_forget(core: &Core, repo_id: String) -> CoreResult<()> {
-    let gone = core.db.tx(|tx| {
+    let (gone, closed) = core.db.tx(|tx| {
         db::repos::require(tx, &repo_id)?;
         let profile_id = db::profiles::active_id(tx)?;
         db::profile_repos::remove(tx, &profile_id, &repo_id)?;
+        let closed: Vec<Tab> =
+            db::tabs::list_all(tx, &profile_id)?.into_iter().filter(|t| t.repo_id.as_deref() == Some(&repo_id)).collect();
         db::tabs::close_repo(tx, &profile_id, &repo_id)?;
         let gone = db::profile_repos::profiles_of(tx, &repo_id)?.is_empty();
         if gone {
             db::repos::delete(tx, &repo_id)?;
         }
         db::tabs::ensure_all(tx, &profile_id)?;
-        Ok(gone)
+        Ok((gone, closed))
     })?;
     if gone {
         let _ = watcher::stop_watching(core, &repo_id);
         let _ = autofetch::stop(core, &repo_id);
         crate::commands::graph::release_graph_walkers(core, &repo_id);
     } else {
-        stop_background_if_closed(core, &repo_id);
+        // `list_all` groups by window.
+        for tabs in closed.chunk_by(|a, b| a.window == b.window) {
+            crate::commands::window::tabs_left(core, &tabs[0].window, tabs);
+        }
     }
     core.emit_app_changed(&[AppChange::Repos, AppChange::Tabs]);
     Ok(())
@@ -260,14 +266,15 @@ pub async fn repo_readme(core: &Core, repo_id: String) -> CoreResult<Option<Stri
 }
 
 fn list_tabs(core: &Core) -> CoreResult<Vec<Tab>> {
+    let window = windowing::caller_or_main();
     core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
-        db::tabs::ensure_consistent(tx, &profile_id, db::windows::MAIN)?;
-        db::tabs::list(tx, &profile_id, db::windows::MAIN)
+        db::tabs::ensure_consistent(tx, &profile_id, &window)?;
+        db::tabs::list(tx, &profile_id, &window)
     })
 }
 
-/// Tabs of the active profile. There is always at least one (otherwise a management tab).
+/// Tabs of the calling window. There is always at least one (otherwise a management tab).
 pub async fn tabs_list(core: &Core) -> CoreResult<Vec<Tab>> {
     list_tabs(core)
 }
@@ -275,21 +282,22 @@ pub async fn tabs_list(core: &Core) -> CoreResult<Vec<Tab>> {
 /// Opens a management tab (`repo_id: None`) or a repo tab; an existing tab of the same
 /// repository is activated instead of duplicated.
 pub async fn tab_open(core: &Core, repo_id: Option<String>) -> CoreResult<Vec<Tab>> {
+    let window = windowing::caller_or_main();
     let tabs = core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
         let tab_id = match &repo_id {
-            None => db::tabs::append(tx, &profile_id, db::windows::MAIN, TabKind::Management, None)?,
+            None => db::tabs::append(tx, &profile_id, &window, TabKind::Management, None)?,
             Some(id) => {
                 db::repos::require(tx, id)?;
                 db::repos::touch_opened(tx, id)?;
-                match db::tabs::find_by_repo(tx, &profile_id, db::windows::MAIN, id)? {
+                match db::tabs::find_by_repo(tx, &profile_id, &window, id)? {
                     Some(t) => t.id,
-                    None => db::tabs::append(tx, &profile_id, db::windows::MAIN, TabKind::Repo, Some(id))?,
+                    None => db::tabs::append(tx, &profile_id, &window, TabKind::Repo, Some(id))?,
                 }
             }
         };
         db::tabs::activate(tx, &profile_id, &tab_id)?;
-        db::tabs::list(tx, &profile_id, db::windows::MAIN)
+        db::tabs::list(tx, &profile_id, &window)
     })?;
     if let Some(id) = &repo_id {
         start_background(core, id);
@@ -303,10 +311,11 @@ pub async fn tab_open(core: &Core, repo_id: Option<String>) -> CoreResult<Vec<Ta
 /// Closes a tab. If it was active, its right neighbour becomes active (otherwise the left one).
 /// If the last tab is closed, a management tab remains.
 pub async fn tab_close(core: &Core, tab_id: String) -> CoreResult<Vec<Tab>> {
-    let (tabs, closed_repo) = core.db.tx(|tx| {
+    let window = windowing::caller_or_main();
+    let (tabs, closed) = core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
-        let tab = db::tabs::require(tx, &profile_id, &tab_id)?;
-        let mut ids: Vec<String> = db::tabs::list(tx, &profile_id, db::windows::MAIN)?.into_iter().map(|t| t.id).collect();
+        let tab = db::tabs::require_in(tx, &profile_id, &window, &tab_id)?;
+        let mut ids: Vec<String> = db::tabs::list(tx, &profile_id, &window)?.into_iter().map(|t| t.id).collect();
         let index = ids.iter().position(|id| *id == tab_id).unwrap_or(0);
         ids.retain(|id| *id != tab_id);
         db::tabs::delete(tx, &profile_id, &tab_id)?;
@@ -315,41 +324,41 @@ pub async fn tab_close(core: &Core, tab_id: String) -> CoreResult<Vec<Tab>> {
             let next = &ids[index.min(ids.len() - 1)];
             db::tabs::activate(tx, &profile_id, next)?;
         }
-        db::tabs::ensure_consistent(tx, &profile_id, db::windows::MAIN)?;
-        Ok((db::tabs::list(tx, &profile_id, db::windows::MAIN)?, tab.repo_id))
+        db::tabs::ensure_consistent(tx, &profile_id, &window)?;
+        Ok((db::tabs::list(tx, &profile_id, &window)?, tab))
     })?;
-    if let Some(repo_id) = closed_repo {
-        stop_background_if_closed(core, &repo_id);
-    }
+    crate::commands::window::tabs_left(core, &window, &[closed]);
     core.emit_app_changed(&[AppChange::Tabs]);
     Ok(tabs)
 }
 
 /// Moves a tab to `position` (0 = far left; too large = far right).
 pub async fn tab_move(core: &Core, tab_id: String, position: i64) -> CoreResult<Vec<Tab>> {
+    let window = windowing::caller_or_main();
     let tabs = core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
-        db::tabs::require(tx, &profile_id, &tab_id)?;
-        let mut ids: Vec<String> = db::tabs::list(tx, &profile_id, db::windows::MAIN)?.into_iter().map(|t| t.id).collect();
+        db::tabs::require_in(tx, &profile_id, &window, &tab_id)?;
+        let mut ids: Vec<String> = db::tabs::list(tx, &profile_id, &window)?.into_iter().map(|t| t.id).collect();
         ids.retain(|id| *id != tab_id);
         let target = (position.max(0) as usize).min(ids.len());
         ids.insert(target, tab_id.clone());
         db::tabs::reorder(tx, &profile_id, &ids)?;
-        db::tabs::list(tx, &profile_id, db::windows::MAIN)
+        db::tabs::list(tx, &profile_id, &window)
     })?;
     core.emit_app_changed(&[AppChange::Tabs]);
     Ok(tabs)
 }
 
 pub async fn tab_activate(core: &Core, tab_id: String) -> CoreResult<Vec<Tab>> {
+    let window = windowing::caller_or_main();
     let (tabs, repo_id) = core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
-        let tab = db::tabs::require(tx, &profile_id, &tab_id)?;
+        let tab = db::tabs::require_in(tx, &profile_id, &window, &tab_id)?;
         db::tabs::activate(tx, &profile_id, &tab_id)?;
         if let Some(id) = &tab.repo_id {
             db::repos::touch_opened(tx, id)?;
         }
-        Ok((db::tabs::list(tx, &profile_id, db::windows::MAIN)?, tab.repo_id))
+        Ok((db::tabs::list(tx, &profile_id, &window)?, tab.repo_id))
     })?;
     if repo_id.is_some() {
         core.emit_app_changed(&[AppChange::Tabs, AppChange::Repos]);

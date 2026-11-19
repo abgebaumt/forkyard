@@ -1,5 +1,6 @@
 //! The window that called the current command. The binding wraps every command in `scoped`,
 //! so the core reads its caller without a parameter. Outside a scope (tests, start-up) there is none.
+//! Spawned tasks lose the scope, so jobs they start count as `main`.
 
 use std::future::Future;
 

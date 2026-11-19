@@ -44,6 +44,7 @@ const tab = (patch: Partial<Tab>): Tab => ({
   isActive: true,
   title: "Mein Projekt",
   path: "/home/lena/Mein Projekt",
+  window: "main",
   ...patch,
 });
 

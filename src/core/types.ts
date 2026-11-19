@@ -34,6 +34,7 @@ export type * from "./generated/stacks";
 export type * from "./generated/stats";
 export type * from "./generated/status";
 export type * from "./generated/view";
+export type * from "./generated/windows";
 export type * from "./generated/worktrees";
 
 import type { CollisionReport } from "./generated/agent_collisions";

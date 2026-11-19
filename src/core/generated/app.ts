@@ -145,9 +145,16 @@ export type Tab = {
   kind: TabKind;
   repoId: string | null;
   position: number;
+  /**
+   * Active within its window: every window has exactly one active tab.
+   */
   isActive: boolean;
   title: string;
   path: string | null;
+  /**
+   * Label of the window the tab belongs to (`main` or `w-…`).
+   */
+  window: string;
 };
 
 export type TabKind = "repo" | "management";

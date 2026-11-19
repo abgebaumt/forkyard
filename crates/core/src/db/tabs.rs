@@ -49,9 +49,13 @@ pub fn list(conn: &Connection, profile_id: &str, window: &str) -> CoreResult<Vec
     Ok(rows)
 }
 
-/// Tabs of every window of the profile, grouped by window, each group in its order.
+/// Tabs of every window of the profile, grouped by window in window order (tabs without a window row last),
+/// each group in its order.
 pub fn list_all(conn: &Connection, profile_id: &str) -> CoreResult<Vec<Tab>> {
-    let mut stmt = conn.prepare(&format!("{SELECT} where t.profile_id = ?1 order by t.window_id, t.position, t.created_at"))?;
+    let mut stmt = conn.prepare(&format!(
+        "{SELECT} left join profile_windows w on w.profile_id = t.profile_id and w.label = t.window_id
+         where t.profile_id = ?1 order by w.position is null, w.position, t.window_id, t.position, t.created_at"
+    ))?;
     let rows = stmt.query_map([profile_id], from_row)?.collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows)
 }
@@ -62,6 +66,11 @@ pub fn get(conn: &Connection, profile_id: &str, tab_id: &str) -> CoreResult<Opti
 
 pub fn require(conn: &Connection, profile_id: &str, tab_id: &str) -> CoreResult<Tab> {
     get(conn, profile_id, tab_id)?.ok_or_else(|| CoreError::not_found("The tab no longer exists."))
+}
+
+/// Like `require`, but a tab of another window counts as gone too.
+pub fn require_in(conn: &Connection, profile_id: &str, window: &str, tab_id: &str) -> CoreResult<Tab> {
+    get(conn, profile_id, tab_id)?.filter(|t| t.window == window).ok_or_else(|| CoreError::not_found("The tab no longer exists."))
 }
 
 /// First tab of the window for this repository.
@@ -293,6 +302,24 @@ mod tests {
         assert_eq!(order(&x), vec![(b.clone(), 0, "w-x".into()), (d, 1, "w-x".into())]);
         let err = db.with(|c| move_to_window(c, "p", &b, "w-gone", 0)).unwrap_err();
         assert_eq!(err.code, crate::ErrorCode::NotFound);
+    }
+
+    #[test]
+    fn list_all_follows_the_window_order() {
+        let db = setup();
+        let windows: Vec<String> = db
+            .with(|c| {
+                windows::insert(c, "p", "w-a", None)?;
+                for w in ["w-a", "w-x", "main"] {
+                    mgmt(c, w)?;
+                }
+                list_all(c, "p")
+            })
+            .unwrap()
+            .into_iter()
+            .map(|t| t.window)
+            .collect();
+        assert_eq!(windows, vec!["main", "w-x", "w-a"]);
     }
 
     #[test]

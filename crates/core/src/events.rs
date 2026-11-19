@@ -4,6 +4,8 @@
 use parking_lot::Mutex;
 use serde_json::Value;
 
+use crate::model::WindowState;
+
 /// Event names, exactly like the keys of `CoreEvents` in types.ts.
 pub mod names {
     pub const REPO_CHANGED: &str = "repo:changed";
@@ -65,6 +67,11 @@ pub trait EventSink: Send + Sync {
         let _ = window;
         self.emit(event, payload);
     }
+    /// The windows of the active profile that should be open; the binding opens and closes to match.
+    /// `place_existing` also moves windows that are already open to their stored geometry.
+    fn sync_windows(&self, windows: &[WindowState], place_existing: bool) {
+        let _ = (windows, place_existing);
+    }
 }
 
 /// Discards everything.
@@ -80,6 +87,7 @@ pub struct EventCollector {
     events: Mutex<Vec<(String, Value)>>,
     /// `emit_to` calls: (event, window, payload).
     targeted: Mutex<Vec<(String, String, Value)>>,
+    window_syncs: Mutex<Vec<Vec<WindowState>>>,
 }
 
 impl EventCollector {
@@ -92,6 +100,7 @@ impl EventCollector {
     }
     /// Take all events (afterwards the collector is empty).
     pub fn take(&self) -> Vec<(String, Value)> {
+        self.window_syncs.lock().clear();
         self.targeted.lock().clear();
         std::mem::take(&mut *self.events.lock())
     }
@@ -106,7 +115,12 @@ impl EventCollector {
     pub fn targeted(&self, name: &str) -> Vec<(String, Value)> {
         self.targeted.lock().iter().filter(|(n, _, _)| n == name).map(|(_, w, v)| (w.clone(), v.clone())).collect()
     }
+    /// The window lists of all `sync_windows` calls, oldest first.
+    pub fn window_syncs(&self) -> Vec<Vec<WindowState>> {
+        self.window_syncs.lock().clone()
+    }
     pub fn clear(&self) {
+        self.window_syncs.lock().clear();
         self.targeted.lock().clear();
         self.events.lock().clear();
     }
@@ -119,6 +133,9 @@ impl EventSink for EventCollector {
     fn emit_to(&self, window: &str, event: &str, payload: Value) {
         self.targeted.lock().push((event.to_string(), window.to_string(), payload.clone()));
         self.emit(event, payload);
+    }
+    fn sync_windows(&self, windows: &[WindowState], _place_existing: bool) {
+        self.window_syncs.lock().push(windows.to_vec());
     }
 }
 
