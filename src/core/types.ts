@@ -20,6 +20,7 @@ export type * from "./generated/crash";
 export type * from "./generated/credentials";
 export type * from "./generated/custom_commands";
 export type * from "./generated/diff";
+export type * from "./generated/digest";
 export type * from "./generated/error";
 export type * from "./generated/events";
 export type * from "./generated/explain";

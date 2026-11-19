@@ -26,7 +26,10 @@ pub fn get(conn: &Connection, profile_id: &str, repo_id: &str) -> CoreResult<Opt
         .optional()?;
     Ok(row.map(|(seen_at, refs, pr)| SeenRow {
         seen_at,
-        refs: serde_json::from_str(&refs).unwrap_or_default(),
+        refs: serde_json::from_str(&refs).unwrap_or_else(|e| {
+            log::warn!("Seen state of {repo_id} unreadable, treated as empty: {e}");
+            BTreeMap::new()
+        }),
         pr_max_number: pr.and_then(|n| u64::try_from(n).ok()),
     }))
 }

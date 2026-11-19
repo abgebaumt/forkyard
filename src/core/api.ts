@@ -31,6 +31,7 @@ import type {
   ArchaeologyAnswer,
   BranchCleanupList,
   BranchCleanupTarget,
+  Digest,
   Agent,
   AgentCleanupPreview,
   AgentSuggestion,
@@ -407,6 +408,15 @@ export interface CoreCommands {
    * `not_allowed` for the current, the default or a protected branch; `not_found` if one is gone. Nothing is deleted then.
    */
   branchCleanupDelete(input: R & { targets: BranchCleanupTarget[] }): Promise<RefsSnapshot>;
+  /**
+   * "What's new since …": changed remote branches and tags since the seen state, their foreign
+   * commits, your files they touch, how far the current branch is behind. With `minAgeHours`,
+   * `null` while the seen state is younger (no Git work). Without a seen state one is created and
+   * the digest is empty.
+   */
+  digestGet(input: R & { minAgeHours?: number | null }): Promise<Digest | null>;
+  /** Stores the current refs as seen (`prMaxNumber: null` keeps the stored number); reports `repo:changed` with `seen`. */
+  digestMarkSeen(input: R & { prMaxNumber?: number | null }): Promise<void>;
   /**
    * Deletes the branch `name` on the remote (`git push <remote> --delete <name>`); `name` without
    * the remote prefix (`origin/x` works too). `done`: deleted; `up_to_date`: did not exist there

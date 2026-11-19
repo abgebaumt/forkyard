@@ -1,13 +1,15 @@
 use std::time::{Duration, Instant};
 
 use crate::commands::{repos, sync, tags};
+use crate::db::hoster_accounts::{self, AccountFacts};
 use crate::db::repo_seen::{self, SeenRow};
 use crate::events::names;
-use crate::model::RepoChange;
-use crate::testkit::{TestCore, TestRemote, TestRepo};
+use crate::model::{DigestBehind, DigestRefChange, HostKind, RepoChange};
+use crate::testkit::{TestCore, TestRemote, TestRepo, BASE_TIME};
 use crate::util;
 
-use super::seen;
+use super::compose::own_emails;
+use super::{digest_get, digest_mark_seen, seen};
 
 struct Fixture {
     tc: TestCore,
@@ -109,4 +111,195 @@ async fn mark_reports_seen_and_keeps_the_pr_number_when_none() {
     assert_eq!(row.pr_max_number, Some(42));
     assert_eq!(row.refs.get("refs/remotes/origin/main"), Some(&f.repo.git(&["rev-parse", "origin/main"])));
     assert_eq!(changes(&f.tc).last(), Some(&vec![RepoChange::Seen]));
+}
+
+// ---------------------------------------------------------------------------
+// The digest
+// ---------------------------------------------------------------------------
+
+struct Day {
+    tc: TestCore,
+    repo: TestRepo,
+    remote: TestRemote,
+    id: String,
+    /// `feature/alt` as the app saw it.
+    old_alt: String,
+}
+
+/// App clone as Lena (`lena@example.com`): `main`, `feature/alt`, `feature/weg` pushed, on
+/// `feature/mein` (one own commit), seen state ensured. Then `colleague` works in a fresh clone,
+/// the app gets a local change in `src/login.rs` and fetches.
+async fn colleague_day(colleague: impl FnOnce(&TestRepo)) -> Day {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    repo.git(&["config", "user.email", "lena@example.com"]);
+    repo.write_file("src/login.rs", "fn login() {}\n");
+    repo.commit_file("src/fehler.rs", "fn fehler() {}\n", "Quellen");
+    let remote = repo.add_remote();
+    for name in ["feature/alt", "feature/weg"] {
+        repo.checkout_new(name);
+        repo.commit_file(&format!("{}.txt", &name[8..]), "x\n", name);
+        repo.git(&["push", "-q", "origin", name]);
+        repo.checkout("main");
+    }
+    let old_alt = repo.git(&["rev-parse", "feature/alt"]);
+    repo.checkout_new("feature/mein");
+    repo.commit_file("mein.txt", "mein\n", "Meine Arbeit");
+    let id = tc.open(&repo).await.repo.id;
+    seen::ensure(&tc, &id).await.unwrap();
+
+    colleague(&TestRepo::clone_of(&remote));
+    repo.write_file("src/login.rs", "fn login() { todo!() }\n");
+    sync::fetch(&tc, id.clone(), util::new_id(), None, true).await.unwrap();
+    Day { tc, repo, remote, id, old_alt }
+}
+
+fn at(minute: i64) -> String {
+    format!("@{} +0000", BASE_TIME + 3600 + 60 * minute)
+}
+
+/// Mira's two commits and one of Lena's on `main`, `feature/alt` rewritten, `feature/weg` deleted, tag `v1.0`.
+fn colleague_story(c: &TestRepo) {
+    c.write_file("src/login.rs", "fn login() { pruefen() }\n");
+    c.commit_as("Login prüfen", "Mira", "mira@example.com", &at(1));
+    c.write_file("src/fehler.rs", "fn fehler() { \"Ungültig\" }\n");
+    c.commit_as("Fehlertext ändern", "Mira", "mira@example.com", &at(2));
+    c.write_file("eigen.txt", "von Lena\n");
+    c.commit_as("Eigene Arbeit", "Lena", "LENA@example.com", &at(3));
+    c.git(&["push", "-q", "origin", "main"]);
+    c.git(&["checkout", "-q", "-b", "feature/alt", "origin/feature/alt"]);
+    c.git(&["reset", "-q", "--hard", "HEAD~1"]);
+    c.write_file("alt.txt", "neu\n");
+    c.commit_as("Neu geschrieben", "Mira", "mira@example.com", &at(4));
+    c.git(&["push", "-q", "-f", "origin", "feature/alt"]);
+    c.git(&["push", "-q", "origin", "--delete", "feature/weg"]);
+    c.git(&["tag", "v1.0", "main"]);
+    c.git(&["push", "-q", "origin", "v1.0"]);
+}
+
+#[tokio::test]
+async fn the_digest_lists_what_the_colleague_did() {
+    let d = colleague_day(colleague_story).await;
+    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
+    let refs: Vec<_> = digest.refs.iter().map(|r| (r.name.as_str(), r.change, r.new_commits)).collect();
+    assert_eq!(
+        refs,
+        vec![
+            ("origin/feature/alt", DigestRefChange::Rewritten, 1),
+            ("origin/feature/weg", DigestRefChange::Deleted, 0),
+            ("origin/main", DigestRefChange::Updated, 2),
+            ("v1.0", DigestRefChange::New, 0),
+        ]
+    );
+    let main = digest.refs.iter().find(|r| r.name == "origin/main").unwrap();
+    assert_eq!(
+        main.commits.iter().map(|c| (c.subject.as_str(), c.author.as_str())).collect::<Vec<_>>(),
+        vec![("Fehlertext ändern", "Mira"), ("Login prüfen", "Mira")]
+    );
+    assert_eq!(digest.new_commits, 3);
+    assert_eq!(
+        digest.your_files.iter().map(|f| (f.path.as_str(), f.local, f.on_branch)).collect::<Vec<_>>(),
+        vec![("src/login.rs", true, false)]
+    );
+    assert_eq!(digest.your_files[0].sha, d.repo.git(&["rev-parse", "origin/main~2"]), "the newest commit touching it");
+    assert_eq!(digest.behind, Some(DigestBehind { branch: "feature/mein".into(), base: "origin/main".into(), behind: 3, ahead: 1 }));
+    let tag = digest.refs.iter().find(|r| r.name == "v1.0").unwrap();
+    assert_eq!(tag.new_sha.as_deref(), Some(d.repo.git(&["rev-parse", "origin/main"]).as_str()));
+    assert!(!digest.is_empty);
+    // Oracle for the rewrite: the old tip is not in the new history.
+    let new_alt = d.repo.git(&["rev-parse", "origin/feature/alt"]);
+    assert!(!d.repo.git_output(&["merge-base", "--is-ancestor", &d.old_alt, &new_alt]).status.success());
+}
+
+#[tokio::test]
+async fn only_own_commits_hide_the_ref() {
+    let d = colleague_day(|c| {
+        c.write_file("eigen.txt", "von Lena\n");
+        c.commit_as("Eigene Arbeit", "Lena", "LENA@example.com", &at(1));
+        c.git(&["push", "-q", "origin", "main"]);
+    })
+    .await;
+    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
+    assert!(digest.refs.is_empty() && digest.is_empty, "{:?}", digest.refs);
+    assert_eq!(digest.new_commits, 0);
+    assert!(digest.behind.is_some(), "behind alone still shows, but does not make it non-empty");
+}
+
+#[tokio::test]
+async fn a_new_branch_counts_only_commits_not_seen_before() {
+    let d = colleague_day(|c| {
+        c.git(&["checkout", "-q", "-b", "feature/neu"]);
+        c.write_file("neu.txt", "1\n");
+        c.commit_as("Neu eins", "Mira", "mira@example.com", &at(1));
+        c.write_file("neu.txt", "2\n");
+        c.commit_as("Neu zwei", "Mira", "mira@example.com", &at(2));
+        c.git(&["push", "-q", "origin", "feature/neu"]);
+    })
+    .await;
+    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
+    let refs: Vec<_> = digest.refs.iter().map(|r| (r.name.as_str(), r.change, r.new_commits)).collect();
+    assert_eq!(refs, vec![("origin/feature/neu", DigestRefChange::New, 2)]);
+}
+
+#[tokio::test]
+async fn a_file_changed_on_the_current_branch_is_yours() {
+    let d = colleague_day(colleague_story).await;
+    d.repo.write_file("src/fehler.rs", "fn fehler() { \"Falsch\" }\n");
+    d.repo.git(&["commit", "-q", "-m", "Fehler anders", "--", "src/fehler.rs"]);
+    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
+    assert_eq!(
+        digest.your_files.iter().map(|f| (f.path.as_str(), f.local, f.on_branch)).collect::<Vec<_>>(),
+        vec![("src/fehler.rs", false, true), ("src/login.rs", true, false)]
+    );
+}
+
+#[tokio::test]
+async fn a_missing_seen_state_is_created_and_reports_nothing() {
+    let d = colleague_day(colleague_story).await;
+    d.tc.db.with(|c| Ok(c.execute("delete from repo_seen", [])?)).unwrap();
+    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
+    assert!(digest.is_empty && digest.refs.is_empty());
+    assert!(stored(&d.tc, &d.id).is_some(), "created");
+    assert!(digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap().is_empty, "and nothing is new against it");
+}
+
+#[tokio::test]
+async fn a_young_seen_state_answers_none_without_work() {
+    let d = colleague_day(colleague_story).await;
+    assert_eq!(digest_get(&d.tc, d.id.clone(), Some(8)).await.unwrap(), None);
+    let profile = d.tc.active_profile_id().unwrap();
+    let mut row = seen_row(&d.tc, &d.id);
+    row.seen_at = (chrono::Utc::now() - chrono::Duration::hours(9)).format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+    d.tc.db.with(|c| repo_seen::put(c, &profile, &d.id, &row)).unwrap();
+    let digest = digest_get(&d.tc, d.id.clone(), Some(8)).await.unwrap().expect("old enough");
+    assert!(!digest.is_empty);
+}
+
+#[tokio::test]
+async fn marking_as_seen_empties_the_digest() {
+    let d = colleague_day(colleague_story).await;
+    digest_mark_seen(&d.tc, d.id.clone(), None).await.unwrap();
+    assert!(digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap().is_empty);
+}
+
+#[tokio::test]
+async fn the_noreply_address_of_a_connected_github_account_is_own() {
+    let d = colleague_day(|c| {
+        c.write_file("web.txt", "aus dem Browser\n");
+        c.commit_as("Im Browser bearbeitet", "Lena Hartmann", "123+lena-hartmann@users.noreply.github.com", &at(1));
+        c.git(&["push", "-q", "origin", "main"]);
+    })
+    .await;
+    // Added after the fetch: the test never talks to github.com.
+    d.repo.git(&["remote", "add", "hub", "https://github.com/lena-hartmann/app.git"]);
+    let profile = d.tc.active_profile_id().unwrap();
+    let facts =
+        AccountFacts { login: Some("lena-hartmann".into()), name: None, avatar_url: None, scopes_ok: true, missing_scopes: Vec::new() };
+    d.tc.db.with(|c| hoster_accounts::upsert(c, &profile, HostKind::Github, "https://github.com", None, "…abcd", &facts)).unwrap();
+    let own = own_emails(&d.tc, &d.id).await;
+    assert!(own.contains(&"lena-hartmann@users.noreply.github.com".to_string()), "{own:?}");
+    assert!(own.contains(&"lena@example.com".to_string()), "{own:?}");
+    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
+    assert!(digest.refs.is_empty(), "{:?}", digest.refs);
+    let _ = &d.remote;
 }
