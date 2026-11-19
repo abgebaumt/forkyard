@@ -11,10 +11,10 @@ import {
   type ReactNode,
 } from "react";
 import { ChevronDown, FolderGit2, FolderX, LibraryBig, Plus, X } from "lucide-react";
-import { cn } from "./cn";
-import { ContextMenu, DropdownMenu, type MenuEntry } from "./Menu";
-import { Tip } from "./Tooltip";
-import { t } from "../i18n";
+import { cn } from "../../ui/cn";
+import { ContextMenu, DropdownMenu, type MenuEntry } from "../../ui/Menu";
+import { Tip } from "../../ui/Tooltip";
+import { t } from "../../i18n";
 
 // ---------------------------------------------------------------------------
 // Tab bar

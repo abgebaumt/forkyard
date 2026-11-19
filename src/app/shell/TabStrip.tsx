@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { PencilLine } from "lucide-react";
 import { CoreError, type Tab } from "../../core";
-import { TabBar, type RepoTab, type TabMenuActions } from "../../ui/Chrome";
+import { TabBar, type RepoTab, type TabMenuActions } from "./Chrome";
 import { toast } from "../../ui/Feedback";
 import type { MenuEntry } from "../../ui/Menu";
 import { openExternal } from "../actions/files";

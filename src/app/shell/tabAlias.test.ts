@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { splitForMiddle } from "../../ui/Chrome";
+import { splitForMiddle } from "./Chrome";
 import { aliasFromInput } from "./tabAlias";
 
 describe("Alias on the tab", () => {
