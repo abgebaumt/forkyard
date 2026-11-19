@@ -33,7 +33,7 @@ export type CenterView =
   | { kind: "blame"; path: string; sha: Sha | null }
   | { kind: "conflict"; path: string }
   /** `autosquash`: the interactive plan in Git's autosquash order (8.2). */
-  | { kind: "rebase"; base: string; mode: RebaseToolMode; shas: Sha[]; autosquash?: boolean; rows?: RebasePlanRow[] }
+  | { kind: "rebase"; base: string; mode: RebaseToolMode; shas: Sha[]; autosquash?: boolean; rows?: RebasePlanRow[]; handover?: number }
   /** `source`/`target`: preselected branches (from the branch or drop menu), otherwise the checked-out and the default branch. */
   | { kind: "pr_create"; source?: string; target?: string }
   | { kind: "pr"; number: number }
@@ -309,6 +309,8 @@ export const useAppStore = create<AppState>()((set, get) => {
     });
 
   let revealNonce = 0;
+  // Rows handed over again to an already open tool must remount it.
+  let handoverNonce = 0;
 
   return {
     views: {},
@@ -358,7 +360,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           mode,
           shas,
           ...(options.autosquash ? { autosquash: true } : {}),
-          ...(options.rows ? { rows: options.rows } : {}),
+          ...(options.rows ? { rows: options.rows, handover: ++handoverNonce } : {}),
         },
       }),
     openReflog: (tabId, ref) => patchView(tabId, { center: { kind: "reflog", ref } }),

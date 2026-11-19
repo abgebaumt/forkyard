@@ -30,10 +30,12 @@ export interface RebaseToolProps {
   autosquash?: boolean;
   /** Interactive mode: rows handed over from the graph's edit mode. */
   rows?: RebasePlanRow[];
+  /** Changes with every hand-over, so new rows remount the tool. */
+  handover?: number;
 }
 
 /** Reorder, combine, transfer commits. */
-export function RebaseTool({ repoId, tabId, base, mode, shas, autosquash = false, rows }: RebaseToolProps) {
+export function RebaseTool({ repoId, tabId, base, mode, shas, autosquash = false, rows, handover }: RebaseToolProps) {
   const root = useRef<HTMLElement>(null);
   const close = useCallback(() => useAppStore.getState().closeCenter(tabId), [tabId]);
 
@@ -83,7 +85,7 @@ export function RebaseTool({ repoId, tabId, base, mode, shas, autosquash = false
     startRef.current?.();
   };
 
-  const key = `${mode}:${base}:${shas.join(",")}:${autosquash ? "autosquash" : ""}`;
+  const key = `${mode}:${base}:${shas.join(",")}:${autosquash ? "autosquash" : ""}:${handover ?? ""}`;
   return (
     <section
       ref={root}
