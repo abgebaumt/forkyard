@@ -1,0 +1,11 @@
+{
+  "menu": {
+    "moveToNew": "In neues Fenster verschieben",
+    "moveToWindow": "In Fenster verschieben",
+    "newWindow": "Neues Fenster",
+    "windowN": "Fenster {{n}}"
+  },
+  "moveFailed": "Tab konnte nicht verschoben werden",
+  "moved": "Tab verschoben",
+  "onlyTab": "Der Tab ist schon allein in seinem Fenster."
+}

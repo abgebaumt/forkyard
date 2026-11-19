@@ -1,0 +1,11 @@
+{
+  "menu": {
+    "moveToNew": "Move to new window",
+    "moveToWindow": "Move to window",
+    "newWindow": "New window",
+    "windowN": "Window {{n}}"
+  },
+  "moveFailed": "Couldn't move the tab",
+  "moved": "Tab moved",
+  "onlyTab": "The tab is already alone in its window."
+}

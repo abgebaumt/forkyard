@@ -540,6 +540,9 @@
       "last": "Zum letzten Tab",
       "number": "Zu Tab {{number}}"
     },
+    "moveToNewWindow": {
+      "keywords": "Fenster, herauslösen, abtrennen, eigenes Fenster"
+    },
     "new": {
       "keywords": "Repository-Verwaltung, öffnen"
     },
@@ -603,6 +606,11 @@
     },
     "toggleLeftPanel": {
       "title": "Left Panel ein- oder ausblenden"
+    }
+  },
+  "window": {
+    "new": {
+      "keywords": "Fenster, öffnen, weiteres Fenster"
     }
   },
   "wip": {

@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { PencilLine } from "lucide-react";
-import { CoreError, type Tab } from "../../core";
+import { core, CoreError, type Tab } from "../../core";
 import { TabBar, type RepoTab, type TabMenuActions } from "./Chrome";
 import { toast } from "../../ui/Feedback";
 import type { MenuEntry } from "../../ui/Menu";
 import { openExternal } from "../actions/files";
 import { openRepoCleanup } from "../../screens/RepoCleanup";
 import { activateTab, closeOtherTabs, closeTab, moveTab, newTab } from "../actions/repos";
-import { qk, useRepos } from "../queries";
+import { qk, useRepos, useWindows } from "../queries";
+import { adoptArrivedTabs, dropTab, moveTabToNewWindow, moveTabToWindow, newWindow } from "../actions/windows";
 import { commandShortcut } from "../registry";
 import { readStatus } from "../statusOrder";
 import { ProfileChip } from "./ProfileChip";
@@ -19,6 +20,14 @@ import { writeClipboard } from "../actions/clipboard";
 /** Tab strip from the core's tab list: activate, close, drag, context menu, dot for changes. */
 export function TabStrip({ tabs }: { tabs: Tab[] }) {
   const { data: repos } = useRepos();
+  const { data: windows } = useWindows();
+  // Tabs that arrive from another window bring their view state and terminals.
+  const arrivals = tabs.map((tab) => `${tab.id}\t${tab.repoId ?? ""}`).join("\n");
+  useEffect(() => {
+    void adoptArrivedTabs(tabs);
+    // Only a changed set of tabs counts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arrivals]);
   // "Rename tab" from the Command Palette: the input opens on the tab, as with F2.
   const [renameRequest, setRenameRequest] = useState<{ id: string; nonce: number } | null>(null);
   useEffect(() => onTabRenameRequest((id) => setRenameRequest((previous) => ({ id, nonce: (previous?.nonce ?? 0) + 1 }))), []);
@@ -69,6 +78,10 @@ export function TabStrip({ tabs }: { tabs: Tab[] }) {
 
   const active = tabs.find((tab) => tab.isActive) ?? tabs[0];
 
+  // Numbered in the windows' order, so "Window 2" stays the same name in every window's menu.
+  const self = core.windowLabel();
+  const otherWindows = (windows ?? []).map((window, at) => ({ window, number: at + 1 })).filter(({ window }) => window.label !== self);
+
   const menuFor = (item: RepoTab, actions: TabMenuActions): MenuEntry[] => {
     const index = tabs.findIndex((tab) => tab.id === item.id);
     const tab = tabs[index];
@@ -106,6 +119,23 @@ export function TabStrip({ tabs }: { tabs: Tab[] }) {
         : []),
       { label: t("shell.tabMenu.moveLeft"), disabled: index === 0, onSelect: () => void moveTab(tab.id, index - 1) },
       { label: t("shell.tabMenu.moveRight"), disabled: index === tabs.length - 1, onSelect: () => void moveTab(tab.id, index + 1) },
+      {
+        label: t("windows.menu.moveToNew"),
+        disabled: tabs.length < 2,
+        hint: tabs.length < 2 ? t("windows.onlyTab") : undefined,
+        onSelect: () => void moveTabToNewWindow(tab.id, null),
+      },
+      ...(otherWindows.length > 0
+        ? [
+            {
+              label: t("windows.menu.moveToWindow"),
+              children: otherWindows.map(({ window, number }) => ({
+                label: window.title || t("windows.menu.windowN", { n: number }),
+                onSelect: () => void moveTabToWindow(tab.id, window.label, window.tabs),
+              })),
+            },
+          ]
+        : []),
     ];
     if (tab.kind === "repo" && tab.repoId) {
       const repoId = tab.repoId;
@@ -128,7 +158,11 @@ export function TabStrip({ tabs }: { tabs: Tab[] }) {
         },
       );
     }
-    entries.push({ type: "separator" }, { label: t("ui.tabs.new"), shortcut: commandShortcut("tab.new"), onSelect: () => void newTab() });
+    entries.push(
+      { type: "separator" },
+      { label: t("ui.tabs.new"), shortcut: commandShortcut("tab.new"), onSelect: () => void newTab() },
+      { label: t("windows.menu.newWindow"), shortcut: commandShortcut("window.new"), onSelect: () => void newWindow() },
+    );
     return entries;
   };
 
@@ -150,6 +184,8 @@ export function TabStrip({ tabs }: { tabs: Tab[] }) {
       }}
       menuFor={menuFor}
       renameRequest={renameRequest}
+      onDragOut={(id, screen, insideSelf) => void dropTab(id, screen, insideSelf)}
+      onStripReport={(strip) => void core.windowStripReport({ strip }).catch(() => undefined)}
     />
   );
 }

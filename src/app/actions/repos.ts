@@ -87,50 +87,59 @@ function tabTitle(tabId: Id): string | null {
   return repo ? (repo.alias ?? repo.name) : null;
 }
 
+/**
+ * Unsaved text in this repository's editor before its tab leaves the window: save, discard or keep
+ * open. `null`: stay (cancelled, or saving failed); otherwise whether the text is to be discarded
+ * once the tab is gone.
+ */
+export async function settleUnsaved(repoId: Id | null): Promise<{ discard: boolean } | null> {
+  const unsaved = repoId ? unsavedFiles(repoId) : [];
+  if (!repoId || unsaved.length === 0) return { discard: false };
+  const single = unsaved.length === 1;
+  const answer = await choose({
+    title: single
+      ? t("actions.repos.unsaved.titleOne", {
+          name: clip(baseName(unsaved[0]?.path ?? ""), 40),
+        })
+      : t("actions.repos.unsaved.titleMany", { count: unsaved.length }),
+    description: t("actions.repos.unsaved.description"),
+    details: unsaved.map((file) => file.path),
+    detailsLabel: t("actions.repos.unsaved.detailsLabel", { count: unsaved.length }),
+    options: [
+      {
+        key: "save",
+        label: t("actions.repos.unsaved.save"),
+        description: t("actions.repos.unsaved.saveDescription", { count: unsaved.length }),
+      },
+      {
+        key: "discard",
+        label: t("ui.dontSave"),
+        description: t("actions.repos.unsaved.discardDescription"),
+        danger: true,
+      },
+    ],
+  });
+  if (answer === null) return null;
+  if (answer === "save") {
+    const failed = await saveUnsaved(repoId);
+    if (failed.length > 0) {
+      toast({
+        tone: "danger",
+        title: t("actions.repos.unsaved.failed"),
+        description: t("actions.repos.unsaved.failedDescription", { files: failed.join(", ") }),
+      });
+      return null;
+    }
+  }
+  return { discard: answer === "discard" };
+}
+
 export async function closeTab(tabId: Id) {
   // Ask about unsaved work in the centre (conflict tool) first.
   if (!(await confirmLeaveCenter(tabId))) return null;
-  // Unsaved text in this repository's editor: save, discard or keep open.
   const repoId = queryClient.getQueryData<Tab[]>(qk.tabs)?.find((item) => item.id === tabId)?.repoId ?? null;
-  const unsaved = repoId ? unsavedFiles(repoId) : [];
-  if (repoId && unsaved.length > 0) {
-    const single = unsaved.length === 1;
-    const answer = await choose({
-      title: single
-        ? t("actions.repos.unsaved.titleOne", {
-            name: clip(baseName(unsaved[0]?.path ?? ""), 40),
-          })
-        : t("actions.repos.unsaved.titleMany", { count: unsaved.length }),
-      description: t("actions.repos.unsaved.description"),
-      details: unsaved.map((file) => file.path),
-      detailsLabel: t("actions.repos.unsaved.detailsLabel", { count: unsaved.length }),
-      options: [
-        {
-          key: "save",
-          label: t("actions.repos.unsaved.save"),
-          description: t("actions.repos.unsaved.saveDescription", { count: unsaved.length }),
-        },
-        {
-          key: "discard",
-          label: t("ui.dontSave"),
-          description: t("actions.repos.unsaved.discardDescription"),
-          danger: true,
-        },
-      ],
-    });
-    if (answer === null) return null;
-    if (answer === "save") {
-      const failed = await saveUnsaved(repoId);
-      if (failed.length > 0) {
-        toast({
-          tone: "danger",
-          title: t("actions.repos.unsaved.failed"),
-          description: t("actions.repos.unsaved.failedDescription", { files: failed.join(", ") }),
-        });
-        return null;
-      }
-    }
-  }
+  const settled = await settleUnsaved(repoId);
+  if (!settled) return null;
   // A shell that was worked in ends with the tab: ask first.
   if (!(await confirmCloseTerminal(tabId, tabTitle(tabId)))) return null;
   const result = await runAction(t("ui.closeTab"), () => core.tabClose({ tabId }));
@@ -138,7 +147,7 @@ export async function closeTab(tabId: Id) {
     setTabs(result.value);
     useAppStore.getState().dropTabView(tabId);
     // The view is gone now; what was not meant to be saved does not linger as a draft.
-    if (repoId && unsaved.length > 0) window.setTimeout(() => discardUnsaved(repoId), 0);
+    if (repoId && settled.discard) window.setTimeout(() => discardUnsaved(repoId), 0);
   }
   return result;
 }

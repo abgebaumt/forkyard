@@ -395,7 +395,8 @@ fn close_requested(window: &tauri::Window, api: &tauri::CloseRequestApi, core: C
         core.emit_to(&label, gitcore::events::names::APP_CLOSE_REQUESTED, &serde_json::json!({}));
         return;
     }
-    let last = window.app_handle().webview_windows().len() <= 1;
+    // A window hidden while it closes does not count.
+    let last = window.app_handle().webview_windows().keys().all(|other| *other == label || guard.closing(other));
     let running = if last { core.jobs.running() } else { core.jobs.running_from(&label) };
     if guard.quitting() || guard.closing(&label) || running == 0 {
         return;
