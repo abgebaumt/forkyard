@@ -2941,7 +2941,7 @@ parts.zoom = async () => {
   const rich = makeRichRepo();
   cleanups.push(rich.cleanup);
   // The configured zoom only applies as far as 960×600 layout pixels still fit in the window
-  // (src/app/zoom.ts): we wait for the zoom that is effective in the window.
+  // (src/ui/zoom.ts): we wait for the zoom that is effective in the window.
   const setZoom = async (zoom) => {
     await app.invoke("settings_set", { patch: { zoom } });
     await page.evaluate(() => window.__gc.queryClient.invalidateQueries({ queryKey: ["app", "settings"] }));

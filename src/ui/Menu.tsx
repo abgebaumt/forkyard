@@ -1,7 +1,7 @@
 import { useRef, type ReactElement, type ReactNode } from "react";
 import { Check, ChevronRight } from "lucide-react";
 import { ContextMenu as RadixContext, DropdownMenu as RadixDropdown } from "radix-ui";
-import { appliedZoom, collisionPadding } from "../app/zoom";
+import { appliedZoom, collisionPadding } from "./zoom";
 import { cn } from "./cn";
 import { Kbd } from "./Kbd";
 

@@ -18,7 +18,7 @@ import { StatusBar } from "../../ui/Chrome";
 import { toast } from "../../ui/Feedback";
 import { Tip } from "../../ui/Tooltip";
 import { changeZoom, setZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from "../actions/repos";
-import { useEffectiveZoom } from "../zoom";
+import { useEffectiveZoom } from "../../ui/zoom";
 import { operationNames } from "../actions/merge";
 import { describeError } from "../errors";
 import { formatDateTime, formatRelative, shortSha } from "../format";

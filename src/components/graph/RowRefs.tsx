@@ -4,7 +4,7 @@ import { Popover } from "radix-ui";
 import type { RefLabelInfo } from "../../core";
 import { RefLabel } from "../../ui/Git";
 import { cn, laneColor } from "../../ui/cn";
-import { collisionPadding } from "../../app/zoom";
+import { collisionPadding } from "../../ui/zoom";
 import { t } from "../../i18n";
 
 /** A label of the row; `twin` is the remote branch of the same name on the same commit. */
