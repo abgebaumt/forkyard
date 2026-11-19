@@ -15,6 +15,13 @@ All notable changes to Forkyard are listed here. The format follows
 
 ### Added
 
+- Clean up branches: a view – from the command palette, the menu of the “Local” section and “Clean up
+  repository” – lists the local branches that can go, each with its reasons (merged, pull request merged
+  – also squash merges –, upstream gone, older than 90 days (Preferences), no pull request, commits not
+  merged or not pushed, checked out in a worktree, protected). Safe branches are preselected, branches to
+  check first are not, protected ones and those in a worktree can’t be selected. One click deletes the
+  selection, and one Undo brings all of them back at the same commits; optionally their branches on the
+  remote are deleted too, after a separate confirmation. Own protected patterns per repository.
 - Several windows: drag a tab out of the tab strip to open it in a new window, or onto another
   window's tab strip to move it there. The tab menu offers "Move to new window" and "Move to window",
   and "New window" (Ctrl+Shift+N) opens an empty one. The same repository may be open in several
