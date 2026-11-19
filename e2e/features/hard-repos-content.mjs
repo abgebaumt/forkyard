@@ -959,8 +959,18 @@ await section(
     await eventually(async () => (await wipRows(app, "unstaged")).length, Object.keys(files).length, "UI: all files in the list", 20_000);
     for (const name of Object.keys(files)) {
       await app.click(`[data-section="unstaged"] [data-row-key=${JSON.stringify(name)}]`);
+      // The diff of this file is loaded (settle alone can run before the click's query has started).
+      await eventually(
+        () =>
+          app.exec((wanted) => {
+            const diff = document.querySelector('[data-screen="diff"]');
+            return Boolean(diff?.dataset.diffKind && diff.getAttribute("aria-label")?.includes(wanted));
+          }, name),
+        true,
+        `UI: diff of ${name} shown`,
+        30_000,
+      );
       await app.settle(30_000);
-      await sleep(250);
       const text = (await textOf(app, '[data-screen="diff"]')).replace(/\s+/g, " ").trim();
       const images = await count(app, '[data-screen="diff"] img');
       check(text.length > 0 || images > 0, `UI: ${name} shows neither text nor image`);
