@@ -4,7 +4,7 @@ import { Collapsible } from "radix-ui";
 import { core, type CloneOptions, type CoreError, type ErrorCode } from "../../core";
 import { showOutput } from "../../app/dialogs";
 import { errorInfo } from "../../app/errors";
-import { qk, queryClient, useRepos } from "../../app/queries";
+import { useRepos } from "../../app/queries";
 import { newJobId, runAction } from "../../app/run";
 import { useAppStore } from "../../app/store";
 import { Button } from "../../ui/Button";
@@ -276,8 +276,6 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
     setStopping(false);
     setConfirmClose(false);
     if (result.ok) {
-      void queryClient.invalidateQueries({ queryKey: qk.tabs });
-      void queryClient.invalidateQueries({ queryKey: qk.repos });
       onClose();
       return;
     }

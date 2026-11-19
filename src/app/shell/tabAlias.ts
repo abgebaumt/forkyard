@@ -44,8 +44,6 @@ export async function setTabAlias(repo: Repo, input: string) {
   queryClient.setQueryData<Tab[]>(qk.tabs, (tabs) =>
     tabs?.map((tab) => (tab.repoId === updated.id ? { ...tab, title: updated.alias ?? updated.name } : tab)),
   );
-  void queryClient.invalidateQueries({ queryKey: qk.tabs });
-  void queryClient.invalidateQueries({ queryKey: qk.repos });
   toast(
     alias === null
       ? { tone: "success", title: t("shell.alias.removed"), description: t("shell.alias.removedText", { name: updated.name }) }

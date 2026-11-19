@@ -98,7 +98,6 @@ export async function renameGroup(group: string, members: Repo[], existing: stri
     },
   );
   if (result.ok) for (const repo of result.value) putRepo(repo);
-  void queryClient.invalidateQueries({ queryKey: qk.repos });
   return result;
 }
 
@@ -121,7 +120,6 @@ export async function dissolveGroup(group: string, members: Repo[]) {
     },
   );
   if (result.ok) for (const repo of result.value) putRepo(repo);
-  void queryClient.invalidateQueries({ queryKey: qk.repos });
   return result;
 }
 
@@ -147,8 +145,6 @@ export async function relocateRepo(repo: Repo) {
       await core.repoForget({ repoId: repo.id });
       return merged;
     });
-    void queryClient.invalidateQueries({ queryKey: qk.repos });
-    void queryClient.invalidateQueries({ queryKey: qk.tabs });
     toast({ tone: "success", title: t("repos.actions.relocated", { name: displayName(repo), path: next.path }) });
   }
   return opened;

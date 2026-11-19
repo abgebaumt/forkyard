@@ -150,8 +150,6 @@ async function forgetOpened(path: string) {
   const entry = repos.find((repo) => samePath(repo.path, path));
   if (!entry) return;
   await core.repoForget({ repoId: entry.id }).catch(() => undefined);
-  void queryClient.invalidateQueries({ queryKey: qk.repos });
-  void queryClient.invalidateQueries({ queryKey: qk.tabs });
 }
 
 /**
