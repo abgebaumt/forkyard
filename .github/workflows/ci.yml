@@ -72,6 +72,7 @@ jobs:
           git config --global init.defaultBranch main
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo clippy -p gitcore --all-targets --features ts -- -D warnings
       - run: cargo test --workspace
 
   e2e-linux:
