@@ -38,6 +38,7 @@ import {
   rewordHead,
 } from "../../actions/history";
 import { interactiveRebase, rebaseOnto } from "../../actions/merge";
+import { enterGraphEdit } from "../../rebasePlan/graphEdit";
 import { patchFromCommit } from "../../actions/patches";
 import { markBisect, startBisect } from "../../../screens/Bisect/actions";
 import { autopilotAccessFor, autopilotRunning, startAutopilot } from "../../../screens/Bisect/autopilotActions";
@@ -175,6 +176,8 @@ export function commitMenu(ctx: MenuBase & { shas: Sha[] }): MenuEntry[] {
   const isHead = head === sha;
   const contained = index && head ? isAncestor(index, sha, head) : null;
   const above = index && head ? isAncestor(index, head, sha) : null;
+  const editBlocked =
+    busy ?? (detached ? t("menus.noBranch") : contained === false ? t("menus.commit.notIn", { name: current.label }) : null);
 
   return tidy([
     item(t("menus.createBranchHere"), GitBranchPlus, () => void createBranch(repoId, { start: sha, tabId }), { blocked: busy }),
@@ -215,6 +218,10 @@ export function commitMenu(ctx: MenuBase & { shas: Sha[] }): MenuEntry[] {
             : contained === false || above
               ? t("menus.commit.onlyCommitsOf", { name: current.label })
               : null),
+    }),
+    item(t("menus.commit.editHistory"), ListOrdered, () => void enterGraphEdit(repoId, tabId, { sha }), { blocked: editBlocked }),
+    item(t("menus.commit.editHistoryHere"), ListOrdered, () => void enterGraphEdit(repoId, tabId, { from: sha, sha }), {
+      blocked: editBlocked ?? (row?.parents.length === 0 ? t("commitGraph.edit.rootBlocked") : null),
     }),
     SEPARATOR,
     ...mergeEntries(ctx, sha, row),

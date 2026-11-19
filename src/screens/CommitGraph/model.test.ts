@@ -120,6 +120,10 @@ describe("graph keys", () => {
     expect(graphKey(key("F10", { shiftKey: true }), 0, 1, 2)).toEqual({ kind: "menu" });
     expect(graphKey(key("F10"), 0, 1, 2)).toBeNull();
   });
+  it("E edits the history, not with a modifier", () => {
+    expect(graphKey(key("e"), 0, 10, 5)).toEqual({ kind: "edit" });
+    expect(graphKey(key("E", { ctrlKey: true }), 0, 10, 5)).toBeNull();
+  });
 });
 
 describe("the filter bar text", () => {

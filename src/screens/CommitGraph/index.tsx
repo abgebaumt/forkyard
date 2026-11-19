@@ -16,7 +16,7 @@
  *
  * Keys in the list: ↑ ↓ J K Home End PgUp PgDn (Shift extends), H / L (parent / child),
  * Enter (details), B (highlight the row's branch, again or Esc clears it), ← / → (collapse / expand
- * the selected merge), menu key.
+ * the selected merge), E (edit the history), menu key.
  */
 import {
   useCallback,
@@ -56,6 +56,7 @@ import {
   queryClient,
   useBisectStatus,
   useGraph,
+  useRebaseBranchPlan,
   useRefs,
   useSettings,
   useStashes,
@@ -63,6 +64,7 @@ import {
   useTicketLinks,
   useViewState,
 } from "../../app/queries";
+import { enterGraphEdit, useGraphEdit } from "../../app/rebasePlan/graphEdit";
 import { runAction } from "../../app/run";
 import { noteGraphTop } from "../../app/windows/handoff";
 import { useAppStore } from "../../app/store";
@@ -124,6 +126,7 @@ import {
   smartText,
   type FlatGraph,
 } from "./model";
+import { useRowDrag } from "./useRowDrag";
 
 export interface CommitGraphProps {
   repoId: Id;
@@ -359,6 +362,9 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
   const { data: settings } = useSettings();
   const { data: refs } = useRefs(repoId);
   const { data: stashes } = useStashes(repoId);
+  const { data: status } = useStatus(repoId);
+  // Loaded ahead so that E, the menu and dragging a row open the edit mode without waiting.
+  useRebaseBranchPlan(repoId, null, status?.head.kind === "branch");
   const scrollerRef = useRef<HTMLDivElement>(null);
   const metrics = useMemo(() => readMetrics(), []);
   const rowHeight = metrics.rowHeight;
@@ -762,6 +768,15 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
     },
   });
 
+  // Dragging a commit row opens the history editing; the edit view takes the drag over.
+  const rowDrag = useRowDrag({
+    canStart: (index) => {
+      const row = rowsRef.current[index];
+      return isCommitRow(row) ? row.sha : null;
+    },
+    onStart: (sha, pending) => void enterGraphEdit(repoId, tabId, { sha, drag: pending }),
+  });
+
   // --- Events of the list (one handler for all rows) ---------------------------------------------
   const indexOf = (element: Element | null, attribute: string) => {
     const value = element?.getAttribute(attribute);
@@ -876,6 +891,10 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
         void setMergeCollapsed(repoId, row.sha, action.collapse);
         return;
       }
+      case "edit":
+        event.preventDefault();
+        void enterGraphEdit(repoId, tabId, { sha: rows[cursor]?.sha ?? null });
+        return;
       case "menu": {
         event.preventDefault();
         const element = rowElement(cursor);
@@ -1051,7 +1070,11 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
           onDoubleClick={onDoubleClick}
           onContextMenu={onContextMenu}
           onKeyDown={onKeyDown}
-          onPointerDown={drag.onPointerDown}
+          onPointerDown={(event) => {
+            // The label drag claims its event first; the row drag ignores labels.
+            drag.onPointerDown(event);
+            rowDrag.onPointerDown(event);
+          }}
           onPointerOver={onPointerOver}
           onPointerLeave={onPointerLeave}
           onFocus={onFocus}
@@ -1113,6 +1136,7 @@ export function CommitGraph({ repoId, tabId }: CommitGraphProps) {
   const { data: viewState } = useViewState(repoId);
   const { data: bisect } = useBisectStatus(repoId);
   const flat = useMemo(() => flatten(graph.data?.pages), [graph.data]);
+  const editing = useGraphEdit((state) => state.byTab[tabId] !== undefined);
   const hasRows = flat.rows.length > 1;
   useEffect(() => {
     if (hasRows) startupMark("graph");
@@ -1230,7 +1254,7 @@ export function CommitGraph({ repoId, tabId }: CommitGraphProps) {
             </EmptyState>
           )}
         </div>
-      ) : (
+      ) : editing ? null : (
         <GraphGrid
           repoId={repoId}
           tabId={tabId}

@@ -30,7 +30,7 @@ export interface RefDragOptions {
 }
 
 /** From this distance (unzoomed pixels) on, a pressed label counts as dragged. */
-const THRESHOLD = 5;
+export const DRAG_THRESHOLD = 5;
 /** Distance to the top or bottom edge of the list within which it keeps scrolling by itself. */
 const SCROLL_ZONE = 32;
 
@@ -146,7 +146,7 @@ export function useRefDrag(options: RefDragOptions) {
         current.x = move.clientX;
         current.y = move.clientY;
         if (!current.dragging) {
-          if (Math.hypot(current.x - current.startX, current.y - current.startY) < THRESHOLD) return;
+          if (Math.hypot(current.x - current.startX, current.y - current.startY) < DRAG_THRESHOLD) return;
           begin(current);
         }
         track(current);

@@ -158,6 +158,8 @@ export type GraphKey =
   | { kind: "details" }
   /** ← / →: collapse or expand the selected merge. */
   | { kind: "collapse"; collapse: boolean }
+  /** E: edit the branch's history in the graph. */
+  | { kind: "edit" }
   | { kind: "menu" };
 
 /** What a key in the list does; `page`: rows per page; null = not a key of the list. */
@@ -174,6 +176,7 @@ export function graphKey(event: GraphKeyInput, cursor: number, page: number, cou
   if (single && key === "h") return { kind: "parent" };
   if (single && key === "l") return { kind: "child" };
   if (single && key === "b") return { kind: "highlight" };
+  if (single && key === "e") return { kind: "edit" };
   if (single && key === "Escape") return { kind: "escape" };
   if (single && key === "Enter") return { kind: "details" };
   if (single && (key === "ArrowLeft" || key === "ArrowRight")) return { kind: "collapse", collapse: key === "ArrowLeft" };
