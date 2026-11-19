@@ -17,7 +17,7 @@ import { Tip } from "../../ui/Tooltip";
 import { appliedZoom } from "../../ui/zoom";
 import { t } from "../../i18n";
 import type { ScreenPoint, StripReport } from "../../core";
-import { leftStrip } from "./tabDrag";
+import { indexWithout, leftStrip, visibleRect } from "./tabDrag";
 
 // ---------------------------------------------------------------------------
 // Tab bar
@@ -199,7 +199,15 @@ export function TabBar({
   const [editing, setEditing] = useState<string | null>(null);
   /** `out`: the pointer (client) while it is outside the strip – the ghost follows it. */
   const [drag, setDrag] = useState<{ id: string; target: number; out: { x: number; y: number } | null } | null>(null);
-  const pointer = useRef<{ id: string; x: number; active: boolean; last: PointerAt } | null>(null);
+  const pointer = useRef<{
+    id: string;
+    x: number;
+    y: number;
+    active: boolean;
+    last: PointerAt;
+    element: HTMLElement;
+    pointerId: number;
+  } | null>(null);
   const suppressClick = useRef(false);
 
   const activeRef = useRef(activeId);
@@ -274,12 +282,15 @@ export function TabBar({
     if (!bar || !report.current) return;
     let timer: number | undefined;
     const send = () => {
+      // The core works in window pixels; rectangles inside the zoomed root are layout pixels.
+      const zoom = appliedZoom();
       const rect = bar.getBoundingClientRect();
       const tabMids = tabElements().map((element) => {
         const box = element.getBoundingClientRect();
-        return box.left + box.width / 2;
+        return (box.left + box.width / 2) * zoom;
       });
-      report.current?.({ strip: { x: rect.left, y: rect.top, width: rect.width, height: rect.height }, tabMids });
+      const strip = { x: rect.left * zoom, y: rect.top * zoom, width: rect.width * zoom, height: rect.height * zoom };
+      report.current?.({ strip, tabMids });
     };
     const schedule = () => {
       window.clearTimeout(timer);
@@ -301,29 +312,39 @@ export function TabBar({
   /** Out of the strip: beyond the margin around the whole bar. */
   const outside = (at: PointerAt) => {
     const bar = barRef.current?.getBoundingClientRect();
-    return Boolean(onDragOut && bar && leftStrip(bar, at.clientX, at.clientY));
+    return Boolean(onDragOut && bar && leftStrip(visibleRect(bar, appliedZoom()), at.clientX, at.clientY));
   };
 
-  /** Insertion position (0…n) under the mouse pointer. */
+  /** Insertion position (0…n) under the mouse pointer (visible pixels; the rectangles are layout pixels). */
   const indexAt = (clientX: number) => {
     const elements = tabElements();
+    const zoom = appliedZoom();
     for (let index = 0; index < elements.length; index++) {
       const rect = elements[index]!.getBoundingClientRect();
-      if (clientX < rect.left + rect.width / 2) return index;
+      if (clientX < (rect.left + rect.width / 2) * zoom) return index;
     }
     return elements.length;
   };
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>, id: string) => {
     if (event.button !== 0 || !onMove) return;
-    pointer.current = { id, x: event.clientX, active: false, last: pointerAt(event) };
+    pointer.current = {
+      id,
+      x: event.clientX,
+      y: event.clientY,
+      active: false,
+      last: pointerAt(event),
+      element: event.currentTarget,
+      pointerId: event.pointerId,
+    };
   };
 
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const state = pointer.current;
     if (!state) return;
     if (!state.active) {
-      if (Math.abs(event.clientX - state.x) < DRAG_THRESHOLD) return;
+      // Any direction: a tab pulled straight down leaves the strip before it moves sideways.
+      if (Math.hypot(event.clientX - state.x, event.clientY - state.y) < DRAG_THRESHOLD) return;
       state.active = true;
       event.currentTarget.setPointerCapture(event.pointerId);
     }
@@ -332,17 +353,39 @@ export function TabBar({
     setDrag({ id: state.id, target: indexAt(event.clientX), out });
   };
 
+  // The click after releasing should not additionally activate the tab; release again afterwards.
+  const swallowClick = () => {
+    suppressClick.current = true;
+    window.setTimeout(() => {
+      suppressClick.current = false;
+    }, 0);
+  };
+
+  // Escape during a drag puts the tab back: nothing moves.
+  const dragging = drag !== null;
+  useEffect(() => {
+    if (!dragging) return;
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      const state = pointer.current;
+      if (event.key !== "Escape" || !state?.active) return;
+      event.preventDefault();
+      event.stopPropagation();
+      pointer.current = null;
+      setDrag(null);
+      swallowClick();
+      if (state.element.hasPointerCapture(state.pointerId)) state.element.releasePointerCapture(state.pointerId);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [dragging]);
+
   // Also from `lostpointercapture`: some systems end the drag outside the window without a pointerup.
   const onPointerUp = () => {
     const state = pointer.current;
     pointer.current = null;
     setDrag(null);
     if (!state?.active) return;
-    // The click after releasing should not additionally activate the tab; release again afterwards.
-    suppressClick.current = true;
-    window.setTimeout(() => {
-      suppressClick.current = false;
-    }, 0);
+    swallowClick();
     const { last } = state;
     if (outside(last)) {
       const inside = last.clientX >= 0 && last.clientY >= 0 && last.clientX < window.innerWidth && last.clientY < window.innerHeight;
@@ -350,8 +393,7 @@ export function TabBar({
       return;
     }
     const from = tabs.findIndex((tab) => tab.id === state.id);
-    const target = indexAt(last.clientX);
-    const to = target > from ? target - 1 : target;
+    const to = indexWithout(indexAt(last.clientX), from);
     if (from >= 0 && to !== from) onMove?.(state.id, to);
   };
 

@@ -134,6 +134,14 @@ export async function settleUnsaved(repoId: Id | null): Promise<{ discard: boole
   return { discard: answer === "discard" };
 }
 
+/**
+ * After the tab left the window: what was not meant to be saved does not linger as a draft. Deferred,
+ * because the editor's unmount (after this render) writes its dirty buffer back into the drafts.
+ */
+export function discardAfterLeaving(repoId: Id): void {
+  window.setTimeout(() => discardUnsaved(repoId), 0);
+}
+
 export async function closeTab(tabId: Id) {
   // Ask about unsaved work in the centre (conflict tool) first.
   if (!(await confirmLeaveCenter(tabId))) return null;
@@ -146,8 +154,7 @@ export async function closeTab(tabId: Id) {
   if (result.ok) {
     setTabs(result.value);
     useAppStore.getState().dropTabView(tabId);
-    // The view is gone now; what was not meant to be saved does not linger as a draft.
-    if (repoId && settled.discard) window.setTimeout(() => discardUnsaved(repoId), 0);
+    if (repoId && settled.discard) discardAfterLeaving(repoId);
   }
   return result;
 }
