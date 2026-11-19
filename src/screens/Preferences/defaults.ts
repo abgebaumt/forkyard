@@ -1,57 +1,12 @@
 /**
- * Settings defaults, for "Changed · Reset". Must match `Settings::default()` in
- * crates/core/src/model.rs; the type `Required<Settings>` enforces every field.
+ * Settings defaults, for "Changed · Reset": `Settings::default()` of the core, written by
+ * `npm run gen:types` (never edit the JSON by hand).
  */
 import type { Settings } from "../../core";
+import defaults from "../../core/generated/settingsDefaults.json";
 
-export const DEFAULT_SETTINGS: Required<Settings> = {
-  theme: "dark",
-  zoom: 1,
-  dateFormat: "relative",
-  showInitials: false,
-  toolbarLabels: true,
-  rememberTabs: true,
-  defaultBranchName: "main",
-  autoFetchMinutes: 1,
-  autoPrune: true,
-  initialCommits: 2000,
-  lazyLoad: true,
-  defaultPullMode: "ff",
-  squashOnMerge: false,
-  pushAfterCommit: false,
-  deleteOrigFiles: true,
-  diffMode: "hunks",
-  diffWordWrap: false,
-  diffIgnoreWhitespace: false,
-  editorFontSize: 13,
-  editorTabSize: 4,
-  externalEditor: null,
-  externalTerminal: null,
-  externalDiffTool: null,
-  externalMergeTool: null,
-  notifyOnFetch: false,
-  notifyOnError: true,
-  checkForUpdates: true,
-  agentTemplates: [],
-  sshUseAgent: true,
-  proxyUrl: null,
-  proxyByHost: [],
-  sslCaFile: null,
-  sslNoVerifyHosts: [],
-  aiEnabled: null,
-  aiProvider: null,
-  aiModel: null,
-  aiBaseUrl: null,
-  aiFeaturesOff: [],
-  aiExclude: [],
-  aiConfirmCostUsd: 0.1,
-  aiMonthlyLimitUsd: null,
-  aiPrices: [],
-  aiCliPaths: { claudeCode: null, codex: null, opencode: null },
-  aiSearchEmbedProvider: null,
-  aiSearchEmbedModel: null,
-  aiSearchEmbedBaseUrl: null,
-};
+// The JSON is the core's own serialisation, so its literal strings are valid `Settings` values.
+export const DEFAULT_SETTINGS = defaults as Required<Settings>;
 
 /** Does the field deviate from the default? */
 export function isChanged(settings: Settings, field: keyof Settings): boolean {

@@ -761,3 +761,13 @@ pub struct Profile {
     pub color: Option<u8>,
 }
 
+/// Writes `Settings::default()` next to the generated types; `src/screens/Preferences/defaults.ts`
+/// imports it, so the UI's "Changed · Reset" never drifts from the core.
+#[cfg(all(test, feature = "ts"))]
+#[test]
+fn export_bindings_settings_defaults() {
+    let dir = std::env::var("TS_RS_EXPORT_DIR").expect("TS_RS_EXPORT_DIR (.cargo/config.toml)");
+    let json = serde_json::to_string_pretty(&Settings::default()).unwrap();
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(std::path::Path::new(&dir).join("settingsDefaults.json"), json + "\n").unwrap();
+}
