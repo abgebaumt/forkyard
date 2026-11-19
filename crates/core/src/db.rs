@@ -22,6 +22,7 @@ pub mod drafts;
 pub mod hoster_accounts;
 pub mod profile_repos;
 pub mod profiles;
+pub mod repo_seen;
 pub mod repo_settings;
 pub mod repos;
 pub mod settings;
@@ -72,7 +73,20 @@ const UPGRADES: &[&str] = &[
     "drop table workspace_repositories; drop table workspaces;",
     // v1.3: several windows; every existing tab belongs to "main".
     WINDOWS,
+    // v1.3: what the user has seen per repository ("What's new since …").
+    REPO_SEEN,
 ];
+
+const REPO_SEEN: &str = r#"
+create table repo_seen (
+  profile_id    text not null references profiles (id) on delete cascade,
+  repository_id text not null references repositories (id) on delete cascade,
+  seen_at       text not null,
+  refs          text not null check (json_valid(refs)),   -- {"refs/remotes/origin/main": "<sha>", "refs/tags/v1": "<sha>"}
+  pr_max_number integer,
+  primary key (profile_id, repository_id)
+) strict;
+"#;
 
 const WINDOWS: &str = "
 alter table tabs add column window_id text not null default 'main';
@@ -1017,7 +1031,8 @@ create index undo_entries_repo_time on undo_entries (repository_id, created_at d
             // Back to version 13: tabs without window_id, one active tab per profile, no windows.
             let conn = Connection::open(&path).unwrap();
             conn.execute_batch(
-                "drop table profile_windows;
+                "drop table repo_seen;
+                 drop table profile_windows;
                  drop index tabs_one_active_per_window;
                  drop index tabs_window_position;
                  alter table tabs drop column window_id;
@@ -1053,6 +1068,32 @@ create index undo_entries_repo_time on undo_entries (repository_id, created_at d
             })
             .unwrap_err();
         assert_eq!(err.code, crate::ErrorCode::Io);
+    }
+
+    /// Version 14 to 15: the seen state ("What's new since …") gets exactly the table schema.sql has.
+    #[test]
+    fn the_seen_step_creates_exactly_what_schema_has() {
+        assert!(UPGRADES.contains(&REPO_SEEN), "the step is part of UPGRADES");
+        assert_eq!(LATEST_VERSION, 15);
+        let shape = |db: &Db, table: &str| -> Vec<(String, String, i64, i64)> {
+            db.with(|c| {
+                let mut stmt = c.prepare(&format!("select name, type, \"notnull\", pk from pragma_table_info('{table}') order by cid"))?;
+                let rows =
+                    stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .unwrap()
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let fresh = Db::open(&dir.path().join("fresh.db")).unwrap();
+        let path = dir.path().join("v14.db");
+        drop(Db::open(&path).unwrap());
+        Connection::open(&path).unwrap().execute_batch("drop table repo_seen; pragma user_version = 14;").unwrap();
+        let upgraded = Db::open(&path).unwrap();
+        let v: i64 = upgraded.with(|c| Ok(c.query_row("pragma user_version", [], |r| r.get(0))?)).unwrap();
+        assert_eq!(v, LATEST_VERSION);
+        assert!(!shape(&fresh, "repo_seen").is_empty());
+        assert_eq!(shape(&upgraded, "repo_seen"), shape(&fresh, "repo_seen"));
     }
 
     #[test]

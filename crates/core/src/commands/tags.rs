@@ -7,6 +7,7 @@
 
 use crate::app::Core;
 use crate::commands::commit::{hook_failure, Hooks};
+use crate::commands::digest::seen;
 use crate::commands::refs;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors;
@@ -50,27 +51,30 @@ pub async fn tag_create(
         Some(text) => Some(format!("{}\n", text.trim_end())),
         None => None,
     };
-    core.with_write_lock(&repo_id, &[RepoChange::Refs], async {
-        if rev::rev_parse(core, &repo_id, &tag_ref(&name)).await?.is_some() {
-            return Err(CoreError::name_exists(format!("A tag named “{name}” already exists.")));
-        }
-        let target = match &sha {
-            Some(sha) => rev::rev_parse(core, &repo_id, &format!("{sha}^{{commit}}"))
-                .await?
-                .ok_or_else(|| CoreError::not_found(format!("The commit “{sha}” wasn’t found.")))?,
-            None => rev::rev_parse(core, &repo_id, "HEAD^{commit}")
-                .await?
-                .ok_or_else(|| CoreError::not_allowed("You can’t create a tag without a commit. Commit first."))?,
-        };
-        let mut cmd = core.git_for(&repo_id)?.arg("tag");
-        if let Some(message) = message {
-            // Message via stdin; "#" lines are text here, not comments.
-            cmd = cmd.args(["-a", "--cleanup=whitespace", "-F", "-"]).stdin(message);
-        }
-        cmd.arg(&name).arg(&target).run().await?;
-        refs::read_refs(core, &repo_id).await
-    })
-    .await
+    let snapshot = core
+        .with_write_lock(&repo_id, &[RepoChange::Refs], async {
+            if rev::rev_parse(core, &repo_id, &tag_ref(&name)).await?.is_some() {
+                return Err(CoreError::name_exists(format!("A tag named “{name}” already exists.")));
+            }
+            let target = match &sha {
+                Some(sha) => rev::rev_parse(core, &repo_id, &format!("{sha}^{{commit}}"))
+                    .await?
+                    .ok_or_else(|| CoreError::not_found(format!("The commit “{sha}” wasn’t found.")))?,
+                None => rev::rev_parse(core, &repo_id, "HEAD^{commit}")
+                    .await?
+                    .ok_or_else(|| CoreError::not_allowed("You can’t create a tag without a commit. Commit first."))?,
+            };
+            let mut cmd = core.git_for(&repo_id)?.arg("tag");
+            if let Some(message) = message {
+                // Message via stdin; "#" lines are text here, not comments.
+                cmd = cmd.args(["-a", "--cleanup=whitespace", "-F", "-"]).stdin(message);
+            }
+            cmd.arg(&name).arg(&target).run().await?;
+            refs::read_refs(core, &repo_id).await
+        })
+        .await?;
+    seen::absorb(core, &repo_id, &[tag_ref(&name)]).await;
+    Ok(snapshot)
 }
 
 /// Deletes a tag; with `remote` there as well (there first: if the network fails, nothing changes locally).
@@ -99,13 +103,16 @@ pub async fn tag_delete(core: &Core, repo_id: String, name: String, remote: Opti
         }
         None => {}
     }
-    core.with_write_lock(&repo_id, &[RepoChange::Refs], async {
-        if rev::rev_parse(core, &repo_id, &tag_ref(&name)).await?.is_some() {
-            core.git_for(&repo_id)?.args(["tag", "-d", &name]).run().await?;
-        }
-        refs::read_refs(core, &repo_id).await
-    })
-    .await
+    let snapshot = core
+        .with_write_lock(&repo_id, &[RepoChange::Refs], async {
+            if rev::rev_parse(core, &repo_id, &tag_ref(&name)).await?.is_some() {
+                core.git_for(&repo_id)?.args(["tag", "-d", &name]).run().await?;
+            }
+            refs::read_refs(core, &repo_id).await
+        })
+        .await?;
+    seen::absorb(core, &repo_id, &[tag_ref(&name)]).await;
+    Ok(snapshot)
 }
 
 /// Parses `git push --porcelain` for one ref: `<flag>\t<from>:<to>\t<summary>`.
@@ -167,6 +174,7 @@ pub(crate) async fn push_tag(
             Ok(PushResult::Rejected { reason })
         }
         Some((flag, _)) if out.success() => {
+            seen::absorb(core, repo_id, std::slice::from_ref(&full)).await;
             Ok(PushResult::Done { remote: remote.to_string(), branch: name.to_string(), created_upstream: false, forced: flag == b'+' })
         }
         None if out.success() => Ok(PushResult::UpToDate),

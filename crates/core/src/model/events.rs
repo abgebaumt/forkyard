@@ -15,6 +15,10 @@ pub enum RepoChange {
     Operation,
     /// LFS file locks (`lfs_locks`): after locking/unlocking and after a fetch.
     Locks,
+    /// A fetch changed remote branches or tags.
+    Fetched,
+    /// The "What's new" seen state was set.
+    Seen,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]

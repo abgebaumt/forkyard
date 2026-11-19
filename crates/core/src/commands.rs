@@ -21,6 +21,7 @@ pub mod compose;
 pub mod crash;
 pub mod custom;
 pub mod diff;
+pub mod digest;
 pub mod external;
 pub mod gitflow;
 pub mod graph;
