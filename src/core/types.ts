@@ -11,6 +11,7 @@ export type * from "./generated/agent_review";
 export type * from "./generated/agents";
 export type * from "./generated/ai";
 export type * from "./generated/app";
+export type * from "./generated/branch_cleanup";
 export type * from "./generated/cleanup";
 export type * from "./generated/commits";
 export type * from "./generated/compose";

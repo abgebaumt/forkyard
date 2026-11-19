@@ -108,6 +108,7 @@ fn gh_user(login: &str) -> Value {
 fn gh_pr(base: &str, number: u64, state: &MockState) -> Value {
     let status = pr_state(number, state);
     let head_repo = if number == 8 { "fremd/demo" } else { "octo/demo" };
+    let head_sha = state.head_shas.iter().find(|(n, _)| *n == number).map_or_else(|| sha(number), |(_, sha)| sha.clone());
     json!({
         "number": number,
         "title": if number == 1 { "Anmeldung: Fehlermeldung bei leerem Passwort".to_string() } else { format!("Thema {number} umsetzen") },
@@ -116,7 +117,7 @@ fn gh_pr(base: &str, number: u64, state: &MockState) -> Value {
         "draft": number == 3,
         "user": gh_user("jonas"),
         "body": format!("Beschreibung zu **Thema {number}**.\n\n- [x] Tests"),
-        "head": { "ref": source_branch(number), "sha": sha(number), "repo": { "full_name": head_repo } },
+        "head": { "ref": source_branch(number), "sha": head_sha, "repo": { "full_name": head_repo } },
         "base": { "ref": "main", "sha": sha(1000), "repo": { "full_name": "octo/demo" } },
         "updated_at": updated(number),
         "html_url": format!("{base}/octo/demo/pull/{number}"),
