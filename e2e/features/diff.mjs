@@ -913,6 +913,83 @@ scenario("Blame: aus der Dateiansicht öffnen, Blöcke und Legende wie git blame
   }
 });
 
+scenario("blame: a large file fills in while git blame runs, the second open is instant", "edge", async (t) => {
+  const repo = makeDiffRepo("gross");
+  const file = "gross.txt";
+  const text = Array.from({ length: 8000 }, (_, i) => `zeile ${i + 1}`);
+  repo.write(file, `${text.join("\n")}\n`);
+  repo.commit("Datei angelegt", PEOPLE.lena);
+  // Four more commits, each rewriting a different slice.
+  for (const [n, person] of [PEOPLE.jonas, PEOPLE.aylin, PEOPLE.lena, PEOPLE.jonas].entries()) {
+    for (let i = 1000 + n * 1500; i < 1800 + n * 1500; i++) text[i] = `neu ${n + 1} zeile ${i + 1}`;
+    repo.write(file, `${text.join("\n")}\n`);
+    repo.commit(`Abschnitt ${n + 1} geändert`, person);
+  }
+  const state = (app) =>
+    app.exec(
+      (sel) => ({
+        lines: document.querySelectorAll(`${sel} .cm-line`).length,
+        loading: Boolean(document.querySelector(`${sel} [data-loading]`)),
+      }),
+      BL,
+    );
+  try {
+    const app = await t.launch(LIGHT);
+    const { tabId } = await app.openRepo(repo.path);
+    await store(app, "openBlame", tabId, file, null);
+    // Either lines appear while the progress row is still there, or the view finished first (fast machine).
+    let filling = false;
+    await app.waitFor(
+      async () => {
+        const s = await state(app);
+        if (s.lines > 0 && s.loading) filling = true;
+        return s.lines > 0;
+      },
+      30_000,
+      { message: "first lines shown" },
+    );
+    t.step(filling ? "lines shown while blame still ran" : "blame finished before the first look");
+    await blameReady(app, file);
+    const expected = blameBlocks(blamePorcelain(repo, file));
+    assert(expected.length >= 5, "precondition: several blocks");
+    // The editor only renders the lines in view, so walk down the file and collect the block starts.
+    const seen = new Map();
+    for (let guard = 0; guard < 400 && seen.size < expected.length; guard++) {
+      const step = await app.exec((sel) => {
+        const out = new Map();
+        for (const cell of document.querySelectorAll(`${sel} .gc-blame-cell[data-start]`)) out.set(cell.dataset.block, cell.dataset.sha);
+        const scroller = document.querySelector(`${sel} .cm-scroller`);
+        scroller.scrollTop += scroller.clientHeight / 2;
+        return { found: [...out] };
+      }, BL);
+      for (const [index, sha] of step.found) seen.set(Number(index), sha);
+      await app.settle();
+    }
+    assertEqual(
+      [...seen.entries()].sort((a, b) => a[0] - b[0]).map(([, sha]) => sha),
+      expected.map((block) => block.sha),
+      "blocks like git blame",
+    );
+    await app.press("Escape");
+    await store(app, "openBlame", tabId, file, null);
+    let overlap = false;
+    await app.waitFor(
+      async () => {
+        const s = await state(app);
+        if (s.lines > 0 && s.loading) overlap = true;
+        return s.lines > 0 && !s.loading;
+      },
+      30_000,
+      { message: "second open complete" },
+    );
+    await blameReady(app, file);
+    assert(!overlap, "the second open (cache) never shows the progress row with text present");
+    await t.noConsoleErrors(app);
+  } finally {
+    repo.cleanup();
+  }
+});
+
 scenario("Blame: nicht committete Zeilen, vorheriger Stand mit P, leere und binäre Datei", "edge", async (t) => {
   const { repo, shas } = makeHistoryRepo();
   repo.write("text/leer.txt", "");
