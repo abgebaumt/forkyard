@@ -110,12 +110,12 @@ describe("graph edit", () => {
   it("hands a dirty edit to the rebase tool without the discard question", async () => {
     queryClient.setQueryData(qk.rebaseBranchPlan("r", null), okPlan(["a", "b"]));
     await enterGraphEdit("r", "t4", { sha: "a" });
-    updateGraphEdit("t4", (edit) => ({ ...edit, state: toggleDrop(edit.state, "a") }));
+    updateGraphEdit("t4", (edit) => ({ ...edit, state: toggleDrop(edit.state, "a"), updateRefs: true }));
     registerEditGuard("t4");
     const rows = graphEditOf("t4")!.state.rows;
     openGraphEditInTool("t4");
     expect(graphEditOf("t4")).toBeNull();
     expect(hasDirtyCenter()).toBe(false);
-    expect(getTabView("t4").center).toMatchObject({ kind: "rebase", base: "base", mode: "interactive", rows });
+    expect(getTabView("t4").center).toMatchObject({ kind: "rebase", base: "base", mode: "interactive", rows, updateRefs: true });
   });
 });

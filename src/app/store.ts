@@ -33,7 +33,16 @@ export type CenterView =
   | { kind: "blame"; path: string; sha: Sha | null }
   | { kind: "conflict"; path: string }
   /** `autosquash`: the interactive plan in Git's autosquash order (8.2). */
-  | { kind: "rebase"; base: string; mode: RebaseToolMode; shas: Sha[]; autosquash?: boolean; rows?: RebasePlanRow[]; handover?: number }
+  | {
+      kind: "rebase";
+      base: string;
+      mode: RebaseToolMode;
+      shas: Sha[];
+      autosquash?: boolean;
+      rows?: RebasePlanRow[];
+      handover?: number;
+      updateRefs?: boolean;
+    }
   /** `source`/`target`: preselected branches (from the branch or drop menu), otherwise the checked-out and the default branch. */
   | { kind: "pr_create"; source?: string; target?: string }
   | { kind: "pr"; number: number }
@@ -242,7 +251,13 @@ export interface AppState {
   openHistory(tabId: Id, path: string): void;
   openBlame(tabId: Id, path: string, sha: Sha | null): void;
   openConflict(tabId: Id, path: string): void;
-  openRebase(tabId: Id, base: string, mode: RebaseToolMode, shas?: Sha[], options?: { autosquash?: boolean; rows?: RebasePlanRow[] }): void;
+  openRebase(
+    tabId: Id,
+    base: string,
+    mode: RebaseToolMode,
+    shas?: Sha[],
+    options?: { autosquash?: boolean; rows?: RebasePlanRow[]; updateRefs?: boolean },
+  ): void;
   /** Reflog of HEAD (`ref: null`) or a branch (`refs/heads/…`, `refs/remotes/…`). */
   openReflog(tabId: Id, ref: string | null): void;
   /** Back to the graph. */
@@ -361,6 +376,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           shas,
           ...(options.autosquash ? { autosquash: true } : {}),
           ...(options.rows ? { rows: options.rows, handover: ++handoverNonce } : {}),
+          ...(options.updateRefs ? { updateRefs: true } : {}),
         },
       }),
     openReflog: (tabId, ref) => patchView(tabId, { center: { kind: "reflog", ref } }),

@@ -86,6 +86,7 @@ export function InteractiveRebase({
   base,
   autosquash = false,
   initialRows,
+  initialUpdateRefs = false,
   onClose,
   startRef,
 }: {
@@ -95,6 +96,7 @@ export function InteractiveRebase({
   autosquash?: boolean;
   /** Rows handed over from the graph's edit mode; taken over on the first load only. */
   initialRows?: RebasePlanRow[];
+  initialUpdateRefs?: boolean;
   onClose: () => void;
   startRef: StartRef;
 }) {
@@ -154,7 +156,7 @@ export function InteractiveRebase({
     [okPlan, current],
   );
   const preview = useConflictPreview(repoId, previewOp);
-  const [updateRefs, setUpdateRefs] = useState(false);
+  const [updateRefs, setUpdateRefs] = useState(initialUpdateRefs);
 
   // A failed reload keeps the old plan in the cache; while the new attempt runs, the tool shows the
   // skeleton instead of briefly the earlier error.

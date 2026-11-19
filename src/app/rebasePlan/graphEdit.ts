@@ -163,7 +163,7 @@ export function openGraphEditInTool(tabId: Id): void {
   const edit = graphEditOf(tabId);
   if (!edit) return;
   leaveGraphEdit(tabId);
-  useAppStore.getState().openRebase(tabId, edit.plan.base, "interactive", [], { rows: edit.state.rows });
+  useAppStore.getState().openRebase(tabId, edit.plan.base, "interactive", [], { rows: edit.state.rows, updateRefs: edit.updateRefs });
 }
 
 /** Whether any tab has unapplied history edits – also tabs whose graph is not mounted (and so not guarding the centre). */

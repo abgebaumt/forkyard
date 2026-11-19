@@ -32,10 +32,12 @@ export interface RebaseToolProps {
   rows?: RebasePlanRow[];
   /** Changes with every hand-over, so new rows remount the tool. */
   handover?: number;
+  /** Interactive mode: the "update refs" tick handed over from the graph's edit mode. */
+  updateRefs?: boolean;
 }
 
 /** Reorder, combine, transfer commits. */
-export function RebaseTool({ repoId, tabId, base, mode, shas, autosquash = false, rows, handover }: RebaseToolProps) {
+export function RebaseTool({ repoId, tabId, base, mode, shas, autosquash = false, rows, handover, updateRefs }: RebaseToolProps) {
   const root = useRef<HTMLElement>(null);
   const close = useCallback(() => useAppStore.getState().closeCenter(tabId), [tabId]);
 
@@ -103,6 +105,7 @@ export function RebaseTool({ repoId, tabId, base, mode, shas, autosquash = false
           base={base}
           autosquash={autosquash}
           initialRows={rows}
+          initialUpdateRefs={updateRefs}
           onClose={close}
           startRef={startRef}
         />
