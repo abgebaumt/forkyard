@@ -61,6 +61,9 @@ Use these before writing a new helper:
 6. Run `npm run check:commands`. It also checks the error codes: a new `ErrorCode` needs its entry in
    `src/app/errors.ts` and a text in `src/i18n/locales/en/errors.json` and `src/i18n/locales/de/errors.json`.
 
+A command that depends on its window reads it via `commands::window::calling_window(core)`, never
+via a parameter (see "Windows" in docs/ARCHITECTURE.md).
+
 A new event also goes into `CoreEvents` in `src/core/types.ts` (written by hand). A schema change
 touches `crates/core/src/db/schema.sql` and `UPGRADES` in `crates/core/src/db.rs`.
 

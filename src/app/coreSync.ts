@@ -261,6 +261,11 @@ export function useCoreSync(activeRepoId: Id | null) {
         reportSubmoduleUpdate(event);
       }),
     ];
+    // Another window may change tabs, windows or repositories while this one loads, before its
+    // listeners stand: once they do, those lists load again.
+    void Promise.all(stops.map((stop) => stop.ready)).then(() => {
+      for (const key of [qk.tabs, qk.windows, qk.repos]) void queryClient.invalidateQueries({ queryKey: key });
+    });
     return () => stops.forEach((stop) => stop());
   }, []);
 

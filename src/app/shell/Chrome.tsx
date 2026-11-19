@@ -385,16 +385,19 @@ export function TabBar({
     pointer.current = null;
     setDrag(null);
     if (!state?.active) return;
-    swallowClick();
+    // A jittery press that moves nothing stays a click.
     const { last } = state;
     if (outside(last)) {
+      swallowClick();
       const inside = last.clientX >= 0 && last.clientY >= 0 && last.clientX < window.innerWidth && last.clientY < window.innerHeight;
       onDragOut?.(state.id, { x: last.screenX, y: last.screenY }, inside);
       return;
     }
     const from = tabs.findIndex((tab) => tab.id === state.id);
     const to = indexWithout(indexAt(last.clientX), from);
-    if (from >= 0 && to !== from) onMove?.(state.id, to);
+    if (from < 0 || to === from) return;
+    swallowClick();
+    onMove?.(state.id, to);
   };
 
   const onListKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {

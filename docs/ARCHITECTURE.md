@@ -76,6 +76,20 @@ the wire shape just for TS; use `#[ts(...)]` attributes instead (for example
 Errors always arrive as `{ code, message, gitOutput }` (`CoreError`). The UI talks to the core only
 through `src/core/index.ts`.
 
+### Windows
+
+Windows are labelled `main` (the first one at start) or `w-<32 hex>` (`gitcore::windowing`). The
+`commands!` macro runs every command inside `windowing::scoped(<label>, …)`, a task-local caller, so
+the core knows the calling window without a parameter: `commands::window::calling_window` returns it,
+or outside a scope (spawned tasks, start-up) the most recently focused window. Any window may be gone
+mid-session, `main` included, so code never assumes `main` exists. Events either go to all windows
+(`Core::emit`, e.g. `app:changed`, `repo:changed`, jobs) or to one (`Core::emit_to`, e.g.
+`credential:request`, `app:close_requested`); the UI hears the first with `core.on`, the second with
+`core.onWindow`, which listens under its own label. After a change to the stored windows the core calls
+`sync_windows`, and `src-tauri/src/windows.rs` (`reconcile`) builds, places and destroys the Tauri
+windows to match. Closing is guarded per window (`commands::app::CloseGuard`): closing one window stops
+only the jobs it started, closing the last one quits.
+
 ## Hard rules
 
 1. **Git is the source of truth.** Commits, refs, stashes and remotes are never mirrored into SQLite.

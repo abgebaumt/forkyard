@@ -988,6 +988,10 @@ export async function launchApp(options = {}) {
 
     /** Raw W3C WebDriver call relative to the session, e.g. app.webdriver("GET", "/title"). */
     webdriver: (method, route, body) => wd.call(method, route, body),
+    /** Handles of the app's windows as the native driver lists them. */
+    windowHandles: () => wd.call("GET", "/window/handles"),
+    /** Points every further call at the window with this handle. */
+    switchToWindow: (handle) => wd.call("POST", "/window", { handle }),
   };
 
   try {
