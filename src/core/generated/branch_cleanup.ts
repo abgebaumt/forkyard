@@ -11,10 +11,13 @@ export type BranchCleanupCandidate = {
   reasons: Array<BranchCleanupReason>;
   committedAt: string;
   /**
-   * Only when the upstream exists (not gone): remote name and branch name there.
+   * Only when the upstream exists (not gone) and holds no commit beyond this branch and the default
+   * branch, so deleting it there loses nothing the class doesn't name: remote name, branch name there
+   * and the tip known here (the lease for the deletion).
    */
   upstreamRemote: string | null;
   upstreamBranch: string | null;
+  upstreamSha: string | null;
 };
 
 export type BranchCleanupClass = "safe" | "review" | "blocked";

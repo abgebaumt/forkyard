@@ -1,6 +1,6 @@
 //! Branches: create, check out, rename, delete, upstream, name check.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use serde_json::json;
@@ -133,7 +133,7 @@ pub async fn branch_rename(core: &Core, repo_id: String, name: String, new_name:
 /// Deletes branches; without `force` unmerged ones fail with `not_merged`.
 pub async fn branch_delete(core: &Core, repo_id: String, names: Vec<String>, force: bool) -> CoreResult<RefsSnapshot> {
     core.with_write_lock(&repo_id, &[RepoChange::Refs, RepoChange::Config], async {
-        delete_locked(core, &repo_id, &names, force).await?;
+        delete_locked(core, &repo_id, &names, force, &HashMap::new()).await?;
         read_refs(core, &repo_id).await
     })
     .await
@@ -589,7 +589,15 @@ pub(crate) async fn record_checkout(
 // Deleting and upstream
 // ---------------------------------------------------------------------------
 
-pub(crate) async fn delete_locked(core: &Core, repo_id: &str, names: &[String], force: bool) -> CoreResult<()> {
+/// `expected`: name → SHA the caller showed; a branch that points elsewhere now fails with
+/// `stale_state`, so the deletion (compare-and-swap) is against what the user saw.
+pub(crate) async fn delete_locked(
+    core: &Core,
+    repo_id: &str,
+    names: &[String],
+    force: bool,
+    expected: &HashMap<String, String>,
+) -> CoreResult<()> {
     let mut wanted: Vec<&str> = Vec::new();
     for name in names.iter().map(|n| local_name(n)) {
         if !name.is_empty() && !wanted.contains(&name) {
@@ -614,6 +622,9 @@ pub(crate) async fn delete_locked(core: &Core, repo_id: &str, names: &[String], 
             [one] => format!("The branch ‘{one}’ doesn’t exist (anymore)."),
             many => format!("These branches don’t exist (anymore): {}.", quote_list(many)),
         }));
+    }
+    if targets.iter().any(|info| expected.get(&info.name).is_some_and(|sha| sha != &info.sha)) {
+        return Err(CoreError::stale_state());
     }
     for info in &targets {
         if info.is_head {

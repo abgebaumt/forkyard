@@ -1076,11 +1076,19 @@ fn server_said(stderr: &str) -> String {
 /// Deletes a branch on the remote (`git push <remote> --delete <name>`). `done`: deleted
 /// (`branch` = name on the remote); `up_to_date`: the branch no longer existed there –
 /// the stale remote branch in the own repository is then removed. If the server
-/// refuses (protected branch), that is the error `not_allowed`.
-pub async fn branch_delete_remote(core: &Core, repo_id: String, job_id: String, remote: String, name: String) -> CoreResult<PushResult> {
+/// refuses (protected branch), that is the error `not_allowed`. With a lease: only the tip `expected`
+/// (else the one the remote branch here knows) is deleted; `push_rejected` if it has moved there.
+pub async fn branch_delete_remote(
+    core: &Core,
+    repo_id: String,
+    job_id: String,
+    remote: String,
+    name: String,
+    expected: Option<String>,
+) -> CoreResult<PushResult> {
     let job = core.start_job(&job_id, Some(&repo_id))?;
-    let result =
-        core.with_network_lock(&repo_id, job.token(), delete_remote_branch(core, &repo_id, &job, remote.trim(), name.trim())).await;
+    let deleting = delete_remote_branch(core, &repo_id, &job, remote.trim(), name.trim(), expected.as_deref());
+    let result = core.with_network_lock(&repo_id, job.token(), deleting).await;
     if result.is_ok() {
         core.emit_repo_changed(&repo_id, &[RepoChange::Refs]);
     }
@@ -1088,7 +1096,14 @@ pub async fn branch_delete_remote(core: &Core, repo_id: String, job_id: String, 
     result
 }
 
-async fn delete_remote_branch(core: &Core, repo_id: &str, job: &Job, remote: &str, name: &str) -> CoreResult<PushResult> {
+async fn delete_remote_branch(
+    core: &Core,
+    repo_id: &str,
+    job: &Job,
+    remote: &str,
+    name: &str,
+    expected: Option<&str>,
+) -> CoreResult<PushResult> {
     let known = remotes::read_remotes(core, repo_id).await?;
     if known.is_empty() {
         return Err(no_remote());
@@ -1102,24 +1117,42 @@ async fn delete_remote_branch(core: &Core, repo_id: &str, job: &Job, remote: &st
     util::check_ref_name(name).map_err(|reason| CoreError::invalid_name(format!("Invalid name for the remote branch: {reason}")))?;
     let remote_ref = format!("refs/heads/{name}");
     let tracking = format!("refs/remotes/{remote}/{name}");
+    // Lease (hard rule 6): only the tip the caller showed (`expected`), else the one this repository
+    // knows, may go; commits someone pushed there since stay.
+    let expected = match expected.map(str::trim).filter(|sha| !sha.is_empty()) {
+        Some(sha) if sha.len() >= 7 && sha.bytes().all(|b| b.is_ascii_hexdigit()) => sha.to_string(),
+        Some(sha) => return Err(CoreError::invalid_name(format!("“{sha}” is not a commit ID."))),
+        None => rev::try_resolve_commit(core, repo_id, &tracking).await?.unwrap_or_default(),
+    };
     job.progress("Push", None, &format!("Deleting {remote}/{name} …"));
     let out = core
         .git_for(repo_id)?
-        .args(["push", "--porcelain", "--progress", "--"])
+        .args(["push", "--porcelain", "--progress"])
+        .arg(format!("--force-with-lease={remote_ref}:{expected}"))
+        .arg("--")
         .arg(remote)
         .arg(format!(":{remote_ref}"))
         .check(false)
         .network()
         .run_stream(job.token(), &mut |line| job.progress_line(line))
         .await?;
+    let result = parse_push_porcelain(&out.stdout, &remote_ref);
+    let stale = matches!(&result, Some(('!', detail)) if detail.contains("stale info"));
+    // The lease refuses a branch that is gone there as well; only one that still exists has moved.
+    let moved = stale && remote_has(core, repo_id, job, remote, &remote_ref).await?;
     // Newer Git versions report deleting a branch that doesn't exist (any more) there
     // as success with a warning; older ones as an error.
     let stderr = out.stderr_text().to_lowercase();
-    let missing = stderr.contains("non-existent ref") || stderr.contains("remote ref does not exist");
-    match parse_push_porcelain(&out.stdout, &remote_ref) {
+    let missing = (stale && !moved) || stderr.contains("non-existent ref") || stderr.contains("remote ref does not exist");
+    match result {
         Some(('-', _)) if out.success() && !missing => {
             Ok(PushResult::Done { remote: remote.to_string(), branch: name.to_string(), created_upstream: false, forced: false })
         }
+        _ if moved => Err(CoreError::new(
+            ErrorCode::PushRejected,
+            format!("“{remote}/{name}” has commits on the server that weren’t shown here. It was not deleted. Fetch and check the branch first."),
+        )
+        .with_git_output(out.stderr_text())),
         Some(('!', detail)) if detail.to_lowercase().contains("remote rejected") => {
             let all = format!("{}\n{}", out.stderr_text(), util::decode_lossy(&out.stdout));
             Err(CoreError::not_allowed(format!("The server refused to delete “{remote}/{name}”: {detail}")).with_git_output(all))
@@ -1157,6 +1190,12 @@ pub fn parse_push_porcelain(stdout: &[u8], wanted: &str) -> Option<(char, String
         first.get_or_insert(entry);
     }
     first
+}
+
+/// Whether `remote_ref` exists on `remote` right now.
+async fn remote_has(core: &Core, repo_id: &str, job: &Job, remote: &str, remote_ref: &str) -> CoreResult<bool> {
+    let out = core.git_for(repo_id)?.args(["ls-remote", "--", remote, remote_ref]).network().run_stream(job.token(), &mut |_| {}).await?;
+    Ok(out.stdout_text().lines().any(|line| line.split('\t').nth(1) == Some(remote_ref)))
 }
 
 /// Error of a push for which Git did not report a result per ref.
@@ -1573,8 +1612,9 @@ mod tests {
         f.repo.checkout("main");
         f.tc.events.clear();
 
-        let delete =
-            |remote: &str, name: &str| branch_delete_remote(&f.tc, f.id.clone(), util::new_id(), remote.to_string(), name.to_string());
+        let delete = |remote: &str, name: &str| {
+            branch_delete_remote(&f.tc, f.id.clone(), util::new_id(), remote.to_string(), name.to_string(), None)
+        };
         let result = delete("origin", "feature/alt").await.unwrap();
         assert_eq!(
             result,
@@ -1607,6 +1647,39 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_remote_branch_with_commits_not_shown_here_is_not_deleted() {
+        let f = fixture().await;
+        f.repo.checkout_new("fertig");
+        let shown = f.repo.commit_file("f.txt", "f\n", "Fertig");
+        f.repo.git(&["push", "-q", "-u", "origin", "fertig"]);
+        f.repo.checkout("main");
+        // A colleague pushes one more commit; this repository hasn't fetched it.
+        let other = TestRepo::clone_of(&f.remote);
+        other.checkout("fertig");
+        let theirs = other.commit_file("g.txt", "g\n", "Noch was");
+        other.git(&["push", "-q", "origin", "fertig"]);
+        f.tc.events.clear();
+
+        let delete = |expected: Option<&str>| {
+            branch_delete_remote(&f.tc, f.id.clone(), util::new_id(), "origin".into(), "fertig".into(), expected.map(str::to_string))
+        };
+        for expected in [None, Some(shown.as_str())] {
+            let err = delete(expected).await.unwrap_err();
+            assert_eq!(err.code, ErrorCode::PushRejected, "{expected:?}: {err:?}");
+            assert!(err.message.contains("origin/fertig"), "{}", err.message);
+            assert_eq!(f.remote_output(&["rev-parse", "--verify", "-q", "refs/heads/fertig"]), Some(theirs.clone()), "still on the remote");
+            assert_eq!(tracking(&f.repo, "fertig"), Some(shown.clone()), "the remote branch stays here too");
+        }
+        assert!(changes(&f.tc).is_empty(), "nothing changed");
+
+        // The tip the caller saw is the one there now: deleted.
+        let result = delete(Some(theirs.as_str())).await.unwrap();
+        assert!(matches!(result, PushResult::Done { .. }), "{result:?}");
+        assert_eq!(f.remote_output(&["rev-parse", "--verify", "-q", "refs/heads/fertig"]), None);
+        assert_eq!(delete(Some("kein-sha")).await.unwrap_err().code, ErrorCode::InvalidName);
+    }
+
+    #[tokio::test]
     async fn deleting_a_protected_remote_branch_is_not_allowed() {
         let f = fixture().await;
         f.repo.checkout_new("release");
@@ -1617,7 +1690,7 @@ mod tests {
         let before = f.remote.git(&["rev-parse", "refs/heads/release"]);
         f.tc.events.clear();
 
-        let err = branch_delete_remote(&f.tc, f.id.clone(), util::new_id(), "origin".into(), "release".into()).await.unwrap_err();
+        let err = branch_delete_remote(&f.tc, f.id.clone(), util::new_id(), "origin".into(), "release".into(), None).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::NotAllowed, "{err:?}");
         assert!(err.message.contains("origin/release"), "{}", err.message);
         assert!(err.git_output.unwrap_or_default().contains("deletion prohibited"));

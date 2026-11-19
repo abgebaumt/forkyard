@@ -261,20 +261,23 @@ scenario("a list that no longer matches the repository is refused as a whole and
       shas["erledigt/ä"],
     );
     await waitCounter(app, "2 of 3 selected");
+    const cachedFertig = () =>
+      app.exec(
+        (id) => window.__gc.queryClient.getQueryData(["repo", id, "branchCleanup"])?.candidates.find((c) => c.name === "fertig")?.sha,
+        repoId,
+      );
+    // A refetch before the click would replace the edited list and make the test pass for the wrong reason.
+    assertEqual(await cachedFertig(), shas["erledigt/ä"], "the list still shows the edited commit right before the click");
     await app.click(`${VIEW} [data-cleanup-delete]`);
-    await waitToast(app, (toast) => toast.tone === "danger", "error message for the refused deletion");
-    assertEqual(localBranches(fx).sort(), ["alt", "erledigt/ä", "fertig", "main", "release/2026.1"], "nothing deleted: all or none");
-    await app.waitFor(
-      () =>
-        app
-          .exec(
-            (id) => window.__gc.queryClient.getQueryData(["repo", id, "branchCleanup"])?.candidates.find((c) => c.name === "fertig")?.sha,
-            repoId,
-          )
-          .then((sha) => sha === shas.fertig),
-      10_000,
-      { message: "list reloaded with the commit Git has" },
+    await waitToast(
+      app,
+      (toast) => toast.tone === "danger" && toast.text.includes("The repository has changed in the meantime."),
+      "stale-state message for the refused deletion",
     );
+    assertEqual(localBranches(fx).sort(), ["alt", "erledigt/ä", "fertig", "main", "release/2026.1"], "nothing deleted: all or none");
+    await app.waitFor(() => cachedFertig().then((sha) => sha === shas.fertig), 10_000, {
+      message: "list reloaded with the commit Git has",
+    });
     await waitCounter(app, "2 of 3 selected");
     await app.settle();
     await app.click(`${VIEW} [data-cleanup-delete]`);

@@ -159,6 +159,24 @@ async fn an_upstream_that_exists_is_reported_for_the_remote_option() {
     let geteilt = list.candidates.iter().find(|c| c.name == "geteilt").unwrap();
     assert_eq!((geteilt.class, geteilt.reasons.clone()), (Safe, vec![Merged]));
     assert_eq!((geteilt.upstream_remote.as_deref(), geteilt.upstream_branch.as_deref()), (Some("origin"), Some("geteilt")));
+    assert_eq!(geteilt.upstream_sha.as_deref(), Some(repo.git(&["rev-parse", "origin/geteilt"]).as_str()), "the lease for the deletion");
+
+    // A colleague's commit on the remote branch (fetched, in no default branch): no remote option.
+    repo.checkout("geteilt");
+    repo.git(&["checkout", "-q", "--detach"]);
+    let theirs = repo.commit_file("h.txt", "h\n", "Von Kollegin");
+    repo.checkout("main");
+    repo.git(&["update-ref", "refs/remotes/origin/geteilt", &theirs]);
+    let list = candidates_at(&tc, &id, NOW).await.unwrap();
+    let geteilt = list.candidates.iter().find(|c| c.name == "geteilt").unwrap();
+    assert_eq!(geteilt.class, Safe, "the local branch is still merged");
+    assert_eq!((geteilt.upstream_remote.as_deref(), geteilt.upstream_sha.as_deref()), (None, None));
+
+    // Once the default branch has it, the remote branch may go again.
+    repo.git(&["merge", "-q", "--no-edit", &theirs]);
+    let list = candidates_at(&tc, &id, NOW).await.unwrap();
+    let geteilt = list.candidates.iter().find(|c| c.name == "geteilt").unwrap();
+    assert_eq!(geteilt.upstream_sha.as_deref(), Some(theirs.as_str()));
 }
 
 #[tokio::test]
@@ -286,4 +304,43 @@ async fn an_empty_selection_changes_nothing() {
     let refs = branch_cleanup_delete(&tc, id.clone(), Vec::new()).await.unwrap();
     assert!(refs.locals.iter().any(|r| r.name == "fertig"));
     assert_eq!(undo_peek(&tc, id).await.unwrap().undo.map(|step| step.label), before);
+}
+
+fn pr(number: u64, branch: &str, state: crate::model::PrState) -> PrSummary {
+    PrSummary {
+        number,
+        title: String::new(),
+        state,
+        is_draft: false,
+        author: None,
+        source_branch: branch.into(),
+        target_branch: "main".into(),
+        updated_at: String::new(),
+        web_url: String::new(),
+        checks: None,
+        review_state: None,
+        labels: Vec::new(),
+        is_fork: false,
+    }
+}
+
+#[test]
+fn the_pr_list_decides_the_fact_before_any_detail() {
+    use crate::model::PrState::{Merged as M, Open as O};
+    let prs = vec![pr(9, "neu", O), pr(5, "neu", M), pr(4, "fertig", M), PrSummary { is_fork: true, ..pr(3, "fremd", M) }];
+    assert_eq!(listed_fact(&prs, "neu", false, false), PrFact::Open, "the newest PR counts");
+    assert_eq!(
+        listed_fact(&prs, "fertig", false, false),
+        PrFact::Merged { number: 4, commits_after_head: true },
+        "until the head is checked"
+    );
+    assert_eq!(listed_fact(&prs, "fertig", false, true), PrFact::Merged { number: 4, commits_after_head: false }, "settled: no check");
+    assert_eq!(listed_fact(&prs, "fremd", false, false), PrFact::None, "a fork's PR is not this branch's");
+    assert_eq!(listed_fact(&prs, "ohne", false, false), PrFact::None);
+    assert_eq!(listed_fact(&prs, "ohne", true, false), PrFact::Unknown, "cut-off list: an older PR may exist");
+    assert_eq!(
+        listed_fact(&prs, "fertig", true, false),
+        PrFact::Merged { number: 4, commits_after_head: true },
+        "a match counts even when cut off"
+    );
 }

@@ -12,7 +12,8 @@ use crate::error::{CoreError, CoreResult};
 use crate::git::rev;
 use crate::host;
 use crate::model::{
-    BranchCleanupCandidate, BranchCleanupList, BranchCleanupTarget, HostKind, PrListState, PrState, Ref, RefsSnapshot, RepoChange,
+    BranchCleanupCandidate, BranchCleanupList, BranchCleanupTarget, HostKind, PrListState, PrState, PrSummary, Ref, RefsSnapshot,
+    RepoChange,
 };
 use crate::util;
 
@@ -57,7 +58,13 @@ pub(crate) async fn candidates_at(core: &Core, repo_id: &str, now: i64) -> CoreR
 
     // Never the current or the default branch.
     let branches: Vec<&Ref> = snapshot.locals.iter().filter(|r| !r.is_head && Some(&r.name) != default.as_ref()).collect();
-    let (prs, pr_data_missing) = pr_facts(core, repo_id, &branches).await?;
+    // Merged in Git or blocked: a merged PR's head can't change the class, so its details aren't read.
+    let settled: HashSet<String> = branches
+        .iter()
+        .filter(|r| merged.contains(&r.name) || r.worktree_path.is_some() || is_protected(&r.name, &own_patterns))
+        .map(|r| r.name.clone())
+        .collect();
+    let (prs, pr_data_missing) = pr_facts(core, repo_id, &branches, &settled).await?;
 
     let mut candidates = Vec::new();
     for branch in branches {
@@ -83,8 +90,16 @@ pub(crate) async fn candidates_at(core: &Core, repo_id: &str, now: i64) -> CoreR
             facts.unmerged = unmerged_count(core, repo_id, &branch.sha, &bases).await?;
         }
         let Some((class, reasons)) = classify(&facts, now, stale_days) else { continue };
-        let upstream_remote = (has_upstream && !remote.is_empty() && remote != ".").then_some(remote);
+        let upstream_sha = match snapshot.remotes.iter().find(|r| has_upstream && branch.upstream.as_ref() == Some(&r.name)) {
+            // Behind: the remote branch has commits this one lacks; they may only go if the default branch has them.
+            Some(up) if branch.behind == 0 || (!bases.is_empty() && unmerged_count(core, repo_id, &up.sha, &bases).await? == 0) => {
+                Some(up.sha.clone())
+            }
+            _ => None,
+        };
+        let upstream_remote = (upstream_sha.is_some() && !remote.is_empty() && remote != ".").then_some(remote);
         let upstream_branch = upstream_remote.as_ref().map(|_| remote_ref.strip_prefix("refs/heads/").unwrap_or(&remote_ref).to_string());
+        let upstream_sha = upstream_sha.filter(|_| upstream_remote.is_some());
         candidates.push(BranchCleanupCandidate {
             name: facts.name,
             sha: branch.sha.clone(),
@@ -93,6 +108,7 @@ pub(crate) async fn candidates_at(core: &Core, repo_id: &str, now: i64) -> CoreR
             committed_at: util::unix_to_iso(committed_at),
             upstream_remote,
             upstream_branch,
+            upstream_sha,
         });
     }
     candidates.sort_by(|a, b| a.name.cmp(&b.name));
@@ -100,7 +116,8 @@ pub(crate) async fn candidates_at(core: &Core, repo_id: &str, now: i64) -> CoreR
 }
 
 /// Deletes the chosen branches as one undo step. Refuses all if one has moved, is gone, is checked
-/// out, is the default branch or is protected; `delete_locked` adds worktrees and in-progress operations.
+/// out, is the default branch or is protected; `delete_locked` adds the moved ones (against the SHAs
+/// the list showed), worktrees and in-progress operations.
 pub async fn branch_cleanup_delete(core: &Core, repo_id: String, targets: Vec<BranchCleanupTarget>) -> CoreResult<RefsSnapshot> {
     if targets.is_empty() {
         return refs::read_refs(core, &repo_id).await;
@@ -123,9 +140,6 @@ pub async fn branch_cleanup_delete(core: &Core, repo_id: String, targets: Vec<Br
             let Some(info) = branches.iter().find(|b| &b.name == name) else {
                 return Err(CoreError::not_found(format!("The branch ‘{name}’ doesn’t exist (anymore).")));
             };
-            if info.sha != target.sha {
-                return Err(CoreError::stale_state());
-            }
             if info.is_head {
                 return Err(CoreError::not_allowed(format!("The branch ‘{name}’ is checked out and can’t be cleaned up.")));
             }
@@ -136,7 +150,8 @@ pub async fn branch_cleanup_delete(core: &Core, repo_id: String, targets: Vec<Br
                 return Err(CoreError::not_allowed(format!("The branch ‘{name}’ is protected and can’t be cleaned up.")));
             }
         }
-        branches::delete_locked(core, &repo_id, &names, true).await?;
+        let expected: HashMap<String, String> = targets.iter().map(|t| (t.name.clone(), t.sha.clone())).collect();
+        branches::delete_locked(core, &repo_id, &names, true, &expected).await?;
         refs::read_refs(core, &repo_id).await
     })
     .await
@@ -187,8 +202,14 @@ pub(crate) async fn default_branch(core: &Core, repo_id: &str, locals: &[Ref]) -
         .or_else(|| locals.iter().find(|r| r.is_head).map(|r| r.name.clone()))
 }
 
-/// What the host says per branch name, and the host whose data is missing.
-async fn pr_facts(core: &Core, repo_id: &str, branches: &[&Ref]) -> CoreResult<(HashMap<String, PrFact>, Option<HostKind>)> {
+/// What the host says per branch name, and the host whose data is missing. For a `settled` branch a
+/// merged PR's details are not read.
+async fn pr_facts(
+    core: &Core,
+    repo_id: &str,
+    branches: &[&Ref],
+    settled: &HashSet<String>,
+) -> CoreResult<(HashMap<String, PrFact>, Option<HostKind>)> {
     let Some(found) = host::resolve(core, repo_id, None).await? else {
         return Ok((HashMap::new(), None));
     };
@@ -216,26 +237,35 @@ async fn pr_facts(core: &Core, repo_id: &str, branches: &[&Ref]) -> CoreResult<(
     }
     let mut facts = HashMap::new();
     for branch in branches {
-        // The host lists the newest first.
-        let fact = match prs.iter().find(|pr| !pr.is_fork && pr.source_branch == branch.name) {
-            None if cut_off => PrFact::Unknown,
-            None => PrFact::None,
-            Some(pr) if pr.state != PrState::Merged => PrFact::Open,
-            Some(pr) => {
-                // An unknown head (details fail, object missing locally) counts as commits after it.
-                let contained = match host_cmd::pr_get(core, repo_id.to_string(), pr.number, Some(found.remote.clone())).await {
-                    Ok(details) => {
-                        details.head_sha == branch.sha
-                            || rev::is_ancestor(core, repo_id, &branch.sha, &details.head_sha).await.unwrap_or(false)
-                    }
-                    Err(_) => false,
-                };
-                PrFact::Merged { number: pr.number, commits_after_head: !contained }
-            }
-        };
+        // A branch that tracks another name on the host remote has its PR under that name.
+        let host_prefix = format!("{}/", found.remote);
+        let source = branch.upstream.as_deref().and_then(|u| u.strip_prefix(&host_prefix)).unwrap_or(&branch.name);
+        let mut fact = listed_fact(&prs, source, cut_off, settled.contains(&branch.name));
+        if let PrFact::Merged { number, commits_after_head: true } = fact {
+            // An unknown head (details fail, object missing locally) counts as commits after it.
+            let contained = match host_cmd::pr_get(core, repo_id.to_string(), number, Some(found.remote.clone())).await {
+                Ok(details) => {
+                    details.head_sha == branch.sha || rev::is_ancestor(core, repo_id, &branch.sha, &details.head_sha).await.unwrap_or(false)
+                }
+                Err(_) => false,
+            };
+            fact = PrFact::Merged { number, commits_after_head: !contained };
+        }
         facts.insert(branch.name.clone(), fact);
     }
     Ok((facts, None))
+}
+
+/// What the PR list (newest first) says about `branch`. A merged PR counts as having commits after
+/// its head until the details show otherwise, unless the branch is `settled`. `cut_off`: older PRs
+/// were not read, so no match means unknown.
+fn listed_fact(prs: &[PrSummary], branch: &str, cut_off: bool, settled: bool) -> PrFact {
+    match prs.iter().find(|pr| !pr.is_fork && pr.source_branch == branch) {
+        None if cut_off => PrFact::Unknown,
+        None => PrFact::None,
+        Some(pr) if pr.state != PrState::Merged => PrFact::Open,
+        Some(pr) => PrFact::Merged { number: pr.number, commits_after_head: !settled },
+    }
 }
 
 #[cfg(test)]

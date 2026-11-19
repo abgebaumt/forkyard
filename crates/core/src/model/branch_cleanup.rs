@@ -47,9 +47,12 @@ pub struct BranchCleanupCandidate {
     /// In the fixed order of `BranchCleanupReason`.
     pub reasons: Vec<BranchCleanupReason>,
     pub committed_at: IsoTime,
-    /// Only when the upstream exists (not gone): remote name and branch name there.
+    /// Only when the upstream exists (not gone) and holds no commit beyond this branch and the default
+    /// branch, so deleting it there loses nothing the class doesn't name: remote name, branch name there
+    /// and the tip known here (the lease for the deletion).
     pub upstream_remote: Option<String>,
     pub upstream_branch: Option<String>,
+    pub upstream_sha: Option<Sha>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

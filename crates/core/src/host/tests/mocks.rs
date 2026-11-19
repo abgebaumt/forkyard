@@ -286,6 +286,7 @@ pub(crate) fn github(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
             MockResponse::json(201, created)
         }
         ("GET", ["pulls", _]) if number == 0 || number > 200 => not_found("Not Found"),
+        ("GET", ["pulls", _]) if state.pr_details_fail => MockResponse::json(500, json!({ "message": "Server Error" })),
         ("GET", ["pulls", _]) => MockResponse::json(200, gh_pr(&base, number, &state)),
         ("PATCH", ["pulls", _]) => {
             let body = request.json();

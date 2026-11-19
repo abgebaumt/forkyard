@@ -56,6 +56,49 @@ async fn a_squash_merged_branch_is_recognised_by_its_merged_pull_request() {
 }
 
 #[tokio::test]
+async fn a_merged_pr_of_a_branch_git_calls_merged_reads_no_details() {
+    let fx = Fixture::new(HostKind::Github).await;
+    build(&fx);
+    // PR 40 (merged) of a branch Git already calls merged; PR 20's branch tracks another name.
+    fx.repo.checkout_new("feature/thema-40");
+    fx.repo.commit_file("t40.txt", "x\n", "Thema 40");
+    fx.repo.checkout("main");
+    fx.repo.git(&["merge", "-q", "--no-ff", "--no-edit", "feature/thema-40"]);
+    fx.repo.git(&["update-ref", "refs/remotes/origin/main", "main"]);
+    fx.repo.git(&["branch", "-q", "-m", "feature/thema-20", "lokal-20"]);
+    fx.repo.git(&["update-ref", "refs/remotes/origin/feature/thema-20", "lokal-20"]);
+    fx.repo.git(&["branch", "-q", "--set-upstream-to=origin/feature/thema-20", "lokal-20"]);
+    let tip20 = fx.repo.git(&["rev-parse", "lokal-20"]);
+    fx.state.lock().head_shas = vec![(20, tip20)];
+
+    let list = candidates_at(&fx.tc, &fx.id(), NOW).await.unwrap();
+    let row = |name: &str| list.candidates.iter().find(|c| c.name == name).map(|c| (c.class, c.reasons.clone()));
+    assert_eq!(row("feature/thema-40"), Some((Safe, vec![Merged, PrMerged { number: 40 }])));
+    assert!(fx.sent("GET", "/pulls/40").is_empty(), "merged in Git: the PR's head can't change the class");
+    assert_eq!(row("lokal-20").map(|r| r.0), Some(Safe), "matched by the upstream name on the host remote");
+    assert_eq!(fx.sent("GET", "/pulls/20").len(), 1);
+}
+
+#[tokio::test]
+async fn failing_pr_details_leave_the_branch_for_review() {
+    let fx = Fixture::new(HostKind::Github).await;
+    let (tip20, _) = build(&fx);
+    {
+        let mut state = fx.state.lock();
+        state.head_shas = vec![(20, tip20)];
+        state.pr_details_fail = true;
+    }
+
+    let list = candidates_at(&fx.tc, &fx.id(), NOW).await.unwrap();
+    assert_eq!(list.pr_data_missing, None, "the list itself was read");
+    let thema20 = list.candidates.iter().find(|c| c.name == "feature/thema-20").unwrap();
+    assert_eq!(
+        (thema20.class, thema20.reasons.clone()),
+        (Review, vec![PrMerged { number: 20 }, Unmerged { count: 2 }, Unpushed { count: 2 }])
+    );
+}
+
+#[tokio::test]
 async fn without_the_host_the_list_comes_without_pr_reasons() {
     let fx = Fixture::new(HostKind::Github).await;
     build(&fx);

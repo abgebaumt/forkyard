@@ -41,14 +41,25 @@ export function lostCommits(candidate: BranchCleanupCandidate): number | null {
   return unmerged ? unmerged.count : null;
 }
 
-/** The remote branches the marked branches track (only where the upstream still exists). */
-export function remoteTargets(list: BranchCleanupCandidate[], selection: Set<string>): { remote: string; branch: string; label: string }[] {
+/**
+ * The remote branches the marked branches track (only where the core offers them: the upstream exists
+ * and holds nothing beyond the branch and the default branch); `expected` is the tip that may be deleted.
+ */
+export function remoteTargets(
+  list: BranchCleanupCandidate[],
+  selection: Set<string>,
+): { remote: string; branch: string; expected: string; label: string }[] {
   return list.flatMap((candidate) =>
-    selection.has(candidate.name) && candidate.class !== "blocked" && candidate.upstreamRemote && candidate.upstreamBranch
+    selection.has(candidate.name) &&
+    candidate.class !== "blocked" &&
+    candidate.upstreamRemote &&
+    candidate.upstreamBranch &&
+    candidate.upstreamSha
       ? [
           {
             remote: candidate.upstreamRemote,
             branch: candidate.upstreamBranch,
+            expected: candidate.upstreamSha,
             label: `${candidate.upstreamRemote}/${candidate.upstreamBranch}`,
           },
         ]

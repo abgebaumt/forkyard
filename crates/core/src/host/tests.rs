@@ -50,6 +50,8 @@ pub(crate) struct MockState {
     pub review_bodies: Vec<String>,
     /// Head commit per pull request number instead of the made-up one (GitHub).
     pub head_shas: Vec<(u64, String)>,
+    /// Details of a single pull request fail with 500 while the list works (GitHub).
+    pub pr_details_fail: bool,
 }
 
 pub(crate) struct Fixture {

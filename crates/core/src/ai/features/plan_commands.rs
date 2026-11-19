@@ -435,7 +435,7 @@ pub async fn execute(core: &Core, repo_id: &str, job_id: &str, action: &PlanActi
         }
         PlanAction::BranchDeleteRemote { remote, name } => {
             let label = format!("Deleting “{name}” on {remote}");
-            pushed(&label, sync::branch_delete_remote(core, id, job, remote, name).await?)
+            pushed(&label, sync::branch_delete_remote(core, id, job, remote, name, None).await?)
         }
         PlanAction::TagPush { name, remote } => {
             let label = format!("Tag “{name}”");
