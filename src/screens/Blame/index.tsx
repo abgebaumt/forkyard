@@ -527,8 +527,13 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
         {model && model.blocks.length > 0 ? <Legend model={model} mode={colorMode} onMode={setColorMode} /> : null}
       </header>
       {running ? (
+        // Not live: it changes every ~50 ms; a progressbar is read when reached, not on each step.
         <div
-          aria-live="polite"
+          role="progressbar"
+          aria-label={t("blame.progressLabel")}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progressPercent(progress)}
           data-loading=""
           className="shrink-0 border-b border-border bg-surface px-3 py-1 text-xs text-text-muted tabular-nums"
         >

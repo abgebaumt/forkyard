@@ -122,16 +122,10 @@ async fn chunks_bring_the_text_first_then_spans_and_progress() {
     assert!(covered.iter().all(|&n| n == 1), "every line exactly once");
     assert_eq!(chunks.last().unwrap()["done"], 6000);
 
-    let percents: Vec<u64> = tc
-        .events
-        .named(names::JOB_PROGRESS)
-        .iter()
-        .filter(|p| p["jobId"] == job_id.as_str())
-        .inspect(|p| assert_eq!(p["phase"], PHASE_BLAME))
-        .map(|p| p["percent"].as_u64().unwrap())
-        .collect();
-    assert!(percents.windows(2).all(|w| w[0] <= w[1]), "{percents:?}");
-    assert_eq!(percents.last(), Some(&100));
+    let dones: Vec<u64> = chunks.iter().map(|c| c["done"].as_u64().unwrap()).collect();
+    assert!(dones.windows(2).all(|w| w[0] <= w[1]), "{dones:?}");
+    // Blame jobs stay out of the status bar's job list.
+    assert_eq!(tc.events.count(names::JOB_PROGRESS), 0);
     assert_eq!(tc.events.named(names::JOB_DONE).iter().filter(|d| d["jobId"] == job_id.as_str()).count(), 1);
 }
 
@@ -148,11 +142,7 @@ async fn second_run_comes_from_the_cache_without_git_blame() {
         assert_eq!(second, first);
         assert!(!spawned_blame(&tc), "rev {rev:?}");
         assert_eq!(tc.events.count(names::BLAME_CHUNK), 0);
-        let progress = tc.events.named(names::JOB_PROGRESS);
-        assert_eq!(
-            progress.iter().map(|p| (p["percent"].clone(), p["line"].clone())).collect::<Vec<_>>(),
-            [(Value::from(100), Value::from("2/2"))]
-        );
+        assert_eq!(tc.events.count(names::JOB_PROGRESS), 0);
         assert_eq!(tc.events.named(names::JOB_DONE)[0]["ok"], true);
     }
 }

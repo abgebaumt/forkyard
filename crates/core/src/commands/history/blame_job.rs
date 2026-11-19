@@ -13,8 +13,6 @@ use crate::git::blame::{IncrementalParser, IncrementalSpan};
 use crate::jobs::Job;
 use crate::model::{BlameChunkEvent, BlameSpan};
 
-/// `job:progress` phase of a blame job.
-pub const PHASE_BLAME: &str = "blame";
 /// Number of blame results kept (the least recently used goes first).
 pub const BLAME_CACHE_SIZE: usize = 32;
 /// After the first span, spans are sent at most this often …
@@ -23,7 +21,8 @@ const FLUSH_INTERVAL: Duration = Duration::from_millis(50);
 const FLUSH_LINES: u32 = 5_000;
 
 /// Like `file_blame`, as a job under `job_id`: cancellable (`job_cancel` → `cancelled`, nothing is
-/// cached), with `blame:chunk` and `job:progress` (phase `blame`). Same errors as `file_blame`;
+/// cached), with `blame:chunk` as its progress. No `job:progress`: blame jobs stay out of the
+/// status bar's job list (the Blame view shows its own progress). Same errors as `file_blame`;
 /// the result equals `file_blame`'s lines. A result from the cache sends no `blame:chunk`.
 pub async fn file_blame_job(
     core: &Core,
@@ -78,8 +77,6 @@ async fn blame_job(
     };
     let cache = core.state::<BlameCache>();
     if let Some(lines) = cache.get(&key) {
-        let n = lines.len();
-        job.progress(PHASE_BLAME, Some(100), &format!("{n}/{n}"));
         return Ok(lines.to_vec());
     }
     let bytes = match bytes {
@@ -133,8 +130,6 @@ async fn blame_job(
     };
     // The fallback `file_blame` does not watch the token.
     job.token().check()?;
-    let n = lines.len();
-    job.progress(PHASE_BLAME, Some(100), &format!("{n}/{n}"));
     cache.put(key, Arc::new(lines.clone()));
     Ok(lines)
 }
@@ -195,7 +190,7 @@ impl<'a> Chunks<'a> {
         }
     }
 
-    /// Sends the spans not sent yet, and the progress.
+    /// Sends the spans not sent yet (with the progress).
     fn flush(&mut self) {
         if self.sent == self.spans.len() {
             return;
@@ -205,9 +200,6 @@ impl<'a> Chunks<'a> {
         self.pending_lines = 0;
         self.last_flush = Some(Instant::now());
         self.emit(None, spans);
-        let (done, total) = (self.done, self.total());
-        let percent = if total == 0 { 100 } else { (u64::from(done) * 100 / u64::from(total)) as u32 };
-        self.job.progress(PHASE_BLAME, Some(percent), &format!("{done}/{total}"));
     }
 
     fn emit(&self, text: Option<Vec<String>>, spans: Vec<BlameSpan>) {
@@ -235,6 +227,8 @@ impl<'a> Chunks<'a> {
 
 /// What a blame result depends on: the commit (or `worktree@<HEAD>`), the file's blob and the
 /// encoding (forced / repository default), which changes the decoded text.
+/// shortcut: mailmap and `blame.ignoreRevsFile` config are not part of the key, so a change to
+/// them shows only after the file or commit changes or the app restarts; add them if users notice.
 #[derive(PartialEq, Eq)]
 struct BlameKey {
     repo_id: String,
