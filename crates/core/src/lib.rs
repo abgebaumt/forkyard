@@ -26,6 +26,7 @@ pub mod tools;
 pub mod undo;
 pub mod util;
 pub mod watcher;
+pub mod windowing;
 
 #[cfg(any(test, feature = "testkit"))]
 pub mod testkit;
