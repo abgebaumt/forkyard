@@ -37,8 +37,8 @@ import {
   suggestTitle,
 } from "../../app/actions/pullrequests";
 import { busyKeys } from "../../app/actions/keys";
-import { confirm, hasOpenDialog } from "../../app/dialogs";
-import { hasOpenMenu } from "../../app/menus/host";
+import { confirm } from "../../app/dialogs";
+import { keyBelongsToView } from "../../app/viewFocus";
 import { useHostRepo, usePrTemplate, usePullRequests, useRefs, useRemotes, useStatus } from "../../app/queries";
 import { newJobId } from "../../app/run";
 import { setCenterGuard, useAppStore, useBusy, useTabView, type CenterGuard } from "../../app/store";
@@ -47,7 +47,7 @@ import { Banner, EmptyState } from "../../ui/Feedback";
 import { Checkbox, SegmentedControl, TextArea, TextField } from "../../ui/Field";
 import { Select } from "../../ui/Select";
 import { cn } from "../../ui/cn";
-import { isPlainEscape, ownsKey } from "../FileView/parts";
+import { isPlainEscape } from "../FileView/parts";
 import { SafeMarkdown } from "../PullRequestView/Markdown";
 import { openConnectDialog } from "../Hosts";
 import { t } from "../../i18n";
@@ -407,7 +407,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (!isPlainEscape(event)) return;
-      if (!ownsKey(event, hasOpenDialog() || hasOpenMenu() || Boolean(useAppStore.getState().overlay))) return;
+      if (!keyBelongsToView(event)) return;
       event.preventDefault();
       close();
     };

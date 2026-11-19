@@ -10,21 +10,19 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { FileWarning, History, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import type { Id, ReflogEntry } from "../../core";
-import { hasOpenDialog } from "../../app/dialogs";
 import { describeError } from "../../app/errors";
 import { formatDateTime, formatRelative, shortSha } from "../../app/format";
 import { openMenuAt, reflogMenu } from "../../app/menus";
-import { hasOpenMenu } from "../../app/menus/host";
 import { useRefs, useReflog } from "../../app/queries";
 import { useAppStore } from "../../app/store";
-import { viewMayTakeFocus } from "../../app/viewFocus";
+import { keyBelongsToView, viewMayTakeFocus } from "../../app/viewFocus";
 import { Button } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { EmptyState, Centered } from "../../ui/Feedback";
 import type { MenuEntry } from "../../ui/Menu";
 import { Select } from "../../ui/Select";
 import { goBack } from "../FileView/nav";
-import { BackButton, isPlainEscape, ownsKey } from "../FileView/parts";
+import { BackButton, isPlainEscape } from "../FileView/parts";
 import { actionLabel, entryKey, entryToSelect, refFromValue, refOptions, refValue, resolveSelection, type ReflogSelection } from "./model";
 import { t } from "../../i18n";
 
@@ -82,7 +80,7 @@ export function ReflogView({ repoId, tabId, refName }: ReflogViewProps) {
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (!isPlainEscape(event)) return;
-      if (!ownsKey(event, hasOpenDialog() || hasOpenMenu() || Boolean(useAppStore.getState().overlay))) return;
+      if (!keyBelongsToView(event)) return;
       event.preventDefault();
       goBack(tabId);
     };

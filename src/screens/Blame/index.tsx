@@ -28,12 +28,11 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { FileHistoryEntry, Id, Sha } from "../../core";
-import { hasOpenDialog } from "../../app/dialogs";
 import { featureVisible } from "../../app/ai/visibility";
 import { describeError, toCoreError } from "../../app/errors";
 import { formatDateTime, formatRelative, shortSha } from "../../app/format";
-import { hasOpenMenu, openMenuAt, openMenuAtElement } from "../../app/menus/host";
-import { viewMayTakeFocus } from "../../app/viewFocus";
+import { openMenuAt, openMenuAtElement } from "../../app/menus/host";
+import { keyBelongsToView, viewMayTakeFocus } from "../../app/viewFocus";
 import { useAiStatus, useBlame, useFileHistory, useRepoSettings } from "../../app/queries";
 import { useAppStore } from "../../app/store";
 import { CodeEditor } from "../../components/code";
@@ -45,7 +44,7 @@ import { DropdownMenu, type MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
 import { blameTarget, whyLabel } from "../Archaeology/model";
 import { goBack, showInGraph } from "../FileView/nav";
-import { BackButton, CodeSkeleton, Divider, FileTitle, isPlainEscape, ownsKey } from "../FileView/parts";
+import { BackButton, CodeSkeleton, Divider, FileTitle, isPlainEscape } from "../FileView/parts";
 import "./blame.css";
 import { blameLineMenu } from "./lineMenu";
 import { AGE_STEPS, ageColor, blameGutter, buildModel, initials, type BlameBlock, type BlameColorMode } from "./model";
@@ -336,7 +335,7 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!isPlainEscape(event)) return;
-      if (!ownsKey(event, hasOpenDialog() || hasOpenMenu() || Boolean(useAppStore.getState().overlay))) return;
+      if (!keyBelongsToView(event)) return;
       event.preventDefault();
       // Close the card first, then the view.
       if (cardOpenRef.current) setCardOpen(false);

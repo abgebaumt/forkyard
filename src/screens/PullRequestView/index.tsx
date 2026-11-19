@@ -43,9 +43,8 @@ import {
 import { checkoutPr, closePr, commentOnPr, mergeBlock, prBusyKeys, refreshPullRequests, reopenPr } from "../../app/actions/pullrequests";
 import { busyKeys } from "../../app/actions/keys";
 import { fetchAll } from "../../app/actions/sync";
-import { hasOpenDialog } from "../../app/dialogs";
 import { shortSha } from "../../app/format";
-import { hasOpenMenu } from "../../app/menus/host";
+import { keyBelongsToView } from "../../app/viewFocus";
 import { useHostRepo, usePullRequest } from "../../app/queries";
 import { runAction } from "../../app/run";
 import { useAppStore, useBusy } from "../../app/store";
@@ -55,7 +54,7 @@ import { TextArea } from "../../ui/Field";
 import { Avatar } from "../../ui/Git";
 import { cn } from "../../ui/cn";
 import { t } from "../../i18n";
-import { isPlainEscape, ownsKey } from "../FileView/parts";
+import { isPlainEscape } from "../FileView/parts";
 import { openConnectDialog } from "../Hosts";
 import { PrFiles } from "./Files";
 import { SafeMarkdown } from "./Markdown";
@@ -587,7 +586,7 @@ export function PullRequestView({ repoId, tabId, number }: PullRequestViewProps)
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (!isPlainEscape(event)) return;
-      if (!ownsKey(event, hasOpenDialog() || hasOpenMenu() || Boolean(useAppStore.getState().overlay))) return;
+      if (!keyBelongsToView(event)) return;
       event.preventDefault();
       closeCenter(tabId);
     };

@@ -20,6 +20,7 @@ import { operationNames, showWip } from "../../app/actions/merge";
 import { hasOpenDialog } from "../../app/dialogs";
 import { toCoreError } from "../../app/errors";
 import { useConflict, useSettings, useStatus } from "../../app/queries";
+import { isTextField } from "../../app/viewFocus";
 import { getTabView, useAppStore } from "../../app/store";
 import { preventedByGuard } from "../../app/webviewGuards";
 import { IconButton } from "../../ui/Button";
@@ -38,9 +39,6 @@ export interface ConflictToolProps {
   tabId: Id;
   path: string;
 }
-
-const isTextField = (element: Element | null) =>
-  Boolean(element && (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT"));
 
 function countLines(...texts: (string | null)[]): number {
   let lines = 0;

@@ -16,6 +16,7 @@ import { hasOpenDialog } from "../../app/dialogs";
 import { featureVisible } from "../../app/ai/visibility";
 import { toCoreError } from "../../app/errors";
 import { useAiStatus, useCommitDetails, useDiff, useRepoSettings, useSettings, useStatus } from "../../app/queries";
+import { isTextField } from "../../app/viewFocus";
 import { useAppStore, useBusy } from "../../app/store";
 import { preventedByGuard } from "../../app/webviewGuards";
 import { useLineTokens } from "../../components/code/highlight";
@@ -64,9 +65,6 @@ function focusFileList() {
     target?.focus();
   });
 }
-
-const isTextField = (element: Element | null) =>
-  Boolean(element && (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT"));
 
 /** Slim hint strip above the diff. */
 function Strip({ children, action }: { children: ReactNode; action?: ReactNode }) {
