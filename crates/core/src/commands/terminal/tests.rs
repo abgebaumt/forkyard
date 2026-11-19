@@ -300,3 +300,60 @@ async fn bad_input_is_refused() {
     assert!(!gone.exists());
     assert_eq!(terminal_open(&tc, id, 80, 24).await.unwrap_err().code, ErrorCode::PathNotFound);
 }
+
+// --- Owner window ------------------------------------------------------------
+
+const W: &str = "w-0123456789abcdef0123456789abcdef";
+
+async fn in_w<F: std::future::Future>(label: &str, fut: F) -> F::Output {
+    crate::windowing::scoped(label.to_string(), fut).await
+}
+
+fn add_window(tc: &TestCore) {
+    tc.db
+        .tx(|tx| {
+            let profile_id = crate::db::profiles::active_id(tx)?;
+            crate::db::windows::insert(tx, &profile_id, W, None)
+        })
+        .unwrap();
+}
+
+/// The terminal still runs: it answers.
+async fn answers(tc: &TestCore, terminal: &str) {
+    send(tc, terminal, computed_echo(shell_kind())).await;
+    wait_for_output(tc, terminal, "MARK42END").await;
+    assert!(exit_events(tc, terminal).is_empty());
+}
+
+#[tokio::test]
+async fn closing_a_window_ends_only_its_own_terminals() {
+    let (tc, _repo, id) = setup().await;
+    add_window(&tc);
+    let mine = in_w(W, terminal_open(&tc, id.clone(), 80, 24)).await.unwrap();
+    let other = in_w("main", terminal_open(&tc, id.clone(), 80, 24)).await.unwrap();
+
+    crate::commands::window::window_closed(&tc, W);
+    wait_until("the closed window's terminal ends", || !exit_events(&tc, &mine).is_empty()).await;
+    answers(&tc, &other).await;
+    terminal_close(&tc, other).await.unwrap();
+}
+
+#[tokio::test]
+async fn a_moved_terminal_survives_closing_its_old_window() {
+    use crate::commands::window::{tab_handoff_put, tab_move_to_window, window_closed};
+    let (tc, repo, id) = setup().await;
+    add_window(&tc);
+    let tab = in_w(W, crate::commands::repos::repo_open(&tc, repo.path().to_string_lossy().into_owned())).await.unwrap().tab;
+    let terminal = in_w(W, terminal_open(&tc, id.clone(), 80, 24)).await.unwrap();
+
+    in_w(W, tab_handoff_put(&tc, tab.id.clone(), "{}".into(), vec![terminal.clone()])).await.unwrap();
+    in_w(W, tab_move_to_window(&tc, tab.id.clone(), "main".into(), 0)).await.unwrap();
+    window_closed(&tc, W);
+    answers(&tc, &terminal).await;
+
+    // The adopting window that resizes it owns it from then on as well.
+    add_window(&tc);
+    in_w(W, terminal_resize(&tc, terminal.clone(), 80, 24)).await.unwrap();
+    window_closed(&tc, W);
+    wait_until("the terminal ends with its new owner", || !exit_events(&tc, &terminal).is_empty()).await;
+}

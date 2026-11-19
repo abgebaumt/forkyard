@@ -7,7 +7,7 @@ use parking_lot::Mutex;
 use rusqlite::Connection;
 
 use crate::app::Core;
-use crate::commands::{app, launch, repos};
+use crate::commands::{app, launch, repos, terminal};
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::events::names;
@@ -26,6 +26,9 @@ const DEFAULT_SIZE: (f64, f64) = (1440.0, 900.0);
 /// How far a window torn out without a point sits from its source window.
 const CASCADE: f64 = 30.0;
 
+/// A tab's view state on its way to another window: JSON, the terminals that move along, stored at.
+type Handoff = (String, Vec<String>, Instant);
+
 /// What the core keeps in memory about open windows (by label).
 #[derive(Default)]
 struct Windows {
@@ -33,8 +36,8 @@ struct Windows {
     geometry: Mutex<HashMap<String, WindowGeometry>>,
     /// Tab strips in client coordinates.
     strips: Mutex<HashMap<String, StripReport>>,
-    /// View state of a tab on its way to another window: (JSON, stored at).
-    handoffs: Mutex<HashMap<String, (String, Instant)>>,
+    /// By tab id.
+    handoffs: Mutex<HashMap<String, Handoff>>,
 }
 
 /// Tabs left `window` (closed, moved out, window closed, profile switched). Background work stops
@@ -119,6 +122,8 @@ pub async fn tab_move_to_window(core: &Core, tab_id: String, window: String, pos
         let windows = if emptied { Some(db::windows::list(tx, &profile_id)?) } else { None };
         Ok((db::tabs::list(tx, &profile_id, &source)?, tab, windows))
     })?;
+    // Before the emptied source closes: it would end them.
+    hand_over_terminals(core, &tab_id, &window);
     if let Some(windows) = windows {
         core.events.sync_windows(&windows, false);
     }
@@ -149,22 +154,24 @@ pub async fn tab_move_to_new_window(core: &Core, tab_id: String, at: Option<Scre
         move_tab(tx, &profile_id, &tab, &label, 0)?;
         Ok((tab, db::windows::list(tx, &profile_id)?))
     })?;
+    hand_over_terminals(core, &tab_id, &label);
     core.events.sync_windows(&windows, false);
     tabs_left(core, &source, &[moved]);
     core.emit_app_changed(&[AppChange::Tabs, AppChange::Windows]);
     Ok(label)
 }
 
-/// Keeps a tab's view state for the window it moves to; replaces an earlier one.
-pub async fn tab_handoff_put(core: &Core, tab_id: String, handoff: String) -> CoreResult<()> {
+/// Keeps a tab's view state for the window it moves to; replaces an earlier one. `terminal_ids`: the
+/// running terminals that move along; the move hands them to the target window.
+pub async fn tab_handoff_put(core: &Core, tab_id: String, handoff: String, terminal_ids: Vec<String>) -> CoreResult<()> {
     if handoff.len() > HANDOFF_MAX_BYTES {
         return Err(CoreError::not_allowed("The tab's view state is too large to move along."));
     }
     core.db.with(|c| db::tabs::require(c, &db::profiles::active_id(c)?, &tab_id))?;
     let state = core.state::<Windows>();
     let mut handoffs = state.handoffs.lock();
-    handoffs.retain(|_, (_, at)| at.elapsed() < HANDOFF_TTL);
-    handoffs.insert(tab_id, (handoff, Instant::now()));
+    handoffs.retain(|_, (_, _, at)| at.elapsed() < HANDOFF_TTL);
+    handoffs.insert(tab_id, (handoff, terminal_ids, Instant::now()));
     Ok(())
 }
 
@@ -172,8 +179,14 @@ pub async fn tab_handoff_put(core: &Core, tab_id: String, handoff: String) -> Co
 pub async fn tab_handoff_take(core: &Core, tab_id: String) -> CoreResult<Option<String>> {
     let state = core.state::<Windows>();
     let mut handoffs = state.handoffs.lock();
-    handoffs.retain(|_, (_, at)| at.elapsed() < HANDOFF_TTL);
-    Ok(handoffs.remove(&tab_id).map(|(h, _)| h))
+    handoffs.retain(|_, (_, _, at)| at.elapsed() < HANDOFF_TTL);
+    Ok(handoffs.remove(&tab_id).map(|(h, _, _)| h))
+}
+
+/// The terminals of `tab_id`'s hand-over now belong to `window`.
+fn hand_over_terminals(core: &Core, tab_id: &str, window: &str) {
+    let ids = core.state::<Windows>().handoffs.lock().get(tab_id).map(|(_, ids, _)| ids.clone()).unwrap_or_default();
+    terminal::hand_over(core, &ids, window);
 }
 
 /// The calling window's tab strip (client coordinates); `None` forgets it.
@@ -220,12 +233,16 @@ pub async fn window_layout(core: &Core, frames: Vec<WindowFrameInput>, cursor: O
 /// briefly until they have cleaned up and returns `false`; the window then closes without asking.
 pub async fn window_close(core: &Core) -> CoreResult<bool> {
     let label = calling_window(core);
-    let only = core.db.with(|c| Ok(db::windows::list(c, &db::profiles::active_id(c)?)?.iter().all(|w| w.label == label)))?;
+    let guard = core.state::<app::CloseGuard>();
+    // A window hidden while it closes does not count (as in the binding's `close_requested`).
+    let only = core
+        .db
+        .with(|c| Ok(db::windows::list(c, &db::profiles::active_id(c)?)?.iter().all(|w| w.label == label || guard.closing(&w.label))))?;
     if only {
         app::app_quit(core).await?;
         return Ok(true);
     }
-    core.state::<app::CloseGuard>().set_closing(&label);
+    guard.set_closing(&label);
     // The other windows' "Move to window" menus drop it.
     core.emit_app_changed(&[AppChange::Windows]);
     let cancelled = core.jobs.cancel_from(&label);
@@ -262,19 +279,24 @@ pub fn save_geometry(core: &Core, label: &str) {
     }
 }
 
-/// The window is gone. Unless the app is quitting or it was the last window, its row and tabs go too.
+/// The window is gone. Unless the app is quitting or it was the last window, its row and tabs go too,
+/// and so do the terminals it owns. A window whose closing was confirmed loses its row even while quitting.
 pub fn window_closed(core: &Core, label: &str) {
     core.state::<Windows>().strips.lock().remove(label);
     let guard = core.state::<app::CloseGuard>();
+    let was_closing = guard.closing(label);
     guard.forget(label);
     launch::window_closed(core, label);
-    if guard.quitting() {
+    if guard.quitting() && !was_closing {
         return;
     }
+    terminal::close_owned_by(core, label);
     let closed = core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
         let windows = db::windows::list(tx, &profile_id)?;
-        if windows.len() < 2 || !windows.iter().any(|w| w.label == label) {
+        // Windows hidden while they close do not count: they go too.
+        let staying = windows.iter().filter(|w| w.label == label || !guard.closing(&w.label)).count();
+        if staying < 2 || !windows.iter().any(|w| w.label == label) {
             return Ok(None);
         }
         let tabs = db::tabs::list(tx, &profile_id, label)?;

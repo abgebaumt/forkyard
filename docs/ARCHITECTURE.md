@@ -85,10 +85,17 @@ or outside a scope (spawned tasks, start-up) the most recently focused window. A
 mid-session, `main` included, so code never assumes `main` exists. Events either go to all windows
 (`Core::emit`, e.g. `app:changed`, `repo:changed`, jobs) or to one (`Core::emit_to`, e.g.
 `credential:request`, `app:close_requested`); the UI hears the first with `core.on`, the second with
-`core.onWindow`, which listens under its own label. After a change to the stored windows the core calls
+`core.onWindow`, which listens under its own label. `core.on` is label-scoped as well: it does not see
+events targeted at another window. After a change to the stored windows the core calls
 `sync_windows`, and `src-tauri/src/windows.rs` (`reconcile`) builds, places and destroys the Tauri
 windows to match. Closing is guarded per window (`commands::app::CloseGuard`): closing one window stops
-only the jobs it started, closing the last one quits.
+only the jobs it started, closing the last one quits. A window hidden while it closes counts as gone.
+"Quit Forkyard" (`app_quit`) keeps every window's row for the next start; a window closed on its own
+loses its row and tabs. Jobs have an origin window (`Jobs::cancel_from`); terminals have an owner window,
+set at `terminal_open`, handed to the target by a tab move (`tab_handoff_put` names them) and taken by
+the window that resizes them; closing the owner ends them (`terminal::close_owned_by`). Coding agents'
+terminals have no owner and run until the app quits. A profile switch is refused while another window
+reports something to lose, since the switch destroys those windows without their close guard.
 
 ## Hard rules
 

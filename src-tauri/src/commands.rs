@@ -61,6 +61,7 @@ commands! {
     update_dismiss => update::update_dismiss(version: String, skip: bool) -> UpdateInfo;
     app_startup_report => app::app_startup_report(report: StartupReport) -> ();
     app_close_guard => app::app_close_guard(active: bool) -> ();
+    app_losses_elsewhere => app::app_losses_elsewhere() -> u32;
     app_launch_request => launch::app_launch_request() -> Option<LaunchRequest>;
     repo_trust_get => trust::repo_trust_get(repo_id: String) -> RepoTrust;
     repo_trust_set => trust::repo_trust_set(repo_id: String, trusted: bool) -> RepoTrust;
@@ -81,7 +82,7 @@ commands! {
     window_strip_report => window::window_strip_report(strip: Option<StripReport>) -> ();
     tab_move_to_window => window::tab_move_to_window(tab_id: String, window: String, position: i64) -> Vec<Tab>;
     tab_move_to_new_window => window::tab_move_to_new_window(tab_id: String, at: Option<ScreenPoint>) -> String;
-    tab_handoff_put => window::tab_handoff_put(tab_id: String, handoff: String) -> ();
+    tab_handoff_put => window::tab_handoff_put(tab_id: String, handoff: String, terminal_ids: Vec<String>) -> ();
     tab_handoff_take => window::tab_handoff_take(tab_id: String) -> Option<String>;
     graph_page => graph::graph_page(repo_id: String, cursor: Option<String>, limit: u32) -> GraphPage;
     refs_list => refs::refs_list(repo_id: String) -> RefsSnapshot;

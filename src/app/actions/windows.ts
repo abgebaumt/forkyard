@@ -33,7 +33,8 @@ async function moveOut(tabId: Id, move: () => Promise<unknown>): Promise<boolean
   if (repoId && !(await runAction(t("windows.moveFailed"), () => saveDraftNow(repoId))).ok) return false;
   const handoff = buildHandoff(tabId);
   const result = await runAction(t("windows.moveFailed"), async () => {
-    await core.tabHandoffPut({ tabId, handoff: serializeHandoff(handoff) });
+    const terminalIds = handoff.terminals.map((terminal) => terminal.terminalId);
+    await core.tabHandoffPut({ tabId, handoff: serializeHandoff(handoff), terminalIds });
     return move();
   });
   if (!result.ok) {

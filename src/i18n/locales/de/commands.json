@@ -615,6 +615,9 @@
   "window": {
     "new": {
       "keywords": "Fenster, öffnen, weiteres Fenster"
+    },
+    "quit": {
+      "keywords": "beenden, schließen, app schließen, alle fenster schließen"
     }
   },
   "wip": {

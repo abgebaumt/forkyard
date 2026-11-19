@@ -3,6 +3,7 @@
     "moveToNew": "In neues Fenster verschieben",
     "moveToWindow": "In Fenster verschieben",
     "newWindow": "Neues Fenster",
+    "quit": "Forkyard beenden",
     "windowN": "Fenster {{n}}"
   },
   "moveFailed": "Tab konnte nicht verschoben werden",
