@@ -480,6 +480,8 @@ export interface CoreCommands {
    * with the action `fixup` / `squash`.
    */
   rebasePlan(input: R & { base: string; autosquash?: boolean | null }): Promise<RebasePlan>;
+  /** `from: null` = the branch since the default branch and its upstream; a SHA = from that commit, included. */
+  rebaseBranchPlan(input: R & { from?: Sha | null }): Promise<RebasePlan>;
   /** The local branches `rebaseStart` with `updateRefs` would move along (`branch: null` = the checked-out one). */
   rebaseDependents(input: R & { onto: string; branch: string | null }): Promise<string[]>;
   rebaseApply(input: R & { base: Sha; rows: RebasePlanRow[]; updateRefs?: boolean | null }): Promise<OpResult>;
