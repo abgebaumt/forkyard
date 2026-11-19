@@ -90,13 +90,14 @@ pub(crate) async fn entries(core: &Core, repo_id: &str) -> CoreResult<Vec<Worktr
 }
 
 /// Whether the working directory has changes or untracked files – exactly what makes Git
-/// refuse removal without `--force`.
+/// refuse removal without `--force`. If `git status` fails (broken index, unreadable file), that
+/// counts as changes: nothing may be removed without a backup on a guess.
 async fn has_changes(core: &Core, repo_id: &str, path: &Path) -> bool {
     if !path.is_dir() {
         return false;
     }
     let out = core.git.cmd(path).repo(repo_id).read().args(["status", "--porcelain=v2", "-z", "--untracked-files=normal"]).run_raw().await;
-    matches!(out, Ok(out) if out.success() && !out.stdout.is_empty())
+    !matches!(out, Ok(out) if out.success() && out.stdout.is_empty())
 }
 
 async fn list(core: &Core, repo_id: &str) -> CoreResult<Vec<Worktree>> {
@@ -657,5 +658,25 @@ worktree C:/r/weg\0HEAD 3333333333333333333333333333333333333333\0branch refs/he
         let backup = backups.lines().find(|name| name.ends_with("/worktree")).unwrap_or_else(|| panic!("no backup: {backups:?}"));
         assert_eq!(repo.git(&["show", &format!("{backup}:README.md")]), "geändert");
         assert_eq!(repo.git(&["show", &format!("{backup}:unverfolgt.txt")]), "neu");
+    }
+
+    /// `git status` failing in the worktree (here: a broken index) must not count as "no
+    /// changes": a forced removal either backs up or does not happen.
+    #[tokio::test]
+    async fn forced_removal_never_skips_the_backup_when_status_fails() {
+        let (tc, repo, id) = setup().await;
+        let one = sibling(&repo, "eins");
+        worktree_add(&tc, id.clone(), one.clone(), "b1".into(), true, None).await.unwrap();
+        std::fs::write(Path::new(&one).join("README.md"), "geändert\n").unwrap();
+        let index = repo.path().join(".git/worktrees/eins/index");
+        assert!(index.is_file());
+        std::fs::write(&index, b"kaputt").unwrap();
+
+        let result = worktree_remove(&tc, id.clone(), one.clone(), true).await;
+        let backups = repo.git(&["for-each-ref", "--format=%(refname)", "refs/forkyard/undo/"]);
+        match result {
+            Ok(_) => assert!(backups.lines().any(|name| name.ends_with("/worktree")), "removed without a backup"),
+            Err(_) => assert!(Path::new(&one).join("README.md").exists(), "refused, yet the work is gone"),
+        }
     }
 }
