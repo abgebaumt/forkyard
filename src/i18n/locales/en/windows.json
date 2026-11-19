@@ -3,6 +3,7 @@
     "moveToNew": "Move to new window",
     "moveToWindow": "Move to window",
     "newWindow": "New window",
+    "quit": "Quit Forkyard",
     "windowN": "Window {{n}}"
   },
   "moveFailed": "Couldn't move the tab",

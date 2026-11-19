@@ -192,6 +192,9 @@ these checks stay manual (debug and release build):
 - Linux Wayland: dragging outside opens a new window; the menu moves tabs into other windows.
 - A credential prompt for a push started in window B appears only in B.
 - Closing B with × while its jobs run stops only B's jobs; a push in A continues.
+- Closing B with × while a shell runs in its terminal panel: the shell process is gone (`ps`), a shell
+  in A keeps running.
+- Profile switch while B has unsaved text in the editor: the switch from A is refused and B keeps its text.
 - Release build: "New window" loads the app (not the dev URL).
 - Restart on several monitors restores each window on its monitor; a window whose monitor was
   detached comes back on a connected one.

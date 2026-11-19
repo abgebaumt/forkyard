@@ -33,7 +33,8 @@ export const isLastWindow = (windows: readonly WindowInfo[] | undefined) => (win
 
 const lastWindow = () => isLastWindow(queryClient.getQueryData<WindowInfo[]>(qk.windows));
 
-function losses(): Losses {
+/** `appWide`: the whole app ends (quitting, or the last window closes). */
+function losses(appWide = lastWindow()): Losses {
   const state = useAppStore.getState();
   return {
     files: unsavedFiles().map((file) => file.path),
@@ -41,7 +42,7 @@ function losses(): Losses {
     jobs: Object.values(state.jobs)
       .filter((job) => job.askBeforeQuit)
       .map((job) => job.title),
-    agents: lastWindow() ? state.agentsRunning : 0,
+    agents: appWide ? state.agentsRunning : 0,
   };
 }
 
@@ -74,17 +75,30 @@ let asking = false;
 async function onCloseRequested() {
   // Sign of life: the dialog is about to appear. Without this the next × would close the window.
   void core.appCloseGuard({ active: true }).catch(() => undefined);
+  await leave(false);
+}
+
+/** "Quit Forkyard": asks once for every window, then ends the app; all windows open again at the next start. */
+export const quitApp = () => leave(true);
+
+/** Asks if something would be lost, then closes this window – or with `quit` the whole app. */
+async function leave(quit: boolean) {
   if (asking) return;
   asking = true;
   try {
-    const now = losses();
+    const appWide = quit || lastWindow();
+    const now = losses(appWide);
+    // Only this window knows its losses; of the others the core knows whether they have any.
+    const others = quit ? await core.appLossesElsewhere().catch(() => 0) : 0;
     // Several windows: × closes only this one, the texts say so.
-    const key = (name: string) => `app.closeGuard.${lastWindow() ? name : `${name}Window`}`;
-    if (!anything(now)) {
-      await core.windowClose();
+    const key = (name: string) => `app.closeGuard.${appWide ? name : `${name}Window`}`;
+    const finish = () => (quit ? core.appQuit() : core.windowClose());
+    if (!anything(now) && others === 0) {
+      await finish();
       return;
     }
     const lines: string[] = [];
+    if (others > 0) lines.push(t("app.closeGuard.otherWindows", { count: others }));
     if (now.jobs.length > 0)
       lines.push(
         now.jobs.length === 1
@@ -128,7 +142,7 @@ async function onCloseRequested() {
       });
       if (!ok) return;
     }
-    await core.windowClose();
+    await finish();
   } finally {
     asking = false;
     // Cancelled: the guard stays in effect.

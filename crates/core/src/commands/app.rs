@@ -92,6 +92,11 @@ impl CloseGuard {
         self.quitting.load(Ordering::SeqCst)
     }
 
+    /// How many windows other than `label` report something to lose (windows that are closing do not count).
+    pub fn active_elsewhere(&self, label: &str) -> usize {
+        self.windows.lock().iter().filter(|(other, s)| *other != label && s.active && !s.closing).count()
+    }
+
     pub(crate) fn set_closing(&self, label: &str) {
         self.windows.lock().entry(label.to_string()).or_default().closing = true;
     }
@@ -120,6 +125,12 @@ pub async fn app_close_guard(core: &Core, active: bool) -> CoreResult<()> {
     state.active = active;
     state.asked = None;
     Ok(())
+}
+
+/// How many other windows than the caller have something to lose (for one prompt before quitting).
+pub async fn app_losses_elsewhere(core: &Core) -> CoreResult<u32> {
+    let label = crate::commands::window::calling_window(core);
+    Ok(core.state::<CloseGuard>().active_elsewhere(&label) as u32)
 }
 
 /// Quitting is confirmed (or there is nothing to lose): running actions are cancelled so that no
@@ -189,6 +200,10 @@ mod tests {
         assert!(guard.intercept(W));
         assert!(!guard.intercept("main"));
         assert!(!guard.closing(W) && !guard.quitting());
+        assert_eq!(app_losses_elsewhere(&tc).await.unwrap(), 1, "main sees W's unsaved work");
+        assert_eq!(crate::windowing::scoped(W.into(), app_losses_elsewhere(&tc)).await.unwrap(), 0, "W does not count itself");
+        guard.set_closing(W);
+        assert_eq!(app_losses_elsewhere(&tc).await.unwrap(), 0, "a closing window does not count");
     }
 
     #[tokio::test]

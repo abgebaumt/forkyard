@@ -5,6 +5,7 @@
  */
 import { create } from "zustand";
 import type { CredentialRequest, DiffSource, Id, Sha } from "../core";
+import { t } from "../i18n";
 
 // ---------------------------------------------------------------------------
 // Per-tab types
@@ -418,7 +419,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         const job: Job = current
           ? { ...current, phase, percent, line }
           : // Job the UI did not start itself (e.g. the core's auto-fetch)
-            { id: jobId, title: phase || "Hintergrundaufgabe", repoId, phase, percent, line, startedAt: Date.now() };
+            { id: jobId, title: phase || t("app.run.backgroundJob"), repoId, phase, percent, line, startedAt: Date.now() };
         return { jobs: { ...state.jobs, [jobId]: job } };
       }),
     finishJob: (jobId) =>

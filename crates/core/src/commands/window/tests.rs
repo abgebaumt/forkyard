@@ -234,11 +234,11 @@ async fn a_torn_out_window_takes_the_remembered_size() {
 async fn a_handoff_is_taken_once_and_limited() {
     let tc = TestCore::new().await;
     let t = tabs_list(&tc).await.unwrap().remove(0);
-    tab_handoff_put(&tc, t.id.clone(), "{\"old\":1}".into()).await.unwrap();
-    tab_handoff_put(&tc, t.id.clone(), "{\"view\":1}".into()).await.unwrap();
+    tab_handoff_put(&tc, t.id.clone(), "{\"old\":1}".into(), vec![]).await.unwrap();
+    tab_handoff_put(&tc, t.id.clone(), "{\"view\":1}".into(), vec![]).await.unwrap();
     assert_eq!(tab_handoff_take(&tc, t.id.clone()).await.unwrap().as_deref(), Some("{\"view\":1}"));
     assert_eq!(tab_handoff_take(&tc, t.id.clone()).await.unwrap(), None);
-    let err = tab_handoff_put(&tc, t.id.clone(), "x".repeat(4 * 1024 * 1024 + 1)).await.unwrap_err();
+    let err = tab_handoff_put(&tc, t.id.clone(), "x".repeat(4 * 1024 * 1024 + 1), vec![]).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::NotAllowed);
     assert_eq!(tab_handoff_take(&tc, t.id).await.unwrap(), None);
 }
@@ -500,4 +500,51 @@ async fn a_closing_window_is_no_target() {
     assert_eq!(layout.frames.iter().map(|f| f.label.as_str()).collect::<Vec<_>>(), vec!["main"]);
     assert_eq!(tab_move_to_window(&tc, a.id.clone(), W.into(), 0).await.unwrap_err().code, ErrorCode::NotAllowed);
     assert_eq!(tabs_list(&tc).await.unwrap().iter().map(|t| t.id.as_str()).collect::<Vec<_>>(), vec![a.id.as_str()]);
+}
+
+#[tokio::test]
+async fn switching_profiles_is_refused_while_another_window_has_unsaved_work() {
+    use crate::commands::profiles::{profile_activate, profile_save};
+    let tc = TestCore::new().await;
+    let p1 = profile_id(&tc);
+    tabs_list(&tc).await.unwrap();
+    add_window(&tc);
+    let list = profile_save(&tc, None, "Arbeit".into(), "".into(), "".into(), false, None).await.unwrap();
+    let p2 = list.iter().find(|p| p.id != p1).unwrap().id.clone();
+
+    in_w(W, app_close_guard(&tc, true)).await.unwrap();
+    let err = in_w("main", profile_activate(&tc, p2.clone())).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::NotAllowed);
+    assert_eq!(profile_id(&tc), p1, "still the old profile");
+    assert_eq!(window_labels(&tc), vec!["main", W]);
+
+    // The calling window's own unsaved work is the UI's to ask about.
+    in_w(W, app_close_guard(&tc, false)).await.unwrap();
+    in_w("main", app_close_guard(&tc, true)).await.unwrap();
+    in_w("main", profile_activate(&tc, p2.clone())).await.unwrap();
+    assert_eq!(profile_id(&tc), p2);
+}
+
+#[tokio::test]
+async fn a_window_closing_in_the_background_does_not_count_as_the_one_that_stays() {
+    let tc = TestCore::new().await;
+    tabs_list(&tc).await.unwrap();
+    add_window(&tc);
+    in_w(W, tabs_list(&tc)).await.unwrap();
+    let guard = tc.state::<CloseGuard>();
+
+    // W hides while its jobs stop; then main closes: main is the window to restore, not W.
+    guard.set_closing(W);
+    window_closed(&tc, "main");
+    window_closed(&tc, W);
+    assert_eq!(window_labels(&tc), vec!["main"]);
+
+    // The same while quitting: main closing as the only window counted quits the app.
+    add_window(&tc);
+    in_w(W, tabs_list(&tc)).await.unwrap();
+    guard.set_closing(W);
+    assert!(in_w("main", window_close(&tc)).await.unwrap(), "main counts as the only window");
+    window_closed(&tc, W);
+    window_closed(&tc, "main");
+    assert_eq!(window_labels(&tc), vec!["main"]);
 }

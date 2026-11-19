@@ -55,6 +55,8 @@
     "jobsRunning_one": "{{count}} Aktion läuft noch und wird abgebrochen.",
     "jobsRunning_other": "{{count}} Aktionen laufen noch und werden abgebrochen.",
     "languageWaiting": "Sprache geändert – das Fenster wechselt, sobald nichts mehr ungespeichert ist",
+    "otherWindows_one": "In {{count}} weiteren Fenster steht ungespeicherte Arbeit oder läuft eine Aktion – sie geht mit dem Beenden verloren.",
+    "otherWindows_other": "In {{count}} weiteren Fenstern steht ungespeicherte Arbeit oder läuft eine Aktion – sie geht mit dem Beenden verloren.",
     "quit": "Beenden",
     "quitWindow": "Fenster schließen",
     "save": "Speichern und beenden",
@@ -98,6 +100,7 @@
     "fetchNewsText": "Der Auto-Fetch hat neue Commits oder Branches geholt. Lokal wurde nichts verändert."
   },
   "run": {
+    "backgroundJob": "Hintergrundaufgabe",
     "failed": "{{label}} fehlgeschlagen",
     "outputTitle": "{{label}}: Ausgabe von Git"
   },

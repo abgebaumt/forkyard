@@ -108,10 +108,18 @@ pub async fn profile_delete(core: &Core, id: String) -> CoreResult<Vec<Profile>>
 }
 
 /// Switches the active profile (own tabs and settings); with `sync_gitconfig`
-/// the identity is written into the global gitconfig.
+/// the identity is written into the global gitconfig. Refused (`not_allowed`) while another window
+/// reports something to lose: the switch closes it without asking.
 pub async fn profile_activate(core: &Core, id: String) -> CoreResult<Vec<Profile>> {
+    let caller = crate::commands::window::calling_window(core);
     let (old_tabs, new_repos, windows, profile) = core.db.tx(|tx| {
         let old = db::profiles::active_id(tx)?;
+        // The other windows close without their close guard: their unsaved work would be gone unasked.
+        if old != id && core.state::<crate::commands::app::CloseGuard>().active_elsewhere(&caller) > 0 {
+            return Err(CoreError::not_allowed(
+                "Another window has unsaved work or a running action. Save, finish or close it there first, then switch profiles.",
+            ));
+        }
         crate::commands::window::save_all_geometry(core, tx, &old)?;
         let old_tabs = db::tabs::list_all(tx, &old)?;
         db::profiles::set_active(tx, &id)?;

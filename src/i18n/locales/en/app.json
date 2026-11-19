@@ -55,6 +55,8 @@
     "jobsRunning_one": "{{count}} action is still running and will be cancelled.",
     "jobsRunning_other": "{{count}} actions are still running and will be cancelled.",
     "languageWaiting": "Language changed – the window updates once nothing is unsaved",
+    "otherWindows_one": "{{count}} other window has unsaved work or a running action – it will be lost when you quit.",
+    "otherWindows_other": "{{count}} other windows have unsaved work or a running action – it will be lost when you quit.",
     "quit": "Quit",
     "quitWindow": "Close window",
     "save": "Save and quit",
@@ -98,6 +100,7 @@
     "fetchNewsText": "Auto-fetch brought new commits or branches. Nothing was changed locally."
   },
   "run": {
+    "backgroundJob": "Background task",
     "failed": "{{label}} failed",
     "outputTitle": "{{label}}: Git output"
   },

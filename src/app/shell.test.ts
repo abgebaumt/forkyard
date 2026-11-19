@@ -231,6 +231,7 @@ describe("Command registry", () => {
       "view.zoomOut": "Mod+-",
       "view.zoomReset": "Mod+0",
       "repo.open": "Alt+O",
+      "window.quit": "Mod+Q",
     };
     for (const [id, shortcut] of Object.entries(expected)) expect(byId.get(id)?.shortcut, id).toBe(shortcut);
   });

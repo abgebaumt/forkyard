@@ -615,6 +615,9 @@
   "window": {
     "new": {
       "keywords": "window, open, another window"
+    },
+    "quit": {
+      "keywords": "quit, exit, close app, close all windows"
     }
   },
   "wip": {

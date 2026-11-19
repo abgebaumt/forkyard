@@ -1,7 +1,8 @@
 /**
  * Several windows: tabs move between windows through the tab menu (with their terminal), "New
  * window" from the shortcut and the palette, the same repository in two windows, windows survive a
- * restart, closing the main window keeps the other one, closing the last window quits.
+ * restart, "Quit Forkyard" asks once for every window and keeps them all, closing the main window
+ * keeps the other one, closing the last window quits.
  *
  *   node e2e/features/windows.mjs
  *
@@ -189,6 +190,11 @@ scenario(
     await app.waitFor(async () => (await openTerminals(app)).includes(terminalId), 15_000, {
       message: "terminal adopted by the new window",
     });
+    // The adopted shell still answers in its new window.
+    await app.invoke("terminal_write", { terminalId, data: "echo FY$((40+2))OK\r" });
+    await app.waitFor(() => app.exec((tabId) => window.__gcTerminal.text(tabId)?.includes("FY42OK") ?? false, S.tabId), 15_000, {
+      message: "the adopted shell answers",
+    });
     await t.shot("moved-to-new-window");
     await t.noConsoleErrors(app);
   }),
@@ -343,6 +349,52 @@ scenario(
       (await waitWindows(again, 1)).map((info) => [info.title, info.tabs]),
       [["beta", 1]],
       "the next start opens the remaining window",
+    );
+    await t.noConsoleErrors(again);
+  }),
+);
+
+scenario(
+  "Quit Forkyard asks once for every window, the next start restores them all",
+  "main",
+  withCleanup(async (t) => {
+    const data = makeDataDir();
+    t.cleanup.push(data.cleanup);
+    const { app, S } = await openTwo(t, { dataDir: data.path });
+    const second = await moveToNewWindow(app, S.tabId);
+    // The second window has something to lose (as unsaved text reports it).
+    await switchTo(app, second);
+    await app.exec(() => {
+      void window.__TAURI_INTERNALS__.invoke("app_close_guard", { active: true });
+      return true;
+    });
+    await enter(app, "main");
+    const { pid } = await appPid(data.path);
+    await app.press("Control+q");
+    const dialog = await app.waitFor('[role="dialog"], [role="alertdialog"]', 10_000, { message: "the quit prompt" });
+    assertIncludes(await app.exec((el) => el.innerText, dialog), "1 other window has unsaved work", "the prompt names the other window");
+    // Clicked from the page after the call returns: the app ends before WebDriver could answer a click.
+    const clicked = await app.exec(() => {
+      const button = [...document.querySelectorAll('[role="dialog"] button, [role="alertdialog"] button')].find(
+        (item) => item.innerText.trim() === "Quit",
+      );
+      setTimeout(() => button?.click(), 50);
+      return Boolean(button);
+    });
+    assert(clicked, "the prompt offers Quit");
+    assert(await waitForExit(pid), "the app process ended");
+    assertEqual(readMarker(data.path), null, "a clean quit, no crash marker");
+    t.step("quit from main with a second window open");
+
+    const again = await t.launch({ ...LAUNCH, dataDir: data.path });
+    await waitHandles(again, 2);
+    assertEqual(
+      (await waitWindows(again, 2)).map((info) => [info.label, info.title, info.tabs]),
+      [
+        ["main", "alpha", 1],
+        [second, "beta", 1],
+      ],
+      "both windows with their tabs",
     );
     await t.noConsoleErrors(again);
   }),

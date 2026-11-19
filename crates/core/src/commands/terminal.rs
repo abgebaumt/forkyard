@@ -72,6 +72,9 @@ struct Session {
     tree: Option<tree::ProcessTree>,
     info: Mutex<TerminalInfo>,
     observer: Option<Arc<dyn TerminalObserver>>,
+    /// The window whose tab shows the terminal; it ends with that window (`close_owned_by`).
+    /// `None` for coding agents, which run until the app quits.
+    owner: Mutex<Option<String>>,
 }
 
 /// What the reader has read and the sender has not sent yet.
@@ -328,8 +331,9 @@ pub async fn terminal_open(core: &Core, repo_id: String, cols: u16, rows: u16) -
     if state.sessions.lock().len() >= MAX_TERMINALS {
         return Err(too_many());
     }
+    let owner = crate::commands::window::calling_window(core);
     let core = core.clone();
-    tokio::task::spawn_blocking(move || open_blocking(&core, &root, cols, rows))
+    tokio::task::spawn_blocking(move || open_blocking(&core, &root, cols, rows, owner))
         .await
         .map_err(|e| CoreError::io(format!("The terminal could not be started: {e}")))?
 }
@@ -359,7 +363,7 @@ pub async fn terminal_open_program(
     }
     registered_worktree(core, repo_id, &launch.cwd).await?;
     let core = core.clone();
-    tokio::task::spawn_blocking(move || open_program_blocking(&core, launch, cols, rows, observer))
+    tokio::task::spawn_blocking(move || open_program_blocking(&core, launch, cols, rows, observer, None))
         .await
         .map_err(|e| CoreError::io(format!("The terminal could not be started: {e}")))?
 }
@@ -409,8 +413,9 @@ pub async fn terminal_open_login(core: &Core, repo_id: &str, mut launch: Program
     let _ = std::fs::remove_dir_all(&cwd);
     std::fs::create_dir_all(&cwd).map_err(|e| CoreError::io(format!("The folder for signing in could not be created: {e}")))?;
     launch.cwd = cwd;
+    let owner = crate::commands::window::calling_window(core);
     let core = core.clone();
-    tokio::task::spawn_blocking(move || open_program_blocking(&core, launch, cols, rows, None))
+    tokio::task::spawn_blocking(move || open_program_blocking(&core, launch, cols, rows, None, Some(owner)))
         .await
         .map_err(|e| CoreError::io(format!("The terminal could not be started: {e}")))?
 }
@@ -442,7 +447,7 @@ fn restore_ctrl_c() {
 #[cfg(not(windows))]
 fn restore_ctrl_c() {}
 
-fn open_blocking(core: &Core, root: &Path, cols: u16, rows: u16) -> CoreResult<String> {
+fn open_blocking(core: &Core, root: &Path, cols: u16, rows: u16, owner: String) -> CoreResult<String> {
     let env_shell = std::env::var("SHELL").ok();
     let (shell, args) = default_shell(env_shell.as_deref(), &program_exists);
     let program = which::which(&shell).map_err(|_| CoreError::not_found(format!("The shell “{shell}” was not found.")))?;
@@ -451,7 +456,8 @@ fn open_blocking(core: &Core, root: &Path, cols: u16, rows: u16) -> CoreResult<S
     command.args(&args);
     command.cwd(root.as_os_str());
     let info = TerminalInfo { title: shell.clone(), program: false, cwd: root.to_path_buf(), last_screen_change: None, last_signal: None };
-    spawn_session(core, command, &format!("The shell “{shell}” could not be started"), clamp_size(cols, rows), info, None)
+    let failure = format!("The shell “{shell}” could not be started");
+    spawn_session(core, command, &failure, clamp_size(cols, rows), info, None, Some(owner))
 }
 
 fn open_program_blocking(
@@ -460,6 +466,7 @@ fn open_program_blocking(
     cols: u16,
     rows: u16,
     observer: Option<Arc<dyn TerminalObserver>>,
+    owner: Option<String>,
 ) -> CoreResult<String> {
     let mut command = CommandBuilder::new(launch.program.as_os_str());
     command.args(&launch.args);
@@ -470,7 +477,7 @@ fn open_program_blocking(
     let name = launch.program.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
     let info =
         TerminalInfo { title: launch.title.clone(), program: true, cwd: launch.cwd.clone(), last_screen_change: None, last_signal: None };
-    spawn_session(core, command, &format!("“{name}” could not be started"), clamp_size(cols, rows), info, observer)
+    spawn_session(core, command, &format!("“{name}” could not be started"), clamp_size(cols, rows), info, observer, owner)
 }
 
 /// Starts `command` on a new pseudo-terminal, registers the session and starts its three threads.
@@ -481,6 +488,7 @@ fn spawn_session(
     size: PtySize,
     info: TerminalInfo,
     observer: Option<Arc<dyn TerminalObserver>>,
+    owner: Option<String>,
 ) -> CoreResult<String> {
     let pair = native_pty_system().openpty(size).map_err(|e| pty_error("The pseudo terminal could not be created", e))?;
     command.env("TERM", "xterm-256color");
@@ -512,6 +520,7 @@ fn spawn_session(
         tree,
         info: Mutex::new(info),
         observer: observer.clone(),
+        owner: Mutex::new(owner),
     });
     core.state::<TerminalState>().sessions.lock().insert(id.clone(), session.clone());
 
@@ -733,8 +742,12 @@ pub async fn terminal_write(core: &Core, terminal_id: String, data: String) -> C
 }
 
 /// New size in characters (clamped to 2 to 1000).
+/// A window that resizes a terminal shows it: a window adopting a moved terminal becomes its owner.
 pub async fn terminal_resize(core: &Core, terminal_id: String, cols: u16, rows: u16) -> CoreResult<()> {
     let session = session(core, &terminal_id)?;
+    if let Some(window) = crate::windowing::caller() {
+        session.claim(window);
+    }
     let master = session.master.lock();
     let Some(master) = master.as_ref() else {
         return Err(CoreError::not_found("This terminal has exited."));
@@ -750,6 +763,39 @@ pub async fn terminal_close(core: &Core, terminal_id: String) -> CoreResult<()> 
     tokio::task::spawn_blocking(move || session.kill_tree())
         .await
         .map_err(|e| CoreError::io(format!("Closing the terminal was aborted: {e}")))
+}
+
+impl Session {
+    /// Moves an owned terminal to `window`; an agent's terminal stays without an owner.
+    fn claim(&self, window: String) {
+        if let Some(owner) = self.owner.lock().as_mut() {
+            *owner = window;
+        }
+    }
+}
+
+/// The terminals `ids` move with their tab into `window` (before the source window may close).
+pub(crate) fn hand_over(core: &Core, ids: &[String], window: &str) {
+    let state = core.state::<TerminalState>();
+    let sessions = state.sessions.lock();
+    for session in ids.iter().filter_map(|id| sessions.get(id)) {
+        session.claim(window.to_string());
+    }
+}
+
+/// Ends the terminals the closed window `window` owned, along with their child processes.
+pub(crate) fn close_owned_by(core: &Core, window: &str) {
+    let sessions: Vec<Arc<Session>> = core
+        .state::<TerminalState>()
+        .sessions
+        .lock()
+        .values()
+        .filter(|session| session.owner.lock().as_deref() == Some(window))
+        .cloned()
+        .collect();
+    for session in sessions {
+        session.kill_tree();
+    }
 }
 
 /// Closes all terminals (when the app quits).

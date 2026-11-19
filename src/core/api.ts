@@ -206,6 +206,8 @@ export interface CoreCommands {
    * counts as a sign of life in response to such a request.
    */
   appCloseGuard(input: { active: boolean }): Promise<void>;
+  /** How many other windows report something to lose (`appCloseGuard`); asked once before quitting. */
+  appLossesElsewhere(): Promise<number>;
   /**
    * The UI's startup milestones (once per run, later calls are ignored): logged as one
    * `Startup (UI): …` line, with the slowest core calls of the start.
@@ -269,8 +271,11 @@ export interface CoreCommands {
   tabMoveToWindow(input: { tabId: Id; window: string; position: number }): Promise<Tab[]>;
   /** Tears a tab out into a new window at `at` (screen, logical; null: next to this window); returns its label. */
   tabMoveToNewWindow(input: { tabId: Id; at: ScreenPoint | null }): Promise<string>;
-  /** Keeps a tab's view state (JSON, at most 4 MB) for the window it moves to. */
-  tabHandoffPut(input: { tabId: Id; handoff: string }): Promise<void>;
+  /**
+   * Keeps a tab's view state (JSON, at most 4 MB) for the window it moves to. `terminalIds`: the running
+   * terminals that move along; the move makes the target window their owner (they end with their owner).
+   */
+  tabHandoffPut(input: { tabId: Id; handoff: string; terminalIds: Id[] }): Promise<void>;
   /** The view state left for this tab, once; null when there is none. */
   tabHandoffTake(input: { tabId: Id }): Promise<string | null>;
 
