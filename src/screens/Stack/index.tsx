@@ -26,7 +26,7 @@ import { useAppStore } from "../../app/store";
 import { viewMayTakeFocus } from "../../app/viewFocus";
 import { Button } from "../../ui/Button";
 import { TextField } from "../../ui/Field";
-import { EmptyState, toast } from "../../ui/Feedback";
+import { EmptyState, toast, Centered } from "../../ui/Feedback";
 import { Select } from "../../ui/Select";
 import { cn } from "../../ui/cn";
 import { goBack } from "../FileView/nav";
@@ -142,10 +142,6 @@ export function StackView({ repoId, tabId, branch }: StackViewProps) {
       {body}
     </section>
   );
-}
-
-function Centered({ children }: { children: ReactNode }) {
-  return <div className="flex min-h-0 flex-1 items-center justify-center bg-surface-sunken">{children}</div>;
 }
 
 function CheckLine({ state, result }: { state: StackCheckState | "running"; result?: StackCheckResult }) {

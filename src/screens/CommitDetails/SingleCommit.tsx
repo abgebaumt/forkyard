@@ -18,7 +18,8 @@ import { FilesSection } from "./FilesSection";
 import { MessageEditor } from "./MessageEditor";
 import { Trans } from "react-i18next";
 import { t } from "../../i18n";
-import { CopyButton, DateText, errorParts, HeaderSkeleton, PanelBar, PanelError, PersonRow, ShaLink, ShaText, SkeletonRows } from "./parts";
+import { CopyButton, DateText, errorParts, HeaderSkeleton, PanelBar, PanelError, PersonRow, ShaLink, ShaText } from "./parts";
+import { SkeletonRows } from "../../ui/Feedback";
 
 /** After saving a message: the “Edit message” button of the new commit gets the focus back. */
 let refocusEditFor: Sha | null = null;

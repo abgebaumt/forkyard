@@ -90,7 +90,6 @@
     "showInGraph": "Im Graphen zeigen"
   },
   "saveView": "Ansicht speichern",
-  "retry": "Erneut versuchen",
   "renamed": "Branch heißt jetzt „{{name}}“",
   "dropBranch": "Branch ablegen",
   "stashesFailed": "Stashes lassen sich nicht laden",

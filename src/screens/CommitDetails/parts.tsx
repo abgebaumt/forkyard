@@ -21,22 +21,6 @@ export function Skeleton({ className }: { className?: string }) {
   return <span aria-hidden className={cn("block animate-pulse rounded-sm bg-surface-raised", className)} />;
 }
 
-const rowWidths = ["w-2/3", "w-1/2", "w-3/4", "w-2/5", "w-3/5", "w-1/2"];
-
-/** Placeholder rows for a list that is loading. */
-export function SkeletonRows({ count = 6, label = t("commitDetails.loading") }: { count?: number; label?: string }) {
-  return (
-    <div role="status" aria-label={label} className="flex flex-col">
-      {Array.from({ length: count }, (_, index) => (
-        <div key={index} className="flex h-row items-center gap-2 px-3">
-          <Skeleton className="size-3 shrink-0" />
-          <Skeleton className={cn("h-3", rowWidths[index % rowWidths.length])} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /** Placeholder for the header of a commit (summary, author, SHA). */
 export function HeaderSkeleton({ label }: { label: string }) {
   return (

@@ -12,6 +12,7 @@ import { Tip } from "../../ui/Tooltip";
 import { t } from "../../i18n";
 import { Trans } from "react-i18next";
 import { splitPath } from "../../app/paths";
+import { Notice } from "../../ui/Feedback";
 
 export function Divider() {
   return <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-border" />;
@@ -99,36 +100,6 @@ export function Strip({
       ) : null}
       <span className="min-w-0 flex-1">{children}</span>
       {action}
-    </div>
-  );
-}
-
-/** Centred hint for the whole area (error, no longer in conflict). */
-export function Notice({
-  icon,
-  title,
-  children,
-  action,
-  tone = "muted",
-  id,
-}: {
-  icon: ReactNode;
-  title: string;
-  children?: ReactNode;
-  action?: ReactNode;
-  tone?: "muted" | "danger";
-  id?: string;
-}) {
-  return (
-    <div
-      data-notice={id}
-      role={tone === "danger" ? "alert" : "status"}
-      className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-auto bg-surface-sunken px-6 py-8 text-center"
-    >
-      <span className={tone === "danger" ? "text-danger" : "text-text-muted"}>{icon}</span>
-      <p className="max-w-full text-md font-medium text-text">{title}</p>
-      {children ? <div className="selectable max-w-md text-base text-text-muted">{children}</div> : null}
-      {action ? <div className="mt-2 flex flex-wrap justify-center gap-2">{action}</div> : null}
     </div>
   );
 }

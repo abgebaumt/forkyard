@@ -8,8 +8,7 @@
     "layoutTree": "Baum"
   },
   "sideSection": {
-    "noActions": "Keine Aktionen verfügbar",
-    "retry": "Erneut versuchen"
+    "noActions": "Keine Aktionen verfügbar"
   },
   "code": {
     "controlCharacter": "Steuerzeichen",

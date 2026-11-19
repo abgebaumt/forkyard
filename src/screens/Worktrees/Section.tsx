@@ -34,16 +34,7 @@ import {
 } from "../../app/actions/worktrees";
 import { qk, queryClient, useAgents, useViewState, useWorktrees } from "../../app/queries";
 import { useAppStore, useBusy } from "../../app/store";
-import {
-  Marked,
-  MENU_SEPARATOR,
-  menuItem,
-  SideEmpty,
-  SideLoadError,
-  SideSection,
-  SideSkeleton,
-  type SideRowState,
-} from "../../components/SideSection";
+import { Marked, MENU_SEPARATOR, menuItem, SideEmpty, SideSection, SideSkeleton, type SideRowState } from "../../components/SideSection";
 import { Button, IconButton } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { TreeRow } from "../../ui/Git";
@@ -53,6 +44,7 @@ import { t } from "../../i18n";
 import { EMPTY_VIEW, sectionState, setSection } from "../LeftPanel/viewState";
 import { askLockReason, openWorktreeDialog } from "./Dialog";
 import { describeWorktree, matchesWorktree, sortWorktrees, splitFolderName, worktreeSecondary, worktreeTipLines } from "./model";
+import { LoadError } from "../../ui/Feedback";
 
 export interface WorktreesSectionProps {
   repoId: Id;
@@ -266,9 +258,7 @@ export function WorktreesSection({ repoId, tabId, query }: WorktreesSectionProps
   let placeholder: ReactNode;
   if (worktrees.isPending) placeholder = <SideSkeleton rows={1} />;
   else if (worktrees.isError && !worktrees.data)
-    placeholder = (
-      <SideLoadError title={t("worktrees.section.loadError")} error={worktrees.error} onRetry={() => void worktrees.refetch()} />
-    );
+    placeholder = <LoadError title={t("worktrees.section.loadError")} error={worktrees.error} onRetry={() => void worktrees.refetch()} />;
   else if (all.length === 0) {
     placeholder = (
       <SideEmpty

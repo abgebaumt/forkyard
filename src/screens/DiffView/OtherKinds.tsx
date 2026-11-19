@@ -11,42 +11,13 @@ import { Button } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { locale, t } from "../../i18n";
 import { Trans } from "react-i18next";
+import { Notice } from "../../ui/Feedback";
 
 type BinaryDiff = Extract<FileDiff, { kind: "binary" }>;
 type LfsDiff = Extract<FileDiff, { kind: "lfs" }>;
 type TooLargeDiff = Extract<FileDiff, { kind: "too_large" }>;
 
 const size = (bytes: number | null) => (bytes === null ? "–" : formatBytes(bytes));
-
-/** Calm hint in the middle: icon, one sentence, one explanatory sentence, at most one action. */
-export function Notice({
-  icon,
-  title,
-  children,
-  action,
-  tone = "muted",
-  id,
-}: {
-  icon: ReactNode;
-  title: string;
-  children?: ReactNode;
-  action?: ReactNode;
-  tone?: "muted" | "danger";
-  id?: string;
-}) {
-  return (
-    <div
-      data-notice={id}
-      role={tone === "danger" ? "alert" : "status"}
-      className="flex h-full min-h-0 flex-col items-center justify-center gap-2 overflow-auto bg-surface-sunken px-6 py-8 text-center"
-    >
-      <span className={tone === "danger" ? "text-danger" : "text-text-muted"}>{icon}</span>
-      <p className="max-w-full text-md font-medium text-text">{title}</p>
-      {children ? <div className="selectable max-w-md text-base text-text-muted">{children}</div> : null}
-      {action ? <div className="mt-2 flex flex-wrap justify-center gap-2">{action}</div> : null}
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Binary, LFS, too large

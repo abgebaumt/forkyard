@@ -11,7 +11,8 @@ import { Button } from "../../ui/Button";
 import { Tip } from "../../ui/Tooltip";
 import { FilesSection } from "./FilesSection";
 import { t } from "../../i18n";
-import { DateText, errorParts, HeaderSkeleton, PanelBar, PanelError, ShaLink, SkeletonRows } from "./parts";
+import { DateText, errorParts, HeaderSkeleton, PanelBar, PanelError, ShaLink } from "./parts";
+import { SkeletonRows } from "../../ui/Feedback";
 
 export interface StashDetailsProps {
   repoId: Id;

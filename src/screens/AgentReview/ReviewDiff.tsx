@@ -14,8 +14,9 @@ import { t } from "../../i18n";
 import "../DiffView/diff.css";
 import { LineView } from "../DiffView/LineView";
 import { WordDiffCache, buildHunkRows } from "../DiffView/model";
-import { BinaryDiffView, DiffError, DiffSkeleton, LfsDiffView, Notice, TooLargeView } from "../DiffView/OtherKinds";
+import { BinaryDiffView, DiffError, DiffSkeleton, LfsDiffView, TooLargeView } from "../DiffView/OtherKinds";
 import { keysOf, type FilePick } from "./model";
+import { Notice } from "../../ui/Feedback";
 
 export interface ReviewDiffProps {
   repoId: Id;

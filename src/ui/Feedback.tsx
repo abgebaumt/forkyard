@@ -1,8 +1,10 @@
 import { useSyncExternalStore, type ReactNode } from "react";
-import { AlertTriangle, CheckCircle2, Info, OctagonAlert, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, OctagonAlert, RefreshCw, TriangleAlert, X } from "lucide-react";
 import { Toast as RadixToast } from "radix-ui";
 import { cn } from "./cn";
 import { t } from "../i18n";
+import { describeError } from "../app/errors";
+import { Button } from "./Button";
 
 export type Tone = "info" | "success" | "warning" | "danger";
 
@@ -209,6 +211,91 @@ export function EmptyState({ icon, title, children, action }: EmptyStateProps) {
       <p className="text-md font-medium text-text">{title}</p>
       {children ? <p className="max-w-72 text-base text-text-muted">{children}</p> : null}
       {action ? <div className="mt-2">{action}</div> : null}
+    </div>
+  );
+}
+
+/** Fills the rest of a flex column and centres its content (loading, empty, error). */
+export function Centered({ children, ...rest }: { children: ReactNode } & Record<`data-${string}`, string>) {
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center bg-surface-sunken" {...rest}>
+      {children}
+    </div>
+  );
+}
+
+/** Calm hint for a whole area: icon, one sentence, one explanatory sentence, at most one action. */
+export function Notice({
+  icon,
+  title,
+  children,
+  action,
+  tone = "muted",
+  id,
+}: {
+  icon: ReactNode;
+  title: string;
+  children?: ReactNode;
+  action?: ReactNode;
+  tone?: "muted" | "danger";
+  id?: string;
+}) {
+  return (
+    <div
+      data-notice={id}
+      role={tone === "danger" ? "alert" : "status"}
+      className="flex h-full min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-auto bg-surface-sunken px-6 py-8 text-center"
+    >
+      <span className={tone === "danger" ? "text-danger" : "text-text-muted"}>{icon}</span>
+      <p className="max-w-full text-md font-medium text-text">{title}</p>
+      {children ? <div className="selectable max-w-md text-base text-text-muted">{children}</div> : null}
+      {action ? <div className="mt-2 flex flex-wrap justify-center gap-2">{action}</div> : null}
+    </div>
+  );
+}
+
+/** A list or section could not be loaded: the sentence, the core's reason and "Try again". */
+export function LoadError({
+  title,
+  error,
+  onRetry,
+  className,
+}: {
+  title: string;
+  error: unknown;
+  onRetry: () => void;
+  className?: string;
+}) {
+  const { text, hint } = describeError(error);
+  return (
+    <div role="alert" className={cn("flex flex-col items-start gap-2 px-2 py-2 text-sm", className)} data-load-error>
+      <p className="flex items-start gap-1.5 font-medium text-text">
+        <TriangleAlert className="mt-px size-3.5 shrink-0 text-danger" aria-hidden />
+        {title}
+      </p>
+      <p className="selectable break-words text-text-muted">
+        {text}
+        {hint ? ` ${hint}` : ""}
+      </p>
+      <Button size="sm" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={onRetry}>
+        {t("ui.retry")}
+      </Button>
+    </div>
+  );
+}
+
+const skeletonWidths = ["w-2/3", "w-1/2", "w-3/4", "w-2/5", "w-3/5", "w-1/2"];
+
+/** Placeholder rows (row height) for a list that is loading. Without `label` it is hidden from screen readers. */
+export function SkeletonRows({ count = 6, label }: { count?: number; label?: string }) {
+  return (
+    <div {...(label ? { role: "status", "aria-label": label } : { "aria-hidden": true })} className="flex flex-col" data-skeleton="">
+      {Array.from({ length: count }, (_, index) => (
+        <div key={index} className="flex h-row items-center gap-2 px-3">
+          <span className="block size-3 shrink-0 animate-pulse rounded-sm bg-surface-raised" />
+          <span className={cn("block h-3 animate-pulse rounded-sm bg-surface-raised", skeletonWidths[index % skeletonWidths.length])} />
+        </div>
+      ))}
     </div>
   );
 }

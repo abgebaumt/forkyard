@@ -32,19 +32,10 @@ import {
 } from "../../app/actions/submodules";
 import { qk, queryClient, useSubmodules, useViewState } from "../../app/queries";
 import { useAppStore, useBusy } from "../../app/store";
-import {
-  Marked,
-  MENU_SEPARATOR,
-  menuItem,
-  SideEmpty,
-  SideLoadError,
-  SideSection,
-  SideSkeleton,
-  type SideRowState,
-} from "../../components/SideSection";
+import { Marked, MENU_SEPARATOR, menuItem, SideEmpty, SideSection, SideSkeleton, type SideRowState } from "../../components/SideSection";
 import { Button, IconButton } from "../../ui/Button";
 import { cn } from "../../ui/cn";
-import { toast } from "../../ui/Feedback";
+import { toast, LoadError } from "../../ui/Feedback";
 import { TreeRow } from "../../ui/Git";
 import type { MenuEntry } from "../../ui/Menu";
 import { t } from "../../i18n";
@@ -256,7 +247,7 @@ export function SubmodulesSection({ repoId, query }: SubmodulesSectionProps) {
   if (submodules.isPending) placeholder = <SideSkeleton rows={1} />;
   else if (submodules.isError && !submodules.data)
     placeholder = (
-      <SideLoadError title={t("submodules.section.loadError")} error={submodules.error} onRetry={() => void submodules.refetch()} />
+      <LoadError title={t("submodules.section.loadError")} error={submodules.error} onRetry={() => void submodules.refetch()} />
     );
   else if (all.length === 0) {
     placeholder = (

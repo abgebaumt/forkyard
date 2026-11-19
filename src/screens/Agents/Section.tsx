@@ -3,7 +3,7 @@ import { Bot, LayoutList, Plus } from "lucide-react";
 import type { Id } from "../../core";
 import { useAgents, useViewState } from "../../app/queries";
 import { useAppStore } from "../../app/store";
-import { MENU_SEPARATOR, menuItem, SideEmpty, SideLoadError, SideSection, SideSkeleton } from "../../components/SideSection";
+import { MENU_SEPARATOR, menuItem, SideEmpty, SideSection, SideSkeleton } from "../../components/SideSection";
 import { IconButton, Button } from "../../ui/Button";
 import { TreeRow } from "../../ui/Git";
 import { t } from "../../i18n";
@@ -13,6 +13,7 @@ import { startNewAgent } from "./Cockpit";
 import { displayName, formatRuntime, sortAgents, statusLabel } from "./model";
 import { StatusDot } from "./parts";
 import { agentMenu, runAgentAction, useActionOptions } from "./rowActions";
+import { LoadError } from "../../ui/Feedback";
 
 export function AgentsSection({ repoId, tabId, query }: { repoId: Id; tabId: Id; query: string }) {
   const agents = useAgents(repoId);
@@ -34,7 +35,7 @@ export function AgentsSection({ repoId, tabId, query }: { repoId: Id; tabId: Id;
   const placeholder = agents.isPending ? (
     <SideSkeleton rows={1} />
   ) : agents.isError && !agents.data ? (
-    <SideLoadError title={t("agents.section.loadError")} error={agents.error} onRetry={() => void agents.refetch()} />
+    <LoadError title={t("agents.section.loadError")} error={agents.error} onRetry={() => void agents.refetch()} />
   ) : all.length === 0 ? (
     <SideEmpty
       action={
