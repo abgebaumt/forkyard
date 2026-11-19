@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ChevronRight, FolderOpen, Globe, HardDrive, KeyRound } from "lucide-react";
 import { Collapsible } from "radix-ui";
-import { core, type CloneOptions, type CoreError, type ErrorCode } from "../../core";
+import { core, type CoreError, type ErrorCode } from "../../core";
 import { showOutput } from "../../app/dialogs";
 import { errorInfo } from "../../app/errors";
 import { useRepos } from "../../app/queries";
@@ -11,17 +11,20 @@ import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
 import { Banner } from "../../ui/Feedback";
 import { Checkbox, SegmentedControl, TextArea, TextField } from "../../ui/Field";
-import {
-  branchNameError,
-  folderNameError,
-  isAbsolutePath,
-  joinPath,
-  parentOf,
-  pathKey,
-  rememberParent,
-  rememberedParent,
-} from "../../app/osPaths";
+import { joinPath, parentOf, pathKey, rememberParent, rememberedParent } from "../../app/osPaths";
 import { WrappingPath } from "./PathText";
+import {
+  CLONE_ERRORS,
+  advancedSummary,
+  cloneOptions,
+  failureField,
+  fieldErrors,
+  firstBadField,
+  isAdvancedField,
+  phaseLabel,
+  type CloneForm,
+  type FieldName,
+} from "./model";
 import { describeUrl, parseCloneUrl, type ParsedUrl } from "./url";
 import { t } from "../../i18n";
 
@@ -29,49 +32,12 @@ export interface CloneDialogProps {
   onClose: () => void;
 }
 
-type FieldName = "url" | "parent" | "name" | "depth" | "since" | "branch" | "sparse";
-
 const ALL_CODES = Object.keys(errorInfo) as ErrorCode[];
-
-/** What can go wrong while cloning – in our own words, with the next step. */
-const CLONE_ERRORS: Partial<Record<ErrorCode, { title: string; hint: string; field?: FieldName }>> = {
-  auth_failed: { title: t("clone.errors.authFailed.title"), hint: t("clone.errors.authFailed.hint") },
-  offline: { title: t("clone.errors.offline.title"), hint: t("clone.errors.offline.hint") },
-  not_found: { title: t("clone.errors.notFound.title"), hint: t("clone.errors.notFound.hint"), field: "url" },
-  path_exists: { title: t("clone.errors.pathExists.title"), hint: t("clone.errors.pathExists.hint"), field: "name" },
-  path_not_found: { title: t("clone.errors.pathNotFound.title"), hint: t("clone.errors.pathNotFound.hint"), field: "parent" },
-  host_key_unknown: { title: t("clone.errors.hostKeyUnknown.title"), hint: t("clone.errors.hostKeyUnknown.hint") },
-  timeout: { title: t("clone.errors.timeout.title"), hint: t("clone.errors.timeout.hint") },
-  invalid_name: { title: t("clone.errors.invalidName"), hint: "", field: "name" },
-  not_allowed: { title: t("clone.errors.notAllowed"), hint: "" },
-};
 
 const BRANCH_MISSING = {
   title: t("clone.errors.branchMissing.title"),
   hint: t("clone.errors.branchMissing.hint"),
 };
-
-/** Phases as Git reports them → our own words. */
-function phaseLabel(phase: string): string {
-  const key = phase.toLowerCase();
-  if (key.startsWith("enumerating") || key.startsWith("counting")) return t("clone.phase.enumerating");
-  if (key.startsWith("compressing")) return t("clone.phase.compressing");
-  if (key.startsWith("receiving")) return t("clone.phase.receiving");
-  if (key.startsWith("resolving")) return t("clone.phase.resolving");
-  if (key.startsWith("updating files") || key.startsWith("checking out")) return t("clone.phase.checkout");
-  if (key.startsWith("sparse")) return t("clone.phase.sparse");
-  if (key.startsWith("filtering")) return t("clone.phase.filtering");
-  return t("clone.phase.connecting");
-}
-
-function isRealDate(value: string): boolean {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return false;
-  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
-  return (
-    date.getUTCFullYear() === Number(match[1]) && date.getUTCMonth() === Number(match[2]) - 1 && date.getUTCDate() === Number(match[3])
-  );
-}
 
 function UrlBadge({ parsed }: { parsed: ParsedUrl }) {
   const Icon = parsed.kind === "local" || parsed.kind === "file" ? HardDrive : parsed.kind === "ssh" ? KeyRound : Globe;
@@ -184,42 +150,9 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
   const parsed = parseCloneUrl(url);
   const target = parent.trim() && name ? joinPath(parent, name) : "";
   const knownAtTarget = target ? repos?.find((repo) => pathKey(repo.path) === pathKey(target)) : undefined;
-  const sparsePaths = sparseText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
+  const form: CloneForm = { url, parent, name, shallow, shallowBy, depth, since, branch, sparse, sparseText, submodules };
   const failureFor = (field: FieldName) => (fieldFailure?.field === field ? fieldFailure.text : null);
-  const errors: Record<FieldName, string | null> = {
-    url: url.trim() ? (parsed.ok ? failureFor("url") : parsed.reason) : submitted ? t("clone.validation.urlMissing") : null,
-    parent: parent.trim()
-      ? isAbsolutePath(parent)
-        ? failureFor("parent")
-        : t("clone.validation.parentNotAbsolute")
-      : submitted
-        ? t("clone.validation.parentMissing")
-        : null,
-    name: name
-      ? (folderNameError(name) ??
-        (knownAtTarget ? t("clone.validation.repoAtTarget", { name: knownAtTarget.alias ?? knownAtTarget.name }) : null) ??
-        failureFor("name"))
-      : submitted
-        ? t("clone.folderName.missing")
-        : null,
-    depth: shallow && shallowBy === "depth" && !/^[1-9]\d{0,8}$/.test(depth.trim()) ? t("clone.validation.depth") : null,
-    since:
-      shallow && shallowBy === "since"
-        ? since.trim()
-          ? isRealDate(since.trim())
-            ? null
-            : t("clone.validation.dateFormat")
-          : submitted
-            ? t("clone.validation.dateMissing")
-            : null
-        : null,
-    branch: branchNameError(branch.trim()) ?? failureFor("branch"),
-    sparse: sparse && submitted && sparsePaths.length === 0 ? t("clone.validation.sparseMissing") : null,
-  };
+  const errors = fieldErrors(form, { parsed, submitted, knownAtTarget, failureFor });
 
   const changeUrl = (value: string) => {
     setUrl(value);
@@ -239,31 +172,16 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
   const submit = async () => {
     if (running) return;
     setSubmitted(true);
-    const required: Partial<Record<FieldName, boolean>> = {
-      url: !url.trim(),
-      parent: !parent.trim(),
-      name: !name,
-      since: shallow && shallowBy === "since" && !since.trim(),
-      sparse: sparse && sparsePaths.length === 0,
-    };
-    const order: FieldName[] = ["url", "parent", "name", "depth", "since", "branch", "sparse"];
-    // Core errors on the field do not count here: the same attempt may be repeated (e.g. after the folder was emptied).
-    const firstBad = order.find((field) => required[field] || (errors[field] !== null && errors[field] !== failureFor(field)));
+    const firstBad = firstBadField(form, errors, failureFor);
     if (firstBad) {
-      if (firstBad === "depth" || firstBad === "since" || firstBad === "branch" || firstBad === "sparse") setAdvancedOpen(true);
+      if (isAdvancedField(firstBad)) setAdvancedOpen(true);
       focusField(firstBad);
       return;
     }
 
     rememberParent(parent);
     const id = newJobId();
-    const options: CloneOptions = {
-      depth: shallow && shallowBy === "depth" ? Number(depth.trim()) : null,
-      shallowSince: shallow && shallowBy === "since" ? since.trim() : null,
-      branch: branch.trim() || null,
-      sparsePaths: sparse ? sparsePaths : [],
-      recurseSubmodules: submodules,
-    };
+    const options = cloneOptions(form);
     setFailure(null);
     setFieldFailure(null);
     setWasCancelled(false);
@@ -298,21 +216,11 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
       return;
     }
     setFailure(result.error);
-    const known = CLONE_ERRORS[result.error.code];
-    // “Invalid branch name” and a missing branch belong to the branch field.
-    const field: FieldName | undefined = /branch/i.test(result.error.message) && options.branch ? "branch" : known?.field;
-    if (field) {
-      const text =
-        result.error.code === "path_exists"
-          ? t("clone.errors.fieldPathExists")
-          : result.error.code === "path_not_found"
-            ? t("clone.errors.fieldPathNotFound")
-            : result.error.code === "not_found" && field === "url"
-              ? t("clone.errors.fieldNotFound")
-              : result.error.message;
-      setFieldFailure({ field, text });
-      if (field === "branch") setAdvancedOpen(true);
-      focusField(field);
+    const failed = failureField(result.error, options.branch);
+    if (failed) {
+      setFieldFailure(failed);
+      if (failed.field === "branch") setAdvancedOpen(true);
+      focusField(failed.field);
     }
   };
 
@@ -327,16 +235,7 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
     else onClose();
   };
 
-  const advancedSummary = [
-    shallow
-      ? shallowBy === "depth"
-        ? t("clone.summary.depth", { depth: depth.trim() || "?" })
-        : t("clone.summary.since", { date: since.trim() || "?" })
-      : null,
-    branch.trim() ? t("clone.summary.branch", { branch: branch.trim() }) : null,
-    sparse ? t("clone.summary.sparse") : null,
-    submodules ? t("clone.summary.submodules") : null,
-  ].filter(Boolean);
+  const summary = advancedSummary(form);
 
   const branchMissing = failure?.code === "not_found" && fieldFailure?.field === "branch";
   // A CHANGED key is something other than a not yet confirmed server: there is never a prompt for
@@ -534,8 +433,8 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
                   aria-hidden
                 />
                 <span className="font-medium">{t("clone.advanced")}</span>
-                {!advancedOpen && advancedSummary.length ? (
-                  <span className="min-w-0 truncate text-sm text-text-muted">– {advancedSummary.join(", ")}</span>
+                {!advancedOpen && summary.length ? (
+                  <span className="min-w-0 truncate text-sm text-text-muted">– {summary.join(", ")}</span>
                 ) : null}
               </Collapsible.Trigger>
               <Collapsible.Content className="flex flex-col gap-3 pt-2 pl-5">
