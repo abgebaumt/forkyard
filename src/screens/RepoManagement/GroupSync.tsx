@@ -32,14 +32,13 @@ import { Button, Spinner } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
 import { cn } from "../../ui/cn";
 import { displayName } from "./repoActions";
+import { summarize, type RowStatus } from "./model";
 import { t } from "../../i18n";
 
 export type GroupSyncKind = "fetch" | "pull";
 
 /** How many repositories run at the same time. */
 const PARALLEL = 3;
-
-type RowStatus = "waiting" | "running" | "done" | "unchanged" | "attention" | "failed" | "cancelled";
 
 interface RowState {
   status: RowStatus;
@@ -168,21 +167,6 @@ const statusWord: Record<RowStatus, string> = {
   failed: t("repos.sync.status.failed"),
   cancelled: t("repos.sync.status.cancelled"),
 };
-
-function summarize(rows: RowState[], kind: GroupSyncKind): string {
-  const count = (status: RowStatus) => rows.filter((row) => row.status === status).length;
-  const open = count("waiting") + count("running");
-  if (open) return t("repos.sync.summary.progress", { done: rows.length - open, total: rows.length });
-  const parts: string[] = [];
-  const done = count("done");
-  if (done)
-    parts.push(kind === "fetch" ? t("repos.sync.summary.withNew", { count: done }) : t("repos.sync.summary.updated", { count: done }));
-  if (count("unchanged")) parts.push(t("repos.sync.summary.unchanged", { count: count("unchanged") }));
-  if (count("attention")) parts.push(t("repos.sync.summary.attention", { count: count("attention") }));
-  if (count("failed")) parts.push(t("repos.sync.summary.failed", { count: count("failed") }));
-  if (count("cancelled")) parts.push(t("repos.sync.summary.cancelled", { count: count("cancelled") }));
-  return parts.join(" · ");
-}
 
 function GroupSyncDialog({ group, repos, kind, onClose }: { group: string; repos: Repo[]; kind: GroupSyncKind; onClose: () => void }) {
   const info = kindInfo[kind];
