@@ -16,9 +16,9 @@ import {
   type Id,
   type Tab,
 } from "../../core";
-import { applySettings } from "../../screens/Preferences/settings";
-import { acceptsKey, FEATURES, featureToggle, PROVIDERS, usesBaseUrl } from "../../screens/Preferences/ai/model";
-import { isCli } from "./providers";
+import { applySettings } from "../Preferences/settings";
+import { acceptsKey, FEATURES, featureToggle, PROVIDERS, usesBaseUrl } from "../Preferences/ai/model";
+import { isCli } from "../../app/ai/providers";
 import { Button } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { Dialog } from "../../ui/Dialog";
@@ -26,11 +26,11 @@ import { TextField } from "../../ui/Field";
 import { Select } from "../../ui/Select";
 import { Switch } from "../../ui/Switch";
 import { t } from "../../i18n";
-import { openInBrowser } from "../actions/hosts";
-import { showDialog } from "../dialogs";
-import { toCoreError } from "../errors";
-import { qk, queryClient } from "../queries";
-import { newJobId, runAction } from "../run";
+import { openInBrowser } from "../../app/actions/hosts";
+import { showDialog } from "../../app/dialogs";
+import { toCoreError } from "../../app/errors";
+import { qk, queryClient } from "../../app/queries";
+import { newJobId, runAction } from "../../app/run";
 import {
   canLeaveModel,
   canLeaveProvider,
@@ -44,7 +44,7 @@ import {
   whereKind,
   type SetupDraft,
   type SetupStep,
-} from "./setupModel";
+} from "./model";
 
 export type SetupResult =
   | { kind: "on" }

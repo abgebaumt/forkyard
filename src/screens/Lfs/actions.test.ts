@@ -16,13 +16,13 @@ vi.mock("../../core", async (original) => ({
   },
 }));
 
-vi.mock("../dialogs", async (original) => ({
-  ...(await original<typeof import("../dialogs")>()),
+vi.mock("../../app/dialogs", async (original) => ({
+  ...(await original<typeof import("../../app/dialogs")>()),
   confirm: (options: { title: string; details?: string[]; danger?: boolean }) => confirmSpy(options),
 }));
 
-const { qk, queryClient } = await import("../queries");
-const { lockFiles, unlockFiles } = await import("./lfs");
+const { qk, queryClient } = await import("../../app/queries");
+const { lockFiles, unlockFiles } = await import("./actions");
 
 const REPO = "repo-1";
 const lock = (path: string, owner: string, ours: boolean): LfsLock => ({ id: path, path, owner, lockedAt: null, ours });

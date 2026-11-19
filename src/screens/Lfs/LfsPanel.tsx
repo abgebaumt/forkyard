@@ -8,7 +8,7 @@
 import { useId, useState } from "react";
 import { Download, Eraser, HardDrive, Plus, RefreshCw, TriangleAlert, X } from "lucide-react";
 import { core, type Id } from "../../core";
-import { lfsBusyKey, patternProblem, pruneLfs, pullLfs, trackPattern, untrackPattern } from "../../app/actions/lfs";
+import { lfsBusyKey, patternProblem, pruneLfs, pullLfs, trackPattern, untrackPattern } from "./actions";
 import { describeError } from "../../app/errors";
 import { useLfsStatus } from "../../app/queries";
 import { newJobId } from "../../app/run";

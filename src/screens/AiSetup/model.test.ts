@@ -11,7 +11,7 @@ import {
   settingsPatch,
   setupOverview,
   whereKind,
-} from "./setupModel";
+} from "./model";
 
 const cli = (provider: AiProviderKind, patch: Partial<AiCliFound> = {}): AiCliFound => ({
   provider,

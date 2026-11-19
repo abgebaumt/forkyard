@@ -1,7 +1,7 @@
 /**
  * LFS file locks for the UI: when they are read on their own, the index by path, and (in later
  * functions of this file) what file lists, menus, the commit panel and the LFS panel make of them.
- * Pure functions plus `useLockIndex`; the actions are in app/actions/lfs.ts.
+ * Pure functions plus `useLockIndex`; the actions are in ./actions.ts.
  */
 import { useMemo } from "react";
 import type { FileChange, Id, LfsLock, LfsLockList, LfsStatus } from "../../core";

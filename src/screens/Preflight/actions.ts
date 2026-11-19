@@ -6,9 +6,9 @@
  * if it then finds nothing to say, the dialog closes on its own and the action runs.
  */
 import { core, type Id, type PreviewOp } from "../../core";
-import { openPreflightDialog, type PreflightChoice } from "../../screens/Preflight";
-import { needsDialog, type PreflightFacts } from "../../screens/Preflight/model";
-import { previewOnce } from "../conflictPreview";
+import { openPreflightDialog, type PreflightChoice } from ".";
+import { needsDialog, type PreflightFacts } from "./model";
+import { previewOnce } from "../../app/conflictPreview";
 
 export const PREFLIGHT_LIMIT_MS = 1500;
 /** Fast checks never show a dialog; slower ones show their checking state after this long. */

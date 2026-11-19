@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConflictPreview } from "../../core";
-import type { PreflightFacts } from "../../screens/Preflight/model";
+import type { PreflightFacts } from "./model";
 
 /** A promise the test resolves from outside. */
 function deferred<T>() {
@@ -21,16 +21,16 @@ type Opened = { facts: PreflightFacts | Promise<PreflightFacts> };
 const opened: Opened[] = [];
 let dialogAnswer = deferred<{ updateRefs: boolean } | null>();
 
-vi.mock("../conflictPreview", () => ({ previewOnce: (...args: Parameters<typeof previewOnce>) => previewOnce(...args) }));
+vi.mock("../../app/conflictPreview", () => ({ previewOnce: (...args: Parameters<typeof previewOnce>) => previewOnce(...args) }));
 vi.mock("../../core", () => ({ core: { rebaseDependents: () => Promise.resolve([]) } }));
-vi.mock("../../screens/Preflight", () => ({
+vi.mock(".", () => ({
   openPreflightDialog: (options: Opened) => {
     opened.push(options);
     return dialogAnswer.promise;
   },
 }));
 
-const { preflight, CHECKING_DIALOG_DELAY_MS } = await import("./preflight");
+const { preflight, CHECKING_DIALOG_DELAY_MS } = await import("./actions");
 
 const request = { title: "Merge feature into main?", confirmLabel: "Merge", op: { kind: "merge" as const, theirs: "feature" } };
 

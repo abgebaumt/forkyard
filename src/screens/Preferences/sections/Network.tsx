@@ -5,15 +5,15 @@
  */
 import { useId, useState, type ReactNode } from "react";
 import { FolderOpen, Plus, ShieldAlert, ShieldCheck, ShieldOff, X } from "lucide-react";
-import { core, type Settings } from "../../core";
-import { confirm } from "../../app/dialogs";
-import { describeError } from "../../app/errors";
-import { Button, IconButton } from "../../ui/Button";
-import { Banner } from "../../ui/Feedback";
-import { TextField } from "../../ui/Field";
-import { CommitText, GroupTitle, Mono, SectionHeader, SettingRow } from "../Preferences/parts";
-import { applySettings } from "../Preferences/settings";
-import { t } from "../../i18n";
+import { core, type Settings } from "../../../core";
+import { confirm } from "../../../app/dialogs";
+import { describeError } from "../../../app/errors";
+import { Button, IconButton } from "../../../ui/Button";
+import { Banner } from "../../../ui/Feedback";
+import { TextField } from "../../../ui/Field";
+import { CommitText, GroupTitle, Mono, SectionHeader, SettingRow } from "../parts";
+import { applySettings } from "../settings";
+import { t } from "../../../i18n";
 
 const PROXY_SCHEMES = /^(https?|socks4a?|socks5h?):\/\/\S+$/i;
 

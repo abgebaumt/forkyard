@@ -6,7 +6,7 @@ import { core, type Id, type Sha } from "../../core";
 import { guardSecrets, type ShowFindings } from "../../app/actions/pushCheck";
 import { newJobId, runAction } from "../../app/run";
 import { t } from "../../i18n";
-import { showSecretFindings } from "../PushCheck/SecretDialog";
+import { showSecretFindings } from "../Push/check/SecretDialog";
 import { busyKeys } from "../../app/actions/keys";
 
 export function pushStack(

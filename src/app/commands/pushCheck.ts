@@ -7,7 +7,7 @@ import { t } from "../../i18n";
 import { reviewAndPush } from "../actions/sync";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
 import { qk } from "../queries";
-import { reviewOffered } from "../../screens/PushCheck/model";
+import { reviewOffered } from "../../screens/Push/check/model";
 
 const offered = (ctx: CommandContext): boolean =>
   Boolean(ctx.repoId) &&

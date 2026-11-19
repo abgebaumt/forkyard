@@ -5,12 +5,12 @@
  * hash of file + line content, at once.
  */
 import { useState } from "react";
-import { core, type Id } from "../../core";
-import { showDialog } from "../../app/dialogs";
-import { runAction } from "../../app/run";
-import { Button } from "../../ui/Button";
-import { Dialog } from "../../ui/Dialog";
-import { t } from "../../i18n";
+import { core, type Id } from "../../../core";
+import { showDialog } from "../../../app/dialogs";
+import { runAction } from "../../../app/run";
+import { Button } from "../../../ui/Button";
+import { Dialog } from "../../../ui/Dialog";
+import { t } from "../../../i18n";
 import { acceptedIds, secretRows, secretsNotes, secretsTitle, type SecretsFound } from "./model";
 
 function SecretDialog({ repoId, found, onDone }: { repoId: Id; found: SecretsFound; onDone: (accepted: string[] | null) => void }) {

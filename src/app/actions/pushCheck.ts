@@ -8,8 +8,8 @@ import { core, CoreError, type AiStatus, type Id, type PushResult, type RepoSett
 import { t } from "../../i18n";
 import { qk, queryClient } from "../queries";
 import { runAction, type ActionResult } from "../run";
-import { showSecretFindings } from "../../screens/PushCheck/SecretDialog";
-import type { SecretsFound } from "../../screens/PushCheck/model";
+import { showSecretFindings } from "../../screens/Push/check/SecretDialog";
+import type { SecretsFound } from "../../screens/Push/check/model";
 
 export type ShowFindings = (repoId: Id, found: SecretsFound) => Promise<string[] | null>;
 

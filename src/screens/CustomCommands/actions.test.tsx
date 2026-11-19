@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { DetailList } from "../dialogs";
-import { runConfirmation } from "./customCommands";
+import { DetailList } from "../../app/dialogs";
+import { runConfirmation } from "./actions";
 
 const LINE = "git tag -a v2.0 -m v2.0 9f1e56080073d4b1c2a3e4f5a6b7c8d9e0f1a2b3";
 

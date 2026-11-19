@@ -7,7 +7,7 @@ import { useState } from "react";
 import { GitMerge } from "lucide-react";
 import { Trans } from "react-i18next";
 import type { GitflowKind, Id } from "../../core";
-import { finishGitflow, gitflowBusyKey, kindLabels } from "../../app/actions/gitflow";
+import { finishGitflow, gitflowBusyKey, kindLabels } from "./actions";
 import { operationNames } from "../../app/actions/merge";
 import { useRemotes, useStatus } from "../../app/queries";
 import { useBusy } from "../../app/store";

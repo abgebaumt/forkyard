@@ -1,6 +1,6 @@
 import { t } from "../../i18n";
 import type { LfsStatus } from "../../core";
-import { pruneLfs, pullLfs } from "../actions/lfs";
+import { pruneLfs, pullLfs } from "../../screens/Lfs/actions";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
 import { qk } from "../queries";
 

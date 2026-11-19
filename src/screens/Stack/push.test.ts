@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 const calls = vi.hoisted(() => ({ stackPush: [] as unknown[], results: [] as unknown[] }));
-vi.mock("../PushCheck/SecretDialog", () => ({ showSecretFindings: vi.fn() }));
+vi.mock("../Push/check/SecretDialog", () => ({ showSecretFindings: vi.fn() }));
 vi.mock("../../core", async (original) => {
   const actual = await original<typeof import("../../core")>();
   return {

@@ -7,7 +7,7 @@ import { withFreshStatus, withStatus } from "../statusCache";
 import { useAppStore } from "../store";
 import { cachedSettings, currentBranch } from "./context";
 import { busyKeys } from "./keys";
-import { preflight } from "./preflight";
+import { preflight } from "../../screens/Preflight/actions";
 
 export const operationNames: Record<OperationKind, string> = {
   merge: t("actions.merge.operation.merge"),

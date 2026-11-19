@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../../screens/PushCheck/SecretDialog", () => ({ showSecretFindings: vi.fn() }));
+vi.mock("../../screens/Push/check/SecretDialog", () => ({ showSecretFindings: vi.fn() }));
 const queries = vi.hoisted(() => ({ cache: new Map<string, unknown>(), fetched: [] as string[] }));
 vi.mock("../queries", () => ({
   qk: { aiStatus: ["app", "aiStatus"], repoSettings: (repoId: string) => ["repo", repoId, "repoSettings"] },

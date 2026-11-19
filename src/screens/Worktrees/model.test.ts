@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Worktree } from "../../core";
-import { patternProblem } from "../../app/actions/lfs";
+import { patternProblem } from "../Lfs/actions";
 import { removeBlock, samePath } from "../../app/actions/worktrees";
 import { t } from "../../i18n";
 import { branchBlock, describeWorktree, matchesWorktree, suggestFolder, worktreeSecondary } from "./model";

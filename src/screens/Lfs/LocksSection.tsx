@@ -6,7 +6,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { LockOpen, RefreshCw, TriangleAlert } from "lucide-react";
 import { CoreError, type Id } from "../../core";
-import { lfsBusyKey, refreshLocks, unlockFiles } from "../../app/actions/lfs";
+import { lfsBusyKey, refreshLocks, unlockFiles } from "./actions";
 import { describeError } from "../../app/errors";
 import { formatDateTime, formatRelative } from "../../app/format";
 import { useLfsLocks } from "../../app/queries";

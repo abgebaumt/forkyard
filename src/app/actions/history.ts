@@ -13,7 +13,7 @@ import { clip, currentBranch, headSha, loadStatus } from "./context";
 import { shortSha } from "../format";
 import { copyText } from "./clipboard";
 import { busyKeys } from "./keys";
-import { preflight } from "./preflight";
+import { preflight } from "../../screens/Preflight/actions";
 import { reportOpResult, showWip } from "./merge";
 
 /** A commit never changes: from the cache, otherwise directly from the core (and then into the cache). */

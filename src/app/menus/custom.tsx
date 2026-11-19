@@ -5,7 +5,7 @@ import { menuItem } from "../../components/SideSection";
 import { commandsFor } from "../../screens/CustomCommands/model";
 import type { MenuEntry } from "../../ui/Menu";
 import { t } from "../../i18n";
-import { runCustomCommand } from "../actions/customCommands";
+import { runCustomCommand } from "../../screens/CustomCommands/actions";
 import { qk, queryClient } from "../queries";
 
 /** Separator plus submenu, or nothing if no loaded command has this scope. */

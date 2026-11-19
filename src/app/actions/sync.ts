@@ -28,10 +28,10 @@ import { shortSha } from "../format";
 import { busyKeys } from "./keys";
 import { blockingFiles, reportOpResult } from "./merge";
 import { popStash, stashChanges } from "./stash";
-import { openPushDialog } from "../../screens/PushDialog";
-import { allThrough, resultLines } from "../../screens/PushDialog/model";
-import { reviewFirst } from "../../screens/PushCheck/model";
-import { showPushReview, type ReviewTarget } from "../../screens/PushCheck/ReviewDialog";
+import { openPushDialog } from "../../screens/Push";
+import { allThrough, resultLines } from "../../screens/Push/model";
+import { reviewFirst } from "../../screens/Push/check/model";
+import { showPushReview, type ReviewTarget } from "../../screens/Push/check/ReviewDialog";
 import { confirmSend } from "../ai/gate";
 import { checkProvider } from "../ai/checkProvider";
 
