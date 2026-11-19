@@ -51,6 +51,7 @@ import {
   SECTION_ORDER,
   STASH_REF,
   triState,
+  typeaheadMatch,
   type FlatRow,
   type SectionKey,
   type TreeNode,
@@ -710,15 +711,10 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
       const key = event.key.toLowerCase();
       buffer.text = now - buffer.at > TYPEAHEAD_PAUSE_MS ? key : buffer.text + key;
       buffer.at = now;
-      const repeated = [...buffer.text].every((char) => char === buffer.text[0]);
-      const needle = repeated ? (buffer.text[0] ?? key) : buffer.text;
-      const offset = repeated || buffer.text.length === 1 ? 1 : 0;
-      for (let step = 0; step < allRows.length; step++) {
-        const candidate = allRows[(index + offset + step) % allRows.length];
-        if (candidate?.node.label.toLowerCase().startsWith(needle)) {
-          event.preventDefault();
-          return moveTo(candidate);
-        }
+      const candidate = typeaheadMatch(allRows, index, buffer.text);
+      if (candidate) {
+        event.preventDefault();
+        return moveTo(candidate);
       }
     }
   };

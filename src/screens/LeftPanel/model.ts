@@ -271,3 +271,19 @@ export function findNode(nodes: TreeNode[], test: (node: TreeNode) => boolean): 
   }
   return null;
 }
+
+/**
+ * Type-ahead: the row the typed text jumps to, searching from the row after `index` (the current
+ * row too while a longer text is typed). Repeating one letter ("bbb") cycles through the names
+ * starting with it. undefined if no name starts that way.
+ */
+export function typeaheadMatch(rows: FlatRow[], index: number, text: string): FlatRow | undefined {
+  const repeated = [...text].every((char) => char === text[0]);
+  const needle = repeated ? (text[0] ?? "") : text;
+  const offset = repeated || text.length === 1 ? 1 : 0;
+  for (let step = 0; step < rows.length; step++) {
+    const candidate = rows[(index + offset + step) % rows.length];
+    if (candidate?.node.label.toLowerCase().startsWith(needle)) return candidate;
+  }
+  return undefined;
+}
