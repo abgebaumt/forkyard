@@ -71,7 +71,8 @@ import {
 } from "./viewState";
 import { ExtraSections, extraSectionEntries } from "./ExtraSections";
 import { t } from "../../i18n";
-import { LoadError, SkeletonRows } from "../../ui/Feedback";
+import { LoadError } from "../../components/LoadError";
+import { SkeletonRows } from "../../ui/Feedback";
 import { readRowHeight } from "../../components/VirtualList";
 
 export interface LeftPanelProps {

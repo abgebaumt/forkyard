@@ -1,10 +1,8 @@
 import { useSyncExternalStore, type ReactNode } from "react";
-import { AlertTriangle, CheckCircle2, Info, OctagonAlert, RefreshCw, TriangleAlert, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, OctagonAlert, X } from "lucide-react";
 import { Toast as RadixToast } from "radix-ui";
 import { cn } from "./cn";
 import { t } from "../i18n";
-import { describeError } from "../app/errors";
-import { Button } from "./Button";
 
 export type Tone = "info" | "success" | "warning" | "danger";
 
@@ -250,36 +248,6 @@ export function Notice({
       <p className="max-w-full text-md font-medium text-text">{title}</p>
       {children ? <div className="selectable max-w-md text-base text-text-muted">{children}</div> : null}
       {action ? <div className="mt-2 flex flex-wrap justify-center gap-2">{action}</div> : null}
-    </div>
-  );
-}
-
-/** A list or section could not be loaded: the sentence, the core's reason and "Try again". */
-export function LoadError({
-  title,
-  error,
-  onRetry,
-  className,
-}: {
-  title: string;
-  error: unknown;
-  onRetry: () => void;
-  className?: string;
-}) {
-  const { text, hint } = describeError(error);
-  return (
-    <div role="alert" className={cn("flex flex-col items-start gap-2 px-2 py-2 text-sm", className)} data-load-error>
-      <p className="flex items-start gap-1.5 font-medium text-text">
-        <TriangleAlert className="mt-px size-3.5 shrink-0 text-danger" aria-hidden />
-        {title}
-      </p>
-      <p className="selectable break-words text-text-muted">
-        {text}
-        {hint ? ` ${hint}` : ""}
-      </p>
-      <Button size="sm" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={onRetry}>
-        {t("ui.retry")}
-      </Button>
     </div>
   );
 }
