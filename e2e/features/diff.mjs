@@ -991,6 +991,62 @@ scenario("blame: a large file fills in while git blame runs, the second open is 
   }
 });
 
+scenario("blame: the scroll position survives when a slow blame finishes", "edge", async (t) => {
+  // A deep history makes git blame itself slow (seconds, not a delay hook): 600 commits, each
+  // rewriting 20 lines of an 8000-line file, written in one go with git fast-import.
+  const repo = makeDiffRepo("tief");
+  const file = "tief.txt";
+  const lines = Array.from({ length: 8000 }, (_, i) => `zeile ${i + 1}`);
+  const people = [PEOPLE.lena, PEOPLE.jonas, PEOPLE.aylin];
+  const parts = [];
+  for (let c = 0; c < 600; c++) {
+    for (let k = 0; k < 20; k++) {
+      const i = (c * 7919 + k * 401) % lines.length;
+      lines[i] = `stand ${c + 1} zeile ${i + 1}`;
+    }
+    const who = people[c % people.length];
+    const ident = `${who.name} <${who.email}> ${1772434800 + c * 3600} +0100`;
+    const message = `Stand ${c + 1}`;
+    const data = Buffer.from(`${lines.join("\n")}\n`);
+    parts.push(
+      Buffer.from(
+        `commit refs/heads/main\nauthor ${ident}\ncommitter ${ident}\ndata ${Buffer.byteLength(message)}\n${message}\nM 100644 inline ${file}\ndata ${data.length}\n`,
+      ),
+      data,
+      Buffer.from("\n"),
+    );
+  }
+  repo.gitRaw(["fast-import", "--quiet"], { input: Buffer.concat(parts) });
+  repo.git("reset", "-q", "--hard", "main");
+  const scroll = (app) =>
+    app.exec((sel) => {
+      const scroller = document.querySelector(`${sel} .cm-scroller`);
+      return { top: scroller?.scrollTop ?? null, loading: Boolean(document.querySelector(`${sel} [data-loading]`)) };
+    }, BL);
+  try {
+    const app = await t.launch(LIGHT);
+    const { tabId } = await app.openRepo(repo.path);
+    await store(app, "openBlame", tabId, file, null);
+    await app.waitFor(() => app.exec((sel) => document.querySelectorAll(`${sel} .cm-line`).length > 0, BL), 30_000, {
+      message: "first lines shown",
+    });
+    const scrolled = await app.exec((sel) => {
+      const scroller = document.querySelector(`${sel} .cm-scroller`);
+      scroller.scrollTop = Math.round((scroller.scrollHeight - scroller.clientHeight) / 2);
+      return { top: scroller.scrollTop, loading: Boolean(document.querySelector(`${sel} [data-loading]`)) };
+    }, BL);
+    assert(scrolled.loading, "precondition: scrolled while git blame still ran (the fixture is slow enough)");
+    assert(scrolled.top > 0, "precondition: scrolled to the middle");
+    await blameReady(app, file);
+    const after = await scroll(app);
+    assert(!after.loading, "blame finished");
+    assertEqual(after.top, scrolled.top, "the scroll position is unchanged after the blame finished");
+    await t.noConsoleErrors(app);
+  } finally {
+    repo.cleanup();
+  }
+});
+
 scenario("Blame: nicht committete Zeilen, vorheriger Stand mit P, leere und binäre Datei", "edge", async (t) => {
   const { repo, shas } = makeHistoryRepo();
   repo.write("text/leer.txt", "");
