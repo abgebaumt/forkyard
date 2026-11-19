@@ -27,7 +27,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Notify;
 
 use crate::auth::broker::{self, Broker, SessionMode};
@@ -121,6 +121,9 @@ struct RunnerInner {
     guard_hooks: parking_lot::RwLock<Option<PathBuf>>,
     /// Per SSH program: whether it passes server questions on unmarked (OpenSSH before 8.5).
     legacy_ssh: parking_lot::Mutex<std::collections::HashMap<String, bool>>,
+    /// argv of every started Git (`take_spawned`).
+    #[cfg(any(test, feature = "testkit"))]
+    spawned: parking_lot::Mutex<Vec<Vec<String>>>,
 }
 
 impl GitRunner {
@@ -138,8 +141,16 @@ impl GitRunner {
                 proxy_passwords: parking_lot::Mutex::new(std::collections::HashMap::new()),
                 guard_hooks: parking_lot::RwLock::new(None),
                 legacy_ssh: parking_lot::Mutex::new(std::collections::HashMap::new()),
+                #[cfg(any(test, feature = "testkit"))]
+                spawned: parking_lot::Mutex::new(Vec::new()),
             }),
         }
+    }
+
+    /// argv (after the fixed switches, lossy strings) of every Git process started since the last call.
+    #[cfg(any(test, feature = "testkit"))]
+    pub fn take_spawned(&self) -> Vec<Vec<String>> {
+        std::mem::take(&mut *self.inner.spawned.lock())
     }
 
     /// Sets the (empty) folder that guarded calls redirect `core.hooksPath` to.
@@ -480,6 +491,99 @@ impl GitCmd {
         self.execute(cancel, None, Some((sep, on_record))).await
     }
 
+    /// Starts Git and returns its stdout as a pull stream (`GitRecordStream::next_record`).
+    /// Not for `.network()` (`not_allowed`); never logged to the activity log. stdin (if set) is
+    /// written by a spawned task, then closed; stderr is drained by a spawned task (at most
+    /// `MAX_STDERR` kept).
+    pub async fn spawn_records(self, sep: u8) -> CoreResult<GitRecordStream> {
+        if self.network {
+            return Err(CoreError::not_allowed("Network calls can’t be streamed."));
+        }
+        let info = self.runner.info()?;
+        if !self.cwd.is_dir() {
+            return Err(CoreError::path_not_found(util::display_path(&self.cwd)));
+        }
+        let mut child = self.spawn(&mut self.command(&info.path, false))?;
+        let tree = ProcessTree::attach(&child);
+        if let (Some(mut pipe), Some(data)) = (child.stdin.take(), self.stdin.clone()) {
+            tokio::spawn(async move {
+                // Write errors (Git closed stdin early) show up in the exit code.
+                let _ = pipe.write_all(&data).await;
+                let _ = pipe.shutdown().await;
+            });
+        }
+        let stderr = child.stderr.take().map(|mut err| {
+            tokio::spawn(async move {
+                let mut all = Vec::new();
+                let mut chunk = vec![0u8; 16 * 1024];
+                // Keep reading past the cap so Git never blocks on a full pipe.
+                while let Ok(n @ 1..) = err.read(&mut chunk).await {
+                    if all.len() < MAX_STDERR {
+                        all.extend_from_slice(&chunk[..n]);
+                    }
+                }
+                all
+            })
+        });
+        let stdout = child.stdout.take().map(tokio::io::BufReader::new);
+        Ok(GitRecordStream { child: Some(child), tree, stdout, sep, stderr, subcommand: subcommand(&self.args), runner: self.runner })
+    }
+
+    /// The process for this call with everything but the network setup: switches, arguments,
+    /// fixed environment, pipes, own process group (Unix) / no console window (Windows).
+    fn command(&self, program: &Path, hard_silent: bool) -> tokio::process::Command {
+        let mut cmd = tokio::process::Command::new(program);
+        cmd.args(self.switches());
+        if hard_silent {
+            // Credential helpers (e.g. the Git Credential Manager) must not prompt either,
+            // and an askpass program set in the configuration does not count.
+            cmd.args(["-c", "credential.interactive=false", "-c", "core.askPass="]);
+        }
+        cmd.args(&self.args)
+            .current_dir(&self.cwd)
+            .env("LC_ALL", "C")
+            .env("LANG", "C")
+            .env_remove("LANGUAGE")
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .env("GIT_PAGER", "cat")
+            .env("PAGER", "cat")
+            .env("GIT_EDITOR", ":")
+            .env("GIT_SEQUENCE_EDITOR", ":")
+            .env("GIT_MERGE_AUTOEDIT", "no")
+            .stdin(if self.stdin.is_some() { Stdio::piped() } else { Stdio::null() })
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true);
+        if self.read_only {
+            cmd.env("GIT_OPTIONAL_LOCKS", "0");
+        }
+        for (k, v) in self.runner.inner.env.iter().chain(self.env.iter()) {
+            cmd.env(k, v);
+        }
+        #[cfg(windows)]
+        cmd.creation_flags(CREATE_NO_WINDOW);
+        #[cfg(unix)]
+        cmd.process_group(0);
+        cmd
+    }
+
+    /// Starts the process (and notes it in the test spawn log).
+    fn spawn(&self, cmd: &mut tokio::process::Command) -> CoreResult<tokio::process::Child> {
+        match cmd.spawn() {
+            Ok(child) => {
+                #[cfg(any(test, feature = "testkit"))]
+                self.runner.inner.spawned.lock().push(self.args.iter().map(|a| a.to_string_lossy().into_owned()).collect());
+                Ok(child)
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(CoreError::git_missing()),
+            Err(e) => {
+                // Usually caused by the working directory (path too long, no access), not by Git.
+                let (code, reason) = crate::error::describe_io(&e);
+                Err(CoreError::new(code, format!("Git couldn’t be started in this folder. {reason}")).with_git_output(e.to_string()))
+            }
+        }
+    }
+
     async fn execute(
         &self,
         cancel: Option<&CancelToken>,
@@ -504,38 +608,11 @@ impl GitCmd {
         // prompt is switched off. With the helper program it answers the questions from the
         // keychain (and rejects the rest) – but for that Git must be allowed to ask.
         let hard_silent = silent && !session.as_ref().is_some_and(|s| s.is_active());
-        let mut cmd = tokio::process::Command::new(&info.path);
-        cmd.args(self.switches());
-        if hard_silent {
-            // Credential helpers (e.g. the Git Credential Manager) must not prompt either,
-            // and an askpass program set in the configuration does not count.
-            cmd.args(["-c", "credential.interactive=false", "-c", "core.askPass="]);
-        }
+        let mut cmd = self.command(&info.path, hard_silent);
         // The app's network settings (proxy, CA bundle, per-host exceptions) only apply here.
-        // Further down they reach Git through the environment – not through the command line,
+        // They reach Git through the environment – not through the command line,
         // which other processes can read (the proxy password is in it).
         let net = if self.network { self.runner.network_config() } else { NetConfig::default() };
-        cmd.args(&self.args)
-            .current_dir(&self.cwd)
-            .env("LC_ALL", "C")
-            .env("LANG", "C")
-            .env_remove("LANGUAGE")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GIT_PAGER", "cat")
-            .env("PAGER", "cat")
-            .env("GIT_EDITOR", ":")
-            .env("GIT_SEQUENCE_EDITOR", ":")
-            .env("GIT_MERGE_AUTOEDIT", "no")
-            .stdin(if self.stdin.is_some() { Stdio::piped() } else { Stdio::null() })
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .kill_on_drop(true);
-        if self.read_only {
-            cmd.env("GIT_OPTIONAL_LOCKS", "0");
-        }
-        for (k, v) in self.runner.inner.env.iter().chain(self.env.iter()) {
-            cmd.env(k, v);
-        }
         if !net.settings.is_empty() {
             // After whatever the user sets via GIT_CONFIG_COUNT themselves.
             let already = self.env_seen("GIT_CONFIG_COUNT").and_then(|v| v.to_string_lossy().trim().parse::<usize>().ok()).unwrap_or(0);
@@ -586,24 +663,10 @@ impl GitCmd {
                 cmd.env("GIT_SSH_COMMAND", ssh);
             }
         }
-        #[cfg(windows)]
-        cmd.creation_flags(CREATE_NO_WINDOW);
-        #[cfg(unix)]
-        cmd.process_group(0);
 
         let started_at = util::now_iso();
         let start = Instant::now();
-        let mut child = match cmd.spawn() {
-            Ok(child) => child,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Err(CoreError::git_missing()),
-            Err(e) => {
-                // Usually caused by the working directory (path too long, no access), not by Git.
-                let (code, reason) = crate::error::describe_io(&e);
-                return Err(
-                    CoreError::new(code, format!("Git couldn’t be started in this folder. {reason}")).with_git_output(e.to_string())
-                );
-            }
-        };
+        let mut child = self.spawn(&mut cmd)?;
 
         let tree = ProcessTree::attach(&child);
         let records_mode = on_record.is_some();
@@ -899,6 +962,71 @@ impl GitCmd {
             },
         };
         Ok(Some(broker::ssh_command_with_key(&base, &key)))
+    }
+}
+
+/// stdout of a running Git as a pull stream of records (`GitCmd::spawn_records`).
+/// Dropping it kills Git including its child processes.
+pub struct GitRecordStream {
+    /// `None` only after `Drop` handed it to the kill task.
+    child: Option<tokio::process::Child>,
+    tree: Option<ProcessTree>,
+    stdout: Option<tokio::io::BufReader<tokio::process::ChildStdout>>,
+    sep: u8,
+    /// Collects stderr; `None` once the exit has been evaluated.
+    stderr: Option<tokio::task::JoinHandle<Vec<u8>>>,
+    subcommand: String,
+    runner: GitRunner,
+}
+
+impl GitRecordStream {
+    /// Next record without its separator; a final record without separator is returned too.
+    /// `Ok(None)` after a clean exit; an error (classified, without known secrets) when Git
+    /// exits non-zero.
+    pub async fn next_record(&mut self) -> CoreResult<Option<Vec<u8>>> {
+        let mut record = Vec::new();
+        if let Some(out) = self.stdout.as_mut() {
+            // A read error ends the stream like end of file; the exit code tells what happened.
+            if out.read_until(self.sep, &mut record).await.unwrap_or(0) > 0 {
+                if record.last() == Some(&self.sep) {
+                    record.pop();
+                }
+                return Ok(Some(record));
+            }
+            self.stdout = None;
+        }
+        let Some(stderr) = self.stderr.take() else { return Ok(None) };
+        let status = match self.child.as_mut() {
+            Some(child) => child.wait().await.ok(),
+            None => None,
+        };
+        // shortcut: waits for stderr's end of file; a background grandchild holding it would block (not seen with log/blame).
+        let stderr = stderr.await.unwrap_or_default();
+        if status.is_some_and(|s| s.success()) {
+            return Ok(None);
+        }
+        let mut error = errors::classify(&self.subcommand, status.and_then(|s| s.code()), &[], &stderr);
+        error.git_output = error.git_output.map(|text| self.runner.scrub_known(&text));
+        Err(error)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn pid(&self) -> Option<u32> {
+        self.child.as_ref()?.id()
+    }
+}
+
+impl Drop for GitRecordStream {
+    fn drop(&mut self) {
+        let Some(mut child) = self.child.take() else { return };
+        let tree = self.tree.take();
+        // Without a runtime `kill_on_drop` still ends Git itself.
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            handle.spawn(async move {
+                kill_tree(&mut child, tree.as_ref()).await;
+                let _ = child.wait().await;
+            });
+        }
     }
 }
 

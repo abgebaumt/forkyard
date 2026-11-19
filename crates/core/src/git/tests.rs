@@ -669,3 +669,99 @@ async fn proxy_setting_reaches_git_for_network_calls_only() {
     assert!(!tc.events.named(names::LOG_APPENDED)[0]["output"].as_str().unwrap().contains("Proxy"));
     server.abort();
 }
+
+#[tokio::test]
+async fn spawn_records_reads_records_on_demand() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::new();
+    for i in 0..3 {
+        repo.commit_file("a.txt", format!("{i}"), &format!("Commit {i}"));
+    }
+    let expected: Vec<String> = repo.git(&["log", "--format=%H"]).lines().map(str::to_string).collect();
+    let mut stream = tc.git_at(repo.path()).args(["log", "-z", "--format=%H"]).read().spawn_records(0).await.unwrap();
+    let mut seen = Vec::new();
+    for _ in 0..3 {
+        seen.push(String::from_utf8(stream.next_record().await.unwrap().expect("record")).unwrap());
+    }
+    assert_eq!(seen, expected);
+    assert_eq!(stream.next_record().await.unwrap(), None);
+}
+
+#[tokio::test]
+async fn spawn_records_writes_stdin_and_reports_git_errors() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let head = repo.head();
+    let mut stream = tc
+        .git_at(repo.path())
+        .args(["log", "-z", "--format=%H", "--stdin"])
+        .read()
+        .stdin(format!("{head}\n"))
+        .spawn_records(0)
+        .await
+        .unwrap();
+    assert_eq!(stream.next_record().await.unwrap(), Some(head.into_bytes()));
+
+    let mut stream = tc.git_at(repo.path()).args(["log", "refs/heads/gibt-es-nicht"]).read().spawn_records(0).await.unwrap();
+    let err = stream.next_record().await.unwrap_err();
+    assert!(err.git_output.as_deref().unwrap_or_default().contains("gibt-es-nicht"), "{err:?}");
+
+    let err = tc.git_at(repo.path()).args(["ls-remote", "x"]).network().spawn_records(0).await.err().expect("network is refused");
+    assert_eq!(err.code, ErrorCode::NotAllowed);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn dropping_a_stream_ends_git() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::new();
+    let mut fast_import = Vec::new();
+    for n in 1..=2000 {
+        let message = format!("Teil {n}\n");
+        fast_import.extend_from_slice(
+            format!(
+                "commit refs/heads/main\ncommitter Test <test@example.com> {} +0100\ndata {}\n{message}\n",
+                1_500_000_000 + n,
+                message.len()
+            )
+            .as_bytes(),
+        );
+    }
+    let mut child = std::process::Command::new("git")
+        .current_dir(repo.path())
+        .envs(crate::testkit::git_isolation_env(&repo.temp_dir().join("gitconfig")))
+        .args(["fast-import", "--quiet"])
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .expect("git fast-import");
+    std::io::Write::write_all(&mut child.stdin.take().expect("stdin"), &fast_import).expect("stream");
+    assert!(child.wait().expect("fast-import").success());
+
+    let mut stream = tc.git_at(repo.path()).args(["log", "-z", "--format=%H%n%B", "main"]).read().spawn_records(0).await.unwrap();
+    assert!(stream.next_record().await.unwrap().is_some());
+    let pid = stream.pid().expect("pid");
+    drop(stream);
+    let alive = || {
+        std::process::Command::new("kill").args(["-0", &pid.to_string()]).stderr(std::process::Stdio::null()).status().unwrap().success()
+    };
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while alive() {
+        assert!(Instant::now() < deadline, "git {pid} still runs after the stream was dropped");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+#[tokio::test]
+async fn the_runner_counts_every_started_git() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    tc.git.take_spawned();
+    tc.git_at(repo.path()).args(["rev-parse", "HEAD"]).read().run().await.unwrap();
+    let mut stream = tc.git_at(repo.path()).args(["log", "-z", "--format=%H"]).read().spawn_records(0).await.unwrap();
+    while stream.next_record().await.unwrap().is_some() {}
+    let spawned = tc.git.take_spawned();
+    assert_eq!(spawned.len(), 2, "{spawned:?}");
+    assert!(spawned[0].iter().any(|a| a == "rev-parse"), "{spawned:?}");
+    assert!(spawned[1].iter().any(|a| a == "log"), "{spawned:?}");
+    assert!(tc.git.take_spawned().is_empty());
+}
