@@ -43,6 +43,8 @@ pub struct ConflictIntentBlock {
     pub theirs_why: Option<String>,
     /// Text that replaces the block's range in the result, every line ending in `\n`; only for `full`.
     pub text: Option<String>,
+    /// Why the proposal keeps both intents (one line, at most 200 characters); only for full blocks.
+    pub reason: Option<String>,
 }
 
 /// `ai_conflict_intent`: one entry per conflict block, in order.

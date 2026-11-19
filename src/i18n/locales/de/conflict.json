@@ -220,6 +220,11 @@
     "discarded": "Verworfen – das Ergebnis bleibt unverändert.",
     "shortened": "Nur erklärt – der Block ist zu groß für einen Textvorschlag.",
     "redacted": "Nur erklärt – der Block enthält Werte, die vor dem Senden maskiert wurden.",
-    "leftOut": "Nicht erklärt – weggelassen, um die Größengrenze einzuhalten."
+    "leftOut": "Nicht erklärt – weggelassen, um die Größengrenze einzuhalten.",
+    "applyAll": "Alle übernehmen ({{count}})",
+    "applyAllDone_one": "{{count}} übernommen",
+    "applyAllDone_other": "{{count}} übernommen",
+    "applyAllSkipped": "{{applied}} übernommen, {{skipped}} übersprungen: von Hand bearbeitet",
+    "reason": "Warum das passt:"
   }
 }

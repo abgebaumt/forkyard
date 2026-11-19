@@ -62,6 +62,26 @@ export interface IntentResult {
   decisions: Partial<Record<number, IntentDecision>>;
 }
 
+const undecided = (result: IntentResult) =>
+  result.intent.blocks.filter(canApply).filter((block) => result.decisions[block.block] === undefined);
+
+/** Proposals the user has neither applied nor discarded (blocks edited by hand included). */
+export const openProposals = (result: IntentResult): number => undecided(result).length;
+
+/** “Apply all”: every undecided proposal, except blocks edited by hand – those are only reported. */
+export function planApplyAll(
+  result: IntentResult,
+  isManual: (conflict: number) => boolean,
+): { apply: { conflict: number; text: string }[]; skipped: number[] } {
+  const apply: { conflict: number; text: string }[] = [];
+  const skipped: number[] = [];
+  for (const block of undecided(result)) {
+    if (isManual(block.block)) skipped.push(block.block);
+    else apply.push({ conflict: block.block, text: block.text });
+  }
+  return { apply, skipped };
+}
+
 const OPEN_KEY = "gc.conflictIntentOpen";
 const WIDTH_KEY = "gc.conflictIntentWidth";
 /** Width of the column as a fraction of the conflict tool. */

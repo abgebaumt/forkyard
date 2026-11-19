@@ -31,6 +31,10 @@ export type ConflictIntentBlock = {
    * Text that replaces the block's range in the result, every line ending in `\n`; only for `full`.
    */
   text: string | null;
+  /**
+   * Why the proposal keeps both intents (one line, at most 200 characters); only for full blocks.
+   */
+  reason: string | null;
 };
 
 /**
