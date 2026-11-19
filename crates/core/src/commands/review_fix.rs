@@ -8,7 +8,7 @@ use serde_json::{json, Map};
 
 use crate::app::Core;
 use crate::commands::commit;
-use crate::commands::diff::patch::quote_path;
+use crate::commands::diff::patch;
 use crate::commands::status::read_status;
 use crate::db::{self, undo::UndoEntry};
 use crate::error::{CoreError, CoreResult, ErrorCode};
@@ -43,22 +43,6 @@ pub struct LinePatch {
     pub lines: Vec<ReviewFixLine>,
 }
 
-/// The lines of `bytes`, each with its line ending (the last one may have none).
-fn split_lines(bytes: &[u8]) -> Vec<&[u8]> {
-    let mut lines = Vec::new();
-    let mut start = 0;
-    for (index, byte) in bytes.iter().enumerate() {
-        if *byte == b'\n' {
-            lines.push(&bytes[start..=index]);
-            start = index + 1;
-        }
-    }
-    if start < bytes.len() {
-        lines.push(&bytes[start..]);
-    }
-    lines
-}
-
 fn without_eol(line: &[u8]) -> &[u8] {
     let line = line.strip_suffix(b"\n").unwrap_or(line);
     line.strip_suffix(b"\r").unwrap_or(line)
@@ -70,15 +54,6 @@ fn decode_line(line: &[u8], encoding: &str) -> String {
     match encoding_rs::Encoding::for_label(encoding.as_bytes()) {
         Some(enc) if enc != encoding_rs::UTF_8 => enc.decode_without_bom_handling(bytes).0.into_owned(),
         _ => util::decode_lossy(bytes.strip_prefix(&[0xEF, 0xBB, 0xBF][..]).unwrap_or(bytes)),
-    }
-}
-
-/// `sign` + the line; a line without line ending gets Git's marker.
-fn emit(patch: &mut Vec<u8>, sign: u8, line: &[u8]) {
-    patch.push(sign);
-    patch.extend_from_slice(line);
-    if !line.ends_with(b"\n") {
-        patch.extend_from_slice(b"\n\\ No newline at end of file\n");
     }
 }
 
@@ -100,7 +75,7 @@ pub fn line_patch(path: &str, blob: &[u8], start: u32, end: u32, new_text: &str)
     if new_text.len() > MAX_NEW_TEXT || new_text.contains('\0') {
         return Err(CoreError::not_allowed("The suggested text is longer than 64 KiB or contains a NUL character."));
     }
-    let lines = split_lines(blob);
+    let lines = patch::lines_with_endings(blob);
     let count = lines.len();
     if start == 0 || end < start || end as usize > count {
         return Err(CoreError::not_allowed(format!("Lines {start}–{end} are not in “{path}”, which has {count} lines.")));
@@ -136,26 +111,11 @@ pub fn line_patch(path: &str, blob: &[u8], start: u32, end: u32, new_text: &str)
         return Err(CoreError::not_allowed("The suggested text is the same as the lines it would replace."));
     }
 
+    let patch = patch::replace_lines(path.as_bytes(), &lines, first, last, &new_lines, CONTEXT_LINES);
     let before = first.saturating_sub(CONTEXT_LINES);
     let after = (last + CONTEXT_LINES).min(count);
-    let old_len = after - before;
-    let new_len = (first - before) + new_lines.len() + (after - last);
-    let new_start = if new_len == 0 { before } else { before + 1 };
-    let mut patch = Vec::new();
-    let (a, b) = (quote_path(b"a/", path.as_bytes()), quote_path(b"b/", path.as_bytes()));
-    patch.extend_from_slice(b"diff --git ");
-    patch.extend_from_slice(&a);
-    patch.push(b' ');
-    patch.extend_from_slice(&b);
-    patch.extend_from_slice(b"\n--- ");
-    patch.extend_from_slice(&a);
-    patch.extend_from_slice(b"\n+++ ");
-    patch.extend_from_slice(&b);
-    patch.extend_from_slice(format!("\n@@ -{},{old_len} +{new_start},{new_len} @@\n", before + 1).as_bytes());
-
     let mut shown: Vec<ReviewFixLine> = Vec::new();
     for (offset, line) in lines[before..first].iter().enumerate() {
-        emit(&mut patch, b' ', line);
         let number = (before + offset + 1) as u32;
         shown.push(ReviewFixLine {
             kind: ReviewFixLineKind::Context,
@@ -165,7 +125,6 @@ pub fn line_patch(path: &str, blob: &[u8], start: u32, end: u32, new_text: &str)
         });
     }
     for (offset, line) in lines[first..last].iter().enumerate() {
-        emit(&mut patch, b'-', line);
         shown.push(ReviewFixLine {
             kind: ReviewFixLineKind::Removed,
             text: decode_line(line, &encoding),
@@ -174,7 +133,6 @@ pub fn line_patch(path: &str, blob: &[u8], start: u32, end: u32, new_text: &str)
         });
     }
     for (offset, line) in new_lines.iter().enumerate() {
-        emit(&mut patch, b'+', line);
         shown.push(ReviewFixLine {
             kind: ReviewFixLineKind::Added,
             text: decode_line(line, &encoding),
@@ -184,7 +142,6 @@ pub fn line_patch(path: &str, blob: &[u8], start: u32, end: u32, new_text: &str)
     }
     let shift = new_lines.len() as i64 - (last - first) as i64;
     for (offset, line) in lines[last..after].iter().enumerate() {
-        emit(&mut patch, b' ', line);
         let number = (last + offset + 1) as i64;
         shown.push(ReviewFixLine {
             kind: ReviewFixLineKind::Context,

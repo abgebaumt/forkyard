@@ -30,7 +30,7 @@ use crate::git::repo::read_head;
 use crate::git::rev;
 use crate::git::{errors, GitCmd};
 use crate::model::{DiffSource, PatchSelection, PatchText, RangeApplyTarget, RepoChange, Status};
-use crate::undo::{self, GroupRecord, UndoAction};
+use crate::undo::{self, GroupRecord, Pending, UndoAction};
 use crate::util;
 use crate::util::normalize_rel_path;
 
@@ -342,25 +342,21 @@ pub async fn patch_apply(core: &Core, repo_id: String, text: String, check_only:
             return read_status(core, repo_id).await;
         }
         let paths = touched_paths(core, repo_id, &text).await?;
-        let head = crate::git::repo::read_head(core, repo_id).await?;
-        let backup = crate::undo::Pending::back_up(core, repo_id, Some(&paths)).await?;
-        let out = match apply()?.stdin(text).run_raw().await {
-            Ok(out) => out,
-            Err(e) => {
-                backup.forget(core).await;
-                return Err(e);
-            }
-        };
-        if !out.success() {
-            backup.forget(core).await;
-            return Err(failure(&out));
-        }
+        let head = read_head(core, repo_id).await?;
         let label = match paths.as_slice() {
             [one] => format!("Undo applying the patch to ‘{}’", util::decode_lossy(one)),
             many => format!("Undo applying the patch ({} files)", many.len()),
         };
         let listed = paths.iter().map(|p| util::decode_lossy(p)).collect();
-        backup.record_discard(core, &head, label, Some(listed), serde_json::Value::Null).await;
+        let applied = async {
+            let out = apply()?.stdin(text).run_raw().await?;
+            if out.success() {
+                Ok(())
+            } else {
+                Err(failure(&out))
+            }
+        };
+        Pending::around(core, repo_id, &head, &paths, label, listed, applied).await?;
         read_status(core, repo_id).await
     })
     .await
