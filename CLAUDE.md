@@ -69,13 +69,15 @@ React UI --invoke--> src-tauri (thin binding) --> crates/core (gitcore) --proces
 Workspace crates:
 - `crates/core` (`gitcore`): all logic, no Tauri. `commands/*.rs` has one function per command. Plus `git/` (runner, errors, redaction in `redact.rs`, repository state in `repo.rs`, temp index in `index.rs`), `auth/` (credential broker, keychain, SSH keys), `util/` (time, text, path, fs helpers), `proc.rs` (non-Git processes, process trees), `db/` (SQLite, schema in `db/schema.sql`, migrations), `secrets.rs`, `http.rs` (ureq/rustls for GitHub/GitLab), `watcher.rs`, `autofetch.rs`, `undo.rs`. Feature `testkit` provides `TestCore`/`TestRepo`. `bin/forkyard-editor.rs` is the sequence editor for interactive rebase.
 - `crates/askpass`: helper for `GIT_ASKPASS`/`SSH_ASKPASS`. Forwards prompts over a local channel (127.0.0.1, one-time token) as `credential:request` to the UI. std only; `src-tauri/build.rs` compiles it with rustc as a sidecar into `src-tauri/binaries/`.
-- `src-tauri`: exactly one `#[tauri::command]` per command in `commands.rs` that only delegates to `gitcore::commands`, registered in `generate_handler![…]` in `lib.rs`.
+- `src-tauri`: one `#[tauri::command]` per command in `commands.rs` that only delegates to `gitcore::commands`. Plain ones are lines of the `commands! { … }` table (the macro emits the wrapper and `handler()` = `generate_handler![…]`, which `lib.rs` registers); the few with special bodies are hand-written below it and listed in its `hand_written:` line.
 
 ### The command contract (most important seam)
 
-`src/core/api.ts` (`CoreCommands`) is authoritative. A new or changed command always touches **four
-places**: `src/core/api.ts` (+ types in `src/core/types.ts`), `crates/core/src/commands/<area>.rs`,
-`src-tauri/src/commands.rs` and `src-tauri/src/lib.rs`. Then run `npm run check:commands`. camelCase in
+`src/core/api.ts` (`CoreCommands`) is authoritative. A new or changed command always touches **three
+places**: `src/core/api.ts` (+ types in `src/core/types.ts`), `crates/core/src/commands/<area>.rs` and
+one table line `name => area::core_fn(param: Type, …) -> Ret;` in `src-tauri/src/commands.rs` (or a
+hand-written `#[tauri::command]` below the table plus its name in `hand_written:`). Then run
+`npm run check:commands`. camelCase in
 TS maps to snake_case in Rust. Errors always arrive as `{ code, message, gitOutput }` (`CoreError`). The
 UI talks to the core only through `src/core/index.ts`.
 
