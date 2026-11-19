@@ -334,6 +334,26 @@ export function extendSelection(selection: Selection, delta: -1 | 1, order: stri
   return { ...selection, cursor: next, ids: selection.ids.includes(next) ? selection.ids : [...selection.ids, next] };
 }
 
+/** ↑/↓: the cursor moves one unit in display order (clamped); without a cursor to the first unit. */
+export function stepSelection(selection: Selection, delta: -1 | 1, order: string[]): Selection | null {
+  const at = selection.cursor ? order.indexOf(selection.cursor) : -1;
+  const next = order[Math.max(0, Math.min(order.length - 1, at + delta))] ?? order[0];
+  return next ? selectOne(selection, next) : null;
+}
+
+/** After the units changed: the selected units that still exist, or nothing when the cursor is gone. */
+export function keptSelection(selection: Selection, ids: ReadonlySet<string>): Selection {
+  if (!selection.cursor || !ids.has(selection.cursor)) return emptySelection;
+  const kept = selection.ids.filter((id) => ids.has(id));
+  return { ...selection, ids: kept.length ? kept : [selection.cursor] };
+}
+
+/** After a move the moved units are selected; the cursor stays on its unit if that moved too. */
+export function movedSelection(selection: Selection, moved: string[]): Selection {
+  const cursor = selection.cursor && moved.includes(selection.cursor) ? selection.cursor : moved[0]!;
+  return { cursor, ids: moved, anchor: moved[0]! };
+}
+
 // ---------------------------------------------------------------------------------------------
 // Views
 
@@ -440,8 +460,36 @@ export function reproposed(
   return { skip, commits };
 }
 
+/**
+ * A proposal arrived: the units the user placed keep their place (`reproposed`), pins of units
+ * that are gone are dropped. `original` is the proposal as the AI made it ("Start over").
+ */
+export function applyProposal(
+  current: Arrangement,
+  pinnedBefore: ReadonlySet<string>,
+  units: ComposeUnit[],
+  groups: ComposeGroup[],
+): { arrangement: Arrangement; original: Arrangement; pinned: Set<string> } {
+  const ids = new Set(units.map((unit) => unit.id));
+  const pinned = new Set([...pinnedBefore].filter((id) => ids.has(id)));
+  const original = fromProposal(units, groups);
+  return { arrangement: reproposed(original, refreshed(current, units), pinned, orderOf(units)), original, pinned };
+}
+
 // ---------------------------------------------------------------------------------------------
 // Keys and texts
+
+/** "Don't commit" or "Commit n" for notices. */
+export function groupName(group: number): string {
+  return group === SKIP ? t("wip.compose.skipQuoted") : t("wip.compose.commit", { number: group + 1 });
+}
+
+/** The question before creating commits that do not build on their own. */
+export function brokenText(problem: { group: number; commit: number }, file: string): string {
+  return problem.group === SKIP
+    ? t("wip.compose.broken.skipped", { commit: problem.commit + 1, file })
+    : t("wip.compose.broken.later", { commit: problem.commit + 1, file, number: problem.group + 1 });
+}
 
 export function keyAction(event: KeyInput, mac: boolean): KeyAction | null {
   const mod = mac ? event.metaKey : event.ctrlKey;
