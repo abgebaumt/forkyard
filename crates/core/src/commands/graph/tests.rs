@@ -1,5 +1,6 @@
 //! Tests of the graph commands against real temp repositories.
 
+use std::collections::HashSet;
 use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -1691,51 +1692,75 @@ async fn a_ref_on_the_side_branch_keeps_its_commits_visible() {
 }
 
 /// The Git calls of a first page, whatever the number of merges on it: the `collapsible` checks
-/// cost one `git rev-list` for the page, no `for-each-ref --contains` per merge.
+/// and the refs that keep a collapsed merge's commits cost one `git rev-list` for the page, no
+/// `for-each-ref --contains` per merge. A collapsed merge still reads its own side commits.
 #[tokio::test]
 async fn collapsible_checks_cost_one_git_call_per_page() {
     let tc = TestCore::new().await;
-    let mut calls = Vec::new();
-    for rounds in [12, 90] {
-        let repo = branchy_repo(rounds);
-        repo.git(&["tag", "-a", "-m", "Marke", "v1", "HEAD~3"]);
-        let id = tc.open(&repo).await.repo.id;
-        tc.git.take_spawned();
-        let rows = graph_page(&tc, id, None, 200).await.unwrap().rows;
-        let spawned = tc.git.take_spawned();
-        assert!(rows.iter().filter(|r| r.kind == GraphRowKind::Merge).count() >= rounds / 4);
-        assert!(!spawned.iter().flatten().any(|a| a.starts_with("--contains")), "{spawned:?}");
-        let reach = spawned.iter().filter(|argv| argv.iter().any(|a| a == "rev-list") && argv.iter().any(|a| a == "--topo-order"));
-        assert_eq!(reach.count(), 1, "{spawned:?}");
-        calls.push(spawned.len());
+    for collapse_all in [false, true] {
+        let mut calls = Vec::new();
+        for rounds in [12, 90] {
+            let repo = branchy_repo(rounds);
+            repo.git(&["tag", "-a", "-m", "Marke", "v1", "HEAD~3"]);
+            let id = tc.open(&repo).await.repo.id;
+            view_state_set(&tc, id.clone(), json!({ "collapseAllMerges": collapse_all })).await.unwrap();
+            tc.git.take_spawned();
+            let rows = graph_page(&tc, id, None, 200).await.unwrap().rows;
+            let spawned = tc.git.take_spawned();
+            let merges = rows.iter().filter(|r| r.kind == GraphRowKind::Merge).count();
+            assert!(merges >= rounds / 4);
+            assert!(!spawned.iter().flatten().any(|a| a.starts_with("--contains")), "{spawned:?}");
+            let reach = spawned.iter().filter(|argv| argv.iter().any(|a| a == "rev-list") && argv.iter().any(|a| a == "--topo-order"));
+            assert_eq!(reach.count(), 1, "{spawned:?}");
+            calls.push(spawned.len() - if collapse_all { merges } else { 0 });
+        }
+        assert_eq!(calls[0], calls[1], "collapse all {collapse_all}: more merges, same number of other Git calls");
     }
-    assert_eq!(calls[0], calls[1], "more merges, same number of Git calls");
 }
 
-/// The old check, as the oracle: a merge is collapsible unless every side parent is kept or a
-/// branch, remote branch or tag on a kept commit contains it but not the merge
-/// (`git for-each-ref --contains=<parent> --no-contains=<merge>`).
-async fn collapsible_by_for_each_ref(tc: &TestCore, repo: &TestRepo, id: &str, merge: &GraphRow) -> bool {
+/// The plan of the current view, as `graph_page` builds it.
+async fn plan_of(tc: &TestCore, repo: &TestRepo, id: &str) -> page::Plan {
     let path = tc.repo_path(id).unwrap();
     let view = tc.db.with(|c| crate::db::view_state::get(c, id)).unwrap();
     let tips = read_ref_tips(tc, &path, id, None).await.unwrap();
-    let plan = page::build_plan(tips, Some(repo.head()), read_stashes(tc, &path, id).await.unwrap(), &view);
-    let sha = merge.sha.clone().unwrap();
-    merge.parents[1..].iter().any(|parent| {
-        if plan.keep.contains(parent) {
-            return false;
+    page::build_plan(tips, Some(repo.head()), read_stashes(tc, &path, id).await.unwrap(), &view)
+}
+
+/// `git for-each-ref <filters>` over branches, remote branches and tags: object and peeled commit.
+fn ref_objects(repo: &TestRepo, filters: &[String]) -> Vec<String> {
+    let mut args = vec!["for-each-ref".to_string(), "--format=%(objectname) %(*objectname)".to_string()];
+    args.extend(filters.iter().cloned());
+    args.extend(["refs/heads", "refs/remotes", "refs/tags"].map(String::from));
+    repo.git(&args.iter().map(String::as_str).collect::<Vec<_>>()).split_whitespace().map(String::from).collect()
+}
+
+/// The old checks, as the oracle. Expanded merge: collapsible unless every side parent is kept or
+/// a ref on a kept commit contains it but not the merge (`for-each-ref --contains=<parent>
+/// --no-contains=<merge>`). Collapsed merge: `rev-list --count <side…> ^<first> ^<kept…>`, where
+/// kept leaves out the refs containing the merge (`for-each-ref --contains=<merge>`).
+async fn check_against_for_each_ref(tc: &TestCore, repo: &TestRepo, id: &str, rows: &[GraphRow], context: &str) {
+    let plan = plan_of(tc, repo, id).await;
+    for row in rows.iter().filter(|r| r.kind == GraphRowKind::Merge) {
+        let sha = row.sha.clone().unwrap();
+        let (first, side) = row.parents.split_first().unwrap();
+        if let Some(count) = row.collapsed_count {
+            let through: HashSet<String> = ref_objects(repo, &[format!("--contains={sha}")]).into_iter().collect();
+            let mut args = vec!["rev-list".to_string(), "--count".to_string()];
+            args.extend(side.iter().cloned());
+            args.push(format!("^{first}"));
+            args.extend(plan.keep.iter().filter(|k| !through.contains(*k)).map(|k| format!("^{k}")));
+            let expected: u32 = repo.git(&args.iter().map(String::as_str).collect::<Vec<_>>()).parse().unwrap();
+            assert_eq!(count, expected, "{context}: {}\n{}", row.summary, sketch(rows));
+        } else {
+            let expected = side.iter().any(|parent| {
+                !plan.keep.contains(parent)
+                    && !ref_objects(repo, &[format!("--contains={parent}"), format!("--no-contains={sha}")])
+                        .iter()
+                        .any(|tip| plan.keep.contains(tip))
+            });
+            assert_eq!(row.collapsible, expected, "{context}: {}\n{}", row.summary, sketch(rows));
         }
-        let refs = repo.git(&[
-            "for-each-ref",
-            "--format=%(objectname) %(*objectname)",
-            &format!("--contains={parent}"),
-            &format!("--no-contains={sha}"),
-            "refs/heads",
-            "refs/remotes",
-            "refs/tags",
-        ]);
-        !refs.split_whitespace().any(|tip| plan.keep.contains(tip))
-    })
+    }
 }
 
 /// Merges whose side commits are or are not reachable from other refs: deleted branch, annotated
@@ -1794,23 +1819,67 @@ async fn collapsible_matches_the_for_each_ref_check() {
         json!({ "hiddenRefs": ["refs/heads/versteckt", "refs/tags/seite"], "soloRefs": [] }),
         json!({ "hiddenRefs": [], "soloRefs": ["refs/heads/main"] }),
         json!({ "hiddenRefs": ["refs/remotes/origin/fern"], "soloRefs": ["refs/heads/weiter"] }),
+        json!({ "hiddenRefs": [], "soloRefs": [], "collapseAllMerges": true }),
+        json!({ "hiddenRefs": ["refs/tags/seite"], "soloRefs": ["refs/heads/main"], "collapseAllMerges": true }),
+        json!({ "hiddenRefs": ["refs/tags/seite"], "soloRefs": [], "collapseAllMerges": false, "collapsedMerges": [&merges[1], &merges[2], &merges[6], &merges[8]] }),
     ];
     for view in views {
         view_state_set(&tc, id.clone(), view.clone()).await.unwrap();
         for page_size in [2, 100] {
             let rows = all_rows(&tc, &id, page_size).await;
-            for row in rows.iter().filter(|r| r.kind == GraphRowKind::Merge) {
-                let expected = collapsible_by_for_each_ref(&tc, &repo, &id, row).await;
-                assert_eq!(row.collapsible, expected, "{view} page size {page_size}: {}\n{}", row.summary, sketch(&rows));
-            }
+            check_against_for_each_ref(&tc, &repo, &id, &rows, &format!("{view} page size {page_size}")).await;
         }
     }
 
     // The oracle tells the cases apart.
-    view_state_set(&tc, id.clone(), json!({ "hiddenRefs": [], "soloRefs": [] })).await.unwrap();
+    view_state_set(&tc, id.clone(), json!({ "hiddenRefs": [], "soloRefs": [], "collapsedMerges": [] })).await.unwrap();
     let rows = all_rows(&tc, &id, 100).await;
     let flags: Vec<bool> = merges.iter().map(|m| find(&rows, m).collapsible).collect();
     assert_eq!(flags, vec![true, false, false, false, true, false, true, true, true], "{}", sketch(&rows));
+}
+
+/// More kept refs than one 64-bit word: 80 merges on main, each side tagged either on a commit
+/// past the merged one (keeps it: no arrow) or on the merge itself (keeps nothing more: arrow).
+#[tokio::test]
+async fn collapsible_matches_the_for_each_ref_check_beyond_64_refs() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::new();
+    let mut imp = Importer { out: String::from("blob\nmark :1\ndata 6\nhallo\n\n"), mark: 1, commits: 0 };
+    let mut main = imp.commit("main", "Anfang", None, None);
+    let mut keeping = Vec::new();
+    for i in 0..80 {
+        let side = imp.commit("seite", &format!("Seite {i}"), Some(main), None);
+        main = imp.commit("main", &format!("Merge {i}"), Some(main), Some(side));
+        let tagged = if i % 2 == 0 { imp.commit("seite", &format!("Seite {i} weiter"), Some(side), None) } else { main };
+        imp.out.push_str(&format!("reset refs/tags/t{i}\nfrom :{tagged}\n\n"));
+        keeping.push(i % 2 == 0);
+    }
+    repo.fast_import(imp.out.as_bytes());
+    repo.git(&["reset", "-q", "--hard", "main"]);
+    repo.git(&["branch", "-D", "seite"]);
+    let id = tc.open(&repo).await.repo.id;
+
+    // Tags of both kinds sit beyond the first word of the sorted tips.
+    let mut tips: Vec<String> = ref_objects(&repo, &[]);
+    tips.sort_unstable();
+    tips.dedup();
+    assert!(tips.len() > 64);
+    let beyond: Vec<bool> =
+        (0..80).filter(|i| tips[64..].contains(&repo.git(&["rev-parse", &format!("t{i}")]))).map(|i| i % 2 == 0).collect();
+    assert!(beyond.contains(&true) && beyond.contains(&false), "{beyond:?}");
+
+    for view in [json!({ "collapseAllMerges": false }), json!({ "collapseAllMerges": true })] {
+        view_state_set(&tc, id.clone(), view.clone()).await.unwrap();
+        for page_size in [7, 200] {
+            let rows = all_rows(&tc, &id, page_size).await;
+            check_against_for_each_ref(&tc, &repo, &id, &rows, &format!("{view} page size {page_size}")).await;
+        }
+    }
+    view_state_set(&tc, id.clone(), json!({ "collapseAllMerges": false })).await.unwrap();
+    let rows = all_rows(&tc, &id, 200).await;
+    // Oldest merge last in the graph: reversed, merge `i` is at index `i`.
+    let no_arrow: Vec<bool> = rows.iter().filter(|r| r.kind == GraphRowKind::Merge).rev().map(|r| !r.collapsible).collect();
+    assert_eq!(no_arrow, keeping, "{}", sketch(&rows));
 }
 
 /// develop: A ── d1 ── d2 ── d3 (HEAD); staging: A ── s1 ── M (merge of develop at d2). d1 and d2
@@ -1916,7 +1985,7 @@ async fn collapse_all_merges_applies_to_pages_loaded_later() {
 
 #[tokio::test]
 async fn a_merge_bringing_in_too_many_commits_stays_expanded() {
-    use super::page::{collapse_for, Collapse, Plan};
+    use super::page::{collapse_for, Collapse, Plan, Reach};
     let tc = TestCore::new().await;
     let (repo, [_, _, f2, m1, merge, _]) = merged_feature();
     let id = tc.open(&repo).await.repo.id;
@@ -1924,9 +1993,12 @@ async fn a_merge_bringing_in_too_many_commits_stays_expanded() {
     let parents = vec![m1.clone(), f2.clone()];
     let plan = Plan::default();
 
-    assert_eq!(collapse_for(&tc, &path, &id, &plan, &merge, &parents, 1).await.unwrap(), Collapse::TooLarge);
     assert_eq!(
-        collapse_for(&tc, &path, &id, &plan, &merge, &parents, 2).await.unwrap(),
+        collapse_for(&tc, &path, &id, &plan, &mut Reach::new(&tc, &path, &id, &plan, HashSet::new()), &merge, &parents, 1).await.unwrap(),
+        Collapse::TooLarge
+    );
+    assert_eq!(
+        collapse_for(&tc, &path, &id, &plan, &mut Reach::new(&tc, &path, &id, &plan, HashSet::new()), &merge, &parents, 2).await.unwrap(),
         Collapse::Hide { count: 2, hidden_parents: vec![f2.clone()] }
     );
 }
