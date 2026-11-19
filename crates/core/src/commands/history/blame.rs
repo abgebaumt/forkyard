@@ -19,17 +19,63 @@ pub async fn file_blame(
     sha: Option<String>,
     encoding: Option<String>,
 ) -> CoreResult<Vec<BlameLine>> {
-    let rel = util::normalize_rel_path(&path)?;
-    let forced = util::forced_encoding(encoding.as_deref())?;
-    let preferred = repo_encoding(core, &repo_id);
+    let target = match blame_source(core, &repo_id, &path, sha.as_deref(), encoding.as_deref()).await? {
+        BlameSource::Ready(lines) => return Ok(lines),
+        BlameSource::Git(target) => target,
+    };
+    let mut cmd = core.git_for(&repo_id)?.args(["blame", "--porcelain"]);
+    if let Some(rev) = &target.rev {
+        cmd = cmd.arg(rev);
+    }
+    let mut parser = BlameParser::new(&target.preferred, target.forced);
+    cmd.args(["--", target.rel.as_str()])
+        .read_only()
+        .run_records(b'\n', None, &mut |line| {
+            parser.feed(line);
+            true
+        })
+        .await?;
+    Ok(parser.lines)
+}
+
+/// What a blame shows: lines that need no Git (a file HEAD does not know), or what Git blames.
+pub(crate) enum BlameSource {
+    Ready(Vec<BlameLine>),
+    Git(BlameTarget),
+}
+
+/// A checked file for `git blame`.
+pub(crate) struct BlameTarget {
+    /// Normalised path relative to the repository.
+    pub rel: String,
+    /// The checked revision; `None` = working directory.
+    pub rev: Option<String>,
+    /// The file on disk (working directory only).
+    pub file: Option<PathBuf>,
+    /// The repository's encoding (`repo_encoding`).
+    pub preferred: String,
+    /// Encoding given by the call; otherwise it is guessed per line.
+    pub forced: Option<&'static encoding_rs::Encoding>,
+}
+
+/// The checks of `file_blame` (path, encoding, revision, existence, binary, size).
+pub(crate) async fn blame_source(
+    core: &Core,
+    repo_id: &str,
+    path: &str,
+    sha: Option<&str>,
+    encoding: Option<&str>,
+) -> CoreResult<BlameSource> {
+    let rel = util::normalize_rel_path(path)?;
+    let forced = util::forced_encoding(encoding)?;
+    let preferred = repo_encoding(core, repo_id);
     let binary = || CoreError::unsupported(format!("“{rel}” is a binary file; blame is only available for text files."));
     let too_large = || CoreError::unsupported(format!("“{rel}” is too large for blame."));
-    let mut cmd = core.git_for(&repo_id)?.args(["blame", "--porcelain"]);
-    match sha.as_deref() {
+    let (rev, file) = match sha {
         Some(sha) => {
             let rev = check_rev(sha)?;
             let spec = format!("{rev}:{rel}");
-            let is_binary = blob_looks_binary(core, &repo_id, &spec).await.map_err(|e| match e.code {
+            let is_binary = blob_looks_binary(core, repo_id, &spec).await.map_err(|e| match e.code {
                 ErrorCode::NotFound | ErrorCode::Unknown => {
                     CoreError::not_found(format!("The file “{rel}” does not exist in commit {}.", short_rev(rev)))
                         .with_git_output(e.git_output.unwrap_or_default())
@@ -39,14 +85,14 @@ pub async fn file_blame(
             if is_binary {
                 return Err(binary());
             }
-            let size = core.git_for(&repo_id)?.args(["cat-file", "-s", &spec]).read().run_raw().await?;
+            let size = core.git_for(repo_id)?.args(["cat-file", "-s", &spec]).read().run_raw().await?;
             if String::from_utf8_lossy(&size.stdout).trim().parse::<u64>().is_ok_and(|n| n > MAX_TEXT_BYTES) {
                 return Err(too_large());
             }
-            cmd = cmd.arg(rev);
+            (Some(rev.to_string()), None)
         }
         None => {
-            let root = core.repo_path(&repo_id)?;
+            let root = core.repo_path(repo_id)?;
             let file = util::resolve_for_read(&root, &rel)?;
             if !file.is_file() {
                 return Err(CoreError::not_found(format!("The file “{rel}” does not exist in the working directory.")));
@@ -57,21 +103,14 @@ pub async fn file_blame(
             if file.metadata()?.len() > MAX_TEXT_BYTES {
                 return Err(too_large());
             }
-            let in_head = core.git_for(&repo_id)?.args(["cat-file", "-e", &format!("HEAD:{rel}")]).read().run_raw().await?.success();
+            let in_head = core.git_for(repo_id)?.args(["cat-file", "-e", &format!("HEAD:{rel}")]).read().run_raw().await?.success();
             if !in_head {
-                return uncommitted_file(&file, &rel, &preferred, forced);
+                return uncommitted_file(&file, &rel, &preferred, forced).map(BlameSource::Ready);
             }
+            (None, Some(file))
         }
-    }
-    let mut parser = BlameParser::new(&preferred, forced);
-    cmd.args(["--", rel.as_str()])
-        .read_only()
-        .run_records(b'\n', None, &mut |line| {
-            parser.feed(line);
-            true
-        })
-        .await?;
-    Ok(parser.lines)
+    };
+    Ok(BlameSource::Git(BlameTarget { rel, rev, file, preferred, forced }))
 }
 
 /// Whether a blob is binary without reading it completely: Git is stopped as soon as the first NUL byte arrives.
@@ -141,6 +180,14 @@ pub(super) fn uncommitted_file(
         .collect())
 }
 
+/// A line's text (without `\n` and `\r`) as blame shows it: the forced encoding, or guessed per line.
+pub(super) fn decode_blame_line(content: &[u8], preferred: &str, forced: Option<&'static encoding_rs::Encoding>) -> String {
+    match forced {
+        Some(enc) => enc.decode_without_bom_handling(content).0.into_owned(),
+        None => util::decode_line(content, preferred),
+    }
+}
+
 /// `git blame --porcelain` (see `git::blame::BlameParser`) into `BlameLine`s.
 pub(super) struct BlameParser {
     pub(super) porcelain: crate::git::blame::BlameParser,
@@ -166,10 +213,7 @@ impl BlameParser {
         };
         self.lines.push(BlameLine {
             line_no: blamed.final_line,
-            text: match self.forced {
-                Some(enc) => enc.decode_without_bom_handling(content).0.into_owned(),
-                None => util::decode_line(content, &self.preferred),
-            },
+            text: decode_blame_line(content, &self.preferred, self.forced),
             sha: blamed.sha.to_string(),
             author,
             authored_at: util::unix_to_iso(blamed.info.time),

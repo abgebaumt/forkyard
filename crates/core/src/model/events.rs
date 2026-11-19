@@ -122,6 +122,21 @@ pub struct SubmodulesUpdatedEvent {
     pub message: Option<String>,
 }
 
+/// `blame:chunk` – progress of `file_blame_job`. The first chunk carries every line of the file
+/// (`text`, no spans, `done: 0`); later ones carry the spans found since (`text: null`).
+/// `done` counts the lines assigned so far, out of `total`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "events.ts"))]
+#[serde(rename_all = "camelCase")]
+pub struct BlameChunkEvent {
+    pub job_id: String,
+    pub repo_id: Id,
+    pub total: u32,
+    pub done: u32,
+    pub text: Option<Vec<String>>,
+    pub spans: Vec<BlameSpan>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -479,6 +494,26 @@ mod tests {
               "refs":[{"kind":"local","name":"main","fullName":"refs/heads/main","isHead":true}],
               "isHead":false,"stashIndex":null,"wipCount":3,"collapsedCount":null,"collapseTooLarge":false,"collapsible":false,"sync":"none"})
         );
+    }
+
+    #[test]
+    fn blame_chunk_json() {
+        let span = BlameSpan {
+            sha: "s".into(),
+            start_line: 1,
+            count: 1,
+            author: Person { name: "A".into(), email: "a@x".into() },
+            authored_at: "2026-01-01T00:00:00Z".into(),
+            summary: "S".into(),
+            uncommitted: false,
+        };
+        let event = BlameChunkEvent { job_id: "j".into(), repo_id: "r".into(), total: 2, done: 1, text: None, spans: vec![span] };
+        assert_eq!(
+            serde_json::to_value(&event).unwrap(),
+            json!({"jobId":"j","repoId":"r","total":2,"done":1,"text":null,"spans":[{"sha":"s","startLine":1,"count":1,
+              "author":{"name":"A","email":"a@x"},"authoredAt":"2026-01-01T00:00:00Z","summary":"S","uncommitted":false}]})
+        );
+        assert!(crate::events::names::ALL.contains(&crate::events::names::BLAME_CHUNK));
     }
 
     #[test]

@@ -1000,8 +1000,8 @@ impl GitRecordStream {
             Some(child) => child.wait().await.ok(),
             None => None,
         };
-        // shortcut: waits for stderr's end of file; a background grandchild holding it would block (not seen with log/blame).
-        let stderr = stderr.await.unwrap_or_default();
+        // A background grandchild may hold stderr open after Git exited.
+        let stderr = tokio::time::timeout(PIPE_GRACE, stderr).await.ok().and_then(Result::ok).unwrap_or_default();
         if status.is_some_and(|s| s.success()) {
             return Ok(None);
         }

@@ -181,6 +181,21 @@ pub struct BlameLine {
     pub uncommitted: bool,
 }
 
+/// Lines `start_line .. start_line + count` (1-based) of a blame and the commit that last changed
+/// them (`blame:chunk`). Uncommitted lines carry a SHA of zeros, as in `BlameLine`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
+#[serde(rename_all = "camelCase")]
+pub struct BlameSpan {
+    pub sha: Sha,
+    pub start_line: u32,
+    pub count: u32,
+    pub author: Person,
+    pub authored_at: IsoTime,
+    pub summary: String,
+    pub uncommitted: bool,
+}
+
 /// Line endings of a file that was read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "history.ts"))]
