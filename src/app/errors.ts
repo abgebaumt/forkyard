@@ -1,4 +1,6 @@
-import { CoreError, type ErrorCode } from "../core";
+import { toCoreError, type ErrorCode } from "../core";
+
+export { toCoreError };
 import { t } from "../i18n";
 
 export interface ErrorInfo {
@@ -70,15 +72,6 @@ const CODES: Record<ErrorCode, true> = {
 export const errorInfo = Object.fromEntries(
   (Object.keys(CODES) as ErrorCode[]).map((code) => [code, { text: t(`errors.${code}.text`), hint: t(`errors.${code}.hint`) }]),
 ) as Record<ErrorCode, ErrorInfo>;
-
-export function toCoreError(error: unknown): CoreError {
-  if (error instanceof CoreError) return error;
-  if (error && typeof error === "object" && "code" in error && "message" in error) {
-    return new CoreError(error as CoreError);
-  }
-  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
-  return new CoreError({ code: "unknown", message, gitOutput: null });
-}
 
 /** Text for toasts and banners: the core's message (if any) plus a suggested action. */
 export function describeError(error: unknown): { text: string; hint: string } {

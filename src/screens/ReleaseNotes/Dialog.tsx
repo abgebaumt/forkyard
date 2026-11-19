@@ -9,7 +9,8 @@ import { t } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
 import { TextArea } from "../../ui/Field";
-import { cachedAiStatus, short } from "../../app/actions/context";
+import { cachedAiStatus } from "../../app/actions/context";
+import { shortSha } from "../../app/format";
 import { signInInTerminal } from "../../app/ai/cliLogin";
 import { openAiSetup } from "../../app/ai/open";
 import { aiVisibility } from "../../app/ai/visibility";
@@ -59,7 +60,7 @@ function ReleaseNotesDialog({ repoId, subject, onDone }: { repoId: Id; subject: 
   const title =
     subject.kind === "tag"
       ? t("actions.tags.releaseNotes.titleTag", { name: subject.name })
-      : t("actions.tags.releaseNotes.titleCommit", { sha: short(subject.sha) });
+      : t("actions.tags.releaseNotes.titleCommit", { sha: shortSha(subject.sha) });
   const [notes, setNotes] = useState("");
   const notesRef = useRef("");
   const setText = (value: string) => {

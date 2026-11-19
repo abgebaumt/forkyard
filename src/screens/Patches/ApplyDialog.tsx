@@ -16,7 +16,8 @@ import { Dialog } from "../../ui/Dialog";
 import { Banner, toast } from "../../ui/Feedback";
 import { TextArea } from "../../ui/Field";
 import { locale, t } from "../../i18n";
-import { formatSize, parseApplyErrors, parsePatch } from "./model";
+import { parseApplyErrors, parsePatch } from "./model";
+import { formatBytes } from "../../app/format";
 import { PatchFileList } from "./parts";
 
 /** The dialog rejects larger files – a patch of that size is almost always a mistake. */
@@ -76,7 +77,7 @@ export function ApplyPatchDialog({ repoId, tabId, onClose }: { repoId: Id; tabId
   const readFile = async (file: File | undefined) => {
     if (!file) return;
     if (file.size > MAX_BYTES) {
-      setInputNote(t("patches.apply.tooLarge", { name: file.name, size: formatSize(file.size), max: formatSize(MAX_BYTES) }));
+      setInputNote(t("patches.apply.tooLarge", { name: file.name, size: formatBytes(file.size), max: formatBytes(MAX_BYTES) }));
       return;
     }
     try {

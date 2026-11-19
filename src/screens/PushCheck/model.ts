@@ -5,6 +5,7 @@
 import type { AiPushFindingKind, AiPushReview, AiStatus, RepoSettings, SecretFinding, SecretRule } from "../../core";
 import { aiVisibility, featureVisible } from "../../app/ai/visibility";
 import { t } from "../../i18n";
+import { shortSha } from "../../app/format";
 
 /** The fields of the push result `secrets_found`. */
 export interface SecretsFound {
@@ -57,7 +58,7 @@ export function secretRows(findings: SecretFinding[]): SecretRow[] {
     location: findingLocation(finding),
     rule: ruleLabel(finding.rule),
     excerpt: finding.excerpt,
-    commit: finding.commit.slice(0, 7),
+    commit: shortSha(finding.commit),
   }));
 }
 

@@ -73,8 +73,8 @@ import {
   clipMiddle,
   currentBranch,
   headSha,
-  short,
 } from "../actions/context";
+import { shortSha as short } from "../format";
 import { featureVisible } from "../ai/visibility";
 import { openReleaseNotes, type ReleaseNotesSubject } from "../../screens/ReleaseNotes/Dialog";
 import { interactiveRebaseOnto, mergeInto, pushTo, rebaseBranchOnto } from "../actions/drop";

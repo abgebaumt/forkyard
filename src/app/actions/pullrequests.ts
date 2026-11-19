@@ -27,7 +27,7 @@ import {
 } from "./hostTypes";
 import { cachedHostAccounts, runHostAction } from "./hosts";
 import { busyKeys } from "./keys";
-import { fetchAll } from "./sync";
+import { fetchAll, toastPushRejected } from "./sync";
 import { guardSecrets } from "./pushCheck";
 
 // ---------------------------------------------------------------------------
@@ -174,8 +174,7 @@ export async function pushBranchForPr(repoId: Id, branch: string, jobId: string)
     ),
   );
   await loadRefs(repoId).catch(() => undefined);
-  if (result.ok && result.value.status === "rejected")
-    toast({ tone: "danger", title: t("actions.pullrequests.pushRejected"), description: result.value.reason });
+  if (result.ok && result.value.status === "rejected") toastPushRejected(result.value.reason);
   return result;
 }
 

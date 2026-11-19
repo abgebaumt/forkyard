@@ -6,7 +6,8 @@ import { t } from "../../i18n";
 import type { DiffSource, FileChange, Id, Sha, Stash } from "../../core";
 import { openApplyPatch, openCreatePatch } from "../../screens/Patches";
 import { findRow, graphIndex } from "./ancestry";
-import { cachedStashes, clip, currentBranch, short } from "./context";
+import { cachedStashes, clip, currentBranch } from "./context";
+import { shortSha } from "../format";
 
 function sourceLabel(repoId: Id, source: DiffSource): { what: string; nameHint: string | null } {
   switch (source.kind) {
@@ -19,8 +20,8 @@ function sourceLabel(repoId: Id, source: DiffSource): { what: string; nameHint: 
       const summary = index ? findRow(index, source.sha)?.summary : undefined;
       return {
         what: summary
-          ? t("actions.patches.commitWithSummary", { sha: short(source.sha), summary: clip(summary, 56) })
-          : t("actions.patches.commit", { sha: short(source.sha) }),
+          ? t("actions.patches.commitWithSummary", { sha: shortSha(source.sha), summary: clip(summary, 56) })
+          : t("actions.patches.commit", { sha: shortSha(source.sha) }),
         nameHint: summary ?? null,
       };
     }
@@ -37,9 +38,9 @@ function sourceLabel(repoId: Id, source: DiffSource): { what: string; nameHint: 
       return {
         what:
           source.to === null
-            ? t("actions.patches.compareWorktree", { from: short(source.from) })
-            : t("actions.patches.compare", { from: short(source.from), to: short(source.to) }),
-        nameHint: source.to === null ? short(source.from) : `${short(source.from)}-${short(source.to)}`,
+            ? t("actions.patches.compareWorktree", { from: shortSha(source.from) })
+            : t("actions.patches.compare", { from: shortSha(source.from), to: shortSha(source.to) }),
+        nameHint: source.to === null ? shortSha(source.from) : `${shortSha(source.from)}-${shortSha(source.to)}`,
       };
   }
 }

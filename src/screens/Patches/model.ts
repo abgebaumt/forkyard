@@ -4,7 +4,8 @@
  * patch applies is decided by Git in the core alone.
  */
 import type { DiffSource } from "../../core";
-import { locale, t } from "../../i18n";
+import { t } from "../../i18n";
+import { shortSha } from "../../app/format";
 
 export type PatchFileStatus = "added" | "deleted" | "modified" | "renamed";
 
@@ -252,7 +253,7 @@ export function suggestFileName(source: DiffSource, hint: string | null, today =
   const name = hint ? slug(hint) : "";
   switch (source.kind) {
     case "commit":
-      return `0001-${name || source.sha.slice(0, 7)}.patch`;
+      return `0001-${name || shortSha(source.sha)}.patch`;
     case "stash":
       return `stash-${name || source.index}.patch`;
     case "range":
@@ -272,10 +273,4 @@ export function relativeInside(repoPath: string, target: string, caseInsensitive
   const relative = file.slice(root.length + 1);
   if (!relative || relative.split("/").some((part) => part === ".." || part === "." || part.toLowerCase() === ".git")) return null;
   return relative;
-}
-
-export function formatSize(bytes: number): string {
-  if (bytes < 1024) return t("patches.size.bytes", { size: bytes.toLocaleString(locale()) });
-  if (bytes < 1024 * 1024) return t("patches.size.kb", { size: (bytes / 1024).toLocaleString(locale(), { maximumFractionDigits: 1 }) });
-  return t("patches.size.mb", { size: (bytes / 1024 / 1024).toLocaleString(locale(), { maximumFractionDigits: 1 }) });
 }

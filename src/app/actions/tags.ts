@@ -8,7 +8,8 @@ import { qk, queryClient } from "../queries";
 import { newJobId, runAction } from "../run";
 import { guardSecrets } from "./pushCheck";
 import { refNameValidator } from "./branches";
-import { cachedSettings, clip, loadRemotes, short } from "./context";
+import { cachedSettings, clip, loadRemotes } from "./context";
+import { shortSha } from "../format";
 import { addRemote } from "./sync";
 
 /**
@@ -19,7 +20,7 @@ export async function createTag(repoId: Id, sha: Sha | null, annotated = false) 
   const input = await askTag({
     repoId,
     sha,
-    target: sha ? short(sha) : t("actions.tags.currentCommit"),
+    target: sha ? shortSha(sha) : t("actions.tags.currentCommit"),
     annotated,
     validate: refNameValidator(repoId, "tag"),
   });

@@ -9,11 +9,6 @@
     "range": "comparison",
     "changes": "changes"
   },
-  "size": {
-    "bytes": "{{size}} bytes",
-    "kb": "{{size}} KB",
-    "mb": "{{size}} MB"
-  },
   "save": {
     "crlf": "The patch contains lines with Windows line endings (CRLF). Saving it as a file would change it and it would no longer fit. Use “Copy to clipboard”.",
     "title": "Save patch",

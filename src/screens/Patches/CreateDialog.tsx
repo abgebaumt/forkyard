@@ -17,9 +17,11 @@ import { Banner, EmptyState, toast } from "../../ui/Feedback";
 import { SegmentedControl } from "../../ui/Field";
 import { DetailList } from "../../app/dialogs";
 import { locale, t } from "../../i18n";
-import { formatSize, parsePatch, suggestFileName } from "./model";
+import { parsePatch, suggestFileName } from "./model";
+import { formatBytes } from "../../app/format";
 import { PatchFileList, PatchPreview, PatchSkeleton } from "./parts";
 import { savePatchFile } from "./save";
+import { writeClipboard } from "../../app/actions/clipboard";
 
 export interface PatchRequest {
   /** What the patch is made from. With `wip` the dialog itself chooses between staged, unstaged and both. */
@@ -39,15 +41,6 @@ const scopeLabels: Record<Scope, string> = {
   staged: t("patches.create.scope.staged"),
   all: t("patches.create.scope.all"),
 };
-
-async function copyToClipboard(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export function CreatePatchDialog({ repoId, request, onClose }: { repoId: Id; request: PatchRequest; onClose: () => void }) {
   const { data: status } = useStatus(repoId);
@@ -95,11 +88,11 @@ export function CreatePatchDialog({ repoId, request, onClose }: { repoId: Id; re
 
   const copy = async () => {
     if (!ready) return;
-    if (await copyToClipboard(text)) {
+    if (await writeClipboard(text)) {
       toast({
         tone: "success",
         title: t("patches.create.copied"),
-        description: `${t("patches.create.files", { count: info?.files.length ?? 0 })} · ${formatSize(new Blob([text]).size)}`,
+        description: `${t("patches.create.files", { count: info?.files.length ?? 0 })} · ${formatBytes(new Blob([text]).size)}`,
       });
       onClose();
     } else {
@@ -140,7 +133,7 @@ export function CreatePatchDialog({ repoId, request, onClose }: { repoId: Id; re
   };
 
   const showScope = wip && unstaged > 0 && staged > 0;
-  const size = text ? formatSize(new Blob([text]).size) : null;
+  const size = text ? formatBytes(new Blob([text]).size) : null;
 
   return (
     <Dialog

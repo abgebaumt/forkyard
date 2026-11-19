@@ -9,11 +9,6 @@
     "range": "vergleich",
     "changes": "aenderungen"
   },
-  "size": {
-    "bytes": "{{size}} Byte",
-    "kb": "{{size}} KB",
-    "mb": "{{size}} MB"
-  },
   "save": {
     "crlf": "Der Patch enthält Zeilen mit Windows-Zeilenenden (CRLF). Als Datei würde er dabei verändert und passte nicht mehr. Nimm „In die Zwischenablage“.",
     "title": "Patch speichern",
