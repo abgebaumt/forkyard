@@ -240,6 +240,8 @@ async fn prune_lfs(core: &Core, repo_id: &str, job: &Job) -> CoreResult<Ran> {
 /// last 14 days. The keep refs go away afterwards, also after an error or a cancel.
 async fn gc(core: &Core, repo_id: &str, ids: &[String], job: &Job, mode: CleanupMode) -> CoreResult<Ran> {
     keep_undo_objects(core, repo_id, ids).await?;
+    // A live graph walker holds old packs open; on Windows gc could not delete them.
+    crate::commands::graph::release_graph_walkers(core, repo_id);
     let mut cmd = core.git_for(repo_id)?.arg("gc");
     if mode == CleanupMode::Thorough {
         cmd = cmd.args(["--aggressive", "--prune=now"]);

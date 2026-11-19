@@ -479,6 +479,7 @@ pub async fn agent_forget(core: &Core, agent_id: String) -> CoreResult<()> {
     if !folder.is_dir() {
         if let Some(entry) = core.db.with(|c| db::repos::find_by_path(c, &folder))? {
             let _ = crate::watcher::stop_watching(core, &entry.id);
+            crate::commands::graph::release_graph_walkers(core, &entry.id);
             core.db.with(|c| db::repos::delete(c, &entry.id))?;
         }
     }
@@ -531,6 +532,7 @@ async fn roll_back(core: &Core, row: &AgentRow, folder: &Path) {
     let _ = core.db.with(|c| db::agents::delete(c, &row.id));
     if let Ok(Some(entry)) = core.db.with(|c| db::repos::find_by_path(c, folder)) {
         let _ = crate::watcher::stop_watching(core, &entry.id);
+        crate::commands::graph::release_graph_walkers(core, &entry.id);
         let _ = core.db.with(|c| db::repos::delete(c, &entry.id));
     }
     let removed = core
