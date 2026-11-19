@@ -12,7 +12,7 @@ import { runAction } from "../../app/run";
 import { Button } from "../../ui/Button";
 import { Banner } from "../../ui/Feedback";
 import { t } from "../../i18n";
-import { pickSavePath } from "../Patches/save";
+import { pickSavePath } from "../../app/savePath";
 import { Badge, LoadError, Mono, SectionHeader, SettingsCard, SettingsSkeleton } from "../Preferences/parts";
 import { editCommand } from "./Editor";
 import { mergeImported } from "./model";

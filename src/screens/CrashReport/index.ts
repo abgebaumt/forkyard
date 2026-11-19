@@ -9,7 +9,7 @@ import { t } from "../../i18n";
 import { choose, showOutput } from "../../app/dialogs";
 import { showError } from "../../app/run";
 import { toast } from "../../ui/Feedback";
-import { pickSavePath } from "../Patches/save";
+import { pickSavePath } from "../../app/savePath";
 import { crashReportFileName, crashReportLine, crashReportTitle } from "./model";
 
 type Choice = "view" | "save" | "discard";
