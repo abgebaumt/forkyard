@@ -262,13 +262,15 @@ pub async fn worktree_add(
     .await
 }
 
-/// The file watcher of a worktree opened as a repository keeps its folder open; it is
-/// stopped before removal.
+/// The file watcher and graph walkers of a worktree opened as a repository keep its folder open;
+/// they are stopped before removal.
 pub(crate) fn stop_watching(core: &Core, path: &Path) {
     let known = core.db.with(db::repos::list_all).unwrap_or_default();
     for row in known.iter().filter(|row| same_path(Path::new(&row.path), path)) {
         let _ = crate::watcher::stop_watching(core, &row.id);
         let _ = crate::autofetch::stop(core, &row.id);
+        // A graph walker is a running `git log` with the worktree as its working directory.
+        crate::commands::graph::release_graph_walkers(core, &row.id);
     }
 }
 
@@ -642,6 +644,24 @@ worktree C:/r/weg\0HEAD 3333333333333333333333333333333333333333\0branch refs/he
         worktree_unlock(&tc, id.clone(), kept.clone()).await.unwrap();
         let list = worktree_remove(&tc, id.clone(), kept, false).await.unwrap();
         assert_eq!(list.len(), 1);
+    }
+
+    /// A graph page of a worktree open as its own repository leaves a running `git log` in its
+    /// folder; removal ends it first.
+    #[tokio::test]
+    async fn removal_ends_the_graph_walkers_of_the_worktree() {
+        let (tc, repo, id) = setup().await;
+        repo.commit_file("zwei.txt", "2\n", "Zweiter");
+        let one = sibling(&repo, "eins");
+        worktree_add(&tc, id.clone(), one.clone(), "b1".into(), true, None).await.unwrap();
+        let opened = crate::commands::repos::repo_open(&tc, one.clone()).await.unwrap();
+        let page = crate::commands::graph::graph_page(&tc, opened.repo.id.clone(), None, 1).await.unwrap();
+        assert!(page.next_cursor.is_some());
+        assert_eq!(crate::commands::graph::graph_walker_count(&tc, Some(&opened.repo.id)), 1);
+
+        worktree_remove(&tc, id.clone(), one.clone(), false).await.unwrap();
+        assert_eq!(crate::commands::graph::graph_walker_count(&tc, None), 0);
+        assert!(!Path::new(&one).exists());
     }
 
     /// Forced removal destroys the worktree's changes: they are backed up first (a backup ref
