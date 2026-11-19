@@ -29,6 +29,8 @@ export interface GraphEdit {
   plan: OkPlan;
   state: EditState;
   drag: PendingDrag | null;
+  /** The commit the edit was entered on (E, the menu, a drag); its row starts active. */
+  entry: Sha | null;
   updateRefs: boolean;
 }
 
@@ -126,7 +128,15 @@ export async function enterGraphEdit(
     }
   }
   if (graphEditOf(tabId)) return true;
-  const edit: GraphEdit = { repoId, from, plan, state: editStart(plan.rows), drag: options.drag ?? null, updateRefs: false };
+  const edit: GraphEdit = {
+    repoId,
+    from,
+    plan,
+    state: editStart(plan.rows),
+    drag: options.drag ?? null,
+    entry: options.sha ?? null,
+    updateRefs: false,
+  };
   useGraphEdit.setState(({ byTab }) => ({ byTab: { ...byTab, [tabId]: edit } }));
   guards.set(tabId, guardFor(tabId));
   return true;

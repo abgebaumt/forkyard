@@ -47,7 +47,15 @@ const refused = (reason: Extract<RebasePlan, { status: "refused" }>["reason"]): 
   message: `Abgelehnt: ${reason}`,
 });
 
-const editOf = (plan: OkPlan): GraphEdit => ({ repoId: "r", from: null, plan, state: editStart(plan.rows), drag: null, updateRefs: false });
+const editOf = (plan: OkPlan): GraphEdit => ({
+  repoId: "r",
+  from: null,
+  plan,
+  state: editStart(plan.rows),
+  drag: null,
+  entry: null,
+  updateRefs: false,
+});
 
 describe("graph edit", () => {
   it("enters for a commit in the range, refuses with reason, or names the range", () => {
@@ -69,6 +77,12 @@ describe("graph edit", () => {
     expect(staleAfter(edit, okPlan(["a", "b"], "other-base"))).toBe(true);
     expect(staleAfter(edit, refused("dirty_worktree"))).toBe(false);
     expect(staleAfter(edit, refused("operation_in_progress"))).toBe(true);
+  });
+  it("remembers the commit the edit was entered on", async () => {
+    queryClient.setQueryData(qk.rebaseBranchPlan("r", null), okPlan(["a", "b", "c"]));
+    await enterGraphEdit("r", "t5", { sha: "b" });
+    expect(graphEditOf("t5")?.entry).toBe("b");
+    leaveGraphEdit("t5");
   });
   it("leaving without changes needs no question", async () => {
     useGraphEdit.setState({ byTab: { t1: editOf(okPlan(["a"])) } });
