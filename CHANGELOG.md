@@ -5,6 +5,19 @@ All notable changes to Forkyard are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The commit graph stays fast deep in very large histories, also with "collapse all merges": scrolling
+  reads on from a running history walk instead of starting over for every page, and merges are checked
+  with one history walk per page instead of one per merge.
+- Blame shows the file at once and fills in the authors while it runs, with progress in percent; opening
+  the same file again is instant.
+
+### Added
+
+- `scripts/bench/large-repo.mjs` measures the graph and blame on a generated repository with 120 000
+  commits.
+
 ### Fixed
 
 - A computer that was turned off hard, froze or restarted while Forkyard ran no longer shows a crash
