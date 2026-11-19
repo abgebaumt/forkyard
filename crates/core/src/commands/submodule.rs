@@ -290,10 +290,7 @@ async fn add_job(core: &Core, repo_id: &str, job: &Job, url: &str, path: &str) -
     if known {
         return Err(CoreError::path_exists(&rel));
     }
-    let _network = tokio::select! {
-        guard = core.network_lock(repo_id) => guard,
-        _ = job.token().cancelled() => return Err(CoreError::cancelled()),
-    };
+    let _network = core.network_lock_cancellable(repo_id, job.token()).await?;
     let changes = [RepoChange::Worktree, RepoChange::Index, RepoChange::Config];
     core.with_write_lock(repo_id, &changes, async {
         job.token().check()?;
@@ -436,10 +433,7 @@ async fn update_job(core: &Core, repo_id: &str, job: &Job, paths: Option<Vec<Str
     if known.is_empty() {
         return Ok(known);
     }
-    let _network = tokio::select! {
-        guard = core.network_lock(repo_id) => guard,
-        _ = job.token().cancelled() => return Err(CoreError::cancelled()),
-    };
+    let _network = core.network_lock_cancellable(repo_id, job.token()).await?;
     let updated = run_update(core, repo_id, job, &wanted, init).await;
     // Even after an error midway, part of it may already be checked out.
     core.emit_repo_changed(repo_id, &[RepoChange::Worktree, RepoChange::Config]);

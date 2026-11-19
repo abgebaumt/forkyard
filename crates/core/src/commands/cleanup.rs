@@ -13,7 +13,7 @@ use std::path::Path;
 use crate::app::{Core, WriteGuard};
 use crate::commands::worktree::{self, WorktreeEntry};
 use crate::db;
-use crate::error::{CoreError, CoreResult};
+use crate::error::CoreResult;
 use crate::jobs::CancelToken;
 use crate::model::{CleanupLfsEstimate, CleanupOptions, CleanupPreview, CleanupResult, CleanupUndoBackup};
 use crate::util;
@@ -92,17 +92,11 @@ struct Held {
 async fn lock_all(core: &Core, ids: &[String], cancel: &CancelToken) -> CoreResult<Held> {
     let mut network = Vec::with_capacity(ids.len());
     for id in ids {
-        tokio::select! {
-            guard = core.network_lock(id) => network.push(guard),
-            _ = cancel.cancelled() => return Err(CoreError::cancelled()),
-        }
+        network.push(core.network_lock_cancellable(id, cancel).await?);
     }
     let mut write = Vec::with_capacity(ids.len());
     for id in ids {
-        tokio::select! {
-            guard = core.write_lock(id) => write.push(guard),
-            _ = cancel.cancelled() => return Err(CoreError::cancelled()),
-        }
+        write.push(core.write_lock_cancellable(id, cancel).await?);
     }
     Ok(Held { _write: write, _network: network })
 }

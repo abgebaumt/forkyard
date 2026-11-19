@@ -676,3 +676,21 @@ async fn a_key_in_a_part_stops_the_stack_push_until_it_is_accepted() {
         assert_eq!(remote_sha(&remote, part), sha_of(&repo, part), "{part} on the remote");
     }
 }
+
+/// The top part moving while the restack waits for the write lock: nothing is rebased.
+#[tokio::test]
+async fn restack_checks_the_top_part_again_inside_the_lock() {
+    let repo = stack_repo();
+    let (tc, id) = created(&repo).await;
+    change_part_one(&repo, "src/notiz.md");
+    let old_top = sha_of(&repo, P3).unwrap();
+    let guard = tc.write_lock(&id).await;
+    let moved_by_someone = async {
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        repo.git(&["update-ref", &format!("refs/heads/{P3}"), &format!("{P3}^")]);
+        drop(guard);
+    };
+    let (result, ()) = tokio::join!(stack_restack(&tc, id.clone(), P3.into(), old_top.clone()), moved_by_someone);
+    assert_eq!(result.unwrap_err().code, ErrorCode::StaleState);
+    assert!(crate::commands::status::read_status(&tc, &id).await.unwrap().operation.is_none(), "no rebase started");
+}

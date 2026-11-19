@@ -180,10 +180,7 @@ pub async fn lfs_pull(core: &Core, repo_id: String, job_id: String) -> CoreResul
 
 async fn pull_job(core: &Core, repo_id: &str, job: &Job) -> CoreResult<()> {
     require_installed(core, repo_id).await?;
-    let _network = tokio::select! {
-        guard = core.network_lock(repo_id) => guard,
-        _ = job.token().cancelled() => return Err(CoreError::cancelled()),
-    };
+    let _network = core.network_lock_cancellable(repo_id, job.token()).await?;
     let pulled = core.git_for(repo_id)?.args(["lfs", "pull"]).network().run_stream(job.token(), &mut |line| job.progress_line(line)).await;
     // Even after a cancellation some of the files may already have been replaced.
     core.emit_repo_changed(repo_id, &[RepoChange::Worktree]);
