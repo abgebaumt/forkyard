@@ -171,6 +171,19 @@ create table repo_settings (
   primary key (repository_id, key)
 ) strict, without rowid;
 
+-- What the user has seen per repository and profile ("What's new since …"): a snapshot of the
+-- remote branches and tags, never read back as the current state.
+-- Since version 15: begin
+create table repo_seen (
+  profile_id    text not null references profiles (id) on delete cascade,
+  repository_id text not null references repositories (id) on delete cascade,
+  seen_at       text not null,
+  refs          text not null check (json_valid(refs)),   -- {"refs/remotes/origin/main": "<sha>", "refs/tags/v1": "<sha>"}
+  pr_max_number integer,
+  primary key (profile_id, repository_id)
+) strict;
+-- Since version 15: end
+
 -- Unfinished commit message per working directory, so it survives tab switches
 -- and restarts. worktree_path is '' for the main working directory.
 create table commit_drafts (

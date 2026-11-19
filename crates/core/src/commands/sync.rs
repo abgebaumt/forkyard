@@ -23,6 +23,7 @@ use serde_json::json;
 
 use crate::app::Core;
 use crate::commands::commit::{hook_failure, Hooks};
+use crate::commands::digest::seen;
 use crate::commands::remotes;
 use crate::commands::status;
 use crate::commands::submodule::auto;
@@ -330,7 +331,8 @@ pub(crate) async fn fetch_with_job(core: &Core, repo_id: &str, job: &Job, remote
     let unchanged = matches!(&result, Ok(r) if r.updated_refs == 0 && r.pruned_refs == 0);
     let never_started = matches!(&result, Err(e) if matches!(e.code, ErrorCode::NoRemote | ErrorCode::NotFound | ErrorCode::PathNotFound));
     if !unchanged && !never_started {
-        core.emit_repo_changed(repo_id, &[RepoChange::Refs]);
+        let what: &[RepoChange] = if result.is_ok() { &[RepoChange::Refs, RepoChange::Fetched] } else { &[RepoChange::Refs] };
+        core.emit_repo_changed(repo_id, what);
     }
     if result.is_ok() {
         crate::commands::lfs::locks_after_fetch(core, repo_id);
@@ -344,7 +346,7 @@ pub(crate) async fn fetch_with_job(core: &Core, repo_id: &str, job: &Job, remote
 pub async fn fetch_background(core: &Core, repo_id: &str, prune: bool, cancel: &CancelToken) -> CoreResult<FetchResult> {
     let result = fetch_remotes(core, repo_id, cancel, None, None, prune, false).await?;
     if result.updated_refs > 0 || result.pruned_refs > 0 {
-        core.emit_repo_changed(repo_id, &[RepoChange::Refs]);
+        core.emit_repo_changed(repo_id, &[RepoChange::Refs, RepoChange::Fetched]);
     }
     crate::commands::lfs::locks_after_fetch(core, repo_id);
     Ok(result)
@@ -393,12 +395,18 @@ pub(crate) async fn pull_with_job(core: &Core, repo_id: &str, job: &Job, mode: O
         core.with_lock_cancellable(repo_id, job.token(), pull_integrate(core, repo_id, job, mode, plan)).await
     }
     .await;
-    match &result {
-        Ok(OpResult::UpToDate) => core.emit_repo_changed(repo_id, &[RepoChange::Refs]),
-        Ok(_) => core.emit_repo_changed(repo_id, &PULL_CHANGES),
+    let mut what = match &result {
+        Ok(OpResult::UpToDate) => vec![RepoChange::Refs],
+        Ok(_) => PULL_CHANGES.to_vec(),
         // After the fetch the remote branches may have changed, even if the rest fails.
-        Err(_) if fetched => core.emit_repo_changed(repo_id, &PULL_CHANGES),
-        Err(_) => {}
+        Err(_) if fetched => PULL_CHANGES.to_vec(),
+        Err(_) => vec![],
+    };
+    if fetched {
+        what.push(RepoChange::Fetched);
+    }
+    if !what.is_empty() {
+        core.emit_repo_changed(repo_id, &what);
     }
     if fetched {
         crate::commands::lfs::locks_after_fetch(core, repo_id);
@@ -944,6 +952,16 @@ async fn push_many(
         core.with_lock_cancellable(repo_id, cancel, record_upstream(core, repo_id, &target.branch, &target.remote, &target.remote_ref))
             .await?;
     }
+    // Own pushes are not news: the seen state follows them.
+    let pushed: Vec<String> = refs
+        .iter()
+        .filter(|item| item.status == PushRefStatus::Ok)
+        .map(|item| match item.remote_ref.strip_prefix("refs/heads/") {
+            Some(branch) => format!("refs/remotes/{}/{branch}", target.remote),
+            None => item.local.clone(),
+        })
+        .collect();
+    seen::absorb(core, repo_id, &pushed).await;
     Ok(PushResult::Multi { remote: target.remote, atomic, refs })
 }
 
@@ -1056,7 +1074,11 @@ pub(crate) async fn push_transfer(
             Ok(PushResult::Rejected { reason })
         }
         Some(('=', _)) if out.success() && !created_upstream => Ok(PushResult::UpToDate),
-        Some((flag, _)) if out.success() => Ok(PushResult::Done { remote, branch: remote_branch, created_upstream, forced: flag == '+' }),
+        Some((flag, _)) if out.success() => {
+            // Own pushes are not news: the seen state follows them.
+            seen::absorb(core, repo_id, &[format!("refs/remotes/{remote}/{remote_branch}")]).await;
+            Ok(PushResult::Done { remote, branch: remote_branch, created_upstream, forced: flag == '+' })
+        }
         _ => Err(push_error(core, repo_id, &out).await),
     }
 }
@@ -1146,6 +1168,7 @@ async fn delete_remote_branch(
     let missing = (stale && !moved) || stderr.contains("non-existent ref") || stderr.contains("remote ref does not exist");
     match result {
         Some(('-', _)) if out.success() && !missing => {
+            seen::absorb(core, repo_id, std::slice::from_ref(&tracking)).await;
             Ok(PushResult::Done { remote: remote.to_string(), branch: name.to_string(), created_upstream: false, forced: false })
         }
         _ if moved => Err(CoreError::new(
@@ -1166,6 +1189,7 @@ async fn delete_remote_branch(
                 })
                 .await?;
             }
+            seen::absorb(core, repo_id, std::slice::from_ref(&tracking)).await;
             Ok(PushResult::UpToDate)
         }
         _ => Err(push_error(core, repo_id, &out).await),
@@ -1348,7 +1372,7 @@ mod tests {
         let result = do_fetch(&f, None, false).await.unwrap();
         assert_eq!(result, FetchResult { updated_refs: 3, pruned_refs: 0, failed: vec![] });
         assert_eq!(f.repo.git(&["rev-parse", "refs/remotes/origin/main"]), new_main);
-        assert_eq!(changes(&f.tc), vec![json!(["refs"])]);
+        assert_eq!(changes(&f.tc), vec![json!(["refs", "fetched"])]);
         // The local branch stays where it was.
         assert_ne!(f.repo.head(), new_main);
         let done = f.tc.events.named(names::JOB_DONE);
@@ -1711,7 +1735,7 @@ mod tests {
         drop(guard);
         assert_eq!(result.updated_refs, 1);
         assert_eq!(f.repo.git(&["rev-parse", "refs/remotes/origin/main"]), new_main);
-        assert_eq!(changes(&f.tc), vec![json!(["refs"])]);
+        assert_eq!(changes(&f.tc), vec![json!(["refs", "fetched"])]);
         assert_eq!(f.tc.events.count(names::JOB_DONE), 0);
         f.tc.events.clear();
         fetch_background(&f.tc, &f.id, true, &CancelToken::new()).await.unwrap();
@@ -1734,7 +1758,7 @@ mod tests {
         assert_eq!(summary, "Fast-forwarded to origin/main (2 commits).");
         assert_eq!(f.repo.head(), new_main);
         assert_eq!(f.repo.read_file("mit leerzeichen/größe.txt"), b"eins\r\nzwei");
-        assert_eq!(changes(&f.tc), vec![json!(["worktree", "index", "refs", "head", "operation"])]);
+        assert_eq!(changes(&f.tc), vec![json!(["worktree", "index", "refs", "head", "operation", "fetched"])]);
         assert_eq!(f.tc.events.named(names::JOB_DONE)[0]["ok"], true);
 
         let entry = undo::next_undo(&f.tc, &f.id, "").unwrap().unwrap();
@@ -1752,7 +1776,7 @@ mod tests {
         // Once more: nothing to do, no further undo entry.
         f.tc.events.clear();
         assert_eq!(do_pull(&f, None).await.unwrap(), OpResult::UpToDate);
-        assert_eq!(changes(&f.tc), vec![json!(["refs"])]);
+        assert_eq!(changes(&f.tc), vec![json!(["refs", "fetched"])]);
         assert_eq!(undo::next_undo(&f.tc, &f.id, "").unwrap().unwrap().id, entry.id);
         // Ahead locally, remote unchanged: nothing to fetch either.
         f.repo.commit_file("lokal.txt", "l\n", "Lokal");

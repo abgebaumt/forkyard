@@ -47,7 +47,7 @@ export type JobDoneEvent = { jobId: string; repoId: string | null; ok: boolean; 
  */
 export type JobProgressEvent = { jobId: string; repoId: string | null; phase: string; percent: number | null; line: string };
 
-export type RepoChange = "worktree" | "index" | "refs" | "head" | "stash" | "config" | "operation" | "locks";
+export type RepoChange = "worktree" | "index" | "refs" | "head" | "stash" | "config" | "operation" | "locks" | "fetched" | "seen";
 
 /**
  * `repo:changed`

@@ -64,6 +64,15 @@ pub fn start_background(core: &Core, repo_id: &str) {
     if let Err(e) = autofetch::start(core, repo_id) {
         log::warn!("Auto-fetch for {repo_id} not started: {}", e.message);
     }
+    // The first open sets the seen state silently ("What's new" starts from here).
+    if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+        let (core, repo_id) = (core.clone(), repo_id.to_string());
+        runtime.spawn(async move {
+            if let Err(e) = crate::commands::digest::seen::ensure(&core, &repo_id).await {
+                log::warn!("Seen state for {repo_id} not created: {}", e.message);
+            }
+        });
+    }
 }
 
 /// Stops both when the repository no longer has a tab in the active profile.
