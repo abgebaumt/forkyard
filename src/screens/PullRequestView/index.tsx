@@ -106,16 +106,16 @@ function LoadFailure({ error, number, onRetry }: { error: unknown; number: numbe
           <div className="flex flex-wrap justify-center gap-2">
             {info.kind === "not_connected" ? (
               <Button size="sm" variant="primary" icon={<Plug className="size-3.5" aria-hidden />} onClick={() => void openConnectDialog()}>
-                {t("pullRequest.view.connect")}
+                {t("ui.connectAccount")}
               </Button>
             ) : null}
             {info.kind === "auth" ? (
               <Button size="sm" variant="primary" onClick={openIntegrations}>
-                {t("pullRequest.view.openIntegrations")}
+                {t("ui.openIntegrations")}
               </Button>
             ) : null}
             <Button size="sm" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={onRetry}>
-              {t("pullRequest.view.retry")}
+              {t("ui.retry")}
             </Button>
           </div>
         }
@@ -214,7 +214,7 @@ function CommentForm({ repoId, number }: { repoId: Id; number: number }) {
           loading={busy}
           icon={<MessageSquarePlus className="size-3.5" aria-hidden />}
         >
-          {t("pullRequest.view.commentSubmit")}
+          {t("ui.comment")}
         </Button>
       </div>
     </form>
@@ -237,16 +237,16 @@ function Conversation({
   const author = userName(pr.author);
   return (
     <div className="@container mx-auto flex w-full max-w-200 flex-col gap-5 px-6 py-5">
-      <section aria-label={t("pullRequest.view.description")} data-pr-body="" className="rounded-md border border-border bg-surface">
+      <section aria-label={t("ui.description")} data-pr-body="" className="rounded-md border border-border bg-surface">
         <header className="flex items-center gap-2 border-b border-border px-3 py-1.5 text-sm text-text-muted">
           <Avatar name={author} size={18} />
           <span className="selectable font-medium text-text">{author}</span>
-          <span>{t("pullRequest.view.description")}</span>
+          <span>{t("ui.description")}</span>
         </header>
         <SafeMarkdown
           source={pr.body}
           origin={t("pullRequest.view.descriptionOrigin")}
-          empty={t("pullRequest.view.noDescription")}
+          empty={t("ui.noDescription")}
           className="px-3 py-2"
         />
       </section>
@@ -290,13 +290,13 @@ function Conversation({
                     <span className="selectable min-w-0 flex-1 truncate" title={check.name}>
                       {check.name}
                     </span>
-                    <span className="shrink-0 text-sm text-text-muted">{info?.label ?? t("pullRequest.view.check.skipped")}</span>
+                    <span className="shrink-0 text-sm text-text-muted">{info?.label ?? t("ui.skipped")}</span>
                     {check.url ? (
                       <IconButton
                         size="xs"
                         label={t("pullRequest.view.openCheck", { name: check.name })}
                         icon={<ExternalLink className="size-3" aria-hidden />}
-                        onClick={() => void openInBrowser(check.url, t("pullRequest.view.page"))}
+                        onClick={() => void openInBrowser(check.url, t("ui.page"))}
                       />
                     ) : null}
                   </li>
@@ -309,10 +309,10 @@ function Conversation({
 
       <ReviewThreads repoId={repoId} tabId={tabId} pr={pr} capabilities={capabilities} hostName={hostName} />
 
-      <section aria-label={t("pullRequest.view.comments")} data-pr-comments="">
-        <BlockTitle count={pr.comments.length || undefined}>{t("pullRequest.view.comments")}</BlockTitle>
+      <section aria-label={t("ui.comments")} data-pr-comments="">
+        <BlockTitle count={pr.comments.length || undefined}>{t("ui.comments")}</BlockTitle>
         {pr.comments.length === 0 ? (
-          <p className="text-base text-text-muted">{t("pullRequest.view.noComments")}</p>
+          <p className="text-base text-text-muted">{t("ui.noCommentsYet")}</p>
         ) : (
           <ul className="flex flex-col gap-3">
             {pr.comments.map((comment) => (
@@ -371,13 +371,13 @@ function Commits({ repoId, tabId, pr }: { repoId: Id; tabId: Id; pr: PrDetails }
           <button
             type="button"
             data-commit={commit.sha}
-            title={t("pullRequest.view.showInGraph")}
+            title={t("ui.showInGraph")}
             className="flex w-full min-w-0 items-center gap-3 rounded-sm px-2 py-1.5 text-left -outline-offset-2 hover:bg-surface-raised"
             onClick={() => void revealCommit(repoId, tabId, commit)}
           >
             <span className="shrink-0 font-mono text-code text-text-muted">{shortSha(commit.sha)}</span>
             <span className="min-w-0 flex-1 truncate text-base text-text" title={commit.summary}>
-              {commit.summary || t("pullRequest.view.noMessage")}
+              {commit.summary || t("ui.noMessage")}
             </span>
             <span className="hidden max-w-40 shrink-0 truncate text-sm text-text-muted @xl:inline">{commit.authorName}</span>
             <span className="shrink-0 text-sm text-text-muted">
@@ -433,7 +433,7 @@ function Body({
       <div data-pr-head="" className="shrink-0 border-b border-border bg-surface px-6 pt-3 pb-2">
         {/* Very long titles: at most three lines, the full text is in the tooltip – otherwise a small window would leave no room for the content. */}
         <h3 data-pr-title="" title={pr.title} className="selectable m-0 line-clamp-3 text-lg font-semibold break-words text-text">
-          {pr.title || t("pullRequest.view.untitled")} <span className="font-normal text-text-muted">#{pr.number}</span>
+          {pr.title || t("ui.untitled")} <span className="font-normal text-text-muted">#{pr.number}</span>
         </h3>
         <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-text-muted">
           <PhaseBadge pr={pr} />
@@ -442,10 +442,10 @@ function Body({
             <span className="selectable truncate font-medium text-text">{author}</span>
           </span>
           <span className="inline-flex min-w-0 flex-wrap items-center gap-1">
-            <BranchChip name={pr.sourceBranch} label={t("pullRequest.view.source")} />
+            <BranchChip name={pr.sourceBranch} label={t("ui.source")} />
             <span aria-hidden>→</span>
             <span className="sr-only">{t("pullRequest.view.into")}</span>
-            <BranchChip name={pr.targetBranch} label={t("pullRequest.view.target")} />
+            <BranchChip name={pr.targetBranch} label={t("ui.target")} />
           </span>
           <When value={pr.updatedAt} prefix={t("pullRequest.view.updated")} />
         </p>
@@ -469,7 +469,7 @@ function Body({
             icon={<GitBranch className="size-3.5" aria-hidden />}
             onClick={() => void checkoutPr(repoId, pr)}
           >
-            {t("pullRequest.view.files.checkout")}
+            {t("ui.checkOutBranch")}
           </Button>
           {open ? (
             <Button
@@ -499,7 +499,7 @@ function Body({
               icon={<RotateCcw className="size-3.5" aria-hidden />}
               onClick={() => void reopenPr(repoId, pr)}
             >
-              {t("pullRequest.view.reopen")}
+              {t("ui.reopen")}
             </Button>
           ) : null}
         </div>
@@ -528,7 +528,7 @@ function Body({
           </div>
           {stale.kind === "auth" || stale.kind === "not_connected" ? (
             <Button size="sm" onClick={openIntegrations}>
-              {t("pullRequest.view.openIntegrations")}
+              {t("ui.openIntegrations")}
             </Button>
           ) : null}
         </div>
@@ -543,8 +543,8 @@ function Body({
           {(
             [
               ["conversation", t("pullRequest.view.conversation"), pr.comments.length],
-              ["commits", t("pullRequest.view.commits"), pr.commits.length],
-              ["files", t("pullRequest.view.filesTab"), null],
+              ["commits", t("ui.commits"), pr.commits.length],
+              ["files", t("ui.files"), null],
             ] as const
           ).map(([id, label, count]) => (
             <Tabs.Trigger
@@ -638,26 +638,26 @@ export function PullRequestView({ repoId, tabId, number }: PullRequestViewProps)
         <Button
           size="sm"
           variant="ghost"
-          title={t("pullRequest.view.refresh")}
+          title={t("ui.refresh")}
           loading={query.isFetching && Boolean(pr)}
           icon={<RefreshCw className="size-3.5" aria-hidden />}
           onClick={refresh}
         >
-          <span className="sr-only @2xl:not-sr-only">{t("pullRequest.view.refresh")}</span>
+          <span className="sr-only @2xl:not-sr-only">{t("ui.refresh")}</span>
         </Button>
         <Button
           size="sm"
           variant="ghost"
-          title={t("pullRequest.view.openInBrowser")}
+          title={t("ui.openInBrowser")}
           disabled={!pr?.webUrl}
           icon={<ExternalLink className="size-3.5" aria-hidden />}
-          onClick={() => void openInBrowser(pr?.webUrl, t("pullRequest.view.page"))}
+          onClick={() => void openInBrowser(pr?.webUrl, t("ui.page"))}
         >
-          <span className="sr-only @2xl:not-sr-only">{t("pullRequest.view.openInBrowser")}</span>
+          <span className="sr-only @2xl:not-sr-only">{t("ui.openInBrowser")}</span>
         </Button>
         <IconButton
           size="sm"
-          label={t("pullRequest.view.close")}
+          label={t("ui.close")}
           shortcut="Escape"
           data-back=""
           icon={<X className="size-icon" aria-hidden />}

@@ -6,7 +6,6 @@
   },
   "app": {
     "installCli": {
-      "title": "Install command-line command",
       "keywords": "cli,terminal,PATH,forkyard command"
     },
     "activity": {
@@ -14,12 +13,10 @@
       "title": "Show activity log"
     },
     "palette": {
-      "keywords": "commands, search",
-      "title": "Command palette"
+      "keywords": "commands, search"
     },
     "preferences": {
-      "keywords": "options, preferences",
-      "title": "Settings"
+      "keywords": "options, preferences"
     },
     "shortcuts": {
       "keywords": "help, keyboard",
@@ -32,9 +29,7 @@
   },
   "branch": {
     "checkout": {
-      "confirm": "Check out",
       "keywords": "switch, checkout, change branch",
-      "pick": "Check out branch",
       "title": "Check out branch …"
     },
     "copyName": {
@@ -44,7 +39,6 @@
       "title": "New branch …"
     },
     "delete": {
-      "pick": "Delete branch",
       "title": "Delete branch …"
     },
     "deleteRemote": {
@@ -80,9 +74,6 @@
     "setUpstream": {
       "keywords": "tracking, track",
       "title": "Set or change upstream …"
-    },
-    "unsetUpstream": {
-      "title": "Unset upstream"
     }
   },
   "changes": {
@@ -158,15 +149,11 @@
       "confirmBody": "The file {{path}} will be removed from the working directory. For a tracked file, the deletion then shows up under the changes. Right afterwards, “Undo” brings it back.",
       "confirmTitle": "Delete “{{name}}”?",
       "done": "“{{name}}” deleted",
-      "keywords": "delete file, remove, erase",
-      "title": "Delete file …"
+      "keywords": "delete file, remove, erase"
     },
     "edit": {
-      "confirm": "Edit",
       "empty": "There are no files in the working directory.",
       "keywords": "edit file, editor, open",
-      "label": "File",
-      "pick": "Edit file",
       "readAction": "Read files",
       "title": "Edit file …"
     },
@@ -181,12 +168,10 @@
       "title": "Open conflict file in external merge tool"
     },
     "history": {
-      "keywords": "file history, history, log",
-      "title": "File history"
+      "keywords": "file history, history, log"
     },
     "new": {
       "action": "Create file",
-      "confirm": "Create",
       "description": "Missing folders are created. The file starts empty and opens in the editor.",
       "dialogTitle": "Create new file",
       "done": "“{{path}}” created",
@@ -273,7 +258,6 @@
     "check": {
       "keywords": "check, valid, expired, permissions",
       "loadAction": "Load accounts",
-      "noAccount": "no account connected",
       "noneText": "Connect one with “Connect host account …”.",
       "noneTitle": "No host account connected",
       "title": "Check host accounts"
@@ -297,8 +281,7 @@
     "noAccount": "no account connected for this repository’s host",
     "noHost": "no remote on a supported host",
     "refresh": {
-      "keywords": "issue, update, refresh, reload",
-      "title": "Reload issues"
+      "keywords": "issue, update, refresh, reload"
     },
     "show": {
       "keywords": "issue, ticket, task, bug, work item, GitHub, GitLab, Gitea, Bitbucket, Azure DevOps, tracker",
@@ -360,8 +343,7 @@
   },
   "patch": {
     "apply": {
-      "keywords": "patch, apply, diff, import",
-      "title": "Apply patch …"
+      "keywords": "patch, apply, diff, import"
     },
     "create": {
       "commit": {
@@ -386,9 +368,7 @@
     "confirmFollows": "You’ll be asked to confirm next.",
     "next": "Next",
     "noRemotes": "This repository has no remotes yet.",
-    "noTags": "This repository has no tags yet.",
-    "remote": "Remote",
-    "tag": "Tag"
+    "noTags": "This repository has no tags yet."
   },
   "pr": {
     "create": {
@@ -421,12 +401,10 @@
       "loadAction": "Load pull requests",
       "noneText": "Create one with “Create pull request …”.",
       "noneTitle": "No open pull requests",
-      "title": "Open pull request …",
-      "unknownAuthor": "Unknown"
+      "title": "Open pull request …"
     },
     "refresh": {
-      "keywords": "reload, refresh",
-      "title": "Refresh pull requests"
+      "keywords": "reload, refresh"
     },
     "repoInBrowser": {
       "keywords": "GitHub, GitLab, Gitea, Bitbucket, Azure DevOps, host, browser, website, external",
@@ -458,12 +436,10 @@
       "title": "Add remote …"
     },
     "edit": {
-      "confirm": "Edit",
       "pick": "Edit which remote?",
       "title": "Edit remote …"
     },
     "fetchOne": {
-      "confirm": "Fetch",
       "pick": "Fetch from which remote?",
       "title": "Fetch from a remote …"
     },
@@ -503,12 +479,6 @@
     "openTerminal": {
       "keywords": "console, shell, open in",
       "title": "Open in external terminal"
-    },
-    "redo": {
-      "title": "Redo"
-    },
-    "undo": {
-      "title": "Undo"
     }
   },
   "selection": {
@@ -523,9 +493,6 @@
   "stash": {
     "apply": {
       "title": "Apply latest stash (and keep it)"
-    },
-    "create": {
-      "title": "Stash changes"
     },
     "createNamed": {
       "title": "Stash with description …"
@@ -559,35 +526,22 @@
   },
   "sync": {
     "cancel": {
-      "action": "Cancel",
       "keywords": "fetch, pull, push, stop",
       "title": "Cancel running network action"
     },
-    "fetch": {
-      "title": "Fetch (all remotes)"
-    },
-    "pull": {
-      "title": "Pull"
-    },
     "push": {
       "force": {
-        "keywords": "force, with-lease, overwrite",
-        "title": "Force push …"
-      },
-      "title": "Push"
+        "keywords": "force, with-lease, overwrite"
+      }
     }
   },
   "tab": {
-    "close": {
-      "title": "Close tab"
-    },
     "goto": {
       "last": "Go to last tab",
       "number": "Go to tab {{number}}"
     },
     "new": {
-      "keywords": "repository management, open",
-      "title": "New tab"
+      "keywords": "repository management, open"
     },
     "next": {
       "title": "Next tab"
@@ -611,12 +565,10 @@
       "title": "Create annotated tag at current commit …"
     },
     "delete": {
-      "pick": "Delete tag",
       "title": "Delete tag …"
     },
     "push": {
       "confirm": "Push",
-      "pick": "Push tag",
       "title": "Push tag …"
     }
   },
@@ -640,12 +592,8 @@
     }
   },
   "view": {
-    "graph": {
-      "title": "Back to graph"
-    },
     "search": {
-      "keywords": "search, find, SHA, author",
-      "title": "Search commits"
+      "keywords": "search, find, SHA, author"
     },
     "terminal": {
       "title": "Show or hide terminal"
@@ -655,15 +603,6 @@
     },
     "toggleLeftPanel": {
       "title": "Show or hide sidebar"
-    },
-    "zoomIn": {
-      "title": "Zoom in"
-    },
-    "zoomOut": {
-      "title": "Zoom out"
-    },
-    "zoomReset": {
-      "title": "Reset zoom"
     }
   },
   "wip": {
@@ -684,8 +623,7 @@
       "title": "Discard all changes …"
     },
     "stageAll": {
-      "keywords": "stage all, add",
-      "title": "Stage all changes"
+      "keywords": "stage all, add"
     },
     "unstageAll": {
       "keywords": "unstage all, reset",
@@ -712,8 +650,6 @@
       "keywords": "worktree, working folder, switch, tab",
       "label": "Worktree",
       "loadAction": "Load worktrees",
-      "locked": "locked",
-      "main": "main folder",
       "noneText": "Create a second working folder with “Create worktree …”.",
       "noneTitle": "There is no other worktree",
       "title": "Open worktree …"
@@ -725,7 +661,6 @@
   },
   "history": {
     "reflog": {
-      "title": "Show reflog",
       "keywords": "reflog, history of HEAD, lost commits, recover"
     }
   },
@@ -739,11 +674,7 @@
     "skip": {
       "title": "Bisect: skip the commit under test"
     },
-    "end": {
-      "title": "End bisect"
-    },
     "autopilot": {
-      "title": "Bisect autopilot …",
       "keywords": "bisect, autopilot, find bug, regression, test script",
       "running": "The bisect autopilot is already running"
     },

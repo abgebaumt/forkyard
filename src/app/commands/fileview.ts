@@ -56,7 +56,7 @@ export async function createFile(repoId: string, tabId: string, initial = ""): P
         return error instanceof CoreError && error.code === "not_allowed" ? error.message : null;
       }
     },
-    confirmLabel: t("commands.file.new.confirm"),
+    confirmLabel: t("ui.create"),
   });
   if (!value) return false;
   const path = value.replace(/\\/g, "/");
@@ -99,7 +99,7 @@ export async function deleteFile(repoId: string, tabId: string, path: string): P
   toast({
     tone: "success",
     title: t("commands.file.delete.done", { name }),
-    action: { label: t("commands.repo.undo.title"), onClick: () => void undo(repoId) },
+    action: { label: t("ui.undo"), onClick: () => void undo(repoId) },
   });
   return true;
 }
@@ -115,11 +115,11 @@ async function pickFileToEdit(ctx: CommandContext): Promise<void> {
   );
   if (!result.ok) return;
   const path = await pickFromList({
-    title: t("commands.file.edit.pick"),
-    label: t("commands.file.edit.label"),
+    title: t("ui.editFile"),
+    label: t("ui.file"),
     items: result.value.map((item) => ({ key: item, label: item })),
     empty: t("commands.file.edit.empty"),
-    confirmLabel: t("commands.file.edit.confirm"),
+    confirmLabel: t("ui.edit"),
     mono: true,
   });
   if (path) ctx.store.openFile(ctx.tabId!, path, null, "edit");
@@ -128,7 +128,7 @@ async function pickFileToEdit(ctx: CommandContext): Promise<void> {
 export const commands: AppCommand[] = [
   {
     id: "file.history",
-    title: t("commands.file.history.title"),
+    title: t("ui.fileHistory"),
     group: "File",
     shortcut: "Mod+Shift+H",
     keywords: kw("commands.file.history.keywords"),
@@ -170,7 +170,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "file.delete",
-    title: t("commands.file.delete.title"),
+    title: t("ui.deleteFile"),
     group: "File",
     keywords: kw("commands.file.delete.keywords"),
     when: (ctx) => hasRepo(ctx) && (ctx.view?.center.kind === "file" || ctx.view?.center.kind === "blame") && ctx.view.center.sha === null,

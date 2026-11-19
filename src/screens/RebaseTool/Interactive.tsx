@@ -390,10 +390,7 @@ export function InteractiveRebase({
     return (
       <>
         {header}
-        <ColumnBar
-          direction={t("rebase.direction.oldestTop")}
-          lead={<span className="w-48 shrink-0 pl-8">{t("rebase.column.action")}</span>}
-        />
+        <ColumnBar direction={t("rebase.direction.oldestTop")} lead={<span className="w-48 shrink-0 pl-8">{t("ui.action")}</span>} />
         <SkeletonRows />
       </>
     );
@@ -423,7 +420,7 @@ export function InteractiveRebase({
           actions={
             <>
               <Button variant={canRebaseFirst || plan.reason === "dirty_worktree" ? "secondary" : "primary"} onClick={onClose}>
-                {t("rebase.backToGraph")}
+                {t("ui.backToGraph")}
               </Button>
               {plan.reason === "dirty_worktree" ? (
                 <Button
@@ -433,7 +430,7 @@ export function InteractiveRebase({
                     if (result?.ok) void planQuery.refetch();
                   }}
                 >
-                  {t("rebase.interactive.stash")}
+                  {t("ui.stashChanges")}
                 </Button>
               ) : null}
               {canRebaseFirst ? (
@@ -475,7 +472,7 @@ export function InteractiveRebase({
     ["P R S F D", t("rebase.keys.action")],
     ["Alt+↑ Alt+↓", t("rebase.keys.move")],
     ["Enter", t("rebase.keys.message")],
-    [t("rebase.keys.spaceKey"), t("rebase.keys.choose")],
+    [t("ui.keys.space"), t("rebase.keys.choose")],
     ["Mod+Enter", t("rebase.keys.start")],
   ];
 
@@ -513,7 +510,7 @@ export function InteractiveRebase({
       </div>
       <ColumnBar
         direction={t("rebase.direction.oldestTopNewestBottom")}
-        lead={<span className="w-48 shrink-0 pl-8">{t("rebase.column.action")}</span>}
+        lead={<span className="w-48 shrink-0 pl-8">{t("ui.action")}</span>}
       />
       <div className="min-h-0 flex-1">
         <ReorderList
@@ -612,15 +609,12 @@ export function InteractiveRebase({
                   </Tip>
                 ) : null}
                 {row.action === "reword" || isGroupRoot ? (
-                  <Tip
-                    label={row.action === "reword" ? t("rebase.interactive.editMessage") : t("rebase.interactive.editResultMessage")}
-                    shortcut="Enter"
-                  >
+                  <Tip label={row.action === "reword" ? t("ui.editMessage") : t("rebase.interactive.editResultMessage")} shortcut="Enter">
                     <button
                       type="button"
                       tabIndex={-1}
                       data-no-drag=""
-                      aria-label={row.action === "reword" ? t("rebase.interactive.editMessage") : t("rebase.interactive.editResultMessage")}
+                      aria-label={row.action === "reword" ? t("ui.editMessage") : t("rebase.interactive.editResultMessage")}
                       onClick={() => {
                         setActive(index);
                         if (row.action === "reword") void reword(row.sha);
@@ -682,11 +676,11 @@ export function InteractiveRebase({
               if (changed) reset();
             }}
           >
-            {t("rebase.interactive.reset")}
+            {t("ui.reset")}
           </Button>
         </Tip>
         <Button variant="ghost" onClick={onClose}>
-          {t("rebase.cancel")}
+          {t("ui.cancel")}
         </Button>
         <StartButton
           action="start"

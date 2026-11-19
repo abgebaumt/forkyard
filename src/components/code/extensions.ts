@@ -26,7 +26,7 @@ export const codePhrases: Extension = EditorState.phrases.of({
   "Control character": t("graph.code.controlCharacter"),
   // @codemirror/search
   Find: t("graph.code.find"),
-  Replace: t("graph.code.replace"),
+  Replace: t("ui.replace"),
   next: t("graph.code.next"),
   previous: t("graph.code.previous"),
   all: t("graph.code.all"),

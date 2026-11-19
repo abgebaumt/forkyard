@@ -90,7 +90,7 @@ function visibilityEntries(repoId: Id, ref: Ref): MenuEntry[] {
   const solo = isSolo(repoId, ref.fullName);
   return [
     item(hidden ? t("menus.view.show") : t("menus.view.hide"), hidden ? Eye : EyeOff, () => void toggleHidden(repoId, ref.fullName)),
-    item(solo ? t("menus.view.soloOff") : t("menus.view.solo"), Focus, () => void toggleSolo(repoId, ref.fullName), {
+    item(solo ? t("menus.view.soloOff") : t("ui.solo"), Focus, () => void toggleSolo(repoId, ref.fullName), {
       hint: solo ? undefined : t("menus.view.soloHint"),
     }),
     // Only branches have a line that can be pinned.
@@ -168,7 +168,7 @@ function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
             : null));
 
   return tidy([
-    item(t("menus.checkout"), Check, () => void checkout(repoId, ref.name, { tabId }), {
+    item(t("ui.checkOut"), Check, () => void checkout(repoId, ref.name, { tabId }), {
       blocked: ref.isHead ? t("menus.branch.isCheckedOut") : ref.worktreePath ? t("menus.otherWorktree") : busy,
     }),
     SEPARATOR,
@@ -191,12 +191,12 @@ function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
         )
       : null,
     ref.isHead
-      ? item(t("menus.branch.pull"), ArrowDownToLine, () => void pull(repoId, null, tabId), {
+      ? item(t("ui.pull"), ArrowDownToLine, () => void pull(repoId, null, tabId), {
           shortcut: commandShortcut("sync.pull"),
-          blocked: busy ?? (!hasRemote ? t("menus.noRemote") : !upstream ? t("menus.branch.noUpstream") : null),
+          blocked: busy ?? (!hasRemote ? t("menus.noRemote") : !upstream ? t("ui.noUpstream") : null),
         })
       : // Not checked out: fetch, then only the ref moves (no checkout).
-        item(t("menus.branch.pull"), ArrowDownToLine, () => void (upstream && pullBranch(repoId, ref.name, upstream)), {
+        item(t("ui.pull"), ArrowDownToLine, () => void (upstream && pullBranch(repoId, ref.name, upstream)), {
           tooltip: upstream
             ? t("menus.branch.pullOtherTip", {
                 name: t("menus.quoted", { name: ref.name }),
@@ -208,14 +208,14 @@ function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
             (!hasRemote
               ? t("menus.noRemote")
               : !upstream
-                ? t("menus.branch.noUpstream")
+                ? t("ui.noUpstream")
                 : ref.ahead > 0
                   ? t("menus.branch.aheadInWay", { count: ref.ahead })
                   : ref.worktreePath
                     ? t("menus.otherWorktree")
                     : null),
         }),
-    item(t("menus.branch.push"), ArrowUpFromLine, () => void push(repoId, { branch: ref.isHead ? null : ref.name, tabId }), {
+    item(t("ui.push"), ArrowUpFromLine, () => void push(repoId, { branch: ref.isHead ? null : ref.name, tabId }), {
       shortcut: ref.isHead ? commandShortcut("sync.push") : undefined,
       hint: !hasRemote ? undefined : pushHint(ref, cachedRemotes(repoId)?.map((remote) => remote.name) ?? []),
       blocked: !hasRemote ? t("menus.noRemote") : nothingToPush(refPublishState(ref)) ? t("menus.nothingToPush") : null,
@@ -223,20 +223,15 @@ function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
     item(t("pushMany.menuSingle"), ArrowUpFromLine, () => void pushWithMore(repoId, { branch: ref.name }), {
       blocked: !hasRemote ? t("menus.noRemote") : null,
     }),
-    item(
-      ref.upstream ? t("menus.branch.changeUpstream") : t("menus.branch.setUpstream"),
-      Link,
-      () => void chooseUpstream(repoId, ref.name),
-      {
-        hint: ref.upstream
-          ? ref.upstreamGone
-            ? t("menus.branch.upstreamMissing", { name: clipMiddle(ref.upstream, 24) })
-            : clipMiddle(ref.upstream, 24)
-          : undefined,
-        blocked: !hasRemote ? t("menus.noRemote") : null,
-      },
-    ),
-    ref.upstream ? item(t("menus.branch.unsetUpstream"), Unlink, () => void setUpstream(repoId, ref.name, null)) : null,
+    item(ref.upstream ? t("menus.branch.changeUpstream") : t("ui.setUpstream"), Link, () => void chooseUpstream(repoId, ref.name), {
+      hint: ref.upstream
+        ? ref.upstreamGone
+          ? t("menus.branch.upstreamMissing", { name: clipMiddle(ref.upstream, 24) })
+          : clipMiddle(ref.upstream, 24)
+        : undefined,
+      blocked: !hasRemote ? t("menus.noRemote") : null,
+    }),
+    ref.upstream ? item(t("ui.unsetUpstream"), Unlink, () => void setUpstream(repoId, ref.name, null)) : null,
     pullRequestEntry(ctx, ref),
     stackEntry(ctx, ref),
     SEPARATOR,
@@ -250,9 +245,9 @@ function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
         )
       : null,
     flow ? SEPARATOR : null,
-    item(t("menus.rename"), Pencil, () => void renameBranch(repoId, ref.name)),
-    item(t("menus.copyName"), Copy, () => void copyText(ref.name, t("menus.branch.name"))),
-    item(t("menus.branch.reflog"), History, () => useAppStore.getState().openReflog(tabId, ref.fullName)),
+    item(t("ui.rename"), Pencil, () => void renameBranch(repoId, ref.name)),
+    item(t("menus.copyName"), Copy, () => void copyText(ref.name, t("ui.branchName"))),
+    item(t("ui.showReflog"), History, () => useAppStore.getState().openReflog(tabId, ref.fullName)),
     SEPARATOR,
     ...visibilityEntries(repoId, ref),
     SEPARATOR,
@@ -307,7 +302,7 @@ function remoteBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
   const localName = ref.remote && ref.name.startsWith(`${ref.remote}/`) ? ref.name.slice(ref.remote.length + 1) : ref.name;
   const local = cachedRefs(repoId)?.locals.find((candidate) => candidate.name === localName);
   return tidy([
-    item(t("menus.checkout"), Check, () => void checkout(repoId, ref.name, { tabId }), {
+    item(t("ui.checkOut"), Check, () => void checkout(repoId, ref.name, { tabId }), {
       hint: local
         ? t("menus.remoteBranch.switchesTo", { name: q(localName, 24) })
         : t("menus.remoteBranch.creates", { name: q(localName, 24) }),
@@ -322,8 +317,8 @@ function remoteBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
     SEPARATOR,
     ...combineEntries(ctx, ref),
     SEPARATOR,
-    item(t("menus.copyName"), Copy, () => void copyText(ref.name, t("menus.branch.name"))),
-    item(t("menus.branch.reflog"), History, () => useAppStore.getState().openReflog(tabId, ref.fullName)),
+    item(t("menus.copyName"), Copy, () => void copyText(ref.name, t("ui.branchName"))),
+    item(t("ui.showReflog"), History, () => useAppStore.getState().openReflog(tabId, ref.fullName)),
     SEPARATOR,
     ...visibilityEntries(repoId, ref),
     ...customCommandEntries(repoId, "branch", { branch: ref.name, remote: ref.remote ?? null }),

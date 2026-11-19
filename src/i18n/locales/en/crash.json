@@ -12,7 +12,6 @@
     "viewHint": "Show the full report",
     "save": "Save…",
     "saveHint": "Save the report as a text file",
-    "discard": "Discard",
     "discardHint": "Delete this report"
   },
   "view": {

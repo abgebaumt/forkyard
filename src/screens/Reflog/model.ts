@@ -20,13 +20,13 @@ export function refOptions(refs: RefsSnapshot | undefined, current: string | nul
 }
 
 const ACTION_LABELS: Record<ReflogAction, string> = {
-  checkout: t("reflog.action.checkout"),
-  commit: t("reflog.action.commit"),
+  checkout: t("ui.checkout"),
+  commit: t("ui.commit"),
   reset: t("reflog.action.reset"),
   rebase: t("reflog.action.rebase"),
   merge: t("reflog.action.merge"),
-  pull: t("reflog.action.pull"),
-  cherry_pick: t("reflog.action.cherryPick"),
+  pull: t("ui.pull"),
+  cherry_pick: t("ui.cherryPick"),
   amend: t("reflog.action.amend"),
   other: t("reflog.action.other"),
 };

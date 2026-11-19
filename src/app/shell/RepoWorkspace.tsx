@@ -102,7 +102,7 @@ function RightPanel({ repoId, tabId, view }: { repoId: Id; tabId: Id; view: TabV
   if (!selection) {
     return (
       <div className="flex h-full items-center justify-center bg-surface">
-        <EmptyState title={t("shell.workspace.nothingSelected")}>{t("shell.workspace.nothingSelectedHint")}</EmptyState>
+        <EmptyState title={t("ui.nothingSelected")}>{t("shell.workspace.nothingSelectedHint")}</EmptyState>
       </div>
     );
   }
@@ -150,16 +150,14 @@ function MissingRepo({ tab, repoId }: { tab: Tab; repoId: Id }) {
               void queryClient.invalidateQueries({ queryKey: qk.repo(repoId) });
             }}
           >
-            {t("shell.workspace.recheck")}
+            {t("ui.checkAgain")}
           </Button>
           <Button variant="primary" onClick={() => void openRepository()}>
             {t("shell.workspace.chooseLocation")}
           </Button>
-          <Button onClick={() => void forgetRepo({ id: repoId, name, alias: repo?.alias ?? null, path })}>
-            {t("shell.workspace.removeFromList")}
-          </Button>
+          <Button onClick={() => void forgetRepo({ id: repoId, name, alias: repo?.alias ?? null, path })}>{t("ui.removeFromList")}</Button>
           <Button variant="ghost" onClick={() => void closeTab(tab.id)}>
-            {t("shell.tabMenu.close")}
+            {t("ui.closeTab")}
           </Button>
         </>
       }
@@ -250,7 +248,7 @@ function UntrustedRepo({ tab, repoId }: { tab: Tab; repoId: Id }) {
 
         <div className="flex flex-wrap gap-2">
           <Button variant="primary" autoFocus onClick={() => void closeTab(tab.id)}>
-            {t("shell.tabMenu.close")}
+            {t("ui.closeTab")}
           </Button>
           <Button disabled={busy || trust.isPending} onClick={() => void agree()}>
             {t("shell.trust.trustAndOpen")}
@@ -260,10 +258,10 @@ function UntrustedRepo({ tab, repoId }: { tab: Tab; repoId: Id }) {
             icon={<RefreshCw className="size-icon" aria-hidden />}
             onClick={() => void queryClient.invalidateQueries({ queryKey: qk.trust(repoId) })}
           >
-            {t("shell.workspace.recheck")}
+            {t("ui.checkAgain")}
           </Button>
           <Button variant="ghost" onClick={() => void forgetRepo({ id: repoId, name, alias: repo?.alias ?? null, path })}>
-            {t("shell.workspace.removeFromList")}
+            {t("ui.removeFromList")}
           </Button>
         </div>
       </div>
@@ -368,7 +366,7 @@ export function RepoWorkspace({ tab, repoId }: { tab: Tab; repoId: Id }) {
 
       {/* Centre column: the view, below it the terminal as a separate area (own height with handle, own stop for F6). */}
       <div data-no-scroll className="flex min-h-0 min-w-80 flex-1 flex-col">
-        <main data-area="center" data-no-scroll aria-label={t("shell.workspace.center")} className="flex min-h-0 flex-1 flex-col bg-bg">
+        <main data-area="center" data-no-scroll aria-label={t("ui.view")} className="flex min-h-0 flex-1 flex-col bg-bg">
           {view.searchOpen ? <CommitSearch repoId={repoId} tabId={tabId} /> : null}
           <div className="min-h-0 flex-1">
             <Suspense fallback={null}>

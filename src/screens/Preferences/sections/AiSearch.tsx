@@ -28,18 +28,18 @@ export function AiSearchCard({ settings, repoId }: { settings: Settings; repoId:
     const sure = await confirm({
       title: t("ai.search.delete.confirmTitle"),
       body: t("ai.search.delete.confirmBody"),
-      confirmLabel: t("ai.search.delete.button"),
+      confirmLabel: t("ui.deleteIndex"),
       danger: true,
     });
     if (!sure) return;
-    const result = await runAction(t("ai.search.delete.button"), () => core.aiSemanticIndexDelete());
+    const result = await runAction(t("ui.deleteIndex"), () => core.aiSemanticIndexDelete());
     if (!result.ok) return;
     toast({ tone: "success", title: t("ai.search.delete.done", { count: result.value }) });
     await queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === "repo" && query.queryKey[2] === "aiSemantic" });
   };
 
   return (
-    <SettingsCard title={t("ai.search.card")}>
+    <SettingsCard title={t("ui.searchByMeaning")}>
       <SettingRow title={t("ai.search.embedder.title")} description={t("ai.search.embedder.description")}>
         {(ids) => (
           <div className="w-72" data-ai-search-embedder>
@@ -53,7 +53,7 @@ export function AiSearchCard({ settings, repoId }: { settings: Settings; repoId:
         )}
       </SettingRow>
       {choice !== "main" ? (
-        <SettingRow title={t("ai.search.baseUrl.title")} description={t("ai.search.baseUrl.description")}>
+        <SettingRow title={t("ui.address")} description={t("ai.search.baseUrl.description")}>
           {(ids) => (
             <CommitText
               id={ids.id}
@@ -83,10 +83,10 @@ export function AiSearchCard({ settings, repoId }: { settings: Settings; repoId:
       <SettingRow title={t("ai.search.index.title")} description={indexText(repoId ? status : null, repoId !== null)}>
         {() => null}
       </SettingRow>
-      <SettingRow title={t("ai.search.delete.title")} description={t("ai.search.delete.description")}>
+      <SettingRow title={t("ui.deleteIndex")} description={t("ai.search.delete.description")}>
         {() => (
           <Button data-ai-index-delete onClick={() => void deleteIndex()}>
-            {t("ai.search.delete.button")}
+            {t("ui.deleteIndex")}
           </Button>
         )}
       </SettingRow>

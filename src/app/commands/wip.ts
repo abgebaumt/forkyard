@@ -30,7 +30,7 @@ const nothingStaged = (ctx: CommandContext) => (hasRepo(ctx) && !ctx.status?.sta
 export const commands: AppCommand[] = [
   {
     id: "wip.stageAll",
-    title: t("commands.wip.stageAll.title"),
+    title: t("ui.stageAllChanges"),
     group: "Commit",
     shortcut: "Mod+Shift+S",
     keywords: kw("commands.wip.stageAll.keywords"),

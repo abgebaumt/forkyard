@@ -103,7 +103,7 @@ export function ProjectIdentitySection({ repoId }: { repoId: Id }) {
 
   return (
     <section>
-      <Intro repoId={repoId}>{t("preferences.project.identity.title")}</Intro>
+      <Intro repoId={repoId}>{t("ui.identityAndAccess")}</Intro>
       <SettingsCard title={t("preferences.project.identity.commitCard")}>
         <InheritRow
           title={t("preferences.profiles.authorName.title")}
@@ -142,7 +142,7 @@ export function ProjectIdentitySection({ repoId }: { repoId: Id }) {
       </SettingsCard>
       <SettingsCard title={t("preferences.project.identity.accessCard")}>
         <InheritRow
-          title={t("preferences.project.identity.sshKeyTitle")}
+          title={t("ui.sshKey")}
           description={t("preferences.project.identity.sshKey")}
           inherited={keyName(inheritedValue("sshKeyId", repo, ctx).inherited)}
           {...inherit(repoId, "sshKeyId", repo, ctx)}
@@ -190,7 +190,7 @@ export function ProjectGitSection({ repoId }: { repoId: Id }) {
 
   return (
     <section>
-      <Intro repoId={repoId}>{t("preferences.project.git.title")}</Intro>
+      <Intro repoId={repoId}>{t("ui.pullAndFetch")}</Intro>
       <SettingsCard title={t("preferences.project.git.card")}>
         <InheritRow
           title={t("preferences.project.git.pullMode")}
@@ -275,8 +275,8 @@ export function ProjectFilesSection({ repoId }: { repoId: Id }) {
 
   return (
     <section>
-      <Intro repoId={repoId}>{t("preferences.project.files.title")}</Intro>
-      <SettingsCard title={t("preferences.project.files.card")}>
+      <Intro repoId={repoId}>{t("ui.filesAndHooks")}</Intro>
+      <SettingsCard title={t("ui.files")}>
         <SettingRow title={t("preferences.project.files.encoding")} description={t("preferences.project.files.encodingDescription")}>
           {(ids) => (
             <div className="w-64">

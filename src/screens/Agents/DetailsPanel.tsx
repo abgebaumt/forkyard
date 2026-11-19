@@ -35,7 +35,7 @@ export function AgentDetailsPanel({ repoId, tabId, agentId }: { repoId: Id; tabI
   return (
     <section
       data-panel="agent"
-      aria-label={t("agents.panel.title")}
+      aria-label={t("ui.codingAgent")}
       className="flex h-full min-h-0 flex-col gap-3 overflow-auto bg-surface p-3"
     >
       <h2 className="text-base font-semibold text-text">{displayName(agent)}</h2>
@@ -43,23 +43,23 @@ export function AgentDetailsPanel({ repoId, tabId, agentId }: { repoId: Id; tabI
         <Field label={t("agents.panel.status")}>
           <StatusWord status={agent.status} origin={statusOrigin(agent)} />
         </Field>
-        <Field label={t("agents.panel.template")}>{agent.templateName}</Field>
-        <Field label={t("agents.panel.task")}>
+        <Field label={t("ui.agent")}>{agent.templateName}</Field>
+        <Field label={t("ui.task")}>
           <span className="whitespace-pre-wrap">{agent.task}</span>
         </Field>
-        <Field label={t("agents.panel.branch")}>
+        <Field label={t("ui.branch")}>
           <span className="font-mono text-code">{agent.branch}</span>
         </Field>
-        <Field label={t("agents.panel.base")}>
+        <Field label={t("ui.base")}>
           <span className="font-mono text-code">{agent.base}</span>
         </Field>
-        <Field label={t("agents.panel.folder")}>
+        <Field label={t("ui.folder")}>
           <span className="font-mono text-code break-all">{agent.worktreePath}</span>
         </Field>
         <Field label={t("agents.panel.started")}>{formatDateTime(Date.parse(agent.startedAt))}</Field>
         {agent.endedAt ? <Field label={t("agents.panel.ended")}>{formatDateTime(Date.parse(agent.endedAt))}</Field> : null}
         <Field label={t("agents.panel.runtime")}>{formatRuntime(agent.startedAt, agent.endedAt, Date.now())}</Field>
-        <Field label={t("agents.panel.changes")}>
+        <Field label={t("ui.changes")}>
           {t("agents.cockpit.changed", { count: agent.changedFiles })} ·{" "}
           {t("agents.cockpit.ahead", { count: agent.commitsAhead, base: agent.base })}
         </Field>

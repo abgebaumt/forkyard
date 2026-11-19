@@ -75,7 +75,7 @@ export function ApplyDialog({ jobId, steps, hooks, skipHooks, settled, onDone }:
     const number = index + 1;
     if (outcome?.ok) {
       const ran = outcome.value.steps[index]?.hooks ?? [];
-      return { text: ran.length > 0 ? t("wip.compose.run.doneHooks", { hooks: list(ran) }) : t("wip.compose.run.done"), tone: "done" };
+      return { text: ran.length > 0 ? t("wip.compose.run.doneHooks", { hooks: list(ran) }) : t("ui.created"), tone: "done" };
     }
     if (outcome && !outcome.ok) {
       if (number === current)
@@ -83,21 +83,21 @@ export function ApplyDialog({ jobId, steps, hooks, skipHooks, settled, onDone }:
           text: outcome.error.code === "hook_failed" ? t("wip.compose.run.rejected") : describeError(outcome.error).text,
           tone: "failed",
         };
-      return { text: t("wip.compose.run.waiting"), tone: "wait" };
+      return { text: t("ui.waiting"), tone: "wait" };
     }
-    if (number < current) return { text: t("wip.compose.run.done"), tone: "done" };
+    if (number < current) return { text: t("ui.created"), tone: "done" };
     if (number === current) return { text: hooksRun ? t("wip.compose.run.hooksRunning") : t("wip.compose.run.creating"), tone: "run" };
-    return { text: t("wip.compose.run.waiting"), tone: "wait" };
+    return { text: t("ui.waiting"), tone: "wait" };
   };
 
   const footer = running ? (
     <Button data-compose-run-cancel="" onClick={() => void core.jobCancel({ jobId })}>
-      {t("wip.compose.run.cancel")}
+      {t("ui.cancel")}
     </Button>
   ) : outcome.ok ? (
     <>
       <Button data-compose-run-undo="" onClick={() => onDone("undo")}>
-        {t("wip.compose.run.undo")}
+        {t("ui.undo")}
       </Button>
       <Button variant="primary" data-compose-run-done="" data-autofocus autoFocus onClick={() => onDone("done")}>
         {t("wip.compose.run.finish")}
@@ -105,7 +105,7 @@ export function ApplyDialog({ jobId, steps, hooks, skipHooks, settled, onDone }:
     </>
   ) : (
     <Button variant="primary" data-compose-run-close="" data-autofocus autoFocus onClick={() => onDone(null)}>
-      {t("wip.compose.run.close")}
+      {t("ui.close")}
     </Button>
   );
 

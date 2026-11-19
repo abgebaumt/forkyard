@@ -34,11 +34,11 @@ export const isExternal = (target: ReleaseTarget) => target === "host_release";
 export function targetLabel(target: ReleaseTarget, hostName: string | null): string {
   switch (target) {
     case "changelog":
-      return t("actions.tags.releaseNotes.targets.changelog");
+      return t("ui.insertIntoChangelogMd");
     case "host_release":
       return t("actions.tags.releaseNotes.targets.hostRelease", { host: hostName ?? "" });
     case "clipboard":
-      return t("actions.tags.releaseNotes.targets.clipboard");
+      return t("ui.copyToClipboard");
   }
 }
 

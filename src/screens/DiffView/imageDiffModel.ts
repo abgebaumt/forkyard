@@ -15,7 +15,7 @@ export const SMALL_IMAGE_PX = 192;
 const MODE_KEY = "gc.imageDiff.mode";
 
 const MODE_LABELS: Record<ImageMode, string> = {
-  side: t("diff.image.modes.side"),
+  side: t("ui.sideBySide"),
   swipe: t("diff.image.modes.swipe"),
   onion: t("diff.image.modes.onion"),
   difference: t("diff.image.modes.difference"),

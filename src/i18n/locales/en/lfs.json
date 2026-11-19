@@ -1,7 +1,5 @@
 {
-  "title": "Git LFS",
   "description": "Store large files outside the history – for this repository.",
-  "close": "Close",
   "progress": {
     "stopping": "Cancelling",
     "pulling": "Fetching LFS files",
@@ -17,10 +15,8 @@
   },
   "loading": "Checking Git LFS",
   "readFailed": "The state of Git LFS couldn't be read",
-  "retry": "Try again",
   "missing": {
     "title": "Git LFS isn't installed on this computer",
-    "recheck": "Check again",
     "body": "Git LFS stores large files (images, videos, archives) outside the history; the repository then only contains a small pointer. Install it from git-lfs.com or through your package manager, then check again – no restart needed.",
     "used_one": "This repository uses LFS for {{count}} pattern. Without Git LFS you only see the pointers instead of these files, and new files end up in the normal history by accident.",
     "used_other": "This repository uses LFS for {{count}} patterns. Without Git LFS you only see the pointers instead of these files, and new files end up in the normal history by accident.",
@@ -33,7 +29,6 @@
     "label": "New pattern",
     "hint": "An extension (*.psd) or a folder (images/**), written as in .gitignore."
   },
-  "add": "Add",
   "suggestions": "Common:",
   "addPattern": "Add pattern {{pattern}}",
   "pullCancel": "Cancel fetching",
@@ -43,7 +38,6 @@
   "locks": {
     "heading": "Locks",
     "intro": "A lock tells everyone working on this repository that you’re editing a file. The LFS server keeps the locks; they’re read again after every fetch.",
-    "refresh": "Refresh",
     "refreshLabel": "Read the locks from the server again",
     "loading": "Reading the locks",
     "unsupported": "The LFS server of this repository doesn’t offer file locking.",
@@ -55,8 +49,6 @@
     "you": "you",
     "byYou": "Locked by you",
     "byOther": "Locked by {{owner}}",
-    "unlock": "Unlock",
-    "force": "Force unlock …",
     "selected_one": "{{count}} selected",
     "selected_other": "{{count}} selected"
   }

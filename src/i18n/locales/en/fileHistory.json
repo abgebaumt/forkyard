@@ -1,6 +1,5 @@
 {
   "ariaLabel": "History of {{path}}",
-  "prefix": "History",
   "count_one": "{{count}} commit",
   "count_other": "{{count}} commits",
   "countMore_one": "more than {{count}} commit",
@@ -8,7 +7,6 @@
   "goneFromWorkdir": "The file no longer exists in the working directory",
   "current": "Current version",
   "viewCurrent": "View current version",
-  "blame": "Blame",
   "deleted": {
     "title": "Deleted in {{sha}}",
     "body": "“{{summary}}” removed the file. The list goes back from the deletion; earlier versions can be viewed and restored."
@@ -19,24 +17,17 @@
   "listLabel": "Commits of this file",
   "loadingMore": "Loading more commits …",
   "more": "More commits …",
-  "noMessage": "(no message)",
-  "binary": "binary",
   "renamedFrom": "renamed from",
   "calledThen": "was then called",
   "noEarlierVersion": "there is no earlier version",
   "status": {
-    "added": "added",
-    "deleted": "deleted",
-    "renamed": "renamed",
-    "modified": "modified"
+    "added": "added"
   },
   "action": {
     "view": "View this version",
     "viewBeforeDelete": "View version before deletion",
     "blame": "Blame at this version",
     "compareWorkdir": "Compare with working directory",
-    "showInGraph": "Show in graph",
-    "copySha": "Copy SHA",
     "restore": "Restore this version",
     "restoreBeforeDelete": "Restore version before deletion",
     "restoreMenu": "Restore this version …",
@@ -45,17 +36,14 @@
   },
   "short": {
     "view": "View",
-    "restore": "Restore",
-    "showInGraph": "In graph"
+    "restore": "Restore"
   },
   "error": {
-    "title": "The history could not be loaded",
-    "retry": "Try again"
+    "title": "The history could not be loaded"
   },
   "empty": {
     "newTitle": "No history yet",
     "noneTitle": "No commits for this file",
-    "viewFile": "View file",
     "newBody": "“{{name}}” is new and has never been committed. After the first commit it shows up here.",
     "noneBody": "No file at this path appears in the history of the checked-out state."
   },
@@ -64,7 +52,6 @@
     "confirmBody": "The file has uncommitted changes. They will be replaced by the version from {{sha}}. Right afterwards, “Undo” brings them back.",
     "confirm": "Restore version",
     "doneTitle": "Restored “{{name}}” to the state of {{sha}}",
-    "doneBody": "The version is staged in the working directory.",
-    "undo": "Undo"
+    "doneBody": "The version is staged in the working directory."
   }
 }

@@ -101,12 +101,12 @@ export function useStackSuggest({ repoId, branch, base, commitCount, parts, onIn
     <div className="flex shrink-0 items-center gap-1" data-stack-ai="">
       {opensSetup ? null : (
         <Button size="sm" variant="ghost" data-stack-what-is-sent="" disabled={!input || running} onClick={showSent}>
-          {t("pullRequest.stack.whatIsSent")}
+          {t("ui.whatIsSent")}
         </Button>
       )}
       {running ? (
         <Button size="sm" data-stack-suggest-cancel="" onClick={cancel}>
-          {t("ai.state.cancel")}
+          {t("ui.cancel")}
         </Button>
       ) : (
         <Button size="sm" data-stack-suggest="" disabled={!opensSetup && (!input || commitCount === 0)} onClick={() => void start()}>
@@ -147,7 +147,7 @@ export function useStackSuggest({ repoId, branch, base, commitCount, parts, onIn
             {t("pullRequest.stack.take")}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setOffer(null)}>
-            {t("pullRequest.stack.discard")}
+            {t("ui.discard")}
           </Button>
         </div>
       ) : null}

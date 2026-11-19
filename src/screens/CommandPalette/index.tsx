@@ -78,11 +78,11 @@ type Scope = "all" | "commands" | "branches" | "files" | "commits" | "repos";
 
 /** Prefix → scope; the order is also the order of the explanation in the empty state. */
 const PREFIXES: { prefix: string; scope: Exclude<Scope, "all">; label: string }[] = [
-  { prefix: ">", scope: "commands", label: t("palette.scope.commands") },
+  { prefix: ">", scope: "commands", label: t("ui.commands") },
   { prefix: "@", scope: "branches", label: t("palette.scope.branches") },
-  { prefix: "/", scope: "files", label: t("palette.scope.files") },
-  { prefix: "#", scope: "commits", label: t("palette.scope.commits") },
-  { prefix: "~", scope: "repos", label: t("palette.scope.repos") },
+  { prefix: "/", scope: "files", label: t("ui.files") },
+  { prefix: "#", scope: "commits", label: t("ui.commits") },
+  { prefix: "~", scope: "repos", label: t("ui.tabs.management") },
 ];
 
 const modePrefix: Record<PaletteMode, string> = { all: "", commands: ">", branches: "@", files: "/", repos: "~" };
@@ -401,7 +401,7 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
             header(t("palette.header.recent"));
             for (const item of recent) push(item);
           }
-          header(scope === "all" ? t("palette.scope.commands") : t("palette.header.allCommands"));
+          header(scope === "all" ? t("ui.commands") : t("palette.header.allCommands"));
           const sorted = [...availableCommands].sort(
             (a, b) => (a.detail ?? "").localeCompare(b.detail ?? "", locale()) || a.title.localeCompare(b.title, locale()),
           );
@@ -412,7 +412,7 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
           const groups: [string, PaletteKind][] = [
             [t("palette.header.localBranches"), "branch"],
             [t("palette.header.remoteBranches"), "remote"],
-            [t("palette.header.tags"), "tag"],
+            [t("ui.tags"), "tag"],
           ];
           for (const [label, kind] of groups) {
             const list = refList.filter((item) => item.kind === kind);
@@ -426,11 +426,11 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
           const sorted = changedFirst(fileList);
           const changed = sorted.filter((item) => item.marker);
           if (changed.length) {
-            header(t("palette.header.changedFiles"));
+            header(t("ui.changedFiles"));
             for (const item of changed) push(item);
           }
           if (sorted.length > changed.length) {
-            header(t("palette.header.allFiles"));
+            header(t("ui.allFiles"));
             for (const item of sorted) if (!item.marker) push(item);
           }
           break;
@@ -722,7 +722,7 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
           }}
           className="animate-pop fixed top-1/6 left-1/2 z-50 flex max-h-2/3 w-palette max-w-[calc(100vw/var(--zoom,1)-var(--spacing)*8)] -translate-x-1/2 flex-col overflow-hidden rounded-lg border border-border bg-surface text-text shadow-dialog"
         >
-          <RadixDialog.Title className="sr-only">{t("palette.title")}</RadixDialog.Title>
+          <RadixDialog.Title className="sr-only">{t("ui.commandPalette")}</RadixDialog.Title>
           <div className="flex h-toolbar shrink-0 items-center gap-2 border-b border-border px-3">
             {stage ? (
               <span
@@ -764,7 +764,7 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
             {loading ? <Spinner label={loadingLabel} /> : null}
             {stage ? (
               <span className="shrink-0 text-xs text-text-muted">
-                <Kbd>Esc</Kbd> {t("palette.footer.back")}
+                <Kbd>Esc</Kbd> {t("ui.back")}
               </span>
             ) : null}
           </div>
@@ -801,7 +801,7 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
                   className="inline-flex h-control-sm shrink-0 items-center gap-1 rounded-md border border-border bg-surface-raised px-2 text-sm font-medium hover:bg-surface"
                 >
                   <RefreshCw className="size-icon" aria-hidden />
-                  {t("palette.retry")}
+                  {t("ui.retry")}
                 </button>
               </div>
             ) : null}
@@ -904,7 +904,7 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
                   <Kbd>↓</Kbd> {t("palette.footer.select")}
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <Kbd>Enter</Kbd> {t("palette.footer.run")}
+                  <Kbd>Enter</Kbd> {t("ui.run")}
                 </span>
                 {active?.item.actions ? (
                   <span className="inline-flex items-center gap-1">
@@ -912,7 +912,7 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
                   </span>
                 ) : null}
                 <span className="inline-flex items-center gap-1">
-                  <Kbd>Esc</Kbd> {stage ? t("palette.footer.back") : t("palette.footer.close")}
+                  <Kbd>Esc</Kbd> {stage ? t("ui.back") : t("palette.footer.close")}
                 </span>
                 {askRequest !== null ? (
                   <button
@@ -922,7 +922,7 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
                     onClick={() => void plan.whatIsSent(askRequest)}
                     className="inline-flex items-center hover:text-text hover:underline"
                   >
-                    {t("palette.ask.whatIsSent")}
+                    {t("ui.whatIsSent")}
                   </button>
                 ) : null}
               </span>

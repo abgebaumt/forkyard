@@ -52,7 +52,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "history.reflog",
-    title: t("commands.history.reflog.title"),
+    title: t("ui.showReflog"),
     group: "Repository",
     keywords: kw("commands.history.reflog.keywords"),
     when: hasRepo,
@@ -85,7 +85,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "bisect.end",
-    title: t("commands.bisect.end.title"),
+    title: t("ui.endBisect"),
     group: "Commit",
     when: bisectRunning,
     disabledReason: notRunning,
@@ -93,7 +93,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "bisect.autopilot",
-    title: t("commands.bisect.autopilot.title"),
+    title: t("ui.bisectAutopilot"),
     group: "Commit",
     keywords: kw("commands.bisect.autopilot.keywords"),
     // An AI element: hidden while AI is not set up, off, or off for this repository.

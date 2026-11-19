@@ -31,7 +31,7 @@ export function applySettings(
     const previous = queryClient.getQueryData<Settings>(qk.settings);
     if (previous) queryClient.setQueryData<Settings>(qk.settings, { ...previous, ...patch });
     // `quiet`: further errors the caller shows itself at the field (e.g. `path_not_found` for a file path).
-    const result = await runAction(t("preferences.save.setting"), () => core.settingsSet({ patch }), {
+    const result = await runAction(t("ui.saveSetting"), () => core.settingsSet({ patch }), {
       quiet: options.quiet ?? (options.atField ? FIELD_ERRORS : undefined),
     });
     if (result.ok) {
@@ -71,9 +71,7 @@ export function applyRepoSettings(
 /** For `CommitText.onCommit`: the core's error text for the field, or null on success. runAction has already reported other errors. */
 export function fieldError(result: ActionResult<unknown>): string | null {
   if (result.ok) return null;
-  return FIELD_ERRORS.includes(result.error.code)
-    ? result.error.message || t("preferences.save.notAllowed")
-    : t("preferences.save.notSaved");
+  return FIELD_ERRORS.includes(result.error.code) ? result.error.message || t("preferences.save.notAllowed") : t("ui.notSaved");
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+$/;

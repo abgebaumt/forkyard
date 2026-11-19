@@ -92,7 +92,7 @@ function IssueOption({
       <div className="min-w-0 flex-1">
         <p className="m-0 flex items-baseline gap-1.5 text-base text-text">
           <span className="min-w-0 flex-1 truncate" title={issue.title}>
-            {issue.title || t("issues.untitled")}
+            {issue.title || t("ui.untitled")}
           </span>
           <span className="shrink-0 text-sm text-text-muted tabular-nums">{issue.key}</span>
         </p>
@@ -327,20 +327,13 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
         {filter.mine && issues.hasNextPage ? t("issues.view.notAllLoaded") : ""}
       </Blank>
     ) : (
-      <Blank state="empty" icon={<Inbox className="size-8" aria-hidden />} title={t("issues.view.noOpen")}>
+      <Blank state="empty" icon={<Inbox className="size-8" aria-hidden />} title={t("ui.noOpenIssues")}>
         {t("issues.view.nothingOpen", { where })}
       </Blank>
     );
   } else {
     listBody = (
-      <div
-        ref={listRef}
-        role="listbox"
-        aria-label={t("issues.view.title")}
-        aria-orientation="vertical"
-        onKeyDown={onListKeyDown}
-        data-issue-list
-      >
+      <div ref={listRef} role="listbox" aria-label={t("ui.issues")} aria-orientation="vertical" onKeyDown={onListKeyDown} data-issue-list>
         {shown.map((issue) => (
           <IssueOption
             key={issue.number}
@@ -362,7 +355,7 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
   return (
     <section
       ref={rootRef}
-      aria-label={t("issues.view.title")}
+      aria-label={t("ui.issues")}
       data-screen="issues"
       data-state={listState}
       data-layout={wide ? "two" : "one"}
@@ -370,7 +363,7 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
     >
       <header className="flex h-control-lg shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-3">
         <CircleDot className="size-icon shrink-0 text-text-muted" aria-hidden />
-        <h2 className="m-0 shrink-0 text-base font-medium text-text">{t("issues.view.title")}</h2>
+        <h2 className="m-0 shrink-0 text-base font-medium text-text">{t("ui.issues")}</h2>
         {where ? (
           <span
             className="selectable min-w-0 truncate font-mono text-code text-text-muted"
@@ -397,7 +390,7 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
             ) : null}
             <IconButton
               size="sm"
-              label={t("issues.view.reload")}
+              label={t("ui.reloadIssues")}
               data-action="issues-refresh"
               icon={<RefreshCw className={cn("size-icon", refreshing && "animate-spin")} aria-hidden />}
               onClick={() => void refreshIssues(repoId)}
@@ -414,7 +407,7 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
         ) : null}
         <IconButton
           size="sm"
-          label={t("issues.view.close")}
+          label={t("ui.close")}
           shortcut="Escape"
           data-back=""
           icon={<X className="size-icon" aria-hidden />}
@@ -502,11 +495,11 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
                     icon={<RefreshCw className="size-3.5" aria-hidden />}
                     onClick={() => void issues.refetch()}
                   >
-                    {t("issues.problem.retry")}
+                    {t("ui.retry")}
                   </Button>
                   {staleProblem.kind === "auth" || staleProblem.kind === "not_connected" ? (
                     <Button size="sm" onClick={openIntegrations}>
-                      {t("issues.problem.openIntegrations")}
+                      {t("ui.openIntegrations")}
                     </Button>
                   ) : null}
                 </div>
@@ -534,7 +527,7 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
                       data-action="issues-more"
                       onClick={() => void issues.fetchNextPage()}
                     >
-                      {t("issues.view.loadMore")}
+                      {t("ui.loadMore")}
                     </Button>
                   ) : null}
                 </div>

@@ -89,7 +89,7 @@ function operationTitle(status: Status): string {
   const source = operation.source ?? t("wip.operation.unknown");
   switch (operation.kind) {
     case "merge":
-      return t("wip.operation.merge", { source, target: operation.target ?? t("wip.operation.currentBranch") });
+      return t("wip.operation.merge", { source, target: operation.target ?? t("ui.theCurrentBranch") });
     case "rebase":
       return t("wip.operation.rebase", { source, target: operation.target ?? t("wip.operation.target") }) + step;
     case "cherry_pick":
@@ -355,12 +355,12 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
       { label: t("wip.menu.showDiff"), disabled: many, onSelect: () => open(area, first.path) },
       area === "unstaged"
         ? {
-            label: many ? t("wip.menu.stageFiles", { count: files.length }) : t("wip.menu.stage"),
+            label: many ? t("wip.menu.stageFiles", { count: files.length }) : t("ui.stage"),
             shortcut: "S",
             onSelect: () => void stageFiles(repoId, tabId, filePaths),
           }
         : {
-            label: many ? t("wip.menu.unstageFiles", { count: files.length }) : t("wip.menu.unstage"),
+            label: many ? t("wip.menu.unstageFiles", { count: files.length }) : t("ui.unstage"),
             shortcut: "U",
             onSelect: () => void unstageFiles(repoId, tabId, filePaths),
           },
@@ -368,7 +368,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
         ? ([
             { type: "separator" },
             {
-              label: many ? t("wip.menu.discardFiles", { count: files.length }) : t("wip.menu.discard"),
+              label: many ? t("wip.menu.discardFiles", { count: files.length }) : t("ui.discardChanges"),
               shortcut: "Delete",
               danger: true,
               onSelect: () => void discardFiles(repoId, tabId, filePaths),
@@ -423,7 +423,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
   const header = (
     <header className="flex h-control-lg shrink-0 items-center gap-1 border-b border-border pr-1 pl-3">
       <h2 className="min-w-0 flex-1 truncate text-base font-medium">
-        {t("wip.panel.title")}
+        {t("ui.localChanges")}
         {status && total > 0 ? <span className="ml-2 font-normal text-text-muted tabular-nums">{total}</span> : null}
       </h2>
       <IconButton
@@ -475,7 +475,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
           title={t("wip.panel.readFailed")}
           action={
             <Button icon={<RefreshCw className="size-icon" aria-hidden />} loading={isFetching} onClick={() => void refetch()}>
-              {t("wip.panel.retry")}
+              {t("ui.retry")}
             </Button>
           }
         >
@@ -507,7 +507,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {conflicted.length > 0 ? (
           <PanelSection
-            title={t("wip.panel.conflicts")}
+            title={t("ui.conflicts")}
             count={conflicted.length}
             className={cn(SECTION, "max-h-2/5 shrink-0")}
             data-section="conflicts"
@@ -544,7 +544,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
         ) : null}
         <div ref={setLists} className="flex min-h-28 flex-1 flex-col">
           <PanelSection
-            title={t("wip.panel.unstaged")}
+            title={t("ui.unstaged")}
             count={status ? unstaged.length : undefined}
             className={SECTION}
             style={firstStyle}
@@ -552,7 +552,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
             open={openSections.unstaged}
             onOpenChange={(next) => setOpenSections((current) => ({ ...current, unstaged: next }))}
             pinnedActions={
-              <Tip label={t("wip.panel.stageAllTip")} shortcut="Mod+Shift+S">
+              <Tip label={t("ui.stageAllChanges")} shortcut="Mod+Shift+S">
                 <Button
                   size="sm"
                   variant="ghost"
@@ -560,7 +560,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
                   disabled={unstaged.length === 0}
                   onClick={() => void stageEverything(repoId, tabId)}
                 >
-                  {t("wip.panel.stageAll")}
+                  {t("ui.stageAll")}
                 </Button>
               </Tip>
             }
@@ -593,7 +593,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
                   <IconButton
                     size="sm"
                     tabIndex={-1}
-                    label={t("wip.menu.stage")}
+                    label={t("ui.stage")}
                     shortcut="S"
                     icon={<Plus className="size-icon" aria-hidden />}
                     onClick={() => void stageFiles(repoId, tabId, targets("unstaged", file))}
@@ -631,7 +631,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
             <SplitHandle value={split} onChange={(next) => store().setSplit(next)} bounds={() => lists?.getBoundingClientRect() ?? null} />
           ) : null}
           <PanelSection
-            title={t("wip.panel.staged")}
+            title={t("ui.staged")}
             count={status ? staged.length : undefined}
             className={SECTION}
             style={secondStyle}
@@ -647,7 +647,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
                   disabled={staged.length === 0}
                   onClick={() => void unstageEverything(repoId, tabId)}
                 >
-                  {t("wip.panel.unstageAll")}
+                  {t("ui.unstageAll")}
                 </Button>
               </Tip>
             }
@@ -674,7 +674,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
                   <IconButton
                     size="sm"
                     tabIndex={-1}
-                    label={t("wip.menu.unstage")}
+                    label={t("ui.unstage")}
                     shortcut="U"
                     icon={<Minus className="size-icon" aria-hidden />}
                     onClick={() => void unstageFiles(repoId, tabId, targets("staged", file))}
@@ -717,7 +717,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
   return (
     <section
       data-screen={mode === "commit" ? "commit-panel" : "stash-form"}
-      aria-label={t("wip.panel.title")}
+      aria-label={t("ui.localChanges")}
       className="flex h-full min-h-0 flex-col bg-surface"
     >
       {header}
@@ -729,13 +729,13 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
               <p>{t("wip.detached.text")}</p>
               <div className="mt-2">
                 <Button size="sm" onClick={() => void createBranch(repoId, { checkout: true })}>
-                  {t("wip.detached.createBranch")}
+                  {t("ui.createBranchHere")}
                 </Button>
               </div>
             </Banner>
           ) : null}
           {!status.identitySet ? (
-            <Banner tone="warning" title={t("wip.identity.title")}>
+            <Banner tone="warning" title={t("ui.noAuthorSet")}>
               <p>{t("wip.identity.text")}</p>
               <div className="mt-2">
                 <Button size="sm" onClick={() => app().openOverlay({ kind: "preferences", section: "profiles" })}>

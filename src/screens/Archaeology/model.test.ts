@@ -151,7 +151,7 @@ describe("timelineRows", () => {
       { kind: "context", text: "c" },
       { kind: "note", text: "… 2 more lines" },
     ]);
-    expect(rows[2]!.summary).toBe(t("blame.noMessage"));
+    expect(rows[2]!.summary).toBe(t("ui.noMessage"));
     expect(rows.map((item) => item.introduced)).toEqual([false, false, true]);
     expect(timelineRows(timeline([step(A, "x", "Eins")], true))[0]!.introduced).toBe(false);
   });

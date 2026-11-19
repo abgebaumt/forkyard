@@ -12,15 +12,15 @@ import { Badge, GroupTitle, LoadError, SectionHeader } from "../parts";
 import { t } from "../../../i18n";
 
 const kindLabel: Record<HostAccount["kind"], string> = {
-  password: t("preferences.credentials.kind.password"),
-  passphrase: t("preferences.credentials.kind.passphrase"),
+  password: t("ui.passwordOrToken"),
+  passphrase: t("ui.passphrase"),
 };
 
 async function forgetAll(count: number) {
   const ok = await confirm({
     title: t("preferences.credentials.forget.title", { count }),
     body: t("preferences.credentials.forget.body"),
-    confirmLabel: t("preferences.credentials.forget.confirm"),
+    confirmLabel: t("ui.forgetAll"),
     danger: true,
   });
   if (!ok) return;
@@ -48,7 +48,7 @@ export function CredentialsSection() {
   return (
     <section>
       <SectionHeader
-        title={t("preferences.credentials.title")}
+        title={t("ui.credentials")}
         actions={
           <Button
             variant="secondary"
@@ -57,7 +57,7 @@ export function CredentialsSection() {
             disabled={list.length === 0}
             onClick={() => void forgetAll(list.length)}
           >
-            {t("preferences.credentials.forgetAll")}
+            {t("ui.forgetAll")}
           </Button>
         }
       >
@@ -66,7 +66,7 @@ export function CredentialsSection() {
 
       {keyring === false ? (
         <div className="mb-3 overflow-hidden rounded-md" data-state="no-keyring">
-          <Banner tone="warning" title={t("preferences.credentials.noKeyring.title")}>
+          <Banner tone="warning" title={t("ui.noKeychainAvailable")}>
             {t("preferences.credentials.noKeyring.body")}
           </Banner>
         </div>
@@ -111,7 +111,7 @@ export function CredentialsSection() {
                   {t("preferences.credentials.columns.user")}
                 </th>
                 <th scope="col" className="w-44 px-3 font-semibold">
-                  {t("preferences.credentials.columns.kind")}
+                  {t("ui.type")}
                 </th>
                 <th scope="col" className="w-28 px-3 font-semibold">
                   {t("preferences.credentials.columns.saved")}

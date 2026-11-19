@@ -109,7 +109,7 @@ function terminalMenu(session: Session): MenuEntry[] {
   const icon = "size-icon";
   return [
     {
-      label: t("terminal.menu.copy"),
+      label: t("ui.copy"),
       icon: <Copy className={icon} aria-hidden />,
       shortcut: "Mod+Shift+C",
       disabled: !selected,
@@ -117,7 +117,7 @@ function terminalMenu(session: Session): MenuEntry[] {
       onSelect: () => void session.copySelection(),
     },
     {
-      label: t("terminal.menu.paste"),
+      label: t("ui.paste"),
       icon: <ClipboardPaste className={icon} aria-hidden />,
       shortcut: "Mod+Shift+V",
       disabled: !live,
@@ -148,10 +148,10 @@ function terminalMenu(session: Session): MenuEntry[] {
 }
 
 // Once: how the terminal copies and opens its menu (the sessions know neither menus nor toasts).
-setTerminalCopier((text) => void copyText(text, t("terminal.copySelection")));
+setTerminalCopier((text) => void copyText(text, t("ui.selection")));
 setTerminalMenuOpener((session, point) => {
   const rect = session.host.getBoundingClientRect();
-  openMenuAt(point ?? { x: rect.left + rect.width / 3, y: rect.top + rect.height / 3 }, terminalMenu(session), t("terminal.title"));
+  openMenuAt(point ?? { x: rect.left + rect.width / 3, y: rect.top + rect.height / 3 }, terminalMenu(session), t("ui.terminal"));
 });
 
 function exitText(code: number | null): string {
@@ -349,7 +349,7 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
   return (
     <section
       ref={sectionRef}
-      aria-label={t("terminal.title")}
+      aria-label={t("ui.terminal")}
       data-area="terminal"
       data-screen="terminal"
       data-state={status.kind}
@@ -367,7 +367,7 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
 
       <header className="flex h-control-md shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-3">
         <SquareTerminal className="size-icon shrink-0 text-text-muted" aria-hidden />
-        <h2 className="shrink-0 text-sm font-medium text-text">{t("terminal.title")}</h2>
+        <h2 className="shrink-0 text-sm font-medium text-text">{t("ui.terminal")}</h2>
         <SessionTabs tabId={tabId} tabs={tabs} />
         {path ? (
           <Tip label={path}>
@@ -375,7 +375,7 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
           </Tip>
         ) : null}
         {status.kind === "exited" ? (
-          <span className="shrink-0 rounded-sm border border-border px-1 text-xs text-text-muted">{t("terminal.badge.exited")}</span>
+          <span className="shrink-0 rounded-sm border border-border px-1 text-xs text-text-muted">{t("ui.ended")}</span>
         ) : null}
         {status.kind === "failed" ? (
           <span className="shrink-0 rounded-sm border border-border px-1 text-xs text-text-muted">{t("terminal.badge.failed")}</span>
@@ -431,7 +431,7 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
           title={failureTitle(status)}
           actions={
             <Button size="sm" data-focus-home data-action="retry" icon={<RotateCw className="size-icon" aria-hidden />} onClick={restart}>
-              {t("terminal.retry")}
+              {t("ui.retry")}
             </Button>
           }
         >
@@ -481,7 +481,7 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
             {t("terminal.menu.restart")}
           </Button>
           <Button size="sm" variant="ghost" data-action="end-session" onClick={() => void endTerminal(tabId)}>
-            {t("terminal.close")}
+            {t("ui.close")}
           </Button>
         </footer>
       ) : null}

@@ -60,7 +60,7 @@ function PushDialog({
       }}
       footer={
         <>
-          <Button onClick={() => onDone(null)}>{t("app.common.cancel")}</Button>
+          <Button onClick={() => onDone(null)}>{t("ui.cancel")}</Button>
           <Button variant="primary" data-action="push-many" disabled={!ready} onClick={submit}>
             {t("pushMany.submit", { count: selected.length + 1 })}
           </Button>
@@ -77,7 +77,7 @@ function PushDialog({
       >
         {remotes && remotes.length > 1 ? (
           <Select
-            label={t("pushMany.remote")}
+            label={t("ui.remote")}
             value={chosenRemote}
             options={remotes.map((item) => ({ value: item.name, label: item.name }))}
             onValueChange={setRemote}
@@ -95,7 +95,7 @@ function PushDialog({
             shown.map((item) => (
               <Checkbox
                 key={item.key}
-                label={`${item.kind === "tag" ? t("pushMany.tag") : t("pushMany.branch")} ${item.label}`}
+                label={`${item.kind === "tag" ? t("ui.ref.tag") : t("ui.branch")} ${item.label}`}
                 hint={item.hint ?? undefined}
                 checked={selected.includes(item.key)}
                 onCheckedChange={() => toggle(item.key)}

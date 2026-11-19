@@ -1,16 +1,10 @@
 {
   "ariaLabel": "Blame von {{path}}",
-  "prefix": "Blame",
   "loading": "Blame von {{name}} wird geladen",
   "uncommitted": "Noch nicht committet",
-  "noMessage": "(ohne Message)",
-  "history": "Historie",
-  "file": "Datei",
-  "viewFile": "Datei ansehen",
   "line": "Zeile {{line}}",
   "lineRange": "Zeilen {{from}}–{{to}}",
   "stand": {
-    "worktree": "Arbeitsverzeichnis",
     "worktreeHint": "mit uncommitteten Zeilen",
     "head": "letzter Commit (HEAD)",
     "before": "vor {{sha}}",
@@ -35,19 +29,15 @@
     "goneStand": "Im Stand {{stand}} gibt es diese Datei nicht",
     "unsupported": "Für diese Datei gibt es kein Blame",
     "failed": "Blame ließ sich nicht berechnen",
-    "retry": "Erneut versuchen",
-    "showHistory": "Historie zeigen",
     "back": "Zurück"
   },
   "empty": {
-    "title": "Leere Datei",
     "body": "Ohne Zeilen gibt es nichts zuzuordnen."
   },
   "card": {
     "close": "Karte mit dem vollen Commit schließen",
     "open": "Den ganzen Commit dieser Zeile zeigen",
     "ariaLabel": "Commit dieser Zeile zeigen",
-    "short": "Commit",
     "announce": "Commit {{sha}}: {{summary}}, {{author}}, {{when}}",
     "uncommittedKeyboard": "Diese Zeilen sind im Arbeitsverzeichnis geändert. Enter zeigt die lokalen Änderungen.",
     "uncommittedMouse": "Diese Zeilen sind im Arbeitsverzeichnis geändert. Klick zeigt die lokalen Änderungen.",
@@ -56,12 +46,9 @@
   },
   "reveal": {
     "local": "Lokale Änderungen ansehen",
-    "commit": "Commit im Graphen zeigen",
-    "ariaLabel": "Im Graphen zeigen",
-    "short": "Im Graphen"
+    "commit": "Commit im Graphen zeigen"
   },
   "legend": {
-    "noLines": "keine Zeilen",
     "range": "{{from}} bis {{to}}",
     "lines_one": "{{formatted}} Zeile",
     "lines_other": "{{formatted}} Zeilen",
@@ -69,17 +56,14 @@
     "commits_other": "{{formatted}} Commits",
     "colorBy": "Farbe nach",
     "colorByLabel": "Farbe des Balkens nach",
-    "author": "Autor",
     "age": "Alter",
     "authorsLabel": "Autoren und ihre Zeilen",
     "more": "+{{count}} weitere",
     "ageScaleLabel": "Farbe nach Alter des Commits: kräftig ist neu ({{newest}}), blass ist alt ({{oldest}})",
-    "new": "neu",
     "old": "alt"
   },
   "menu": {
     "label": "Zeile {{line}}",
-    "copyLine": "Zeile kopieren",
     "showCommit": "Commit zeigen",
     "previousVersion": "Blame der Vorversion",
     "why": "Warum ist das so?",
@@ -89,10 +73,8 @@
   "archaeology": {
     "ariaLabel": "Geschichte von Zeile {{line}} in {{path}}",
     "where": "Zeile {{line}} · {{path}}",
-    "close": "Schließen",
     "loading": "Geschichte der Zeile wird geladen …",
     "failed": "Die Geschichte dieser Zeile ließ sich nicht laden",
-    "retry": "Erneut versuchen",
     "notCommitted": "die Zeile ist noch nicht committet",
     "steps_one": "{{count}} Änderung",
     "steps_other": "{{count}} Änderungen",
@@ -108,11 +90,8 @@
     "hostFailed": "Der Hoster hat nicht geantwortet; die Links stehen ohne Titel da.",
     "explain": "Erklären",
     "explainHint": "Lässt den KI-Anbieter aus den Commits, Nachrichten und Links unten zusammenfassen, warum die Zeile so aussieht. Es wird nichts geändert.",
-    "explaining": "Erklärt …",
-    "cancel": "Abbrechen",
     "again": "Erneut erklären",
     "done": "Erklärung liegt vor",
-    "whatIsSent": "Was wird gesendet?",
     "summaryLabel": "Erklärung",
     "fromAi": "Vom KI-Anbieter aus der Geschichte unten geschrieben – mit den Commits abgleichen.",
     "setup": "KI einrichten …",

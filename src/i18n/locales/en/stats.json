@@ -1,7 +1,5 @@
 {
-  "title": "Statistics",
   "ariaLabel": "Repository statistics",
-  "job": "Statistics",
   "choice": "Period and branch",
   "preset": {
     "label": "Range",
@@ -11,7 +9,6 @@
     "month": "Last 30 days"
   },
   "ref": {
-    "label": "Branch",
     "head": "{{branch}} (HEAD)",
     "detached": "HEAD"
   },
@@ -22,7 +19,6 @@
     "fresh": "Up to date with {{ref}}"
   },
   "failed": "The statistics could not be computed",
-  "retry": "Try again",
   "cancelled": {
     "title": "Statistics not computed",
     "body": "The calculation was cancelled.",
@@ -57,10 +53,8 @@
     "bar_other": "{{period}}: {{count}} commits"
   },
   "authors": {
-    "title": "Authors",
     "count_one": "{{count}} person",
     "count_other": "{{count}} people",
-    "commits": "Commits",
     "added": "Lines added",
     "removed": "Lines deleted",
     "more_one": "and {{count}} more author",
@@ -77,15 +71,11 @@
     "changes_one": "{{n}} change",
     "changes_other": "{{n}} changes",
     "up": "Up to {{path}}",
-    "root": "Repository",
     "partial": "Based on the {{files}} most changed files."
   },
   "hotspots": {
     "title": "Hotspots",
     "hint": "often changed, by many people",
-    "file": "File",
-    "changes": "Changes",
-    "authors": "Authors",
     "score": "Changes × authors",
     "open": "Show the history of {{path}}",
     "empty": "None of the files changed in this period exists any more."
@@ -93,7 +83,6 @@
   "knowledge": {
     "title": "Knowledge per folder",
     "hint": "share of changed lines per person · bus factor",
-    "folder": "Folder",
     "lines": "Share of changed lines per person",
     "busFactor": "Bus factor",
     "others": "Other authors",

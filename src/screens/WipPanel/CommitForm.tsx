@@ -164,7 +164,7 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
 
   return (
     <form
-      aria-label={draft.amend ? t("wip.form.amendTitle") : t("wip.commit.action")}
+      aria-label={draft.amend ? t("wip.form.amendTitle") : t("ui.commit")}
       className="flex shrink-0 flex-col gap-2 border-t border-border p-2"
       onSubmit={(event) => event.preventDefault()}
     >
@@ -172,7 +172,7 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         <TextField
           id={summaryId}
           data-commit-summary=""
-          aria-label={t("wip.form.summary")}
+          aria-label={t("ui.summary")}
           placeholder={draft.amend ? t("wip.form.summaryAmendPlaceholder") : t("wip.form.summaryPlaceholder")}
           value={summary}
           error={wip.summaryError?.text}
@@ -223,7 +223,7 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       ) : null}
       <TextArea
         id={descriptionId}
-        aria-label={t("wip.form.description")}
+        aria-label={t("ui.description")}
         placeholder={t("wip.form.descriptionPlaceholder")}
         rows={2}
         value={description}
@@ -241,7 +241,7 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           onCheckedChange={(checked) => void setAmend(repoId, tabId, checked, template)}
         />
         <Checkbox
-          label={t("wip.form.pushAfter")}
+          label={t("ui.pushAfterCommit")}
           checked={push.checked}
           disabled={Boolean(push.blocked)}
           hint={push.blocked ?? undefined}

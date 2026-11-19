@@ -43,7 +43,7 @@ export function ArchaeologyPanel({ repoId, tabId, target }: ArchaeologyPanelProp
   const aiVisible = featureVisible(aiStatus, "archaeology", repoSettings?.aiOff ?? false);
   const opensSetup = aiVisibility(aiStatus).elementsOpenSetup;
 
-  const job = useAiJob(aiStatus?.local ?? false, t("blame.archaeology.explaining"));
+  const job = useAiJob(aiStatus?.local ?? false, t("ui.explaining"));
   const [answer, setAnswer] = useState<ArchaeologyAnswer | null>(null);
   const state: ExplainState = job.loading
     ? { kind: "loading", shown: job.loading }
@@ -93,7 +93,7 @@ export function ArchaeologyPanel({ repoId, tabId, target }: ArchaeologyPanelProp
         <p className="text-sm font-medium text-text">{t("blame.archaeology.failed")}</p>
         <p className="text-sm text-text-muted">{describeError(toCoreError(query.error)).text}</p>
         <Button size="sm" onClick={() => void query.refetch()}>
-          {t("blame.archaeology.retry")}
+          {t("ui.retry")}
         </Button>
       </div>
     );
@@ -134,7 +134,7 @@ export function ArchaeologyPanel({ repoId, tabId, target }: ArchaeologyPanelProp
         </h2>
         <IconButton
           size="sm"
-          label={t("blame.archaeology.close")}
+          label={t("ui.close")}
           icon={<X className="size-icon" aria-hidden />}
           onClick={() => store().setRightPanel(tabId, "details")}
         />
@@ -170,7 +170,7 @@ export function ArchaeologyPanel({ repoId, tabId, target }: ArchaeologyPanelProp
                 data-archaeology-what-is-sent=""
                 onClick={() => void showWhatIsSent(repoId, "archaeology", input)}
               >
-                {t("blame.archaeology.whatIsSent")}
+                {t("ui.whatIsSent")}
               </Button>
             </div>
             <p
@@ -199,7 +199,7 @@ export function ArchaeologyPanel({ repoId, tabId, target }: ArchaeologyPanelProp
                     case "sendOnce":
                       return (
                         <Button key={action} size="sm" data-archaeology-send-once="" onClick={() => void explain()}>
-                          {t("ai.state.limitSend")}
+                          {t("ui.sendThisTime")}
                         </Button>
                       );
                     case "setup":
@@ -283,9 +283,9 @@ function Step({ row, onOpen, onReveal }: { row: TimelineRow; onOpen: () => void;
             >
               <span aria-hidden>{SIGN[line.kind]}</span>
               {line.kind === "add" ? (
-                <span className="sr-only">{t("diff.line.added")}</span>
+                <span className="sr-only">{t("ui.diff.added")}</span>
               ) : line.kind === "remove" ? (
-                <span className="sr-only">{t("diff.line.removed")}</span>
+                <span className="sr-only">{t("ui.diff.removed")}</span>
               ) : null}
               {line.text}
             </span>

@@ -74,7 +74,7 @@ export function RemoteDialog({ repoId, edit, onClose }: { repoId: Id; edit?: str
   }, [filled, remotes.isSuccess, remotes.data, edit, original]);
 
   const others = (remotes.data ?? []).map((remote) => remote.name).filter((other) => other !== edit);
-  const title = edit ? t("remotes.editTitle", { name: edit }) : t("remotes.add");
+  const title = edit ? t("remotes.editTitle", { name: edit }) : t("ui.addRemote");
   const masked = fetchUrl.includes("***") || (usePush && pushUrl.includes("***"));
 
   const setRemotes = (list: Remote[]) => queryClient.setQueryData(qk.remotes(repoId), list);
@@ -100,7 +100,7 @@ export function RemoteDialog({ repoId, edit, onClose }: { repoId: Id; edit?: str
     setBusy("save");
     const push = cleanPush && cleanPush !== cleanFetch ? cleanPush : null;
     const result = await runAction(
-      edit ? t("remotes.save") : t("remotes.add"),
+      edit ? t("remotes.save") : t("ui.addRemote"),
       () =>
         edit
           ? core.remoteEdit({ repoId, name: edit, newName: cleanName, fetchUrl: cleanFetch, pushUrl: push })
@@ -126,12 +126,12 @@ export function RemoteDialog({ repoId, edit, onClose }: { repoId: Id; edit?: str
     const ok = await confirm({
       title: t("remotes.remove.title", { name: edit }),
       body: t("remotes.remove.body", { name: edit }),
-      confirmLabel: t("remotes.remove.confirm"),
+      confirmLabel: t("ui.removeRemote"),
       danger: true,
     });
     if (!ok) return;
     setBusy("remove");
-    const result = await runAction(t("remotes.remove.confirm"), () => core.remoteRemove({ repoId, name: edit }));
+    const result = await runAction(t("ui.removeRemote"), () => core.remoteRemove({ repoId, name: edit }));
     setBusy(null);
     if (!result.ok) return;
     setRemotes(result.value);
@@ -140,7 +140,7 @@ export function RemoteDialog({ repoId, edit, onClose }: { repoId: Id; edit?: str
     toast({
       tone: "success",
       title: t("remotes.remove.done", { name: edit }),
-      action: { label: t("remotes.remove.undo"), onClick: () => void undo(repoId) },
+      action: { label: t("ui.undo"), onClick: () => void undo(repoId) },
     });
     onClose();
   };
@@ -165,15 +165,15 @@ export function RemoteDialog({ repoId, edit, onClose }: { repoId: Id; edit?: str
               loading={busy === "remove"}
               onClick={() => void remove()}
             >
-              {t("remotes.remove.confirm")}
+              {t("ui.removeRemote")}
             </Button>
           ) : null}
           <span className="flex-1" />
           <Button onClick={onClose} disabled={Boolean(busy)}>
-            {t("remotes.cancel")}
+            {t("ui.cancel")}
           </Button>
           <Button variant="primary" disabled={!ready || busy === "remove"} loading={busy === "save"} onClick={() => void submit()}>
-            {edit ? t("remotes.saveButton") : t("remotes.add")}
+            {edit ? t("ui.save") : t("ui.addRemote")}
           </Button>
         </div>
       }
@@ -194,7 +194,7 @@ export function RemoteDialog({ repoId, edit, onClose }: { repoId: Id; edit?: str
             title={t("remotes.loadFailed")}
             actions={
               <Button size="sm" onClick={() => void remotes.refetch()}>
-                {t("remotes.retry")}
+                {t("ui.retry")}
               </Button>
             }
           >
@@ -226,7 +226,7 @@ export function RemoteDialog({ repoId, edit, onClose }: { repoId: Id; edit?: str
           <TextField
             autoFocus
             data-autofocus
-            label={t("remotes.name.label")}
+            label={t("ui.name")}
             mono
             value={name}
             error={errors.name}

@@ -59,7 +59,7 @@ export function IntentColumn({
   onHide,
   style,
 }: IntentColumnProps) {
-  const job = useAiJob(local, t("conflict.intent.loading"));
+  const job = useAiJob(local, t("ui.explaining"));
   const [result, setResult] = useState<IntentResult | null>(null);
   const cards = useRef(new Map<number, HTMLElement>());
   const kind = job.running ? "loading" : job.run.kind === "failed" ? "error" : result ? "ready" : "idle";
@@ -100,7 +100,7 @@ export function IntentColumn({
   let announcement = "";
   if (job.loading) {
     const view = job.loading;
-    announcement = t("conflict.intent.loading");
+    announcement = t("ui.explaining");
     content = (
       <div className="flex flex-col items-start gap-2 px-3 py-3">
         <p className="m-0 text-sm text-text" data-intent-status="loading">
@@ -108,7 +108,7 @@ export function IntentColumn({
           {view.slow ? <span className="block text-text-muted">{view.slow}</span> : null}
         </p>
         <Button size="sm" data-intent-cancel="" onClick={cancel}>
-          {t("ai.state.cancel")}
+          {t("ui.cancel")}
         </Button>
       </div>
     );
@@ -173,9 +173,9 @@ export function IntentColumn({
       className={cn(hidden ? "hidden" : "flex", "min-h-0 min-w-48 flex-col bg-surface")}
     >
       <div className="flex h-control-lg shrink-0 items-center gap-1 border-b border-border pr-1 pl-3">
-        <h3 className="m-0 min-w-0 flex-1 truncate text-sm font-medium text-text">{t("conflict.intent.title")}</h3>
+        <h3 className="m-0 min-w-0 flex-1 truncate text-sm font-medium text-text">{t("ui.intent")}</h3>
         <Button size="sm" variant="ghost" data-intent-what-is-sent="" onClick={() => void whatIsSent()}>
-          {t("conflict.intent.whatIsSent")}
+          {t("ui.whatIsSent")}
         </Button>
         <Button size="sm" variant="ghost" data-intent-hide="" onClick={onHide}>
           {t("conflict.intent.hide")}
@@ -289,11 +289,11 @@ function IntentCard({ block, decision, isCurrent, currentText, titles, register,
               <div className="mt-2 flex flex-wrap gap-1">
                 {changed ? (
                   <Button size="sm" variant="primary" data-intent-apply="" onClick={() => onDecide("taken")}>
-                    {t("conflict.intent.apply")}
+                    {t("ui.apply")}
                   </Button>
                 ) : null}
                 <Button size="sm" data-intent-discard="" onClick={() => onDecide("discarded")}>
-                  {t("conflict.intent.discard")}
+                  {t("ui.discard")}
                 </Button>
               </div>
             </div>

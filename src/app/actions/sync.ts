@@ -59,7 +59,7 @@ function offerAddRemote(label: string): void {
     sticky: true,
     title: t("actions.sync.noRemote.title", { label }),
     description: t("actions.sync.noRemote.description"),
-    action: { label: t("actions.sync.noRemote.action"), onClick: addRemote },
+    action: { label: t("ui.addRemote"), onClick: addRemote },
   });
 }
 
@@ -74,12 +74,12 @@ const refsLabel = (count: number) => t("actions.sync.fetch.refs", { count });
 /** Fetch from all remotes or from one. Reports what arrived; without a remote it offers "Add remote". */
 export async function fetchAll(repoId: Id, remote: string | null = null) {
   if (cachedRemotes(repoId)?.length === 0) {
-    offerAddRemote(t("actions.sync.fetch.label"));
+    offerAddRemote(t("ui.fetch"));
     return null;
   }
   const settings = cachedSettings();
   const jobId = newJobId();
-  const label = remote ? t("actions.sync.fetch.labelFrom", { remote }) : t("actions.sync.fetch.label");
+  const label = remote ? t("actions.sync.fetch.labelFrom", { remote }) : t("ui.fetch");
   markManualSync(repoId);
   const result = await runAction(
     label,
@@ -92,7 +92,7 @@ export async function fetchAll(repoId: Id, remote: string | null = null) {
   );
   afterNetwork(repoId);
   if (!result.ok) {
-    if (result.error.code === "no_remote") offerAddRemote(t("actions.sync.fetch.label"));
+    if (result.error.code === "no_remote") offerAddRemote(t("ui.fetch"));
     return result;
   }
   const { updatedRefs, prunedRefs, failed } = result.value;
@@ -136,12 +136,12 @@ export async function pull(repoId: Id, mode: PullMode | null = null, tabId?: Id 
     const jobId = newJobId();
     markManualSync(repoId);
     return runAction(
-      t("actions.sync.pull.label"),
+      t("ui.pull"),
       withFreshStatus(repoId, () => core.pull({ repoId, jobId, mode })),
       {
         busyKey: busyKeys.pull(repoId),
         quiet: ["dirty_worktree", "no_remote", "no_upstream"],
-        job: { id: jobId, title: t("actions.sync.pull.label"), repoId },
+        job: { id: jobId, title: t("ui.pull"), repoId },
       },
     );
   };
@@ -163,7 +163,7 @@ export async function pull(repoId: Id, mode: PullMode | null = null, tabId?: Id 
     if (!stashed.ok) return result;
     result = await run();
     if (result.ok && result.value.status !== "conflict") {
-      reportOpResult(t("actions.sync.pull.label"), result.value, tabId);
+      reportOpResult(t("ui.pull"), result.value, tabId);
       useAppStore.getState().markFetched(repoId);
       await popStash(repoId, 0, tabId);
       return result;
@@ -177,7 +177,7 @@ export async function pull(repoId: Id, mode: PullMode | null = null, tabId?: Id 
   }
 
   if (!result.ok) {
-    if (result.error.code === "no_remote") offerAddRemote(t("actions.sync.pull.label"));
+    if (result.error.code === "no_remote") offerAddRemote(t("ui.pull"));
     else if (result.error.code === "no_upstream") {
       const branch = currentBranch(repoId);
       toast({
@@ -189,16 +189,16 @@ export async function pull(repoId: Id, mode: PullMode | null = null, tabId?: Id 
           : t("actions.sync.pull.noUpstream.description"),
         action: branch
           ? {
-              label: t("actions.sync.pull.noUpstream.action"),
+              label: t("ui.setUpstream"),
               onClick: () => void chooseUpstream(repoId, branch),
             }
           : undefined,
       });
-    } else if (result.error.code === "dirty_worktree") showError(t("actions.sync.pull.label"), result.error);
+    } else if (result.error.code === "dirty_worktree") showError(t("ui.pull"), result.error);
     return result;
   }
   useAppStore.getState().markFetched(repoId);
-  reportOpResult(t("actions.sync.pull.label"), result.value, tabId);
+  reportOpResult(t("ui.pull"), result.value, tabId);
   return result;
 }
 
@@ -330,10 +330,10 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
         ? t("actions.sync.push.jobForced")
         : branch
           ? t("actions.pullrequests.pushJob", { branch: clip(branch, 32) })
-          : t("actions.sync.push.label");
+          : t("ui.push");
       markManualSync(repoId);
       return runAction(
-        force ? t("actions.sync.push.labelForced") : t("actions.sync.push.label"),
+        force ? t("actions.sync.push.labelForced") : t("ui.push"),
         withFreshStatus(repoId, () => core.push({ repoId, jobId, branch, remote, remoteBranch, force, expected, acceptedSecrets })),
         {
           busyKey: busyKeys.push(repoId),
@@ -345,9 +345,8 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
   const finish = (result: ActionResult<PushResult>) => {
     afterNetwork(repoId);
     if (!result.ok) {
-      if (result.error.code === "no_remote") offerAddRemote(t("actions.sync.push.label"));
-      else if (result.error.code === "no_upstream" || result.error.code === "push_rejected")
-        showError(t("actions.sync.push.label"), result.error);
+      if (result.error.code === "no_remote") offerAddRemote(t("ui.push"));
+      else if (result.error.code === "no_upstream" || result.error.code === "push_rejected") showError(t("ui.push"), result.error);
       return result;
     }
     if (result.value.status === "rejected") {
@@ -376,7 +375,7 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
   if (!result.ok && result.error.code === "no_upstream") {
     const remotes = await loadRemotes(repoId).catch(() => [] as Remote[]);
     if (remotes.length === 0) {
-      offerAddRemote(t("actions.sync.push.label"));
+      offerAddRemote(t("ui.push"));
       return result;
     }
     const status = cachedStatus(repoId);
@@ -400,7 +399,7 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
           : []),
         {
           key: "force" as const,
-          label: t("actions.sync.rejected.force"),
+          label: t("ui.forcePush"),
           description: t("actions.sync.rejected.forceDescription"),
           danger: true,
         },
@@ -434,7 +433,7 @@ export async function reviewAndPush(repoId: Id, options: PushOptions = {}): Prom
   let target: ReviewTarget = { branch, remote: options.remote ?? null, remoteBranch: options.remoteBranch ?? null };
   const preview = () =>
     runAction(
-      t("pushCheck.review.label"),
+      t("ui.reviewBeforePush"),
       () => core.aiPreview({ repoId, feature: "push_review", input: { kind: "outgoing_changes", ...target }, locale: locale() }),
       {
         quiet: ["no_upstream", "no_remote"],
@@ -452,7 +451,7 @@ export async function reviewAndPush(repoId: Id, options: PushOptions = {}): Prom
     previewed = await preview();
   }
   if (!previewed.ok) {
-    if (previewed.error.code === "no_remote") offerAddRemote(t("actions.sync.push.label"));
+    if (previewed.error.code === "no_remote") offerAddRemote(t("ui.push"));
     return null;
   }
   if (!(await confirmSend(repoId, "push_review", previewed.value))) return null;
@@ -530,7 +529,7 @@ export async function pushWithMore(
     const jobId = newJobId();
     markManualSync(repoId);
     return runAction(
-      t("actions.sync.push.label"),
+      t("ui.push"),
       withFreshStatus(repoId, () =>
         core.push({
           repoId,
@@ -554,7 +553,7 @@ export async function pushWithMore(
   });
   afterNetwork(repoId);
   if (!result.ok) {
-    if (result.error.code === "no_remote") offerAddRemote(t("actions.sync.push.label"));
+    if (result.error.code === "no_remote") offerAddRemote(t("ui.push"));
     return result;
   }
   if (result.value.status === "secrets_found") return result;

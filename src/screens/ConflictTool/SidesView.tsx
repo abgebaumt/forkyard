@@ -82,7 +82,7 @@ const itemKey = (row: number, side: Side) => `${row}:${side}`;
 
 /** What the block's state means for ONE side – as text, not only as colour. */
 function sideStatus(state: BlockState, checked: boolean | "mixed"): { text: string; className: string } {
-  if (state === "open") return { text: t("conflict.block.open"), className: "bg-warning-surface text-text" };
+  if (state === "open") return { text: t("ui.open"), className: "bg-warning-surface text-text" };
   if (state === "manual") return { text: t("conflict.result.manual"), className: "bg-accent-surface text-text" };
   if (checked === true) return { text: t("conflict.block.taken"), className: "bg-success-surface text-text" };
   if (checked === "mixed") return { text: t("conflict.block.partly"), className: "bg-success-surface text-text" };
@@ -215,7 +215,7 @@ const RowView = memo(function RowView({
                 {position === 0 ? t("conflict.block.first") : t("conflict.block.then")}
               </span>
             ) : null}
-            {chunk[side].length === 0 ? <span className="shrink-0 text-xs text-text-muted">{t("conflict.block.noLines")}</span> : null}
+            {chunk[side].length === 0 ? <span className="shrink-0 text-xs text-text-muted">{t("ui.noLines")}</span> : null}
           </div>
           {choice.order.length === 2 && (sides.length === 1 || side === "theirs") ? (
             <IconButton

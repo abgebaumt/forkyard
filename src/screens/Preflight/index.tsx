@@ -60,7 +60,7 @@ function PreflightDialog({
       }}
       footer={
         <>
-          <Button onClick={() => onDone(null)}>{t("app.common.cancel")}</Button>
+          <Button onClick={() => onDone(null)}>{t("ui.cancel")}</Button>
           <Button variant="primary" data-action="preflight-run" disabled={checking} onClick={() => onDone({ updateRefs })}>
             {confirmLabel}
           </Button>
@@ -82,7 +82,7 @@ function PreflightDialog({
               </Banner>
             </div>
             <ul
-              aria-label={t("preflight.filesLabel")}
+              aria-label={t("ui.files")}
               className="m-0 flex max-h-36 list-none flex-col overflow-auto rounded-md border border-border bg-surface-sunken p-2 font-mono text-code text-text"
             >
               {files.map((file) => (

@@ -132,7 +132,7 @@ export function SingleCommit({ repoId, tabId, sha }: SingleCommitProps) {
           title={gone ? t("commitDetails.commit.gone") : t("commitDetails.commit.loadFailed")}
           detail={gone ? t("commitDetails.commit.notFound", { sha: shortSha(sha) }) : text}
           onRetry={() => void query.refetch()}
-          action={{ label: t("commitDetails.compare.clearSelection"), onClick: () => store().clearSelection(tabId) }}
+          action={{ label: t("ui.clearSelection"), onClick: () => store().clearSelection(tabId) }}
         >
           {gone ? t("commitDetails.commit.goneHint") : hint || undefined}
         </PanelError>
@@ -233,7 +233,7 @@ function CommitHeader({ repoId, tabId, commit, editing, onEdit, onCompareWorktre
     <header className={cn("flex shrink-0 flex-col", editing ? "max-h-4/5" : "max-h-3/5")}>
       <PanelBar title="Commit">
         <ShaText sha={commit.sha} className="ml-1" />
-        <CopyButton text={commit.sha} label={t("commitDetails.commit.copySha")} copiedLabel={t("commitDetails.commit.shaCopied")} />
+        <CopyButton text={commit.sha} label={t("ui.copySha")} copiedLabel={t("commitDetails.commit.shaCopied")} />
         <SignatureMark status={commit.signature} />
         <span className="flex-1" />
         <IconButton
@@ -270,7 +270,7 @@ function CommitHeader({ repoId, tabId, commit, editing, onEdit, onCompareWorktre
                   className="inline-flex h-5 items-center gap-1 rounded-sm border border-border px-1.5 text-xs font-medium text-text-muted"
                 >
                   <CloudOff className="size-3" aria-hidden />
-                  {t("commitDetails.commit.notPushed")}
+                  {t("ui.notPushedYet")}
                 </span>
               </Tip>
             ) : null}
@@ -310,7 +310,7 @@ function CommitHeader({ repoId, tabId, commit, editing, onEdit, onCompareWorktre
         <div className="flex flex-col gap-2">
           <PersonRow
             person={commit.author}
-            role={t("commitDetails.commit.author")}
+            role={t("ui.author")}
             trailing={
               <>
                 <span aria-hidden>·</span>

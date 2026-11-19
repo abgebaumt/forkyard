@@ -56,11 +56,11 @@ function CloneProgress({ jobId, source, target, stopping }: { jobId: string; sou
   return (
     <div data-clone-progress className="flex flex-col gap-3">
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-base">
-        <dt className="text-text-muted">{t("clone.progress.from")}</dt>
+        <dt className="text-text-muted">{t("ui.from")}</dt>
         <dd className="min-w-0">
           <WrappingPath path={source} />
         </dd>
-        <dt className="text-text-muted">{t("clone.progress.to")}</dt>
+        <dt className="text-text-muted">{t("ui.to")}</dt>
         <dd className="min-w-0">
           <WrappingPath path={target} />
         </dd>
@@ -290,7 +290,7 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
   } else {
     footer = (
       <>
-        <Button onClick={onClose}>{t("clone.cancel")}</Button>
+        <Button onClick={onClose}>{t("ui.cancel")}</Button>
         <Button variant="primary" type="submit" form={formId}>
           {t("clone.action")}
         </Button>
@@ -341,7 +341,7 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
                   actions={
                     output ? (
                       <Button size="sm" onClick={() => void showOutput(t("clone.errors.outputTitle"), output)}>
-                        {t("clone.errors.showOutput")}
+                        {t("ui.showOutput")}
                       </Button>
                     ) : undefined
                   }
@@ -360,7 +360,7 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
             <div className="flex flex-col gap-1">
               <div className="flex items-baseline justify-between gap-3">
                 <label id={urlLabelId} htmlFor={`${formId}-url`} className="shrink-0 text-sm font-medium text-text-muted">
-                  {t("clone.url.label")}
+                  {t("ui.address")}
                 </label>
                 {url.trim() && parsed.ok ? <UrlBadge parsed={parsed} /> : null}
               </div>
@@ -397,13 +397,13 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
                 />
               </div>
               <Button className="mt-5" icon={<FolderOpen className="size-icon" aria-hidden />} onClick={() => void browse()}>
-                {t("clone.browse")}
+                {t("ui.browse")}
               </Button>
             </div>
 
             <TextField
               id={`${formId}-name`}
-              label={t("clone.name.label")}
+              label={t("ui.folderName")}
               mono
               value={name}
               placeholder={t("clone.name.placeholder")}
@@ -449,7 +449,7 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
                           value={shallowBy}
                           options={[
                             { value: "depth", label: t("clone.shallow.depth") },
-                            { value: "since", label: t("clone.shallow.date") },
+                            { value: "since", label: t("ui.date") },
                           ]}
                           onValueChange={setShallowBy}
                         />
@@ -483,7 +483,7 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
 
                 <TextField
                   id={`${formId}-branch`}
-                  label={t("clone.branch.label")}
+                  label={t("ui.branch")}
                   mono
                   value={branch}
                   placeholder={t("clone.branch.placeholder")}
@@ -496,7 +496,7 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
                   }}
                 />
 
-                <Checkbox label={t("clone.sparse.label")} hint={t("clone.sparse.hint")} checked={sparse} onCheckedChange={setSparse} />
+                <Checkbox label={t("ui.sparseCheckout")} hint={t("clone.sparse.hint")} checked={sparse} onCheckedChange={setSparse} />
                 {sparse ? (
                   <div className="pl-6">
                     <TextArea

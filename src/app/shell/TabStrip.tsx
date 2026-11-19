@@ -76,7 +76,7 @@ export function TabStrip({ tabs }: { tabs: Tab[] }) {
     const repo = repoOf(tab);
     const entries: MenuEntry[] = [
       {
-        label: t("shell.tabMenu.close"),
+        label: t("ui.closeTab"),
         shortcut: tab.isActive ? commandShortcut("tab.close") : undefined,
         onSelect: () => void closeTab(tab.id),
       },
@@ -86,7 +86,7 @@ export function TabStrip({ tabs }: { tabs: Tab[] }) {
       ...(repo
         ? ([
             {
-              label: repo.alias ? t("shell.tabMenu.changeAlias") : t("shell.tabMenu.rename"),
+              label: repo.alias ? t("ui.changeAlias") : t("ui.rename"),
               shortcut: "F2",
               icon: <PencilLine className="size-icon" aria-hidden />,
               hint: repo.alias ? t("shell.tabMenu.folder", { name: repo.name }) : t("shell.tabMenu.displayNameOnly"),
@@ -95,7 +95,7 @@ export function TabStrip({ tabs }: { tabs: Tab[] }) {
             ...(repo.alias
               ? [
                   {
-                    label: t("shell.alias.remove"),
+                    label: t("ui.removeAlias"),
                     hint: t("shell.tabMenu.backTo", { name: repo.name }),
                     onSelect: () => void setTabAlias(repo, ""),
                   },
@@ -114,14 +114,14 @@ export function TabStrip({ tabs }: { tabs: Tab[] }) {
         { label: t("shell.tabMenu.cleanup"), disabled: gone.has(tab.id), onSelect: () => void openRepoCleanup(repoId) },
         { label: t("shell.tabMenu.showInFileManager"), onSelect: () => void openExternal(repoId, "file_manager") },
         {
-          label: t("shell.tabMenu.copyPath"),
+          label: t("ui.copyPath"),
           disabled: !tab.path,
           onSelect: () => {
             if (!tab.path) return;
             const path = tab.path;
             void writeClipboard(path).then((ok) =>
               ok
-                ? toast({ tone: "success", title: t("shell.tabMenu.pathCopied"), description: path })
+                ? toast({ tone: "success", title: t("ui.pathCopied"), description: path })
                 : toast({ tone: "warning", title: t("shell.tabMenu.clipboardUnavailable") }),
             );
           },

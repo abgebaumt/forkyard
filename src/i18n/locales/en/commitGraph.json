@@ -1,6 +1,5 @@
 {
   "filter": {
-    "stashes": "Stashes",
     "list": "{{first}} and {{last}}",
     "currentBranch": "current branch",
     "upstream": "upstream",
@@ -11,14 +10,11 @@
     "hiddenOne": "{{name}} hidden",
     "hiddenMany": "{{count}} refs hidden",
     "clear": "Clear filter",
-    "title": "View filtered",
     "showAll": "Show all"
   },
   "loading": "Loading history",
   "loadFailed": "Could not load the history",
-  "retry": "Try again",
   "outputTitle": "Loading history: Git output",
-  "showOutput": "Show output",
   "detached": {
     "title": "No branch checked out (detached HEAD)",
     "text": "· <code>{{sha}}</code> · new commits don’t belong to any branch",
@@ -54,8 +50,7 @@
   },
   "checkout": {
     "title": "Check out commit {{sha}}?",
-    "body": "Afterwards no branch is checked out (detached HEAD). New commits don’t belong to any branch until you create one; your branches stay as they are.",
-    "confirm": "Check out commit"
+    "body": "Afterwards no branch is checked out (detached HEAD). New commits don’t belong to any branch until you create one; your branches stay as they are."
   },
   "reveal": {
     "notInView": "Commit {{sha}} is not in this view",
@@ -68,8 +63,6 @@
     "seeking_one": "Searching for commit {{sha}} … {{count, number}} commit loaded",
     "seeking_other": "Searching for commit {{sha}} … {{count, number}} commits loaded"
   },
-  "label": "Commit graph",
-  "cancel": "Cancel",
   "smartLoading": "The branches haven’t loaded yet",
   "stale": "The graph isn’t up to date",
   "empty": {

@@ -33,8 +33,8 @@ type FieldName = "url" | "path";
 
 /** What can go wrong while fetching – in our own words, with the next step. */
 const FAILURES: Partial<Record<ErrorCode, { title: string; hint: string; field?: FieldName }>> = {
-  auth_failed: { title: t("submodules.failures.authFailed.title"), hint: t("submodules.failures.authFailed.hint") },
-  offline: { title: t("submodules.failures.offline.title"), hint: t("submodules.failures.offline.hint") },
+  auth_failed: { title: t("ui.signInRejected"), hint: t("submodules.failures.authFailed.hint") },
+  offline: { title: t("ui.serverNotReachable"), hint: t("submodules.failures.offline.hint") },
   not_found: { title: t("submodules.failures.notFound.title"), hint: t("submodules.failures.notFound.hint"), field: "url" },
   path_exists: { title: t("submodules.failures.pathExists.title"), hint: t("submodules.failures.pathExists.hint"), field: "path" },
   host_key_unknown: { title: t("submodules.failures.hostKeyUnknown.title"), hint: t("submodules.failures.hostKeyUnknown.hint") },
@@ -48,10 +48,10 @@ function phaseLabel(phase: string): string {
   const key = phase.toLowerCase();
   if (key.startsWith("enumerating") || key.startsWith("counting")) return t("submodules.phase.counting");
   if (key.startsWith("compressing")) return t("submodules.phase.compressing");
-  if (key.startsWith("receiving")) return t("submodules.phase.receiving");
-  if (key.startsWith("resolving")) return t("submodules.phase.resolving");
-  if (key.startsWith("updating files") || key.startsWith("checking out")) return t("submodules.phase.checkout");
-  return t("submodules.phase.connecting");
+  if (key.startsWith("receiving")) return t("ui.transferringData");
+  if (key.startsWith("resolving")) return t("ui.assemblingTheHistory");
+  if (key.startsWith("updating files") || key.startsWith("checking out")) return t("ui.checkingOutFiles");
+  return t("ui.connecting");
 }
 
 function UrlBadge({ parsed }: { parsed: ParsedUrl }) {
@@ -71,11 +71,11 @@ function Progress({ jobId, source, target, stopping }: { jobId: string; source: 
   return (
     <div data-submodule-progress className="flex flex-col gap-3">
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-base">
-        <dt className="text-text-muted">{t("submodules.progress.from")}</dt>
+        <dt className="text-text-muted">{t("ui.from")}</dt>
         <dd className="min-w-0">
           <WrappingPath path={source} />
         </dd>
-        <dt className="text-text-muted">{t("submodules.progress.to")}</dt>
+        <dt className="text-text-muted">{t("ui.to")}</dt>
         <dd className="min-w-0">
           <WrappingPath path={target} />
         </dd>
@@ -268,9 +268,9 @@ export function SubmoduleDialog({ repoId, onClose }: SubmoduleDialogProps) {
   } else {
     footer = (
       <>
-        <Button onClick={onClose}>{t("submodules.dialog.cancel")}</Button>
+        <Button onClick={onClose}>{t("ui.cancel")}</Button>
         <Button variant="primary" type="submit" form={formId}>
-          {t("submodules.dialog.title")}
+          {t("ui.addSubmodule")}
         </Button>
       </>
     );
@@ -280,7 +280,7 @@ export function SubmoduleDialog({ repoId, onClose }: SubmoduleDialogProps) {
     <Dialog
       open
       size="md"
-      title={t("submodules.dialog.title")}
+      title={t("ui.addSubmodule")}
       description={running ? undefined : t("submodules.dialog.description")}
       onOpenChange={(open) => {
         if (!open) requestClose();
@@ -319,7 +319,7 @@ export function SubmoduleDialog({ repoId, onClose }: SubmoduleDialogProps) {
                   actions={
                     output ? (
                       <Button size="sm" onClick={() => void showOutput(t("submodules.dialog.outputTitle"), output)}>
-                        {t("submodules.dialog.showOutput")}
+                        {t("ui.showOutput")}
                       </Button>
                     ) : undefined
                   }
@@ -338,7 +338,7 @@ export function SubmoduleDialog({ repoId, onClose }: SubmoduleDialogProps) {
             <div className="flex flex-col gap-1">
               <div className="flex items-baseline justify-between gap-3">
                 <label htmlFor={`${formId}-url`} className="shrink-0 text-sm font-medium text-text-muted">
-                  {t("submodules.dialog.url.label")}
+                  {t("ui.address")}
                 </label>
                 {url.trim() && parsed.ok ? <UrlBadge parsed={parsed} /> : null}
               </div>

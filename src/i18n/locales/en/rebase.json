@@ -1,24 +1,15 @@
 {
   "tool": {
     "interactive": "Interactive rebase",
-    "squash": "Squash commits",
-    "cherryPick": "Cherry-pick"
+    "squash": "Squash commits"
   },
   "commits_one": "{{count}} commit",
   "commits_other": "{{count}} commits",
   "closeWithoutChanges": "Close without changing anything",
   "loading": "Loading commits",
-  "backToGraph": "Back to graph",
-  "retry": "Try again",
-  "cancel": "Cancel",
   "dragToReorder": "Drag to reorder",
   "loadError": {
     "title": "The commits could not be loaded"
-  },
-  "column": {
-    "author": "Author",
-    "date": "Date",
-    "action": "Action"
   },
   "direction": {
     "oldestTop": "Oldest commit at the top",
@@ -28,7 +19,6 @@
     "action": "action",
     "move": "move",
     "message": "message",
-    "spaceKey": "Space",
     "choose": "choose",
     "start": "start"
   },
@@ -42,7 +32,6 @@
       "hint": "new message, content stays"
     },
     "squash": {
-      "label": "Squash",
       "hint": "merges into the commit above"
     },
     "fixup": {
@@ -105,7 +94,6 @@
     "upToDateBody": "The plan matches the current state of the branch.",
     "onto": "onto",
     "from": "from {{base}}",
-    "stash": "Stash changes",
     "rebaseFirst": "Rebase onto “{{base}}” first",
     "rebaseFirstBody": "“{{base}}” has moved on since the branch split off. Rebase it normally onto “{{base}}” first – then its commits can be reordered and edited here.",
     "pushedTitle": "These commits are already on a remote",
@@ -118,14 +106,12 @@
     "previously": "previously: {{summary}}",
     "newMessage": "new message",
     "messageEdited": "message edited",
-    "editMessage": "Edit message",
     "editResultMessage": "Edit message of the result",
     "keysHelp": "Arrow keys select a commit. P picks, R rewords, S squashes, F folds in without the message, D drops. Alt with an arrow moves. Space opens the action choice, Enter edits the message.",
     "forcePushTitle": "The next push needs --force-with-lease",
     "forcePushBody": "The fixup commits were folded into commits that were already pushed. Push the branch with --force-with-lease so the remote takes the new history.",
     "resetTip": "Discard all changes to the plan",
-    "nothingChanged": "Nothing changed yet",
-    "reset": "Reset"
+    "nothingChanged": "Nothing changed yet"
   },
   "squash": {
     "label": "Squash",
@@ -144,14 +130,11 @@
     "confirmTitle_other": "Squash {{count}} pushed commits?",
     "confirmBodyBranch": "At least one of these commits is already on a remote. Squashing rewrites them: “{{branch}}” will then differ from the remote, and the next push must be forced. You can take the squash back afterwards with “Undo” in the toolbar.",
     "confirmBody": "At least one of these commits is already on a remote. Squashing rewrites them: the branch will then differ from the remote, and the next push must be forced. You can take the squash back afterwards with “Undo” in the toolbar.",
-    "confirm": "Squash",
     "pushedTitle": "At least one of these commits is already on a remote",
     "pushedBody": "Squashing rewrites the history. The branch will then differ from the remote, and the next push must be forced (force push).",
     "direction": "Oldest commit at the top – author and date of the oldest are kept",
     "listLabel": "Commits being squashed, oldest at the top",
     "formLabel": "Message of the new commit",
-    "summary": "Summary",
-    "description": "Description",
     "chars_one": "{{count}} character",
     "chars_other": "{{count}} characters",
     "charsTooMany_one": "{{count}} character – usually at most {{limit}}",

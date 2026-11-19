@@ -1,20 +1,17 @@
 {
   "copy": {
-    "failed": "Copy failed",
     "failedText": "The clipboard isn’t available. Select the text and copy it manually.",
     "command": "Command copied",
     "output": "Output copied"
   },
   "exit": {
     "noneTip": "Ended without exit code – the app stopped the command early or it was cancelled.",
-    "none": "ended",
     "okTip": "Exit code 0: successful",
     "errorTip": "Exit code {{code}}: failed",
     "error": "Error {{code}}"
   },
   "title": "Activity log",
   "description": "Every Git command the app has run – with duration, exit code and output.",
-  "close": "Close",
   "closeLabel": "Close activity log",
   "tabs": "Which log",
   "tabRepo": "This repository",
@@ -26,8 +23,7 @@
   },
   "search": {
     "label": "Search activity log",
-    "placeholder": "Search command and output",
-    "clear": "Clear search"
+    "placeholder": "Search command and output"
   },
   "onlyErrors": "Errors only",
   "onlyErrorsCount": "Errors only ({{count}})",
@@ -42,7 +38,6 @@
   "refreshing": "Refreshing activity log",
   "column": {
     "time": "Time",
-    "command": "Command",
     "duration": "Duration",
     "exitCode": "Exit code"
   },
@@ -50,7 +45,6 @@
   "fresh_other": "{{count}} new entries",
   "loading": "Loading activity log",
   "loadFailed": "Could not load the activity log",
-  "retry": "Try again",
   "noMatch": {
     "title": "No entry matches",
     "both_one": "None of the {{count, number}} loaded entry matches search and filter.",
@@ -75,7 +69,6 @@
     "noExit": "ended without exit code",
     "failed": "failed with exit code {{code}}",
     "success": "successful",
-    "output": "Output of {{command}}",
-    "noOutput": "No output."
+    "output": "Output of {{command}}"
   }
 }

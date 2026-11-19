@@ -19,13 +19,9 @@ function OwnTemplate({ form, onChange, onRemove }: { form: TemplateForm; onChang
   return (
     <div data-agent-template={form.id} className="flex flex-col gap-2 border-b border-border py-3 last:border-b-0">
       <div className="grid grid-cols-2 gap-2">
+        <TextField label={t("ui.name")} value={form.name} onChange={(event) => onChange({ ...form, name: event.target.value })} />
         <TextField
-          label={t("agents.settings.name")}
-          value={form.name}
-          onChange={(event) => onChange({ ...form, name: event.target.value })}
-        />
-        <TextField
-          label={t("agents.settings.program")}
+          label={t("ui.program")}
           hint={t("agents.settings.programHint")}
           mono
           value={form.program}
@@ -63,7 +59,7 @@ function OwnTemplate({ form, onChange, onRemove }: { form: TemplateForm; onChang
           onCheckedChange={(statusHook) => onChange({ ...form, statusHook })}
         />
         <Button variant="ghost" size="sm" onClick={onRemove}>
-          {t("agents.settings.remove")}
+          {t("ui.remove")}
         </Button>
       </div>
     </div>
@@ -72,7 +68,7 @@ function OwnTemplate({ form, onChange, onRemove }: { form: TemplateForm; onChang
 
 /** Version, path and sign-in of a built-in template. */
 function builtInDescription(item: AgentTemplateInfo): string {
-  if (!item.path) return t("agents.settings.missing");
+  if (!item.path) return t("ui.notFound");
   const found = item.version
     ? t("agents.settings.found", { version: item.version, path: item.path })
     : t("agents.settings.foundNoVersion", { path: item.path });
@@ -96,7 +92,7 @@ export function AgentTemplatesSection({ settings }: { settings: Settings }) {
 
   return (
     <section data-settings-section="agents">
-      <SectionHeader title={t("agents.settings.title")}>{t("agents.settings.intro")}</SectionHeader>
+      <SectionHeader title={t("ui.codingAgents")}>{t("agents.settings.intro")}</SectionHeader>
       <SettingsCard title={t("agents.settings.builtIn")}>
         {builtIn.map((item) => (
           <SettingRow key={item.id} title={item.name} description={builtInDescription(item)}>
@@ -118,7 +114,7 @@ export function AgentTemplatesSection({ settings }: { settings: Settings }) {
             {t("agents.settings.add")}
           </Button>
           <Button size="sm" variant="primary" disabled={!dirty} onClick={() => void save()} data-action="save-agent-templates">
-            {t("agents.settings.save")}
+            {t("ui.save")}
           </Button>
           {error ? (
             <p role="alert" className="text-sm text-danger">

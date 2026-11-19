@@ -51,7 +51,7 @@ export function MessageEditor({ repoId, tabId, commit, onClose }: MessageEditorP
       () => core.commitReword({ repoId, summary: cleanSummary, description, sha: commit.sha }),
       {
         busyKey,
-        success: t("commitDetails.reword.done"),
+        success: t("ui.messageChanged"),
       },
     );
     if (!result.ok) return;
@@ -88,7 +88,7 @@ export function MessageEditor({ repoId, tabId, commit, onClose }: MessageEditorP
         </div>
       ) : null}
       <TextField
-        label={t("commitDetails.reword.summary")}
+        label={t("ui.summary")}
         value={summary}
         autoFocus
         maxLength={2000}
@@ -103,7 +103,7 @@ export function MessageEditor({ repoId, tabId, commit, onClose }: MessageEditorP
         onChange={(event) => setSummary(event.target.value.replace(/[\r\n]+/g, " "))}
       />
       <TextArea
-        label={t("commitDetails.reword.description")}
+        label={t("ui.description")}
         value={description}
         rows={Math.min(12, Math.max(4, description.split("\n").length + 1))}
         spellCheck={false}
@@ -112,10 +112,10 @@ export function MessageEditor({ repoId, tabId, commit, onClose }: MessageEditorP
       />
       <div className="flex items-center justify-end gap-2">
         <Button type="button" onClick={() => onClose(null)}>
-          {t("commitDetails.reword.cancel")}
+          {t("ui.cancel")}
         </Button>
         <Button type="submit" variant="primary" loading={busy}>
-          {t("commitDetails.reword.save")}
+          {t("ui.save")}
         </Button>
       </div>
     </form>

@@ -85,9 +85,7 @@ export function RebaseTool({ repoId, tabId, base, mode, shas, autosquash = false
   return (
     <section
       ref={root}
-      aria-label={
-        mode === "interactive" ? t("rebase.tool.interactive") : mode === "squash" ? t("rebase.tool.squash") : t("rebase.tool.cherryPick")
-      }
+      aria-label={mode === "interactive" ? t("rebase.tool.interactive") : mode === "squash" ? t("rebase.tool.squash") : t("ui.cherryPick")}
       data-screen="rebase"
       data-mode={mode}
       onKeyDown={onKeyDown}

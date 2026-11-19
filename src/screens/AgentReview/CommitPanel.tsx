@@ -55,13 +55,13 @@ export function ReviewCommitPanel({ repoId, tabId, agentIds }: { repoId: Id; tab
           : t("agents.review.commitDetached", { name: displayName(agent) })}
       </p>
       <TextField
-        label={t("agents.review.summary")}
+        label={t("ui.summary")}
         data-field="review-summary"
         value={message.summary}
         onChange={(event) => setMessage({ ...message, summary: event.target.value })}
       />
       <TextArea
-        label={t("agents.review.description")}
+        label={t("ui.description")}
         data-field="review-description"
         rows={6}
         value={message.description}

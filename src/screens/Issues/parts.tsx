@@ -134,12 +134,12 @@ export function HostProblem({ error, onRetry, retrying }: ProblemProps) {
           <span className="flex flex-wrap justify-center gap-2">
             {needsAccount ? (
               <Button variant="primary" icon={<Plug className="size-icon" aria-hidden />} onClick={openIntegrations}>
-                {t("issues.problem.openIntegrations")}
+                {t("ui.openIntegrations")}
               </Button>
             ) : null}
             {info.kind === "unsupported" ? null : (
               <Button loading={retrying} icon={<RefreshCw className="size-icon" aria-hidden />} onClick={onRetry}>
-                {t("issues.problem.retry")}
+                {t("ui.retry")}
               </Button>
             )}
           </span>
@@ -165,7 +165,7 @@ export function NotConnected({ repo }: { repo: HostRepo }) {
         title={t("issues.notConnected.title", { host })}
         action={
           <Button variant="primary" icon={<Plug className="size-icon" aria-hidden />} onClick={openIntegrations}>
-            {t("issues.notConnected.connect")}
+            {t("ui.connectAccount")}
           </Button>
         }
       >
@@ -179,7 +179,7 @@ export function NotConnected({ repo }: { repo: HostRepo }) {
 export function NoHost() {
   return (
     <div data-issues-state="no_host" className="flex min-h-0 flex-1 items-center justify-center overflow-auto">
-      <EmptyState icon={<Unplug className="size-8" aria-hidden />} title={t("issues.noHost.title")}>
+      <EmptyState icon={<Unplug className="size-8" aria-hidden />} title={t("ui.noHostDetected")}>
         {t("issues.noHost.text")}
       </EmptyState>
     </div>

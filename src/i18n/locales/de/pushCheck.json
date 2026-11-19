@@ -8,7 +8,6 @@
     "rule": {
       "knownToken": "Bekanntes Token-Format",
       "privateKey": "Privater Schlüssel",
-      "credential": "Passwort oder Token",
       "urlPassword": "Passwort in einer Adresse",
       "highEntropy": "Zufällig wirkende Zeichenkette"
     },
@@ -18,14 +17,11 @@
     "scanned_other": "Geprüft: die hinzugefügten Zeilen von {{count}} Commits, die noch nicht im Remote sind.",
     "partial": "Sehr großer Push: nur die neuesten Commits wurden geprüft.",
     "back": "Zurück",
-    "pushAnyway": "Trotzdem pushen",
     "stopped": "Der Push wurde angehalten."
   },
   "review": {
-    "label": "Prüfung vor dem Push",
     "menu": "Prüfen und pushen …",
     "menuHint": "Fragt den KI-Anbieter nach Resten in dem, was der Push sendet.",
-    "title": "Prüfung vor dem Push",
     "description": "Hinweise ohne Gewähr: Debug-Ausgaben, auskommentierter Code, wahrscheinliche Fehler. Schlüssel findet die lokale Prüfung, nicht diese.",
     "loading": "Prüft …",
     "none": "Keine Auffälligkeiten",
@@ -43,7 +39,6 @@
     "listLabel": "Funde der Prüfung",
     "back": "Zurück",
     "push": "Pushen",
-    "pushAnyway": "Trotzdem pushen",
     "command": {
       "title": "Prüfen und pushen …",
       "keywords": "prüfen,review,push,ki,reste,debug"

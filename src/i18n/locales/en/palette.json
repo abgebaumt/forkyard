@@ -1,9 +1,7 @@
 {
-  "title": "Command palette",
   "input": "Search commands, branches, files or repositories",
   "inputAction": "Action for {{title}}",
   "notice": "“{{title}}” is not available right now: {{reason}}.",
-  "retry": "Try again",
   "actions": "Actions",
   "results": "Results",
   "count_one": "{{count}} result",
@@ -14,8 +12,7 @@
   "ask": {
     "row": "Ask in plain language: “{{text}}”",
     "emptyTitle": "Ask in plain language",
-    "hint": "Describe what Git should do, then press Enter. You see the plan first; nothing runs before you confirm it.",
-    "whatIsSent": "What is sent?"
+    "hint": "Describe what Git should do, then press Enter. You see the plan first; nothing runs before you confirm it."
   },
   "plan": {
     "inputLabel": "Plan for: {{text}}",
@@ -43,22 +40,13 @@
     "nothingDone": "Cancelled; nothing was changed.",
     "ready_one": "Plan with {{count}} step ready",
     "ready_other": "Plan with {{count}} steps ready",
-    "currentBranch": "the current branch",
     "upstream": "its upstream",
     "editTitle": "Edit step {{n}}",
-    "save": "Apply",
-    "default": "Default",
-    "keys": {
-      "delete": "Del",
-      "space": "Space"
-    },
     "footer": {
       "select": "select step",
-      "run": "run",
       "edit": "edit",
       "remove": "remove",
       "confirm": "confirm",
-      "back": "back",
       "apply": "apply",
       "cancelEdit": "cancel editing",
       "cancel": "cancel",
@@ -66,19 +54,13 @@
     },
     "class": {
       "local": "local",
-      "outward": "goes out",
-      "destructive": "destructive"
+      "outward": "goes out"
     },
     "check": {
       "clean": "no conflicts",
       "conflicts": "conflicts",
       "unknown": "not checked",
       "invalid": "not possible"
-    },
-    "outcome": {
-      "done": "done",
-      "failed": "failed",
-      "notRun": "not run"
     },
     "mode": {
       "soft": "soft",
@@ -87,32 +69,17 @@
       "default": "default",
       "ff_only": "fast-forward only",
       "no_ff": "always a merge commit",
-      "squash": "squash",
-      "ff": "merge",
-      "rebase": "rebase"
+      "squash": "squash"
     },
     "args": {
-      "name": "Name",
       "start": "Start",
-      "checkout": "Check out",
-      "target": "Target",
-      "newName": "New name",
       "force": "Force",
-      "resetMode": "Mode",
       "onto": "Onto",
-      "branch": "Branch",
       "commits": "Commits (comma-separated)",
-      "commit": "Commit",
-      "source": "Source",
-      "mergeMode": "Mode",
       "message": "Message",
       "includeUntracked": "Include untracked files",
       "paths": "Paths (comma-separated)",
-      "summary": "Summary",
-      "description": "Description",
-      "remote": "Remote",
-      "prune": "Remove remote branches deleted there",
-      "pullMode": "Mode"
+      "prune": "Remove remote branches deleted there"
     },
     "step": {
       "branchCreate": "Create branch “{{name}}” at {{start}}",
@@ -142,43 +109,20 @@
     }
   },
   "kind": {
-    "command": "Command",
-    "branch": "Branch",
-    "remote": "Remote branch",
-    "tag": "Tag",
-    "file": "File",
-    "repo": "Repository",
-    "commit": "Commit",
-    "action": "Action",
     "ask": "Plain language"
   },
   "groups": {
-    "general": "General",
-    "tabs": "Tabs",
-    "view": "View",
-    "repository": "Repository",
-    "remote": "Remote",
-    "branch": "Branch",
-    "stash": "Stash",
-    "commit": "Commit",
-    "file": "File"
+    "tabs": "Tabs"
   },
   "scope": {
-    "commands": "Commands",
     "branches": "Branches and tags",
-    "files": "Files",
-    "commits": "Commits",
-    "repos": "Repositories",
     "ask": "Ask in plain language"
   },
   "header": {
     "recent": "Recently used",
     "allCommands": "All available commands",
     "localBranches": "Local branches",
-    "remoteBranches": "Remote branches",
-    "tags": "Tags",
-    "changedFiles": "Changed files",
-    "allFiles": "All files"
+    "remoteBranches": "Remote branches"
   },
   "loading": {
     "commits": "Searching commits …",
@@ -215,9 +159,7 @@
   },
   "footer": {
     "select": "select",
-    "run": "run",
     "moreActions": "more actions",
-    "back": "back",
     "close": "close"
   },
   "ff": {
@@ -231,44 +173,25 @@
     "keywords": "fast forward, update"
   },
   "action": {
-    "checkout": "Check out",
     "checkoutRemote": "Check out (create local branch)",
     "checkoutDetached": "Check out (detached HEAD)",
     "mergeInto": "Merge into “{{branch}}”",
     "rebaseOnto": "Rebase “{{branch}}” onto this",
-    "reveal": "Show in graph",
     "newBranchHere": "Create new branch here …",
     "branchHere": "Create branch here …",
-    "rename": "Rename …",
     "setUpstream": "Set or change upstream …",
     "copyName": "Copy name",
-    "branchName": "Branch name",
-    "tagName": "Tag name",
-    "delete": "Delete …",
-    "pushTag": "Push tag",
     "showDiff": "Show changes (diff)",
-    "viewFile": "View file",
-    "editFile": "Edit file",
-    "fileHistory": "File history",
     "blame": "Blame – who changed which line",
-    "openExternal": "Open in external editor",
-    "copyPath": "Copy path",
-    "path": "Path",
-    "copySha": "Copy SHA"
+    "openExternal": "Open in external editor"
   },
   "ref": {
     "tracks": "tracks {{upstream}}",
     "notOnRemote": "not on the remote yet",
-    "followsOther": "follows {{upstream}} (another name)",
-    "checkedOut": "checked out",
-    "otherWorktree": "in another worktree"
+    "followsOther": "follows {{upstream}} (another name)"
   },
   "repo": {
-    "missing": "missing",
-    "open": "open"
-  },
-  "commit": {
-    "noMessage": "(no message)"
+    "missing": "missing"
   },
   "reason": {
     "repoOnly": "Only in a repository tab",
@@ -276,7 +199,6 @@
     "noSuchTab": "This tab does not exist",
     "unavailable": "Not available right now",
     "loading": "The repository state is still being read",
-    "noStash": "No stash available",
     "noChanges": "No local changes",
     "nothingToStage": "Nothing left to stage",
     "nothingStaged": "Nothing staged",
@@ -297,7 +219,6 @@
     "noOtherBranch": "There is no other branch",
     "noTag": "This repository has no tag yet",
     "nothingRunning": "Nothing is running",
-    "graphShown": "The graph is already shown",
-    "nothingSelected": "Nothing selected"
+    "graphShown": "The graph is already shown"
   }
 }

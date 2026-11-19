@@ -405,7 +405,7 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
           title={t("diff.conflict.title")}
           actions={
             <Button size="sm" onClick={() => store().openConflict(tabId, path)}>
-              {t("diff.conflict.resolve")}
+              {t("ui.resolveConflict")}
             </Button>
           }
         >
@@ -471,7 +471,7 @@ function NoHunks({
   }
   if (diff.status === "added" || diff.status === "untracked") {
     return (
-      <Notice id="empty" icon={<FileCheck className="size-8" aria-hidden />} title={t("diff.noHunks.emptyTitle")}>
+      <Notice id="empty" icon={<FileCheck className="size-8" aria-hidden />} title={t("ui.emptyFile")}>
         {t("diff.noHunks.emptyBody")}
       </Notice>
     );

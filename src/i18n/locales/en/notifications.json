@@ -2,7 +2,6 @@
   "hooks": {
     "outputOf": "Output of {{hook}}",
     "failed": "Hook “{{hook}}” failed (exit code {{code}})",
-    "showOutput": "Show output",
     "printed": "Hook “{{hook}}” printed something",
     "rejectedMessage": "A Git hook rejected the action.",
     "rejected": "{{label}}: rejected by a Git hook",

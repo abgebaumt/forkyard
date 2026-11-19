@@ -1,7 +1,6 @@
 {
   "ariaLabel": "Konflikt lösen: {{path}}",
   "loading": "Konfliktdatei lädt",
-  "toolbar": "Konflikte",
   "linkedOn": "Gemeinsames Scrollen ist an",
   "linkedOff": "Gemeinsames Scrollen ist aus",
   "restored": "Angefangene Lösung wiederhergestellt.",
@@ -62,16 +61,10 @@
   "error": {
     "goneTitle": "Diese Datei steht nicht mehr im Konflikt",
     "backToChanges": "Zurück zu den Änderungen",
-    "recheck": "Erneut prüfen",
     "goneBody": "<path>{{path}}</path> ist schon gelöst – vielleicht im Terminal, in einem anderen Programm oder über das Kontextmenü. Die Operation läuft weiter.",
-    "title": "Die Konfliktdatei ließ sich nicht laden",
-    "retry": "Erneut versuchen",
-    "close": "Schließen"
+    "title": "Die Konfliktdatei ließ sich nicht laden"
   },
   "resolve": {
-    "takeOurs": "Aktuelle Fassung übernehmen",
-    "takeTheirs": "Eingehende Fassung übernehmen",
-    "resolve": "Konflikt lösen",
     "doneTitle": "„{{name}}“ gelöst und gestaged",
     "remainingNext_one": "Noch {{count}} Konfliktdatei offen – weiter mit „{{next}}“.",
     "remainingNext_other": "Noch {{count}} Konfliktdateien offen – weiter mit „{{next}}“.",
@@ -130,7 +123,6 @@
   "reset": {
     "title": "Lösung für „{{name}}“ zurücksetzen?",
     "body": "Alle Entscheidungen und alles von Hand Getippte gehen verloren. Die Datei steht danach wieder so da wie zu Beginn.",
-    "confirm": "Zurücksetzen",
     "tip": "Zurücksetzen – alle Entscheidungen verwerfen"
   },
   "save": {
@@ -164,8 +156,6 @@
   },
   "nav": {
     "switch": "Konflikt wechseln",
-    "prev": "Voriger Konflikt",
-    "next": "Nächster Konflikt",
     "position": "Konflikt {{index}} von {{total}}"
   },
   "handEdited": {
@@ -186,7 +176,6 @@
     "editorLabel": "Ergebnis für {{path}}, bearbeitbar"
   },
   "block": {
-    "open": "offen",
     "taken": "übernommen",
     "partly": "teilweise übernommen",
     "notTaken": "nicht übernommen",
@@ -197,7 +186,6 @@
     "title": "Konflikt {{number}}",
     "first": "zuerst",
     "then": "danach",
-    "noLines": "keine Zeilen",
     "swap": "Reihenfolge tauschen",
     "takeLine": "Zeile {{line}} aus {{side}} übernehmen"
   },
@@ -206,17 +194,13 @@
     "both": "{{ours}} und {{theirs}} nebeneinander"
   },
   "intent": {
-    "toggle": "Absicht",
     "toggleTip": "Spalte ein- oder ausblenden, die erklärt, was beide Seiten wollten",
     "region": "Absicht beider Seiten",
-    "title": "Absicht",
     "hide": "Ausblenden",
     "resize": "Breite der Spalte „Absicht“",
     "intro": "Erklärt für jeden Konflikt, was jede Seite wollte – aus Commit-Nachrichten, Pull Requests und den Blocktexten – und schlägt einen Text vor, der beides erhält. Gesendet wird erst nach dem Klick.",
     "explain": "Absicht erklären",
     "again": "Neu erklären",
-    "whatIsSent": "Was wird gesendet?",
-    "loading": "Erklärt …",
     "ready_one": "Absicht für {{count}} Konflikt erklärt.",
     "ready_other": "Absicht für {{count}} Konflikte erklärt.",
     "card": "Konflikt {{number}}",
@@ -224,8 +208,6 @@
     "proposal": "Vorgeschlagener Text im Vergleich zum aktuellen Text",
     "diffLabel": "Vorgeschlagener Text für Konflikt {{number}}: hinzugefügte Zeilen mit Plus, entfernte mit Minus markiert",
     "same": "Der Vorschlag entspricht dem aktuellen Text dieses Blocks.",
-    "apply": "Übernehmen",
-    "discard": "Verwerfen",
     "applied": "Übernommen – der Block gilt jetzt als von Hand bearbeitet. Rückgängig geht im Ergebnis wie beim Tippen; gespeichert wird wie gewohnt.",
     "discarded": "Verworfen – das Ergebnis bleibt unverändert.",
     "shortened": "Nur erklärt – der Block ist zu groß für einen Textvorschlag.",

@@ -182,18 +182,12 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
       className="flex h-full min-h-0 flex-col bg-bg"
     >
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-surface px-4 py-2">
-        <h1 className="text-md font-semibold text-text">{t("stats.title")}</h1>
+        <h1 className="text-md font-semibold text-text">{t("ui.statistics")}</h1>
         <span className="min-w-0 truncate text-base text-text-muted">{repo?.alias ?? repo?.name ?? ""}</span>
         <div className="flex-1" />
         <div role="group" aria-label={t("stats.choice")} className="flex flex-wrap items-center gap-2">
           <div className="w-48">
-            <Select
-              ariaLabel={t("stats.ref.label")}
-              prefix={t("stats.ref.label")}
-              value={ref}
-              options={refOptions}
-              onValueChange={setRef}
-            />
+            <Select ariaLabel={t("ui.branch")} prefix={t("ui.branch")} value={ref} options={refOptions} onValueChange={setRef} />
           </div>
           <div className="w-52">
             <Select
@@ -226,7 +220,7 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
           title={t("stats.failed")}
           actions={
             <Button size="sm" onClick={recompute}>
-              {t("stats.retry")}
+              {t("ui.retry")}
             </Button>
           }
         >
@@ -266,7 +260,7 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
               hint={
                 <>
                   <span data-stats-folder={node.path} className="font-mono text-code">
-                    {node.path ? `${node.path}/` : t("stats.treemap.root")}
+                    {node.path ? `${node.path}/` : t("ui.repository")}
                   </span>
                   {" · "}
                   {t("stats.treemap.hint")}
@@ -275,7 +269,7 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
               aside={
                 node.path ? (
                   <Button size="sm" variant="ghost" onClick={() => setFolder(parentFolder(node.path))}>
-                    {t("stats.treemap.up", { path: parentFolder(node.path) || t("stats.treemap.root") })}
+                    {t("stats.treemap.up", { path: parentFolder(node.path) || t("ui.repository") })}
                   </Button>
                 ) : null
               }
@@ -288,7 +282,7 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
             <Card id="hotspots" title={t("stats.hotspots.title")} hint={t("stats.hotspots.hint")}>
               <HotspotList hotspots={stats.hotspots} onFile={openFile} />
             </Card>
-            <Card id="authors" title={t("stats.authors.title")} hint={t("stats.authors.count", { count: stats.authorCount })}>
+            <Card id="authors" title={t("ui.authors")} hint={t("stats.authors.count", { count: stats.authorCount })}>
               <AuthorsList authors={stats.authors} total={stats.authorCount} palette={palette} />
             </Card>
             <Card id="knowledge" title={t("stats.knowledge.title")} hint={t("stats.knowledge.hint")} className="md:col-span-2">

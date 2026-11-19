@@ -114,7 +114,7 @@ export function ReviewPane({ repoId, tabId, agent, compact }: { repoId: Id; tabI
           title={t("agents.review.staleTitle")}
           actions={
             <Button size="sm" data-action="review-reload" onClick={() => latest.data && pin(tabId, agent.id, latest.data)}>
-              {t("agents.review.reload")}
+              {t("ui.reload")}
             </Button>
           }
         >

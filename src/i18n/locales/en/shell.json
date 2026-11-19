@@ -1,7 +1,5 @@
 {
   "alias": {
-    "remove": "Remove alias",
-    "save": "Save alias",
     "removed": "Alias removed",
     "removedText": "The tab is named after the folder again: “{{name}}”.",
     "saved": "Tab is now called “{{alias}}”",
@@ -15,9 +13,7 @@
       "hostKey": "Unknown SSH host"
     },
     "field": {
-      "username": "Username",
-      "password": "Password or token",
-      "passphrase": "Passphrase"
+      "username": "Username"
     },
     "answerAction": "Answer to Git",
     "queue_one": "Another request is waiting after this one.",
@@ -33,13 +29,11 @@
       "passwordUser": "<host>{{host}}</host> asks for the password for <user>{{user}}</user>. Many hosts expect an access token here instead of your account password."
     },
     "trustHost": "Trust host and connect",
-    "next": "Continue",
     "signIn": "Sign in",
     "compareTitle": "Compare first, then trust",
     "compareText": "If the fingerprint does not match the one your provider publishes, someone could be reading the connection. In that case, cancel.",
     "fingerprintOf": "Fingerprint of {{host}}",
     "copyFingerprint": "Copy fingerprint",
-    "fingerprint": "Fingerprint",
     "gitAsks": "Git asks: {{prompt}}",
     "reveal": "Show input",
     "remember": "Remember in the system keychain",
@@ -61,7 +55,6 @@
     "commitNotFoundText": "“{{name}}” is open, but this commit does not exist there. Maybe a fetch is still missing – or the link belongs to a different repository."
   },
   "profile": {
-    "menuTitle": "Profiles",
     "manage": "Manage profiles …",
     "chip": "Profile: {{name}}. Switch profile"
   },
@@ -76,13 +69,11 @@
     "detachedHint": "No branch is checked out, but commit {{sha}}. New commits belong to no branch until you create one.",
     "upstreamGone": "Upstream {{name}} no longer exists",
     "upstream": "Upstream: {{name}}",
-    "upstreamMissing": "Upstream missing",
     "ahead_one": "{{count}} commit ahead",
     "ahead_other": "{{count}} commits ahead",
     "behind_one": "{{count}} commit behind",
     "behind_other": "{{count}} commits behind",
     "noUpstreamHint": "The branch does not track a remote branch. A push sets up the upstream.",
-    "noUpstream": "no upstream",
     "notPublishedHint": "Follows {{name}} (another name). A push asks where to.",
     "notOnRemote": "· not on {{remote}} yet",
     "jobCancelled": "{{title}} cancelled",
@@ -92,10 +83,6 @@
     "percent": "{{n}}%",
     "lastFetch": "Last fetch: {{time}}",
     "fetchAgo": "Fetch {{time}}",
-    "zoom": "Zoom",
-    "zoomOut": "Zoom out",
-    "zoomIn": "Zoom in",
-    "zoomReset": "Reset zoom",
     "zoomResetLimited": "Reset zoom – this window applies {{applied}}%; enlarge the window for {{zoom}}%",
     "zoomLabel": "Zoom {{zoom}}%, reset",
     "zoomLabelLimited": "Zoom {{zoom}}%, this window applies {{applied}}%, reset",
@@ -105,10 +92,7 @@
     "versionLabel": "Forkyard version {{version}}, changelog"
   },
   "tabMenu": {
-    "close": "Close tab",
     "closeOthers": "Close other tabs",
-    "changeAlias": "Change alias …",
-    "rename": "Rename …",
     "folder": "Folder: {{name}}",
     "displayNameOnly": "display name only",
     "backTo": "back to “{{name}}”",
@@ -116,8 +100,6 @@
     "moveRight": "Move right",
     "cleanup": "Clean up repository …",
     "showInFileManager": "{{revealInFileManager}}",
-    "copyPath": "Copy path",
-    "pathCopied": "Path copied",
     "clipboardUnavailable": "Clipboard not available"
   },
   "toolbar": {
@@ -133,16 +115,10 @@
     "stashNeedsCommit": "A stash needs at least one commit",
     "resolveConflicts": "Resolve the conflicts first",
     "nothingToStash": "No changes to stash",
-    "noStash": "No stash available",
-    "nothingToUndo": "Nothing to undo",
-    "nothingToRedo": "Nothing to redo",
     "pullModeLabel": "Pull mode (becomes the default)",
-    "fetchAll": "Fetch (all remotes)",
     "addRemote": "Add remote …",
-    "undo": "Undo",
     "undoWhat": "Undo: {{label}}",
     "undoHint": "Undo the last action",
-    "redo": "Redo",
     "redoWhat": "Redo: {{label}}",
     "redoHint": "Redo the undone action",
     "pullRunning": "Pull running – cancel it in the status bar",
@@ -168,12 +144,8 @@
     "terminalShow": "Show terminal in the repository",
     "search": "Search",
     "searchHint": "Search commits by message, SHA or author",
-    "stats": "Statistics",
     "statsHint": "Commits, authors, hotspots and code age of this repository",
     "statsHide": "Close the statistics and go back to the previous view",
-    "commands": "Commands",
-    "palette": "Command palette",
-    "settings": "Settings",
     "general": "General actions"
   },
   "trust": {
@@ -193,19 +165,15 @@
     "trustAndOpen": "Trust and open"
   },
   "workspace": {
-    "nothingSelected": "Nothing selected",
     "nothingSelectedHint": "Select a commit in the graph or the row with your local changes.",
     "showLeft": "Show sidebar",
     "showRight": "Show commit panel",
     "missingTitle": "“{{name}}” is gone",
-    "recheck": "Check again",
     "chooseLocation": "Choose new location …",
-    "removeFromList": "Remove from list",
     "missingText": "The folder was moved, renamed or deleted – or it is no longer a Git repository. If a drive is not connected, connect it and check again.",
     "leftWidth": "Sidebar width",
     "rightWidth": "Commit panel width",
     "left": "Sidebar",
-    "center": "View",
     "right": "Commit panel"
   },
   "starting": "Starting …"

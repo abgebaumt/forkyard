@@ -1,9 +1,7 @@
 {
-  "title": "Command Palette",
   "input": "Befehl, Branch, Datei oder Repository suchen",
   "inputAction": "Aktion für {{title}}",
   "notice": "„{{title}}“ geht gerade nicht: {{reason}}.",
-  "retry": "Erneut versuchen",
   "actions": "Aktionen",
   "results": "Treffer",
   "count_one": "{{count}} Treffer",
@@ -14,8 +12,7 @@
   "ask": {
     "row": "In Alltagssprache fragen: „{{text}}“",
     "emptyTitle": "In Alltagssprache fragen",
-    "hint": "Beschreibe, was Git tun soll, und drücke Enter. Du siehst zuerst den Plan; nichts läuft, bevor du ihn bestätigst.",
-    "whatIsSent": "Was wird gesendet?"
+    "hint": "Beschreibe, was Git tun soll, und drücke Enter. Du siehst zuerst den Plan; nichts läuft, bevor du ihn bestätigst."
   },
   "plan": {
     "inputLabel": "Plan für: {{text}}",
@@ -43,22 +40,13 @@
     "nothingDone": "Abgebrochen; nichts wurde geändert.",
     "ready_one": "Plan mit {{count}} Schritt bereit",
     "ready_other": "Plan mit {{count}} Schritten bereit",
-    "currentBranch": "den aktuellen Branch",
     "upstream": "Upstream",
     "editTitle": "Schritt {{n}} bearbeiten",
-    "save": "Übernehmen",
-    "default": "Standard",
-    "keys": {
-      "delete": "Entf",
-      "space": "Leertaste"
-    },
     "footer": {
       "select": "Schritt wählen",
-      "run": "ausführen",
       "edit": "bearbeiten",
       "remove": "entfernen",
       "confirm": "bestätigen",
-      "back": "zurück",
       "apply": "übernehmen",
       "cancelEdit": "Bearbeiten abbrechen",
       "cancel": "abbrechen",
@@ -66,19 +54,13 @@
     },
     "class": {
       "local": "lokal",
-      "outward": "nach außen",
-      "destructive": "zerstörerisch"
+      "outward": "nach außen"
     },
     "check": {
       "clean": "keine Konflikte",
       "conflicts": "Konflikte",
       "unknown": "nicht geprüft",
       "invalid": "nicht möglich"
-    },
-    "outcome": {
-      "done": "erledigt",
-      "failed": "fehlgeschlagen",
-      "notRun": "nicht ausgeführt"
     },
     "mode": {
       "soft": "soft",
@@ -87,32 +69,17 @@
       "default": "Standard",
       "ff_only": "nur Fast-Forward",
       "no_ff": "immer Merge-Commit",
-      "squash": "Squash",
-      "ff": "Merge",
-      "rebase": "Rebase"
+      "squash": "Squash"
     },
     "args": {
-      "name": "Name",
       "start": "Start",
-      "checkout": "Auschecken",
-      "target": "Ziel",
-      "newName": "Neuer Name",
       "force": "Erzwingen",
-      "resetMode": "Modus",
       "onto": "Auf",
-      "branch": "Branch",
       "commits": "Commits (durch Komma getrennt)",
-      "commit": "Commit",
-      "source": "Quelle",
-      "mergeMode": "Modus",
       "message": "Nachricht",
       "includeUntracked": "Unversionierte Dateien einschließen",
       "paths": "Pfade (durch Komma getrennt)",
-      "summary": "Zusammenfassung",
-      "description": "Beschreibung",
-      "remote": "Remote",
-      "prune": "Dort gelöschte Remote-Branches entfernen",
-      "pullMode": "Modus"
+      "prune": "Dort gelöschte Remote-Branches entfernen"
     },
     "step": {
       "branchCreate": "Branch „{{name}}“ bei {{start}} anlegen",
@@ -142,43 +109,20 @@
     }
   },
   "kind": {
-    "command": "Befehl",
-    "branch": "Branch",
-    "remote": "Remote-Branch",
-    "tag": "Tag",
-    "file": "Datei",
-    "repo": "Repository",
-    "commit": "Commit",
-    "action": "Aktion",
     "ask": "Alltagssprache"
   },
   "groups": {
-    "general": "Allgemein",
-    "tabs": "Tabs",
-    "view": "Ansicht",
-    "repository": "Repository",
-    "remote": "Remote",
-    "branch": "Branch",
-    "stash": "Stash",
-    "commit": "Commit",
-    "file": "Datei"
+    "tabs": "Tabs"
   },
   "scope": {
-    "commands": "Befehle",
     "branches": "Branches und Tags",
-    "files": "Dateien",
-    "commits": "Commits",
-    "repos": "Repositories",
     "ask": "In Alltagssprache fragen"
   },
   "header": {
     "recent": "Zuletzt benutzt",
     "allCommands": "Alle verfügbaren Befehle",
     "localBranches": "Lokale Branches",
-    "remoteBranches": "Remote-Branches",
-    "tags": "Tags",
-    "changedFiles": "Geänderte Dateien",
-    "allFiles": "Alle Dateien"
+    "remoteBranches": "Remote-Branches"
   },
   "loading": {
     "commits": "Commits werden gesucht …",
@@ -215,9 +159,7 @@
   },
   "footer": {
     "select": "wählen",
-    "run": "ausführen",
     "moreActions": "weitere Aktionen",
-    "back": "zurück",
     "close": "schließen"
   },
   "ff": {
@@ -231,44 +173,25 @@
     "keywords": "vorspulen, aktualisieren"
   },
   "action": {
-    "checkout": "Auschecken",
     "checkoutRemote": "Auschecken (lokalen Branch anlegen)",
     "checkoutDetached": "Auschecken (Detached HEAD)",
     "mergeInto": "In „{{branch}}“ mergen",
     "rebaseOnto": "„{{branch}}“ darauf rebasen",
-    "reveal": "Im Graphen zeigen",
     "newBranchHere": "Neuen Branch hier anlegen …",
     "branchHere": "Branch hier anlegen …",
-    "rename": "Umbenennen …",
     "setUpstream": "Upstream setzen oder ändern …",
     "copyName": "Namen kopieren",
-    "branchName": "Name des Branches",
-    "tagName": "Name des Tags",
-    "delete": "Löschen …",
-    "pushTag": "Tag pushen",
     "showDiff": "Änderungen zeigen (Diff)",
-    "viewFile": "Datei ansehen",
-    "editFile": "Datei bearbeiten",
-    "fileHistory": "Historie der Datei",
     "blame": "Blame – wer hat welche Zeile geändert",
-    "openExternal": "Im externen Editor öffnen",
-    "copyPath": "Pfad kopieren",
-    "path": "Pfad",
-    "copySha": "SHA kopieren"
+    "openExternal": "Im externen Editor öffnen"
   },
   "ref": {
     "tracks": "folgt {{upstream}}",
     "notOnRemote": "noch nicht auf dem Remote",
-    "followsOther": "folgt {{upstream}} (anderer Name)",
-    "checkedOut": "ausgecheckt",
-    "otherWorktree": "in anderem Worktree"
+    "followsOther": "folgt {{upstream}} (anderer Name)"
   },
   "repo": {
-    "missing": "fehlt",
-    "open": "offen"
-  },
-  "commit": {
-    "noMessage": "(ohne Message)"
+    "missing": "fehlt"
   },
   "reason": {
     "repoOnly": "Nur in einem Repository-Tab",
@@ -276,7 +199,6 @@
     "noSuchTab": "Diesen Tab gibt es nicht",
     "unavailable": "Gerade nicht verfügbar",
     "loading": "Der Stand des Repositorys wird noch gelesen",
-    "noStash": "Kein Stash vorhanden",
     "noChanges": "Keine lokalen Änderungen",
     "nothingToStage": "Nichts mehr zu stagen",
     "nothingStaged": "Nichts gestaged",
@@ -297,7 +219,6 @@
     "noOtherBranch": "Es gibt keinen anderen Branch",
     "noTag": "Dieses Repository hat noch keinen Tag",
     "nothingRunning": "Es läuft gerade nichts",
-    "graphShown": "Der Graph ist schon zu sehen",
-    "nothingSelected": "Nichts ausgewählt"
+    "graphShown": "Der Graph ist schon zu sehen"
   }
 }

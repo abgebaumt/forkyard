@@ -84,7 +84,7 @@ export function App() {
         details={isTauri() ? text : null}
         actions={
           <Button icon={<RefreshCw className="size-icon" aria-hidden />} onClick={() => void appInfo.refetch()}>
-            {t("app.startup.retry")}
+            {t("ui.retry")}
           </Button>
         }
       >
@@ -103,7 +103,7 @@ export function App() {
         title={t("app.startup.gitMissing.title")}
         actions={
           <Button icon={<RefreshCw className="size-icon" aria-hidden />} onClick={() => void recheckGit()}>
-            {t("app.startup.recheck")}
+            {t("ui.checkAgain")}
           </Button>
         }
       >
@@ -126,7 +126,7 @@ export function App() {
         }
         actions={
           <Button icon={<RefreshCw className="size-icon" aria-hidden />} onClick={() => void recheckGit()}>
-            {t("app.startup.recheck")}
+            {t("ui.checkAgain")}
           </Button>
         }
       >
@@ -181,7 +181,7 @@ function Shell({ info }: { info: AppInfo }) {
         details={text}
         actions={
           <Button icon={<RefreshCw className="size-icon" aria-hidden />} onClick={() => void tabsQuery.refetch()}>
-            {t("app.startup.retry")}
+            {t("ui.retry")}
           </Button>
         }
       >

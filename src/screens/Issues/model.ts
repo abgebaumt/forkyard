@@ -36,12 +36,12 @@ export function issueBranchName(issue: Pick<IssueSummary, "number" | "title">): 
   return slug ? `${issue.number}-${slug}` : `issue-${issue.number}`;
 }
 
-export const stateLabels: Record<IssueState, string> = { open: t("issues.state.open"), closed: t("issues.state.closed") };
+export const stateLabels: Record<IssueState, string> = { open: t("issues.state.open"), closed: t("ui.closed") };
 
 export const listStateLabels: Record<IssueListState, string> = {
   open: t("issues.state.open"),
-  closed: t("issues.state.closed"),
-  all: t("issues.state.all"),
+  closed: t("ui.closed"),
+  all: t("ui.all"),
 };
 
 /** Whether the issue is assigned to the user with this login (case-insensitive). */

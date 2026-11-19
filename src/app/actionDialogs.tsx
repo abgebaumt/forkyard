@@ -157,7 +157,7 @@ function PushTargetDialog({ branch, remotes, onDone }: { branch: string; remotes
       }}
       footer={
         <>
-          <Button onClick={() => onDone(null)}>{t("app.common.cancel")}</Button>
+          <Button onClick={() => onDone(null)}>{t("ui.cancel")}</Button>
           <Button variant="primary" disabled={!valid} onClick={submit}>
             {t("app.actionDialogs.push.confirm")}
           </Button>
@@ -173,7 +173,7 @@ function PushTargetDialog({ branch, remotes, onDone }: { branch: string; remotes
       >
         {remotes.length > 1 ? (
           <RadioList
-            label={t("app.actionDialogs.push.remote")}
+            label={t("ui.remote")}
             value={remote}
             onChange={setRemote}
             options={remotes.map((item) => ({ key: item.name, label: item.name, description: item.pushUrl ?? item.fetchUrl }))}
@@ -246,16 +246,16 @@ function IgnoreDialog({
     <Dialog
       open
       size="sm"
-      title={t("app.actionDialogs.ignore.title")}
+      title={t("ui.ignore")}
       description={t("app.actionDialogs.ignore.description")}
       onOpenChange={(open) => {
         if (!open) onDone(null);
       }}
       footer={
         <>
-          <Button onClick={() => onDone(null)}>{t("app.common.cancel")}</Button>
+          <Button onClick={() => onDone(null)}>{t("ui.cancel")}</Button>
           <Button variant="primary" disabled={!valid} onClick={submit}>
-            {t("app.actionDialogs.ignore.confirm")}
+            {t("ui.ignore")}
           </Button>
         </>
       }
@@ -280,7 +280,7 @@ function IgnoreDialog({
         ) : null}
         <TextField
           autoFocus
-          label={t("app.actionDialogs.ignore.pattern")}
+          label={t("ui.pattern")}
           value={pattern}
           mono
           autoComplete="off"
@@ -392,21 +392,21 @@ function TagDialog({
     <Dialog
       open
       size={notes.visible ? "md" : "sm"}
-      title={annotated ? t("app.actionDialogs.tag.titleAnnotated") : t("app.actionDialogs.tag.title")}
+      title={annotated ? t("app.actionDialogs.tag.titleAnnotated") : t("ui.createTag")}
       description={t("app.actionDialogs.tag.description", { target })}
       onOpenChange={(open) => {
         if (!open) onDone(null);
       }}
       footer={
         <>
-          <Button onClick={() => onDone(null)}>{t("app.common.cancel")}</Button>
+          <Button onClick={() => onDone(null)}>{t("ui.cancel")}</Button>
           <Button
             variant="primary"
             disabled={!name.trim() || Boolean(error) || missingMessage}
             loading={busy}
             onClick={() => void submit()}
           >
-            {t("app.actionDialogs.tag.confirm")}
+            {t("ui.createTag")}
           </Button>
         </>
       }
@@ -421,7 +421,7 @@ function TagDialog({
         <TextField
           data-tag-name=""
           autoFocus
-          label={t("app.actionDialogs.tag.name")}
+          label={t("ui.name")}
           value={name}
           placeholder="v1.0.0"
           mono
@@ -544,7 +544,7 @@ function MessageDialog({ options, onDone }: { options: MessageDialogOptions; onD
       }}
       footer={
         <>
-          <Button onClick={() => onDone(null)}>{t("app.common.cancel")}</Button>
+          <Button onClick={() => onDone(null)}>{t("ui.cancel")}</Button>
           <Button variant="primary" disabled={!length} onClick={submit}>
             {options.confirmLabel}
           </Button>
@@ -567,7 +567,7 @@ function MessageDialog({ options, onDone }: { options: MessageDialogOptions; onD
         ) : null}
         <TextField
           autoFocus
-          label={t("app.actionDialogs.message.summary")}
+          label={t("ui.summary")}
           value={summary}
           autoComplete="off"
           spellCheck
@@ -583,7 +583,7 @@ function MessageDialog({ options, onDone }: { options: MessageDialogOptions; onD
           onKeyDown={onKeyDown}
         />
         <TextArea
-          label={t("app.actionDialogs.message.description")}
+          label={t("ui.description")}
           value={body}
           rows={6}
           spellCheck

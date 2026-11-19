@@ -5,7 +5,7 @@ import { toast } from "../../ui/Feedback";
 import { runAction } from "../run";
 
 export async function installCli(): Promise<void> {
-  const label = t("actions.cli.label");
+  const label = t("ui.installCommandLineCommand");
   const status = await runAction(label, () => core.cliStatus());
   if (!status.ok) return;
   if (!status.value.installable) {

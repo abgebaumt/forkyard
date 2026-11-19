@@ -181,10 +181,10 @@ export function DiffError({
         action={
           <>
             <Button loading={retrying} icon={<RefreshCw className="size-icon" aria-hidden />} onClick={onRetry}>
-              {t("diff.error.retry")}
+              {t("ui.retry")}
             </Button>
             <Button variant="ghost" onClick={onClose}>
-              {t("diff.error.backToGraph")}
+              {t("ui.backToGraph")}
             </Button>
           </>
         }
@@ -208,7 +208,7 @@ export function DiffError({
       title={t("diff.error.title")}
       action={
         <Button loading={retrying} icon={<RefreshCw className="size-icon" aria-hidden />} onClick={onRetry}>
-          {t("diff.error.retry")}
+          {t("ui.retry")}
         </Button>
       }
     >

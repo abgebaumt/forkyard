@@ -6,7 +6,6 @@
   },
   "app": {
     "installCli": {
-      "title": "Kommandozeilenbefehl installieren",
       "keywords": "cli,Terminal,PATH,forkyard-Befehl,Kommandozeile"
     },
     "activity": {
@@ -14,12 +13,10 @@
       "title": "Protokoll anzeigen"
     },
     "palette": {
-      "keywords": "Befehle, suchen",
-      "title": "Command Palette"
+      "keywords": "Befehle, suchen"
     },
     "preferences": {
-      "keywords": "Optionen, Preferences",
-      "title": "Einstellungen"
+      "keywords": "Optionen, Preferences"
     },
     "shortcuts": {
       "keywords": "Hilfe, Tastatur",
@@ -32,9 +29,7 @@
   },
   "branch": {
     "checkout": {
-      "confirm": "Auschecken",
       "keywords": "wechseln, Checkout, switch",
-      "pick": "Branch auschecken",
       "title": "Branch auschecken …"
     },
     "copyName": {
@@ -44,7 +39,6 @@
       "title": "Neuer Branch …"
     },
     "delete": {
-      "pick": "Branch löschen",
       "title": "Branch löschen …"
     },
     "deleteRemote": {
@@ -80,9 +74,6 @@
     "setUpstream": {
       "keywords": "Tracking, verfolgen",
       "title": "Upstream setzen oder ändern …"
-    },
-    "unsetUpstream": {
-      "title": "Upstream lösen"
     }
   },
   "changes": {
@@ -158,15 +149,11 @@
       "confirmBody": "Die Datei {{path}} wird aus dem Arbeitsverzeichnis entfernt. Bei einer verfolgten Datei erscheint das Löschen danach unter den Änderungen. Direkt danach holt „Rückgängig“ sie zurück.",
       "confirmTitle": "„{{name}}“ löschen?",
       "done": "„{{name}}“ gelöscht",
-      "keywords": "delete file, entfernen, remove",
-      "title": "Datei löschen …"
+      "keywords": "delete file, entfernen, remove"
     },
     "edit": {
-      "confirm": "Bearbeiten",
       "empty": "Im Arbeitsverzeichnis liegen keine Dateien.",
       "keywords": "edit file, Editor, öffnen",
-      "label": "Datei",
-      "pick": "Datei bearbeiten",
       "readAction": "Dateien lesen",
       "title": "Datei bearbeiten …"
     },
@@ -181,12 +168,10 @@
       "title": "Konfliktdatei im externen Merge-Tool öffnen"
     },
     "history": {
-      "keywords": "file history, Verlauf, log",
-      "title": "Historie der Datei"
+      "keywords": "file history, Verlauf, log"
     },
     "new": {
       "action": "Datei anlegen",
-      "confirm": "Anlegen",
       "description": "Fehlende Ordner werden angelegt. Die Datei ist danach leer und öffnet sich im Editor.",
       "dialogTitle": "Neue Datei anlegen",
       "done": "„{{path}}“ angelegt",
@@ -273,7 +258,6 @@
     "check": {
       "keywords": "prüfen, gültig, abgelaufen, Berechtigungen",
       "loadAction": "Konten laden",
-      "noAccount": "kein Konto verbunden",
       "noneText": "Verbinde eines mit „Hoster-Konto verbinden …“.",
       "noneTitle": "Kein Hoster-Konto verbunden",
       "title": "Hoster-Konten prüfen"
@@ -297,8 +281,7 @@
     "noAccount": "kein Konto für den Hoster dieses Repositories verbunden",
     "noHost": "kein Remote bei einem unterstützten Hoster",
     "refresh": {
-      "keywords": "Issue, aktualisieren, refresh",
-      "title": "Issues neu laden"
+      "keywords": "Issue, aktualisieren, refresh"
     },
     "show": {
       "keywords": "Issue, Ticket, Aufgabe, Bug, Work Item, GitHub, GitLab, Gitea, Bitbucket, Azure DevOps, Tracker",
@@ -360,8 +343,7 @@
   },
   "patch": {
     "apply": {
-      "keywords": "patch, apply, diff, einspielen, importieren",
-      "title": "Patch anwenden …"
+      "keywords": "patch, apply, diff, einspielen, importieren"
     },
     "create": {
       "commit": {
@@ -386,9 +368,7 @@
     "confirmFollows": "Danach folgt eine Rückfrage.",
     "next": "Weiter",
     "noRemotes": "Dieses Repository hat noch keinen Remote.",
-    "noTags": "Dieses Repository hat noch keinen Tag.",
-    "remote": "Remote",
-    "tag": "Tag"
+    "noTags": "Dieses Repository hat noch keinen Tag."
   },
   "pr": {
     "create": {
@@ -421,12 +401,10 @@
       "loadAction": "Pull Requests laden",
       "noneText": "Lege mit „Pull Request anlegen …“ einen an.",
       "noneTitle": "Keine offenen Pull Requests",
-      "title": "Pull Request öffnen …",
-      "unknownAuthor": "Unbekannt"
+      "title": "Pull Request öffnen …"
     },
     "refresh": {
-      "keywords": "neu laden, refresh",
-      "title": "Pull Requests aktualisieren"
+      "keywords": "neu laden, refresh"
     },
     "repoInBrowser": {
       "keywords": "GitHub, GitLab, Gitea, Bitbucket, Azure DevOps, Hoster, Browser, Webseite, extern",
@@ -458,12 +436,10 @@
       "title": "Remote hinzufügen …"
     },
     "edit": {
-      "confirm": "Bearbeiten",
       "pick": "Welchen Remote bearbeiten?",
       "title": "Remote bearbeiten …"
     },
     "fetchOne": {
-      "confirm": "Fetch",
       "pick": "Von welchem Remote holen?",
       "title": "Fetch von einem Remote …"
     },
@@ -503,12 +479,6 @@
     "openTerminal": {
       "keywords": "Konsole, Shell, Öffnen in",
       "title": "Im externen Terminal öffnen"
-    },
-    "redo": {
-      "title": "Wiederholen"
-    },
-    "undo": {
-      "title": "Rückgängig"
     }
   },
   "selection": {
@@ -523,9 +493,6 @@
   "stash": {
     "apply": {
       "title": "Neuesten Stash anwenden (und behalten)"
-    },
-    "create": {
-      "title": "Änderungen stashen"
     },
     "createNamed": {
       "title": "Stash mit Beschreibung …"
@@ -559,35 +526,22 @@
   },
   "sync": {
     "cancel": {
-      "action": "Abbrechen",
       "keywords": "Fetch, Pull, Push, stoppen",
       "title": "Laufende Netz-Aktion abbrechen"
     },
-    "fetch": {
-      "title": "Fetch (alle Remotes)"
-    },
-    "pull": {
-      "title": "Pull"
-    },
     "push": {
       "force": {
-        "keywords": "force, with-lease, überschreiben",
-        "title": "Push erzwingen …"
-      },
-      "title": "Push"
+        "keywords": "force, with-lease, überschreiben"
+      }
     }
   },
   "tab": {
-    "close": {
-      "title": "Tab schließen"
-    },
     "goto": {
       "last": "Zum letzten Tab",
       "number": "Zu Tab {{number}}"
     },
     "new": {
-      "keywords": "Repository-Verwaltung, öffnen",
-      "title": "Neuer Tab"
+      "keywords": "Repository-Verwaltung, öffnen"
     },
     "next": {
       "title": "Nächster Tab"
@@ -611,12 +565,10 @@
       "title": "Annotierten Tag am aktuellen Commit anlegen …"
     },
     "delete": {
-      "pick": "Tag löschen",
       "title": "Tag löschen …"
     },
     "push": {
       "confirm": "Pushen",
-      "pick": "Tag pushen",
       "title": "Tag pushen …"
     }
   },
@@ -640,12 +592,8 @@
     }
   },
   "view": {
-    "graph": {
-      "title": "Zurück zum Graphen"
-    },
     "search": {
-      "keywords": "Suche, finden, SHA, Autor",
-      "title": "Commits suchen"
+      "keywords": "Suche, finden, SHA, Autor"
     },
     "terminal": {
       "title": "Terminal ein- oder ausblenden"
@@ -655,15 +603,6 @@
     },
     "toggleLeftPanel": {
       "title": "Left Panel ein- oder ausblenden"
-    },
-    "zoomIn": {
-      "title": "Vergrößern"
-    },
-    "zoomOut": {
-      "title": "Verkleinern"
-    },
-    "zoomReset": {
-      "title": "Zoom zurücksetzen"
     }
   },
   "wip": {
@@ -684,8 +623,7 @@
       "title": "Alle Änderungen verwerfen …"
     },
     "stageAll": {
-      "keywords": "stage all, add",
-      "title": "Alle Änderungen stagen"
+      "keywords": "stage all, add"
     },
     "unstageAll": {
       "keywords": "unstage all, reset",
@@ -712,8 +650,6 @@
       "keywords": "Worktree, Arbeitsordner, wechseln, Tab",
       "label": "Worktree",
       "loadAction": "Worktrees laden",
-      "locked": "gesperrt",
-      "main": "Hauptordner",
       "noneText": "Lege mit „Worktree anlegen …“ einen zweiten Arbeitsordner an.",
       "noneTitle": "Es gibt keinen anderen Worktree",
       "title": "Worktree öffnen …"
@@ -725,7 +661,6 @@
   },
   "history": {
     "reflog": {
-      "title": "Reflog anzeigen",
       "keywords": "Reflog, Verlauf von HEAD, verlorene Commits, wiederherstellen"
     }
   },
@@ -739,11 +674,7 @@
     "skip": {
       "title": "Bisect: getesteten Commit überspringen"
     },
-    "end": {
-      "title": "Bisect beenden"
-    },
     "autopilot": {
-      "title": "Bisect-Autopilot …",
       "keywords": "Bisect, Autopilot, Fehler finden, Regression, Testskript",
       "running": "Der Bisect-Autopilot läuft bereits"
     },

@@ -149,13 +149,13 @@ export function FileHistory({ repoId, tabId, path }: FileHistoryProps) {
         },
         { type: "separator" },
         {
-          label: t("fileHistory.action.showInGraph"),
+          label: t("ui.showInGraph"),
           icon: <Crosshair className="size-icon" />,
           shortcut: "G",
           onSelect: () => showInGraph(tabId, entry.commit.sha),
         },
         {
-          label: t("fileHistory.action.copySha"),
+          label: t("ui.copySha"),
           icon: <Copy className="size-icon" />,
           onSelect: () => void copyText(entry.commit.sha, "SHA"),
         },
@@ -202,7 +202,7 @@ export function FileHistory({ repoId, tabId, path }: FileHistoryProps) {
           title={t("fileHistory.error.title")}
           action={
             <Button icon={<RefreshCw className="size-icon" aria-hidden />} loading={query.isFetching} onClick={() => void query.refetch()}>
-              {t("fileHistory.error.retry")}
+              {t("ui.retry")}
             </Button>
           }
         >
@@ -219,7 +219,7 @@ export function FileHistory({ repoId, tabId, path }: FileHistoryProps) {
           action={
             isNew ? (
               <Button icon={<Eye className="size-icon" aria-hidden />} onClick={() => store().openFile(tabId, path, null, "view")}>
-                {t("fileHistory.empty.viewFile")}
+                {t("ui.viewFile")}
               </Button>
             ) : undefined
           }
@@ -277,12 +277,7 @@ export function FileHistory({ repoId, tabId, path }: FileHistoryProps) {
       className="@container flex h-full min-h-0 min-w-0 flex-col bg-bg"
     >
       <header className="flex h-control-lg shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-3">
-        <FileTitle
-          path={path}
-          icon={<History className="size-icon" aria-hidden />}
-          prefix={t("fileHistory.prefix")}
-          strike={Boolean(deletedIn)}
-        />
+        <FileTitle path={path} icon={<History className="size-icon" aria-hidden />} prefix={t("ui.history")} strike={Boolean(deletedIn)} />
         {entries.length > 0 ? (
           <Tag data-history-count={String(entries.length)}>
             {mayHaveMore ? t("fileHistory.countMore", { count: entries.length }) : t("fileHistory.count", { count: entries.length })}
@@ -307,8 +302,8 @@ export function FileHistory({ repoId, tabId, path }: FileHistoryProps) {
           disabled={Boolean(deletedIn) || entries.length === 0}
           onClick={() => store().openBlame(tabId, path, null)}
         >
-          <span className="hidden @3xl:inline">{t("fileHistory.blame")}</span>
-          <span className="sr-only @3xl:hidden">{t("fileHistory.blame")}</span>
+          <span className="hidden @3xl:inline">{t("ui.blame")}</span>
+          <span className="sr-only @3xl:hidden">{t("ui.blame")}</span>
         </Button>
         <Divider />
         <BackButton tabId={tabId} />
@@ -537,10 +532,10 @@ const Row = memo(function Row({
     entry.status === "added"
       ? t("fileHistory.status.added")
       : entry.status === "deleted"
-        ? t("fileHistory.status.deleted")
+        ? t("ui.fileStatus.deleted")
         : entry.status === "renamed"
-          ? t("fileHistory.status.renamed")
-          : t("fileHistory.status.modified");
+          ? t("ui.fileStatus.renamed")
+          : t("ui.fileStatus.modified");
   return (
     <div
       id={id}
@@ -569,14 +564,14 @@ const Row = memo(function Row({
     >
       <div className="flex min-w-0 items-center gap-2">
         <StatusBadge status={entry.status} />
-        <span className="min-w-0 flex-1 truncate text-base text-text">{commit.summary || t("fileHistory.noMessage")}</span>
+        <span className="min-w-0 flex-1 truncate text-base text-text">{commit.summary || t("ui.noMessage")}</span>
         {entry.added || entry.removed ? (
           <span className="flex shrink-0 gap-1 font-mono text-xs tabular-nums">
             {entry.added ? <span className="text-success">+{entry.added}</span> : null}
             {entry.removed ? <span className="text-danger">−{entry.removed}</span> : null}
           </span>
         ) : entry.added === null ? (
-          <span className="shrink-0 text-xs text-text-muted">{t("fileHistory.binary")}</span>
+          <span className="shrink-0 text-xs text-text-muted">{t("ui.binary")}</span>
         ) : null}
       </div>
       <div className="flex min-w-0 items-center gap-1.5 pl-6 text-xs text-text-muted">
@@ -655,7 +650,7 @@ function Detail({
         <ActionButton
           label={t("fileHistory.action.blame")}
           action="blame"
-          short={t("fileHistory.blame")}
+          short={t("ui.blame")}
           shortcut="B"
           icon={<UserSearch className="size-icon" aria-hidden />}
           disabled={noVersion}
@@ -670,9 +665,9 @@ function Detail({
           onClick={onRestore}
         />
         <ActionButton
-          label={t("fileHistory.action.showInGraph")}
+          label={t("ui.showInGraph")}
           action="reveal"
-          short={t("fileHistory.short.showInGraph")}
+          short={t("ui.inGraph")}
           shortcut="G"
           icon={<Crosshair className="size-icon" aria-hidden />}
           onClick={onReveal}

@@ -27,7 +27,7 @@ export function keyType(publicKey: string): string | null {
   const first = publicKey.trim().split(/\s+/)[0] ?? "";
   if (!first) return null;
   if (first.startsWith("ecdsa-")) return "ECDSA";
-  if (first.startsWith("sk-")) return t("preferences.ssh.securityKey");
+  if (first.startsWith("sk-")) return t("ui.securityKey");
   return first.replace(/^ssh-/, "").toUpperCase();
 }
 
@@ -42,25 +42,23 @@ async function copyPublicKey(key: SshKey) {
   }
   if (await writeClipboard(key.publicKey))
     toast({ tone: "success", title: t("preferences.ssh.copied"), description: t("preferences.ssh.copiedHint") });
-  else toast({ tone: "danger", title: t("preferences.ssh.copyFailed"), description: t("preferences.ssh.copyFailedHint") });
+  else toast({ tone: "danger", title: t("ui.copyFailed"), description: t("preferences.ssh.copyFailedHint") });
 }
 
 async function importKey() {
   const privateKeyPath = await core.pickFile({ title: t("preferences.ssh.import.pickPrivate") });
   if (!privateKeyPath) return;
   const label = await promptText({
-    title: t("preferences.ssh.import.title"),
+    title: t("ui.addKey"),
     description: <Mono wrap>{privateKeyPath}</Mono>,
-    label: t("preferences.ssh.import.label"),
+    label: t("ui.label"),
     initial: baseName(privateKeyPath),
     confirmLabel: t("preferences.ssh.import.confirm"),
   });
   if (!label) return;
-  let result = await runAction(
-    t("preferences.ssh.import.action"),
-    () => core.sshKeyImport({ label, privateKeyPath, publicKeyPath: null }),
-    { quiet: ["path_not_found"] },
-  );
+  let result = await runAction(t("ui.addKey"), () => core.sshKeyImport({ label, privateKeyPath, publicKeyPath: null }), {
+    quiet: ["path_not_found"],
+  });
   if (!result.ok && result.error.code === "path_not_found") {
     // Usually only the .pub file next to the private key is missing: ask for it.
     const again = await confirm({
@@ -71,7 +69,7 @@ async function importKey() {
     if (!again) return;
     const publicKeyPath = await core.pickFile({ title: t("preferences.ssh.import.pickPublic") });
     if (!publicKeyPath) return;
-    result = await runAction(t("preferences.ssh.import.action"), () => core.sshKeyImport({ label, privateKeyPath, publicKeyPath }));
+    result = await runAction(t("ui.addKey"), () => core.sshKeyImport({ label, privateKeyPath, publicKeyPath }));
   }
   if (result.ok) {
     setKeys(result.value);
@@ -106,7 +104,7 @@ export function SshSection({ settings }: { settings: Settings }) {
 
   return (
     <section>
-      <SectionHeader title={t("preferences.ssh.title")}>{t("preferences.ssh.intro")}</SectionHeader>
+      <SectionHeader title={t("ui.sshKeys")}>{t("preferences.ssh.intro")}</SectionHeader>
 
       <SettingRow title={t("preferences.ssh.useAgent.title")} description={t("preferences.ssh.useAgent.description")}>
         {(ids) => (
@@ -222,11 +220,11 @@ function KeyCard({ sshKey: key, agent }: { sshKey: SshKey; agent: boolean }) {
           </Mono>
         </>
       ),
-      confirmLabel: t("preferences.ssh.remove.confirm"),
+      confirmLabel: t("ui.removeEntry"),
       danger: true,
     });
     if (!ok) return;
-    const result = await runAction(t("preferences.ssh.remove.action"), () => core.sshKeyRemove({ id: key.id }), {
+    const result = await runAction(t("ui.removeKey"), () => core.sshKeyRemove({ id: key.id }), {
       success: t("preferences.ssh.remove.done", { label: key.label }),
     });
     if (result.ok) setKeys(result.value);
@@ -242,7 +240,7 @@ function KeyCard({ sshKey: key, agent }: { sshKey: SshKey; agent: boolean }) {
         <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1">
           {key.isDefault ? (
             <Badge tone="accent" icon={<Star className="size-3" aria-hidden />}>
-              {t("preferences.ssh.default")}
+              {t("ui.default")}
             </Badge>
           ) : null}
           {type ? <Badge>{type}</Badge> : null}
@@ -253,14 +251,14 @@ function KeyCard({ sshKey: key, agent }: { sshKey: SshKey; agent: boolean }) {
           )}
           {key.missing ? (
             <Badge tone="danger" icon={<FileWarning className="size-3" aria-hidden />} title={t("preferences.ssh.fileMissingHint")}>
-              {t("preferences.ssh.fileMissing")}
+              {t("ui.fileMissing")}
             </Badge>
           ) : null}
         </div>
       </div>
 
       <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-sm">
-        <dt className="text-text-muted">{t("preferences.ssh.fingerprint")}</dt>
+        <dt className="text-text-muted">{t("ui.fingerprint")}</dt>
         <dd className="min-w-0">
           {key.fingerprint ? (
             <Mono>{key.fingerprint}</Mono>
@@ -316,7 +314,7 @@ function KeyCard({ sshKey: key, agent }: { sshKey: SshKey; agent: boolean }) {
           icon={<Trash2 className="size-3.5" aria-hidden />}
           onClick={() => void remove()}
         >
-          {t("preferences.ssh.removeEntry")}
+          {t("ui.remove")}
         </Button>
       </div>
     </li>
@@ -387,7 +385,7 @@ function GenerateDialog({ existing, onClose }: { existing: SshKey[]; onClose: ()
       footer={
         <>
           <Button onClick={onClose} disabled={busy}>
-            {t("preferences.ssh.dialog.cancel")}
+            {t("ui.cancel")}
           </Button>
           <Button variant="primary" loading={busy} icon={<Check className="size-icon" aria-hidden />} onClick={() => void submit()}>
             {t("preferences.ssh.generate")}
@@ -413,7 +411,7 @@ function GenerateDialog({ existing, onClose }: { existing: SshKey[]; onClose: ()
         <TextField
           autoFocus
           data-autofocus
-          label={t("preferences.ssh.dialog.label")}
+          label={t("ui.label")}
           value={label}
           error={errors.label}
           hint={t("preferences.ssh.dialog.labelHint")}

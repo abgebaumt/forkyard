@@ -25,28 +25,28 @@ import { t } from "../../i18n";
 export type PaletteKind = "command" | "branch" | "remote" | "tag" | "file" | "repo" | "commit" | "action" | "ask";
 
 export const kindLabels: Record<PaletteKind, string> = {
-  command: t("palette.kind.command"),
-  branch: t("palette.kind.branch"),
-  remote: t("palette.kind.remote"),
-  tag: t("palette.kind.tag"),
-  file: t("palette.kind.file"),
-  repo: t("palette.kind.repo"),
-  commit: t("palette.kind.commit"),
-  action: t("palette.kind.action"),
+  command: t("ui.command"),
+  branch: t("ui.branch"),
+  remote: t("ui.ref.remote"),
+  tag: t("ui.ref.tag"),
+  file: t("ui.file"),
+  repo: t("ui.repository"),
+  commit: t("ui.commit"),
+  action: t("ui.action"),
   ask: t("palette.kind.ask"),
 };
 
 /** Display names of the command groups (the groups themselves are fixed identifiers). */
 export const groupTitles: Record<CommandGroup, string> = {
-  General: t("palette.groups.general"),
+  General: t("ui.general"),
   Tabs: t("palette.groups.tabs"),
-  View: t("palette.groups.view"),
-  Repository: t("palette.groups.repository"),
-  Remote: t("palette.groups.remote"),
-  Branch: t("palette.groups.branch"),
-  Stash: t("palette.groups.stash"),
-  Commit: t("palette.groups.commit"),
-  File: t("palette.groups.file"),
+  View: t("ui.view"),
+  Repository: t("ui.repository"),
+  Remote: t("ui.remote"),
+  Branch: t("ui.branch"),
+  Stash: t("ui.stash"),
+  Commit: t("ui.commit"),
+  File: t("ui.file"),
 };
 
 /** Search words from a translation: comma-separated. */
@@ -189,7 +189,7 @@ function branchActions(target: RepoTarget, ref: Ref, current: string | null): Pa
       item({
         key: key("checkout"),
         kind: "action",
-        title: ref.kind === "remote" ? t("palette.action.checkoutRemote") : t("palette.action.checkout"),
+        title: ref.kind === "remote" ? t("palette.action.checkoutRemote") : t("ui.checkOut"),
         run: () => checkout(repoId, ref.name, { tabId }),
       }),
     );
@@ -212,7 +212,7 @@ function branchActions(target: RepoTarget, ref: Ref, current: string | null): Pa
   }
   const forward = fastForwardAction(target, ref, key("ff"));
   if (forward) list.push(forward);
-  list.push(item({ key: key("reveal"), kind: "action", title: t("palette.action.reveal"), run: () => reveal(target, ref.sha) }));
+  list.push(item({ key: key("reveal"), kind: "action", title: t("ui.showInGraph"), run: () => reveal(target, ref.sha) }));
   list.push(
     item({
       key: key("branch"),
@@ -222,7 +222,7 @@ function branchActions(target: RepoTarget, ref: Ref, current: string | null): Pa
     }),
   );
   if (ref.kind === "local") {
-    list.push(item({ key: key("rename"), kind: "action", title: t("palette.action.rename"), run: () => renameBranch(repoId, ref.name) }));
+    list.push(item({ key: key("rename"), kind: "action", title: t("ui.rename"), run: () => renameBranch(repoId, ref.name) }));
     list.push(
       item({ key: key("upstream"), kind: "action", title: t("palette.action.setUpstream"), run: () => chooseUpstream(repoId, ref.name) }),
     );
@@ -232,13 +232,11 @@ function branchActions(target: RepoTarget, ref: Ref, current: string | null): Pa
       key: key("copy"),
       kind: "action",
       title: t("palette.action.copyName"),
-      run: () => copyText(ref.name, t("palette.action.branchName")),
+      run: () => copyText(ref.name, t("ui.branchName")),
     }),
   );
   if (ref.kind === "local" && !ref.isHead) {
-    list.push(
-      item({ key: key("delete"), kind: "action", title: t("palette.action.delete"), run: () => deleteBranches(repoId, [ref.name]) }),
-    );
+    list.push(item({ key: key("delete"), kind: "action", title: t("ui.delete"), run: () => deleteBranches(repoId, [ref.name]) }));
   }
   return list;
 }
@@ -247,7 +245,7 @@ function tagActions(target: RepoTarget, ref: Ref): PaletteItem[] {
   const { repoId, tabId } = target;
   const key = (suffix: string) => `action:${ref.fullName}:${suffix}`;
   return [
-    item({ key: key("reveal"), kind: "action", title: t("palette.action.reveal"), run: () => reveal(target, ref.sha) }),
+    item({ key: key("reveal"), kind: "action", title: t("ui.showInGraph"), run: () => reveal(target, ref.sha) }),
     item({
       key: key("checkout"),
       kind: "action",
@@ -260,14 +258,14 @@ function tagActions(target: RepoTarget, ref: Ref): PaletteItem[] {
       title: t("palette.action.branchHere"),
       run: () => createBranch(repoId, { start: ref.name, tabId }),
     }),
-    item({ key: key("push"), kind: "action", title: t("palette.action.pushTag"), run: () => pushTag(repoId, ref.name) }),
+    item({ key: key("push"), kind: "action", title: t("ui.pushTag"), run: () => pushTag(repoId, ref.name) }),
     item({
       key: key("copy"),
       kind: "action",
       title: t("palette.action.copyName"),
-      run: () => copyText(ref.name, t("palette.action.tagName")),
+      run: () => copyText(ref.name, t("ui.tagName")),
     }),
-    item({ key: key("delete"), kind: "action", title: t("palette.action.delete"), run: () => deleteTag(repoId, ref.name, null) }),
+    item({ key: key("delete"), kind: "action", title: t("ui.delete"), run: () => deleteTag(repoId, ref.name, null) }),
   ];
 }
 
@@ -301,7 +299,7 @@ export function refItems(target: RepoTarget, refs: RefsSnapshot): PaletteItem[] 
       kind: ref.kind === "remote" ? "remote" : "branch",
       title: ref.name,
       detail: refDetail(ref),
-      marker: ref.isHead ? t("palette.ref.checkedOut") : ref.worktreePath ? t("palette.ref.otherWorktree") : undefined,
+      marker: ref.isHead ? t("ui.checkedOut") : ref.worktreePath ? t("ui.inAnotherWorktree") : undefined,
       boost: ref.kind === "local" ? 2 : 1,
       // The checked-out branch: Enter shows it in the graph instead of a pointless checkout.
       run: () => (ref.isHead ? reveal(target, ref.sha) : checkout(target.repoId, ref.name, { tabId: target.tabId })),
@@ -334,9 +332,9 @@ function fileActions(target: RepoTarget, path: string, change: { area: "unstaged
       item({ key: key("diff"), kind: "action", title: t("palette.action.showDiff"), run: () => openChange(target, path, change.area) }),
     );
   list.push(
-    item({ key: key("view"), kind: "action", title: t("palette.action.viewFile"), run: () => store().openFile(tabId, path, null, "view") }),
-    item({ key: key("edit"), kind: "action", title: t("palette.action.editFile"), run: () => store().openFile(tabId, path, null, "edit") }),
-    item({ key: key("history"), kind: "action", title: t("palette.action.fileHistory"), run: () => store().openHistory(tabId, path) }),
+    item({ key: key("view"), kind: "action", title: t("ui.viewFile"), run: () => store().openFile(tabId, path, null, "view") }),
+    item({ key: key("edit"), kind: "action", title: t("ui.editFile"), run: () => store().openFile(tabId, path, null, "edit") }),
+    item({ key: key("history"), kind: "action", title: t("ui.fileHistory"), run: () => store().openHistory(tabId, path) }),
     item({ key: key("blame"), kind: "action", title: t("palette.action.blame"), run: () => store().openBlame(tabId, path, null) }),
     item({
       key: key("external"),
@@ -344,7 +342,7 @@ function fileActions(target: RepoTarget, path: string, change: { area: "unstaged
       title: t("palette.action.openExternal"),
       run: () => openExternal(repoId, "editor", path),
     }),
-    item({ key: key("copy"), kind: "action", title: t("palette.action.copyPath"), run: () => copyText(path, t("palette.action.path")) }),
+    item({ key: key("copy"), kind: "action", title: t("ui.copyPath"), run: () => copyText(path, t("ui.path")) }),
   );
   return list;
 }
@@ -409,7 +407,7 @@ export function repoItems(repos: readonly Repo[], activeRepoId: Id | null): Pale
         title: repo.alias ?? repo.name,
         detail: repo.path,
         keywords: [repo.name, repo.path, ...(repo.groupName ? [repo.groupName] : [])],
-        marker: repo.missing ? t("palette.repo.missing") : repo.id === activeRepoId ? t("palette.repo.open") : undefined,
+        marker: repo.missing ? t("palette.repo.missing") : repo.id === activeRepoId ? t("ui.open") : undefined,
         boost: 1,
         run: () => openRepoTab(repo.id),
       }),
@@ -425,14 +423,14 @@ export function commitItems(target: RepoTarget, commits: readonly CommitSummary[
     item({
       key: `commit:${commit.sha}`,
       kind: "commit",
-      title: commit.summary || t("palette.commit.noMessage"),
+      title: commit.summary || t("ui.noMessage"),
       detail: `${shortSha(commit.sha)} · ${commit.author.name} · ${formatRelative(commit.authoredAt)}`,
       run: () => reveal(target, commit.sha),
       actions: () => [
         item({
           key: `action:commit:${commit.sha}:reveal`,
           kind: "action",
-          title: t("palette.action.reveal"),
+          title: t("ui.showInGraph"),
           run: () => reveal(target, commit.sha),
         }),
         item({
@@ -444,7 +442,7 @@ export function commitItems(target: RepoTarget, commits: readonly CommitSummary[
         item({
           key: `action:commit:${commit.sha}:copy`,
           kind: "action",
-          title: t("palette.action.copySha"),
+          title: t("ui.copySha"),
           run: () => copyText(commit.sha, "SHA"),
         }),
       ],

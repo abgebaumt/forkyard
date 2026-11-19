@@ -21,15 +21,15 @@ export interface Section {
 
 export const GROUP_ORDER: CommandGroup[] = ["General", "View", "Tabs", "Repository", "Remote", "Branch", "Commit", "Stash", "File"];
 export const GROUP_TITLES: Record<CommandGroup, string> = {
-  General: t("shortcuts.groups.general"),
+  General: t("ui.general"),
   View: t("shortcuts.groups.view"),
   Tabs: t("shortcuts.groups.tabs"),
-  Repository: t("shortcuts.groups.repository"),
-  Remote: t("shortcuts.groups.remote"),
-  Branch: t("shortcuts.groups.branch"),
-  Commit: t("shortcuts.groups.commit"),
-  Stash: t("shortcuts.groups.stash"),
-  File: t("shortcuts.groups.file"),
+  Repository: t("ui.repository"),
+  Remote: t("ui.remote"),
+  Branch: t("ui.branch"),
+  Commit: t("ui.commit"),
+  Stash: t("ui.stash"),
+  File: t("ui.file"),
 };
 
 export function registrySections(commands: readonly AppCommand[]): Section[] {

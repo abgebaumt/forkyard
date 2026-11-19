@@ -24,7 +24,7 @@ export const ACTION_LABELS: Record<AgentAction, string> = {
   tests: t("agents.actions.tests"),
   pr: t("agents.actions.pr"),
   cleanup: t("agents.actions.cleanup"),
-  forget: t("agents.actions.forget"),
+  forget: t("ui.removeEntry"),
 };
 
 const ICONS = {
@@ -74,7 +74,7 @@ async function cleanUp(agent: Agent): Promise<void> {
       .map((line) => line.text)
       .join(" "),
     details: [agent.worktreePath, agent.branch],
-    confirmLabel: t("agents.cleanup.confirm"),
+    confirmLabel: t("ui.cleanUp"),
     danger: true,
   });
   if (!ok) return;
@@ -83,7 +83,7 @@ async function cleanUp(agent: Agent): Promise<void> {
     toast({
       tone: "info",
       title: t("agents.cleanup.done", { name: agent.shortName }),
-      action: { label: t("agents.cleanup.undo"), onClick: () => void undo(agent.repoId) },
+      action: { label: t("ui.undo"), onClick: () => void undo(agent.repoId) },
     });
   }
 }

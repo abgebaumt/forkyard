@@ -56,7 +56,7 @@ async function pickTag(ctx: CommandContext, title: string, confirmLabel: string)
   const tags = refs(ctx)?.tags ?? [];
   const picked = await pickFromList({
     title,
-    label: t("commands.pick.tag"),
+    label: t("ui.ref.tag"),
     items: tags.map((tag) => ({
       key: tag.fullName,
       label: tag.name,
@@ -74,7 +74,7 @@ async function pickRemoteEntry(ctx: CommandContext, title: string, confirmLabel:
   if (list.length === 1) return list[0]!;
   const picked = await pickFromList({
     title,
-    label: t("commands.pick.remote"),
+    label: t("ui.remote"),
     items: list.map((remote) => ({ key: remote.name, label: remote.name, description: remote.fetchUrl })),
     empty: t("commands.pick.noRemotes"),
     confirmLabel,
@@ -117,7 +117,7 @@ export const commands: AppCommand[] = [
   // --- Remote ---------------------------------------------------------------------------------
   {
     id: "sync.push.force",
-    title: t("commands.sync.push.force.title"),
+    title: t("ui.forcePush"),
     group: "Remote",
     keywords: kw("commands.sync.push.force.keywords"),
     when: (ctx) => hasRemote(ctx) && onBranch(ctx),
@@ -139,7 +139,7 @@ export const commands: AppCommand[] = [
     when: (ctx) => hasRepo(ctx) && Object.values(ctx.store.jobs).some((job) => job.repoId === ctx.repoId),
     run: async (ctx) => {
       for (const job of Object.values(ctx.store.jobs)) {
-        if (job.repoId === ctx.repoId) await runAction(t("commands.sync.cancel.action"), () => core.jobCancel({ jobId: job.id }));
+        if (job.repoId === ctx.repoId) await runAction(t("ui.cancel"), () => core.jobCancel({ jobId: job.id }));
       }
     },
   },
@@ -149,7 +149,7 @@ export const commands: AppCommand[] = [
     group: "Remote",
     when: (ctx) => hasRepo(ctx) && (remotes(ctx)?.length ?? 0) > 1,
     run: async (ctx) => {
-      const remote = await pickRemoteEntry(ctx, t("commands.remote.fetchOne.pick"), t("commands.remote.fetchOne.confirm"));
+      const remote = await pickRemoteEntry(ctx, t("commands.remote.fetchOne.pick"), t("ui.fetch"));
       if (remote) return fetchAll(ctx.repoId!, remote.name);
     },
   },
@@ -159,7 +159,7 @@ export const commands: AppCommand[] = [
     group: "Remote",
     when: (ctx) => hasRepo(ctx) && (remotes(ctx)?.length ?? 0) > 0,
     run: async (ctx) => {
-      const remote = await pickRemoteEntry(ctx, t("commands.remote.edit.pick"), t("commands.remote.edit.confirm"));
+      const remote = await pickRemoteEntry(ctx, t("commands.remote.edit.pick"), t("ui.edit"));
       if (remote) editRemote(remote.name);
     },
   },
@@ -183,8 +183,8 @@ export const commands: AppCommand[] = [
     when: (ctx) => idle(ctx) && hasCommits(ctx),
     run: async (ctx) => {
       const ref = await pickBranch(ctx.repoId!, {
-        title: t("commands.branch.checkout.pick"),
-        confirmLabel: t("commands.branch.checkout.confirm"),
+        title: t("ui.checkOutBranch"),
+        confirmLabel: t("ui.checkOut"),
         remotes: true,
         excludeCurrent: true,
       });
@@ -205,7 +205,7 @@ export const commands: AppCommand[] = [
     when: (ctx) => hasRepo(ctx) && (refs(ctx)?.locals.length ?? 2) > 1,
     run: async (ctx) => {
       const ref = await pickBranch(ctx.repoId!, {
-        title: t("commands.branch.delete.pick"),
+        title: t("ui.deleteBranch"),
         description: t("commands.pick.confirmFollows"),
         confirmLabel: t("commands.pick.next"),
         excludeCurrent: true,
@@ -299,7 +299,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "branch.unsetUpstream",
-    title: t("commands.branch.unsetUpstream.title"),
+    title: t("ui.unsetUpstream"),
     group: "Branch",
     when: (ctx) => hasRepo(ctx) && branchName(ctx) !== null && Boolean(ctx.status?.upstream ?? headRef(ctx)?.upstream),
     run: (ctx) => setUpstream(ctx.repoId!, branchName(ctx)!, null),
@@ -309,7 +309,7 @@ export const commands: AppCommand[] = [
     title: t("commands.branch.copyName.title"),
     group: "Branch",
     when: (ctx) => hasRepo(ctx) && branchName(ctx) !== null,
-    run: (ctx) => copyText(branchName(ctx)!, t("menus.branch.name")),
+    run: (ctx) => copyText(branchName(ctx)!, t("ui.branchName")),
   },
 
   // --- Commit (selection in the graph) -----------------------------------------------------------
@@ -349,7 +349,7 @@ export const commands: AppCommand[] = [
     group: "Remote",
     when: (ctx) => hasRemote(ctx) && (refs(ctx)?.tags.length ?? 0) > 0,
     run: async (ctx) => {
-      const tag = await pickTag(ctx, t("commands.tag.push.pick"), t("commands.tag.push.confirm"));
+      const tag = await pickTag(ctx, t("ui.pushTag"), t("commands.tag.push.confirm"));
       if (tag) return pushTag(ctx.repoId!, tag.name);
     },
   },
@@ -359,7 +359,7 @@ export const commands: AppCommand[] = [
     group: "Commit",
     when: (ctx) => hasRepo(ctx) && (refs(ctx)?.tags.length ?? 0) > 0,
     run: async (ctx) => {
-      const tag = await pickTag(ctx, t("commands.tag.delete.pick"), t("commands.pick.next"));
+      const tag = await pickTag(ctx, t("ui.deleteTag"), t("commands.pick.next"));
       if (tag) return deleteTag(ctx.repoId!, tag.name, null);
     },
   },

@@ -40,11 +40,7 @@ export function focusCommitPanel() {
 export async function resolveConflict(repoId: Id, tabId: Id, path: string, input: ResolveInput): Promise<Status | null> {
   const before = cachedStatus(repoId)?.conflicted.map((file) => file.path) ?? [];
   const label =
-    input.side === "ours"
-      ? t("conflict.resolve.takeOurs")
-      : input.side === "theirs"
-        ? t("conflict.resolve.takeTheirs")
-        : t("conflict.resolve.resolve");
+    input.side === "ours" ? t("ui.takeCurrentVersion") : input.side === "theirs" ? t("ui.takeIncomingVersion") : t("ui.resolveConflict");
   const result = await runAction(
     label,
     withStatus(repoId, () => core.conflictResolve({ repoId, path, content: input.content ?? null, side: input.side ?? null })),

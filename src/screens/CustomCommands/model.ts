@@ -161,7 +161,7 @@ export function draftErrors(draft: Draft, others: CustomCommandDef[]): DraftErro
   const id = draft.id.trim();
   if (!ID.test(id)) errors.id = t("customCommands.editor.errors.id");
   else if (others.some((command) => command.id === id)) errors.id = t("customCommands.editor.errors.idTaken");
-  if (!draft.title.trim()) errors.title = t("customCommands.editor.errors.title");
+  if (!draft.title.trim()) errors.title = t("ui.enterATitle");
   const run = draft.run.trim();
   const inputIds = draft.inputs.map((input) => input.id.trim());
   if (!run) errors.run = t("customCommands.editor.errors.run");

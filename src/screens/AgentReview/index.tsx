@@ -70,7 +70,7 @@ export function AgentReviewView({ repoId, tabId, agentIds, show }: { repoId: Id;
             options={[
               { value: "first", label: displayName(first) },
               { value: "second", label: displayName(second) },
-              { value: "both", label: t("agents.review.sideBySide") },
+              { value: "both", label: t("ui.sideBySide") },
             ]}
           />
         ) : null}

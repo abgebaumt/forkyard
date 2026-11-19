@@ -9,10 +9,10 @@ import { t } from "../../i18n";
 import { SECTION_ORDER, type SectionKey, type TreeNode, type Tri } from "./model";
 
 export const sectionTitles: Record<SectionKey, string> = {
-  local: t("sidebar.section.local"),
-  remote: t("sidebar.section.remote"),
-  tags: t("sidebar.section.tags"),
-  stashes: t("sidebar.section.stashes"),
+  local: t("ui.local"),
+  remote: t("ui.remote"),
+  tags: t("ui.tags"),
+  stashes: t("ui.stashes"),
 };
 
 const isAction = (entry: MenuEntry): entry is MenuAction => entry.type === undefined || entry.type === "item";
@@ -24,7 +24,7 @@ function withGroup(base: MenuEntry[], extra: MenuEntry[]): MenuEntry[] {
   return [...base, { type: "separator" }, ...extra];
 }
 
-const nothing: MenuEntry[] = [{ label: t("sidebar.menu.none"), disabled: true }];
+const nothing: MenuEntry[] = [{ label: t("ui.noActionsAvailable"), disabled: true }];
 
 export interface RowMenuContext {
   repoId: Id;
@@ -101,7 +101,7 @@ export function rowMenu(ctx: RowMenuContext): MenuEntry[] {
     const entries: MenuEntry[] = shared.length
       ? withGroup(shared, renameOffered ? [] : [rename])
       : [
-          { label: t("sidebar.menu.checkout"), shortcut: "Enter", disabled: node.ref.isHead, onSelect: ctx.activate },
+          { label: t("ui.checkOut"), shortcut: "Enter", disabled: node.ref.isHead, onSelect: ctx.activate },
           rename,
           { label: t("sidebar.menu.deleteBranch"), shortcut: "Delete", danger: true, disabled: node.ref.isHead, onSelect: ctx.remove },
         ];
@@ -110,9 +110,7 @@ export function rowMenu(ctx: RowMenuContext): MenuEntry[] {
 
   if (node.kind === "remote_branch" && node.ref) {
     const shared = branchMenu({ ...base, ref: node.ref });
-    const entries: MenuEntry[] = shared.length
-      ? shared
-      : [{ label: t("sidebar.menu.checkout"), shortcut: "Enter", onSelect: ctx.activate }];
+    const entries: MenuEntry[] = shared.length ? shared : [{ label: t("ui.checkOut"), shortcut: "Enter", onSelect: ctx.activate }];
     return withGroup(entries, viewEntries(ctx, entries));
   }
 
@@ -127,9 +125,7 @@ export function rowMenu(ctx: RowMenuContext): MenuEntry[] {
   }
 
   const fold: MenuEntry[] =
-    ctx.expanded === undefined
-      ? []
-      : [{ label: ctx.expanded ? t("sidebar.menu.collapse") : t("sidebar.menu.expand"), onSelect: ctx.toggleExpanded }];
+    ctx.expanded === undefined ? [] : [{ label: ctx.expanded ? t("ui.collapse") : t("ui.expand"), onSelect: ctx.toggleExpanded }];
 
   if (node.kind === "remote") {
     const shared = ctx.remote ? remoteMenu({ ...base, remote: ctx.remote }) : [];
@@ -139,7 +135,7 @@ export function rowMenu(ctx: RowMenuContext): MenuEntry[] {
 
   if (node.kind === "folder") return withGroup(fold, viewEntries(ctx, fold));
 
-  return [{ label: t("sidebar.menu.showInGraph"), onSelect: ctx.reveal, disabled: node.head?.kind === "unborn" }];
+  return [{ label: t("ui.showInGraph"), onSelect: ctx.reveal, disabled: node.head?.kind === "unborn" }];
 }
 
 export interface DropMenuContext {
@@ -199,9 +195,9 @@ export function sectionMenu(ctx: SectionMenuContext): MenuEntry[] {
         ]
       : [];
   return [
-    { label: ctx.collapsed ? t("sidebar.menu.expand") : t("sidebar.menu.collapse"), onSelect: ctx.toggleCollapsed },
+    { label: ctx.collapsed ? t("ui.expand") : t("ui.collapse"), onSelect: ctx.toggleCollapsed },
     { label: ctx.maximized ? t("sidebar.section.showAll") : t("sidebar.section.maximize"), onSelect: ctx.toggleMaximized },
-    { label: t("sidebar.section.hideSection"), disabled: shown.length <= 1, onSelect: () => ctx.setVisible(ctx.section, false) },
+    { label: t("ui.hideSection"), disabled: shown.length <= 1, onSelect: () => ctx.setVisible(ctx.section, false) },
     ...view,
     { type: "separator" },
     { type: "label", label: t("sidebar.section.sections") },

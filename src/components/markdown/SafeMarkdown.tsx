@@ -41,7 +41,7 @@ export function SafeMarkdown({ source, origin, empty, className }: SafeMarkdownP
         prompt={{
           title: t("pullRequest.view.markdown.confirmTitle"),
           body: t("pullRequest.view.markdown.confirmBody", { origin }),
-          confirmLabel: t("pullRequest.view.markdown.openLink"),
+          confirmLabel: t("ui.openLink"),
         }}
       />
       {rendered.blockedImages > 0 || rendered.truncated ? (

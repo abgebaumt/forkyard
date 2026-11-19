@@ -20,9 +20,9 @@ export const OPTIONAL_COLUMNS: OptionalColumnId[] = ["author", "date", "sha"];
 export const COLUMN_LABELS: Record<GraphColumnId, string> = {
   refs: t("graph.columns.refs"),
   graph: t("graph.columns.graph"),
-  message: t("graph.columns.message"),
-  author: t("graph.columns.author"),
-  date: t("graph.columns.date"),
+  message: t("ui.message"),
+  author: t("ui.author"),
+  date: t("ui.date"),
   sha: t("graph.columns.sha"),
 };
 

@@ -37,8 +37,8 @@ export interface PatchRequest {
 type Scope = "unstaged" | "staged" | "all";
 
 const scopeLabels: Record<Scope, string> = {
-  unstaged: t("patches.create.scope.unstaged"),
-  staged: t("patches.create.scope.staged"),
+  unstaged: t("ui.unstaged"),
+  staged: t("ui.staged"),
   all: t("patches.create.scope.all"),
 };
 
@@ -159,7 +159,7 @@ export function CreatePatchDialog({ repoId, request, onClose }: { repoId: Id; re
       }}
       footer={
         <>
-          <Button onClick={onClose}>{t("patches.create.close")}</Button>
+          <Button onClick={onClose}>{t("ui.close")}</Button>
           <Button
             icon={<Save className="size-icon" aria-hidden />}
             loading={saving}
@@ -181,7 +181,7 @@ export function CreatePatchDialog({ repoId, request, onClose }: { repoId: Id; re
             className="aria-disabled:cursor-default aria-disabled:bg-surface-raised aria-disabled:text-text-disabled aria-disabled:hover:brightness-100"
             onClick={() => void copy()}
           >
-            {t("patches.create.copy")}
+            {t("ui.copyToClipboard")}
           </Button>
         </>
       }
@@ -220,7 +220,7 @@ export function CreatePatchDialog({ repoId, request, onClose }: { repoId: Id; re
             title={t("patches.create.error")}
             actions={
               <Button size="sm" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={() => void patch.refetch()}>
-                {t("patches.create.retry")}
+                {t("ui.retry")}
               </Button>
             }
           >

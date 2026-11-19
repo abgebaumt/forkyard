@@ -3,11 +3,9 @@
   "description": "Holt ein Repository von einem Server oder aus einem anderen Ordner auf diesen Rechner.",
   "errors": {
     "authFailed": {
-      "title": "Anmeldung abgelehnt",
       "hint": "Der Server hat Benutzername, Passwort, Token oder SSH-Schlüssel nicht angenommen. Prüfe die Zugangsdaten – und ob du dieses Repository überhaupt lesen darfst."
     },
     "offline": {
-      "title": "Server nicht erreichbar",
       "hint": "Prüfe die Netzwerkverbindung, einen Proxy und den Servernamen in der Adresse."
     },
     "notFound": {
@@ -39,7 +37,6 @@
     "hostKeyChanged": "Der Schlüssel des SSH-Servers hat sich geändert",
     "failed": "Klonen fehlgeschlagen",
     "noLeftovers": "Es ist kein halber Ordner zurückgeblieben.",
-    "showOutput": "Ausgabe anzeigen",
     "outputTitle": "Klonen: Ausgabe von Git",
     "fieldPathExists": "Dort liegt schon etwas.",
     "fieldPathNotFound": "Diesen Ordner gibt es nicht.",
@@ -48,17 +45,11 @@
   "phase": {
     "enumerating": "Der Server stellt die Daten zusammen",
     "compressing": "Der Server packt die Daten",
-    "receiving": "Daten werden übertragen",
-    "resolving": "Die Historie wird zusammengesetzt",
-    "checkout": "Dateien werden ausgecheckt",
     "sparse": "Die gewählten Ordner werden ausgecheckt",
     "filtering": "Dateien werden nachgeladen",
-    "connecting": "Verbindung wird aufgebaut",
     "stopping": "Klonen wird abgebrochen"
   },
   "progress": {
-    "from": "Von",
-    "to": "Nach",
     "label": "Fortschritt des Klonens",
     "valueText": "{{label}}, {{percent}} Prozent",
     "waiting": "Warte auf die Antwort des Servers …"
@@ -81,13 +72,11 @@
     "depth": "Shallow, Tiefe {{depth}}",
     "since": "Shallow, seit {{date}}",
     "branch": "Branch {{branch}}",
-    "sparse": "Sparse Checkout",
     "submodules": "mit Submodulen"
   },
   "continue": "Weiter klonen",
   "stop": "Klonen abbrechen",
   "busy": "Klone …",
-  "cancel": "Abbrechen",
   "stillRunning": {
     "title": "Das Klonen läuft noch",
     "body": "Wenn du jetzt abbrichst, wird der unvollständige Ordner wieder entfernt. Deine Eingaben gehen mit dem Dialog verloren."
@@ -97,7 +86,6 @@
     "body": "Der unvollständige Ordner wurde wieder entfernt. Deine Eingaben stehen noch da."
   },
   "url": {
-    "label": "Adresse",
     "placeholder": "https://host/gruppe/projekt.git",
     "hint": "HTTPS, SSH (git@host:gruppe/projekt.git) oder ein lokaler Pfad."
   },
@@ -105,9 +93,7 @@
     "label": "Zielordner",
     "placeholder": "Ordner, in dem der Klon entsteht"
   },
-  "browse": "Durchsuchen …",
   "name": {
-    "label": "Ordnername",
     "placeholder": "wird aus der Adresse vorgeschlagen"
   },
   "target": "Wird geklont nach:",
@@ -119,17 +105,14 @@
     "limitBy": "Begrenzen nach",
     "limitByLabel": "Historie begrenzen nach",
     "depth": "Tiefe",
-    "date": "Datum",
     "depthLabel": "Tiefe (Commits je Branch)",
     "sinceLabel": "Commits seit"
   },
   "branch": {
-    "label": "Branch",
     "placeholder": "Standard-Branch des Remotes",
     "hint": "Leer lassen, um den Standard-Branch auszuchecken."
   },
   "sparse": {
-    "label": "Sparse Checkout",
     "hint": "Checkt nur ausgewählte Ordner aus. Dateien im Wurzelverzeichnis kommen immer mit.",
     "pathsLabel": "Ordner, einer je Zeile",
     "pathsPlaceholder": "src\ndocs/handbuch"
@@ -154,7 +137,6 @@
   "kind": {
     "http": "HTTP, unverschlüsselt",
     "git": "git://, unverschlüsselt",
-    "local": "Lokal",
     "localFolder": "Lokaler Ordner"
   },
   "folderName": {

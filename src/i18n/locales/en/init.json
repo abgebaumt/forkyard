@@ -12,18 +12,15 @@
   "create": "Create repository",
   "success": "“{{name}}” has been created",
   "noFirstCommit": "“{{name}}” has been created – the first commit is missing",
-  "showOutput": "Show output",
   "firstCommitOutputTitle": "First commit: Git output",
   "outputTitle": "Create repository: Git output",
   "templateNone": "None",
-  "cancel": "Cancel",
   "failed": "The repository couldn't be created",
   "existing": {
     "title": "The selected folder becomes the repository",
     "body": "This works as long as the folder is still empty."
   },
   "name": {
-    "label": "Name",
     "placeholder": "my-project",
     "hint": "The folder gets the same name."
   },
@@ -31,7 +28,6 @@
     "label": "Location",
     "placeholder": "Folder in which the repository is created"
   },
-  "browse": "Browse …",
   "target": "Will be created in:",
   "targetHint": "Name and location together make up the repository's path.",
   "branch": {
@@ -40,7 +36,6 @@
   },
   "templates": {
     "failed": "The templates couldn't be loaded",
-    "retry": "Try again",
     "failedBody": "You can still create the repository without templates.",
     "gitignore": ".gitignore template",
     "gitignoreHint": "Typical exclusions for a language or a tool.",

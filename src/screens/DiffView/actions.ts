@@ -35,9 +35,9 @@ export function reloadDiffs(repoId: Id, path: string): Promise<void> {
 }
 
 const labels: Record<PatchAction, string> = {
-  stage: t("diff.patch.stage"),
-  unstage: t("diff.patch.unstage"),
-  discard: t("diff.patch.discard"),
+  stage: t("ui.stage"),
+  unstage: t("ui.unstage"),
+  discard: t("ui.discard"),
 };
 
 /**
@@ -81,7 +81,7 @@ export async function applyPatch(action: PatchAction, repoId: Id, selection: Pat
     toast({
       tone: "success",
       title: lines === null ? t("diff.discard.hunkDone") : t("diff.discard.linesDone", { count: lines }),
-      action: { label: t("diff.undo"), onClick: () => void undo(repoId) },
+      action: { label: t("ui.undo"), onClick: () => void undo(repoId) },
     });
   }
   return { result: "done", status: outcome.value };
@@ -92,13 +92,13 @@ export async function saveViewSetting(patch: Partial<Pick<Settings, "diffMode" |
   // Switch immediately; the core's answer only confirms.
   const before = queryClient.getQueryData<Settings>(qk.settings);
   if (before) queryClient.setQueryData(qk.settings, { ...before, ...patch });
-  const result = await runAction(t("diff.saveSetting"), () => enqueueWrite(() => core.settingsSet({ patch })));
+  const result = await runAction(t("ui.saveSetting"), () => enqueueWrite(() => core.settingsSet({ patch })));
   if (result.ok) queryClient.setQueryData(qk.settings, result.value);
   else if (before) queryClient.setQueryData(qk.settings, before);
 }
 
 export const modeLabels: Record<DiffMode, string> = {
-  hunks: t("diff.mode.hunks"),
-  inline: t("diff.mode.inline"),
-  split: t("diff.mode.split"),
+  hunks: t("ui.hunks"),
+  inline: t("ui.wholeFile"),
+  split: t("ui.sideBySide"),
 };

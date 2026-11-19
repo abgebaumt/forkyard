@@ -64,7 +64,7 @@ export function StashDetails({ repoId, tabId, index }: StashDetailsProps) {
             void stashes.refetch();
             void query.refetch();
           }}
-          action={{ label: t("commitDetails.compare.clearSelection"), onClick: () => store().clearSelection(tabId) }}
+          action={{ label: t("ui.clearSelection"), onClick: () => store().clearSelection(tabId) }}
         >
           {gone ? t("commitDetails.stash.goneHint") : hint || undefined}
         </PanelError>
@@ -95,7 +95,7 @@ export function StashDetails({ repoId, tabId, index }: StashDetailsProps) {
           <dd>
             <DateText value={stash.createdAt} format={settings?.dateFormat ?? "relative"} className="text-text" />
           </dd>
-          <dt className="text-text-muted">{t("commitDetails.stash.base")}</dt>
+          <dt className="text-text-muted">{t("ui.base")}</dt>
           <dd className="-ml-1">
             <ShaLink sha={stash.baseSha} label={t("commitDetails.stash.jumpBase")} onOpen={(sha) => store().revealCommit(tabId, sha)} />
           </dd>

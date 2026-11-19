@@ -53,7 +53,7 @@ export function PrFiles({ repoId, tabId, pr }: { repoId: Id; tabId: Id; pr: PrDe
           title={t("pullRequest.view.files.rangeError")}
           action={
             <Button size="sm" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={() => void range.refetch()}>
-              {t("pullRequest.view.files.retry")}
+              {t("ui.retry")}
             </Button>
           }
         >
@@ -97,7 +97,7 @@ export function PrFiles({ repoId, tabId, pr }: { repoId: Id; tabId: Id; pr: PrDe
                 icon={<GitBranch className="size-3.5" aria-hidden />}
                 onClick={() => void checkoutPr(repoId, pr)}
               >
-                {t("pullRequest.view.files.checkout")}
+                {t("ui.checkOutBranch")}
               </Button>
             </div>
           }
@@ -116,7 +116,7 @@ export function PrFiles({ repoId, tabId, pr }: { repoId: Id; tabId: Id; pr: PrDe
           title={t("pullRequest.view.files.loadError")}
           action={
             <Button size="sm" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={() => void details.refetch()}>
-              {t("pullRequest.view.files.retry")}
+              {t("ui.retry")}
             </Button>
           }
         >

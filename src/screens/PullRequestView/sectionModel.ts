@@ -17,7 +17,7 @@ export const groupLabels: Record<PrGroup, { label: string; hint: string; empty: 
     empty: t("pullRequest.view.groups.reviewEmpty"),
   },
   all: {
-    label: t("pullRequest.view.groups.all"),
+    label: t("ui.all"),
     hint: t("pullRequest.view.groups.allHint"),
     empty: t("pullRequest.view.groups.allEmpty"),
   },

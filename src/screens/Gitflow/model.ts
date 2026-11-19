@@ -5,9 +5,9 @@ import { t } from "../../i18n";
 export const GITFLOW_KINDS: GitflowKind[] = ["feature", "release", "hotfix"];
 
 export const kindLabels: Record<GitflowKind, string> = {
-  feature: t("actions.gitflow.kind.feature"),
-  release: t("actions.gitflow.kind.release"),
-  hotfix: t("actions.gitflow.kind.hotfix"),
+  feature: t("ui.feature"),
+  release: t("ui.release"),
+  hotfix: t("ui.hotfix"),
 };
 
 /** Spaces turn into "-" while typing (as with branch names everywhere in the app). */

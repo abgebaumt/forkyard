@@ -74,9 +74,9 @@ export interface DiffHeaderProps {
 const sourceLabel = (source: DiffSource): string => {
   switch (source.kind) {
     case "unstaged":
-      return t("diff.source.unstaged");
+      return t("ui.unstaged");
     case "staged":
-      return t("diff.source.staged");
+      return t("ui.staged");
     case "commit":
       return t("diff.source.commit", { sha: shortSha(source.sha) });
     case "range":
@@ -178,19 +178,14 @@ export function DiffHeader(props: DiffHeaderProps) {
         {props.embedded ? null : (
           <IconButton
             size="sm"
-            label={t("diff.header.history")}
+            label={t("ui.fileHistory")}
             icon={<History className="size-icon" aria-hidden />}
             onClick={props.onHistory}
           />
         )}
-        <IconButton
-          size="sm"
-          label={t("diff.header.blame")}
-          icon={<UserSearch className="size-icon" aria-hidden />}
-          onClick={props.onBlame}
-        />
+        <IconButton size="sm" label={t("ui.blame")} icon={<UserSearch className="size-icon" aria-hidden />} onClick={props.onBlame} />
         {props.onEdit ? (
-          <IconButton size="sm" label={t("diff.header.edit")} icon={<Pencil className="size-icon" aria-hidden />} onClick={props.onEdit} />
+          <IconButton size="sm" label={t("ui.editFile")} icon={<Pencil className="size-icon" aria-hidden />} onClick={props.onEdit} />
         ) : null}
         {props.onExternalDiff ? (
           <IconButton
@@ -214,11 +209,7 @@ export function DiffHeader(props: DiffHeaderProps) {
       </div>
 
       {textual ? (
-        <div
-          role="toolbar"
-          aria-label={t("diff.header.toolbar")}
-          className="flex h-control-lg items-center gap-1 border-t border-border pr-1 pl-3"
-        >
+        <div role="toolbar" aria-label={t("ui.diffView")} className="flex h-control-lg items-center gap-1 border-t border-border pr-1 pl-3">
           <SegmentedControl
             label={t("diff.header.mode")}
             value={mode}
@@ -278,7 +269,7 @@ export function DiffHeader(props: DiffHeaderProps) {
           ) : null}
           <IconButton
             size="sm"
-            label={t("diff.header.wrap")}
+            label={t("ui.wrapLongLines")}
             active={props.wrap}
             aria-pressed={props.wrap}
             icon={<WrapText className="size-icon" aria-hidden />}

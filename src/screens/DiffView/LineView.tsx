@@ -93,7 +93,7 @@ export interface LineViewProps {
 }
 
 const signs = { context: " ", add: "+", remove: "−" } as const;
-const signLabels = { context: "", add: t("diff.line.added"), remove: t("diff.line.removed") } as const;
+const signLabels = { context: "", add: t("ui.diff.added"), remove: t("ui.diff.removed") } as const;
 const lineTone = { context: "", add: "bg-diff-added", remove: "bg-diff-removed" } as const;
 const gutterTone = { context: "bg-surface-sunken", add: "bg-diff-added", remove: "bg-diff-removed" } as const;
 const markTone = { context: "", add: "bg-diff-added-strong", remove: "bg-diff-removed-strong" } as const;
@@ -685,7 +685,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
     void writeClipboard(text).then((ok) =>
       ok
         ? toast({ tone: "success", title: t("diff.copy.done") })
-        : toast({ tone: "danger", title: t("diff.copy.failed"), description: t("diff.copy.failedBody") }),
+        : toast({ tone: "danger", title: t("ui.copyFailed"), description: t("diff.copy.failedBody") }),
     );
   };
 
@@ -723,7 +723,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
           });
         }
         entries.push({
-          label: t("diff.selection.clear"),
+          label: t("ui.clearSelection"),
           icon: <X className="size-icon" />,
           shortcut: "Escape",
           onSelect: () => onSelectedChange(new Set()),
@@ -772,7 +772,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
       entries.push({ type: "separator" });
     }
     entries.push({
-      label: t("diff.menu.copyLine"),
+      label: t("ui.copyLine"),
       icon: <Copy className="size-icon" />,
       disabled: row?.type !== "line",
       onSelect: () => row?.type === "line" && copy(row.text),
@@ -991,7 +991,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
           ) : null}
           <IconButton
             size="sm"
-            label={t("diff.selection.clear")}
+            label={t("ui.clearSelection")}
             shortcut="Escape"
             icon={<X className="size-icon" aria-hidden />}
             onClick={() => onSelectedChange(new Set())}

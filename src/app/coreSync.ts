@@ -120,7 +120,7 @@ function reportBackgroundFetch(repoId: Id, exitCode: number | null, output: stri
   if (busy[busyKeys.fetch(repoId)] || busy[busyKeys.pull(repoId)] || busy[busyKeys.push(repoId)] || wasManualSync(repoId)) return;
   const settings = queryClient.getQueryData<Settings>(qk.settings);
   const name = queryClient.getQueryData<Repo[]>(qk.repos)?.find((repo) => repo.id === repoId);
-  const where = name ? (name.alias ?? name.name) : t("app.queries.repository");
+  const where = name ? (name.alias ?? name.name) : t("ui.repository");
   if (exitCode === 0) {
     if (!settings?.notifyOnFetch) return;
     toast({ tone: "info", title: t("app.queries.fetchNews", { where }), description: t("app.queries.fetchNewsText") });

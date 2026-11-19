@@ -7,12 +7,10 @@ import { t } from "../../i18n";
 /** Second line: what is checked out, followed by the properties as words. */
 export function worktreeSecondary(worktree: Worktree): string {
   if (worktree.isPrunable) return worktree.isLocked ? t("worktrees.row.missingLocked") : t("worktrees.row.missingOrphaned");
-  const parts = [
-    worktree.branch ?? (worktree.head ? t("worktrees.row.detached", { sha: shortSha(worktree.head) }) : t("worktrees.row.noCommit")),
-  ];
-  if (worktree.isMain) parts.push(t("worktrees.row.main"));
-  if (worktree.isLocked) parts.push(t("worktrees.row.locked"));
-  if (worktree.hasChanges) parts.push(t("worktrees.row.changed"));
+  const parts = [worktree.branch ?? (worktree.head ? t("worktrees.row.detached", { sha: shortSha(worktree.head) }) : t("ui.noCommit"))];
+  if (worktree.isMain) parts.push(t("ui.mainFolder"));
+  if (worktree.isLocked) parts.push(t("ui.locked"));
+  if (worktree.hasChanges) parts.push(t("ui.changed"));
   return parts.join(" · ");
 }
 
@@ -45,10 +43,10 @@ export function describeWorktree(worktree: Worktree): string {
   const parts = [t("worktrees.describe.name", { name: folderName(worktree.path) })];
   if (worktree.isPrunable) parts.push(t("worktrees.describe.orphaned"));
   else parts.push(worktree.branch ? t("worktrees.describe.branch", { branch: worktree.branch }) : worktreeTarget(worktree));
-  if (worktree.isMain) parts.push(t("worktrees.row.main"));
+  if (worktree.isMain) parts.push(t("ui.mainFolder"));
   if (worktree.isCurrent) parts.push(t("worktrees.describe.current"));
   if (worktree.isLocked)
-    parts.push(worktree.lockReason ? t("worktrees.describe.lockedReason", { reason: worktree.lockReason }) : t("worktrees.row.locked"));
+    parts.push(worktree.lockReason ? t("worktrees.describe.lockedReason", { reason: worktree.lockReason }) : t("ui.locked"));
   if (worktree.hasChanges && !worktree.isPrunable) parts.push(t("worktrees.describe.changes"));
   return parts.join(", ");
 }
@@ -96,6 +94,6 @@ export function suggestFolder(repoName: string, target: string): string {
 /** Why a local branch cannot be checked out in a new worktree right now – or null. */
 export function branchBlock(ref: Pick<Ref, "isHead" | "worktreePath">): string | null {
   if (ref.isHead) return t("worktrees.block.here");
-  if (ref.worktreePath) return t("worktrees.block.elsewhere");
+  if (ref.worktreePath) return t("ui.inAnotherWorktree");
   return null;
 }

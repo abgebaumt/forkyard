@@ -336,7 +336,7 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     const jobId = newJobId();
     applyingRef.current = true;
     setApplying(true);
-    useAppStore.getState().startJob({ id: jobId, title: t("wip.compose.title"), repoId });
+    useAppStore.getState().startJob({ id: jobId, title: t("ui.composeCommits"), repoId });
     const settled: Promise<Settled<{ steps: { hooks: string[] }[] }>> = core
       .composeApply({ repoId, jobId, plan: { commits, skipHooks }, expectToken: current.token })
       .then(
@@ -536,7 +536,7 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const header = (
     <ToolHeader
       icon={<GitCommitHorizontal className="size-icon" aria-hidden />}
-      title={t("wip.compose.title")}
+      title={t("ui.composeCommits")}
       onClose={() => closeCompose(tabId)}
       subtitle={state ? <span className="min-w-0 truncate font-medium text-text">{state.branch}</span> : undefined}
     />
@@ -580,7 +580,7 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         </span>
         <span className="flex-1" />
         <Button size="sm" variant="ghost" data-compose-what-is-sent="" onClick={() => void whatIsSent()}>
-          {t("wip.compose.whatIsSent")}
+          {t("ui.whatIsSent")}
         </Button>
         {original ? (
           <Button
@@ -597,7 +597,7 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           </Button>
         ) : null}
         <SegmentedControl
-          label={t("wip.compose.viewLabel")}
+          label={t("ui.view")}
           value={view}
           onValueChange={setView}
           options={[
@@ -619,7 +619,7 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           </p>
           {job.running ? (
             <Button size="sm" variant="secondary" data-compose-cancel="" onClick={cancelRequest}>
-              {t("ai.state.cancel")}
+              {t("ui.cancel")}
             </Button>
           ) : null}
         </div>

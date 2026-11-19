@@ -37,7 +37,7 @@ export function unavailableReason(command: AppCommand, ctx: CommandContext): str
   const changes = status.unstaged.length + status.staged.length;
 
   if (id.startsWith("stash.") && id !== "stash.create" && id !== "stash.createNamed" && stashes.length === 0)
-    return t("palette.reason.noStash");
+    return t("ui.noStashAvailable");
   if ((id === "stash.create" || id === "stash.createNamed" || id.includes("discard")) && changes === 0)
     return t("palette.reason.noChanges");
   if (id === "wip.stageAll") return status.unstaged.length === 0 ? t("palette.reason.nothingToStage") : t("palette.reason.unavailable");
@@ -71,6 +71,6 @@ export function unavailableReason(command: AppCommand, ctx: CommandContext): str
   if (id === "sync.cancel") return t("palette.reason.nothingRunning");
   if (id === "view.graph") return t("palette.reason.graphShown");
   if (id.startsWith("tab.")) return ctx.tabs.length <= 1 ? t("palette.reason.oneTab") : t("palette.reason.noSuchTab");
-  if (id === "selection.menu") return t("palette.reason.nothingSelected");
+  if (id === "selection.menu") return t("ui.nothingSelected");
   return t("palette.reason.unavailable");
 }

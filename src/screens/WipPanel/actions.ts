@@ -160,7 +160,7 @@ export async function resolveConflicts(repoId: Id, tabId: Id, paths: string[], s
   const before = getStatus(repoId)?.conflicted ?? [];
   const name = side === "ours" ? sides.ours : sides.theirs;
   const result = await runAction(
-    side === "ours" ? t("wip.resolve.takeCurrent") : t("wip.resolve.takeIncoming"),
+    side === "ours" ? t("ui.takeCurrentVersion") : t("ui.takeIncomingVersion"),
     async () => {
       let status: Status | null = null;
       // Each answer individually and in order into the cache (statusCache.ts): a late one overwrites nothing newer.
@@ -295,7 +295,7 @@ export async function commitChanges(repoId: Id, tabId: Id, options: { stageAll?:
     status,
     queryClient.getQueryData<Remote[]>(qk.remotes(repoId)),
   ).checked;
-  const label = amend ? t("wip.plan.amend") : t("wip.commit.action");
+  const label = amend ? t("wip.plan.amend") : t("ui.commit");
   // The shell reports every failed hook itself (event hook:output, with "Show output").
   // If the event arrives, our own toast is dropped – otherwise the same error would appear twice.
   let hookReported = false;
@@ -339,15 +339,13 @@ export async function commitChanges(repoId: Id, tabId: Id, options: { stageAll?:
           tone: "danger",
           title: t("wip.commit.hookRejected"),
           description: `${describeError(error).text}\n${t("wip.commit.hookUnchanged")}`,
-          action: output
-            ? { label: t("wip.commit.showOutput"), onClick: () => void showOutput(t("wip.commit.hookOutput"), output) }
-            : undefined,
+          action: output ? { label: t("ui.showOutput"), onClick: () => void showOutput(t("wip.commit.hookOutput"), output) } : undefined,
         });
       }
     } else if (error.code === "identity_missing") {
       toast({
         tone: "danger",
-        title: t("wip.identity.title"),
+        title: t("ui.noAuthorSet"),
         description: t("wip.identity.text"),
         action: {
           label: t("wip.identity.openProfile"),

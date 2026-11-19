@@ -22,7 +22,7 @@ export function ProfileDot({ color, className }: { color: number; className?: st
 export function profileMenuEntries(profiles: Profile[]): MenuEntry[] {
   const openProfiles = () => useAppStore.getState().openOverlay({ kind: "preferences", section: "profiles" });
   return [
-    { type: "label", label: t("shell.profile.menuTitle") },
+    { type: "label", label: t("ui.profiles") },
     ...profiles.map((profile, index) => ({
       label: profile.name,
       hint: profile.authorEmail || undefined,

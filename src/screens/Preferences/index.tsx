@@ -128,7 +128,7 @@ export function Preferences({
   const shown: SectionId = sections.some((item) => item.id === active) ? active : "appearance";
   const profileIndex = Math.max(0, profiles?.findIndex((profile) => profile.isActive) ?? 0);
   const profile = profiles?.[profileIndex];
-  const repoName = repo?.alias ?? repo?.name ?? t("preferences.repoFallback");
+  const repoName = repo?.alias ?? repo?.name ?? t("ui.repository");
 
   const withSettings = (render: (value: NonNullable<typeof settings.data>) => ReactNode) => {
     if (settings.isPending) return <SettingsSkeleton />;
@@ -195,7 +195,7 @@ export function Preferences({
           {profiles ? (
             <DropdownMenu entries={profileMenuEntries(profiles)} align="start">
               <button type="button" className="mb-2 rounded-sm px-1 text-xs font-medium text-accent hover:underline">
-                {t("preferences.levels.switch")}
+                {t("ui.switch")}
               </button>
             </DropdownMenu>
           ) : null}
@@ -306,7 +306,7 @@ export function Preferences({
               className="flex min-h-0 flex-1"
             >
               <nav aria-label={t("preferences.nav.label")} className="flex w-60 shrink-0 flex-col border-r border-border bg-surface-sunken">
-                <RadixDialog.Title className="px-4 pt-4 pb-2 text-lg font-semibold">{t("preferences.title")}</RadixDialog.Title>
+                <RadixDialog.Title className="px-4 pt-4 pb-2 text-lg font-semibold">{t("ui.settings")}</RadixDialog.Title>
                 <label className="mx-3 mb-1 flex h-control-md items-center gap-2 rounded-md border border-border-input bg-surface-raised px-2 focus-within:outline-2 focus-within:outline-accent">
                   <Search className="size-3.5 shrink-0 text-text-muted" aria-hidden />
                   <input
@@ -354,7 +354,7 @@ export function Preferences({
               </nav>
 
               <div className="relative flex min-w-0 flex-1 flex-col">
-                <Tip label={t("preferences.nav.close")} shortcut="Esc">
+                <Tip label={t("ui.close")} shortcut="Esc">
                   <RadixDialog.Close
                     aria-label={t("preferences.nav.closeLabel")}
                     className="absolute top-3 right-3 z-10 inline-flex size-control-md items-center justify-center rounded-md text-text-muted hover:bg-surface-raised hover:text-text"

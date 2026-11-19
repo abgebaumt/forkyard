@@ -48,7 +48,7 @@ async function pickPullRequest(ctx: CommandContext) {
     items: loaded.value.items.map((pr) => ({
       key: String(pr.number),
       label: `#${pr.number} ${pr.title}`,
-      description: `${pr.author?.name ?? pr.author?.login ?? t("commands.pr.pick.unknownAuthor")} · ${pr.sourceBranch} → ${pr.targetBranch}${pr.isDraft ? ` · ${t("commands.pr.pick.draft")}` : ""}`,
+      description: `${pr.author?.name ?? pr.author?.login ?? t("ui.unknown")} · ${pr.sourceBranch} → ${pr.targetBranch}${pr.isDraft ? ` · ${t("commands.pr.pick.draft")}` : ""}`,
     })),
     confirmLabel: t("commands.pr.pick.confirm"),
   });
@@ -89,7 +89,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "pr.refresh",
-    title: t("commands.pr.refresh.title"),
+    title: t("ui.refreshPullRequests"),
     group: "Remote",
     keywords: [...KEYWORDS(), ...kw("commands.pr.refresh.keywords")],
     when: (ctx) => hasRepo(ctx) && connected(ctx),

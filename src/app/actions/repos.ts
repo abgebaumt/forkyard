@@ -19,7 +19,7 @@ const setTabs = (tabs: Tab[]) => queryClient.setQueryData(qk.tabs, tabs);
 
 /** System folder dialog, then open as a repository (the tab becomes active). */
 export async function openRepository(defaultPath?: string) {
-  const path = await core.pickFolder({ title: t("actions.repos.open"), defaultPath });
+  const path = await core.pickFolder({ title: t("ui.openRepository"), defaultPath });
   if (!path) return null;
   return openRepositoryAt(path);
 }
@@ -30,7 +30,7 @@ export async function openRepository(defaultPath?: string) {
  */
 export async function openRepositoryAt(path: string, options: { quiet?: ErrorCode[] } = {}): Promise<ActionResult<OpenedRepo>> {
   const open = (addToProfile: boolean) =>
-    runAction(t("actions.repos.open"), () => core.repoOpen({ path, addToProfile }), {
+    runAction(t("ui.openRepository"), () => core.repoOpen({ path, addToProfile }), {
       busyKey: busyKeys.openRepo,
       quiet: [...(options.quiet ?? []), "repo_other_profile"],
     });
@@ -52,7 +52,7 @@ export async function openRepositoryAt(path: string, options: { quiet?: ErrorCod
 
 /** New tab with the repository manager. */
 export async function newTab() {
-  const result = await runAction(t("actions.repos.newTab"), () => core.tabOpen({ repoId: null }));
+  const result = await runAction(t("ui.tabs.new"), () => core.tabOpen({ repoId: null }));
   if (result.ok) setTabs(result.value);
   return result;
 }
@@ -112,7 +112,7 @@ export async function closeTab(tabId: Id) {
         },
         {
           key: "discard",
-          label: t("actions.repos.unsaved.discard"),
+          label: t("ui.dontSave"),
           description: t("actions.repos.unsaved.discardDescription"),
           danger: true,
         },
@@ -133,7 +133,7 @@ export async function closeTab(tabId: Id) {
   }
   // A shell that was worked in ends with the tab: ask first.
   if (!(await confirmCloseTerminal(tabId, tabTitle(tabId)))) return null;
-  const result = await runAction(t("actions.repos.closeTab"), () => core.tabClose({ tabId }));
+  const result = await runAction(t("ui.closeTab"), () => core.tabClose({ tabId }));
   if (result.ok) {
     setTabs(result.value);
     useAppStore.getState().dropTabView(tabId);
@@ -172,10 +172,10 @@ export async function forgetRepo(repo: Pick<Repo, "id" | "name" | "alias" | "pat
   const ok = await confirm({
     title: t("actions.repos.forget.title", { name: repo.alias ?? repo.name }),
     body: t("actions.repos.forget.body", { path: repo.path }),
-    confirmLabel: t("actions.repos.forget.action"),
+    confirmLabel: t("ui.removeFromList"),
   });
   if (!ok) return null;
-  return runAction(t("actions.repos.forget.label"), () => core.repoForget({ repoId: repo.id }));
+  return runAction(t("ui.remove"), () => core.repoForget({ repoId: repo.id }));
 }
 
 export const ZOOM_MIN = 0.8;
@@ -187,7 +187,7 @@ export async function setZoom(zoom: number) {
   const value = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom)) * 100) / 100;
   const previous = queryClient.getQueryData<Settings>(qk.settings);
   if (previous) queryClient.setQueryData<Settings>(qk.settings, { ...previous, zoom: value });
-  const result = await runAction(t("actions.repos.zoom"), () => enqueueWrite(() => core.settingsSet({ patch: { zoom: value } })));
+  const result = await runAction(t("ui.zoom"), () => enqueueWrite(() => core.settingsSet({ patch: { zoom: value } })));
   if (result.ok) queryClient.setQueryData(qk.settings, result.value);
   else if (previous) queryClient.setQueryData(qk.settings, previous);
   return result;

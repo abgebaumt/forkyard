@@ -75,9 +75,9 @@ export async function untrackPattern(repoId: Id, pattern: string): Promise<Actio
 
 /** Fetches the contents behind the LFS pointers of the checked-out state. Job in the status bar, cancellable. */
 export async function pullLfs(repoId: Id, jobId: string = newJobId()) {
-  return runAction(t("actions.lfs.pull.label"), () => core.lfsPull({ repoId, jobId }), {
+  return runAction(t("ui.fetchLfsFiles"), () => core.lfsPull({ repoId, jobId }), {
     busyKey: lfsBusyKey(repoId, "pull"),
-    job: { id: jobId, title: t("actions.lfs.pull.label"), repoId },
+    job: { id: jobId, title: t("ui.fetchLfsFiles"), repoId },
     success: t("actions.lfs.pull.done"),
   });
 }
@@ -87,7 +87,7 @@ export async function pruneLfs(repoId: Id) {
   const ok = await confirm({
     title: t("actions.lfs.prune.title"),
     body: t("actions.lfs.prune.body"),
-    confirmLabel: t("actions.lfs.prune.action"),
+    confirmLabel: t("ui.cleanUp"),
   });
   if (!ok) return null;
   return runAction(t("actions.lfs.prune.label"), () => core.lfsPrune({ repoId }), {

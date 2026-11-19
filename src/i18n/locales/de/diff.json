@@ -3,21 +3,7 @@
   "after": "Nachher",
   "size": "Größe",
   "loading": "Diff lädt",
-  "undo": "Rückgängig",
-  "saveSetting": "Einstellung speichern",
-  "mode": {
-    "hunks": "Hunks",
-    "inline": "Ganze Datei",
-    "split": "Nebeneinander"
-  },
-  "patch": {
-    "stage": "Stagen",
-    "unstage": "Zurücknehmen",
-    "discard": "Verwerfen"
-  },
   "source": {
-    "unstaged": "Nicht gestaged",
-    "staged": "Gestaged",
     "commit": "Commit {{sha}}",
     "startTo": "Anfang … {{to}}",
     "startToWorktree": "Anfang … Arbeitsverzeichnis",
@@ -33,12 +19,8 @@
     "prevFile": "Vorige Datei",
     "nextFile": "Nächste Datei",
     "filePosition": "Datei {{index}} von {{total}}",
-    "history": "Historie der Datei",
-    "blame": "Blame",
-    "edit": "Datei bearbeiten",
     "externalDiff": "Im externen Diff-Tool öffnen",
     "close": "Diff schließen",
-    "toolbar": "Diff-Ansicht",
     "mode": "Darstellung",
     "switchChange": "Change wechseln",
     "prevChange": "Voriger Change",
@@ -46,7 +28,6 @@
     "changePosition": "Change {{index}} von {{total}}",
     "unfold": "Unveränderte Bereiche ausklappen",
     "fold": "Unveränderte Bereiche einklappen",
-    "wrap": "Lange Zeilen umbrechen",
     "ignoreWhitespaceSplit": "Leerraum ignorieren – wirkt nur in „Hunks“ und „Ganze Datei“",
     "ignoreWhitespace": "Leerraum-Änderungen ignorieren"
   },
@@ -57,7 +38,6 @@
   },
   "conflict": {
     "title": "Diese Datei steht im Konflikt",
-    "resolve": "Konflikt lösen",
     "body": "Der Diff zeigt die Datei mit den Konfliktmarkern. Stagen geht erst, wenn der Konflikt gelöst ist."
   },
   "whitespace": {
@@ -69,7 +49,6 @@
     "renamedBody": "Der Inhalt ist gleich geblieben.",
     "whitespaceTitle": "Nur Leerraum geändert",
     "whitespaceBody": "Solange Leerraum ignoriert wird, bleibt von dieser Änderung nichts übrig.",
-    "emptyTitle": "Leere Datei",
     "emptyBody": "Die Datei ist neu und hat noch keinen Inhalt.",
     "emptyDeletedTitle": "Leere Datei gelöscht",
     "emptyDeletedBody": "Die Datei hatte keinen Inhalt.",
@@ -98,8 +77,6 @@
     "old": "{{label}} (alt)"
   },
   "line": {
-    "added": "hinzugefügt",
-    "removed": "entfernt",
     "noNewline": "Kein Zeilenumbruch am Dateiende"
   },
   "hunk": {
@@ -120,7 +97,6 @@
   },
   "copy": {
     "done": "In die Zwischenablage kopiert",
-    "failed": "Kopieren fehlgeschlagen",
     "failedBody": "Die Zwischenablage ließ sich nicht beschreiben."
   },
   "selection": {
@@ -132,14 +108,12 @@
     "discard_one": "{{count}} Zeile verwerfen",
     "discard_other": "{{count}} Zeilen verwerfen",
     "unstage_one": "{{count}} Zeile zurücknehmen",
-    "unstage_other": "{{count}} Zeilen zurücknehmen",
-    "clear": "Auswahl aufheben"
+    "unstage_other": "{{count}} Zeilen zurücknehmen"
   },
   "menu": {
     "selectLine": "Zeile auswählen",
     "deselectLine": "Zeile abwählen",
     "selectAll": "Alle geänderten Zeilen auswählen",
-    "copyLine": "Zeile kopieren",
     "copyHunk": "Hunk als Patch-Text kopieren"
   },
   "split": {
@@ -157,7 +131,6 @@
     "oldAlt": "{{name}}, alte Fassung",
     "newAlt": "{{name}}, neue Fassung",
     "modes": {
-      "side": "Nebeneinander",
       "swipe": "Wischen",
       "onion": "Überblenden",
       "difference": "Differenz"
@@ -201,9 +174,7 @@
   "error": {
     "goneTitle": "Die Datei ist nicht mehr da",
     "goneBody": "<path>{{path}}</path> gibt es an dieser Stelle nicht (mehr) – vielleicht wurde sie gelöscht, umbenannt oder inzwischen committet.",
-    "title": "Der Diff ließ sich nicht laden",
-    "retry": "Erneut versuchen",
-    "backToGraph": "Zurück zum Graphen"
+    "title": "Der Diff ließ sich nicht laden"
   },
   "whyLine": {
     "noLine": "diese Zeile hat keine Zeilennummer",

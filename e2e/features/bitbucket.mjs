@@ -395,7 +395,7 @@ scenario("connect a Bitbucket account in the dialog with account e-mail and API 
     assertEqual(await token.attr("type"), "password", "token field is a password field");
     await app.type(token, mock.token);
     const before = mock.requests.length;
-    await clickButton(app, str("hosts.connect.submit"), { within: CONNECT_DIALOG });
+    await clickButton(app, str("ui.connect"), { within: CONNECT_DIALOG });
     await app.waitFor(async () => !(await app.$(CONNECT)), 20_000, { message: "dialog closes after connecting" });
     t.step("connected");
 
@@ -458,7 +458,7 @@ scenario("connect dialog: missing or invalid e-mail and a rejected token create 
 
     // No e-mail: the field says so, nothing goes out.
     await app.type(`${CONNECT} input[name="token"]`, mock.token);
-    await clickButton(app, str("hosts.connect.submit"), { within: CONNECT_DIALOG });
+    await clickButton(app, str("ui.connect"), { within: CONNECT_DIALOG });
     await app.waitFor(async () => (await text(app, CONNECT)).includes(str("actions.hosts.url.username")), 5_000, {
       message: "e-mail required",
     });
@@ -467,7 +467,7 @@ scenario("connect dialog: missing or invalid e-mail and a rejected token create 
 
     // A colon would break Basic auth.
     await app.type(`${CONNECT} input[name="username"]`, "lena:hartmann");
-    await clickButton(app, str("hosts.connect.submit"), { within: CONNECT_DIALOG });
+    await clickButton(app, str("ui.connect"), { within: CONNECT_DIALOG });
     await app.waitFor(async () => (await text(app, CONNECT)).includes(str("actions.hosts.url.usernameInvalid")), 5_000, {
       message: "colon refused",
     });
@@ -481,7 +481,7 @@ scenario("connect dialog: missing or invalid e-mail and a rejected token create 
     await app.type(`${CONNECT} input[name="username"]`, USER);
     const wrong = "ATATT3xFfGF0FalschesToken0000wxyz";
     await app.type(`${CONNECT} input[name="token"]`, wrong);
-    await clickButton(app, str("hosts.connect.submit"), { within: CONNECT_DIALOG });
+    await clickButton(app, str("ui.connect"), { within: CONNECT_DIALOG });
     const error = await app.waitFor(`${CONNECT} [data-connect-error]`, 20_000);
     assertEqual(await error.attr("data-connect-error"), "auth", "error kind");
     const probe = mock.requests.find((entry) => entry.path === "/2.0/user");
@@ -555,7 +555,7 @@ scenario(
       assert(!(await app.$(`${CONNECT} input[name="username"]`)), "replacing keeps the e-mail (no field)");
       await app.type(`${CONNECT} input[name="token"]`, mock.token);
       const before = mock.requests.length;
-      await clickButton(app, str("hosts.connect.replace"), { within: CONNECT_DIALOG });
+      await clickButton(app, str("ui.replaceToken"), { within: CONNECT_DIALOG });
       await app.waitFor(async () => !(await app.$(CONNECT)), 20_000, { message: "replace dialog closes" });
       await app.waitFor(
         async () => (await (await app.$(`${HOSTS} [data-account][data-kind="bitbucket"]`))?.attr("data-state")) === "ok",
@@ -650,7 +650,7 @@ scenario("pull requests: sidebar list, view with checks and approval, comment re
     // Write a comment.
     const comment = "Danke – ich teste das morgen auf dem Messrechner.";
     await app.type(`${PR_VIEW} textarea[name="comment"]`, comment);
-    await clickButton(app, str("pullRequest.view.commentSubmit"), { within: PR_VIEW });
+    await clickButton(app, str("ui.comment"), { within: PR_VIEW });
     await app.waitFor(() => mock.state.comments.length === 1, 20_000, { message: "the test server has the comment" });
     assertEqual(mock.state.comments[0].content.raw, comment, "comment text as Bitbucket's content.raw");
     const posted = mock.requests.find((entry) => entry.method === "POST" && entry.path.endsWith("/pullrequests/1/comments"));
@@ -736,7 +736,7 @@ scenario("decline a pull request (Bitbucket cannot reopen it)", "main", async (t
     );
     await eventually(app, () => phase(app), "closed", "view shows closed");
     await app.settle();
-    assert(!(await button(app, str("pullRequest.view.reopen"), { within: PR_VIEW })), "no Reopen on Bitbucket (prReopen: false)");
+    assert(!(await button(app, str("ui.reopen"), { within: PR_VIEW })), "no Reopen on Bitbucket (prReopen: false)");
     assert(!(await button(app, str("pullRequest.view.closeButton"), { within: PR_VIEW })), "no Close any more");
     await t.shot("decline-pull-request");
     await t.noConsoleErrors(app);
@@ -752,7 +752,7 @@ scenario("check out the branch of a pull request", "main", async (t) => {
     assertEqual(repo.git("branch", "--list", "feature/login"), "", "no local branch before");
     await openPr(app, tabId, 7);
     assertIncludes(await text(app, `${PR_VIEW} [data-pr-head]`), "feature/login", "source branch feature/login");
-    await clickButton(app, str("pullRequest.view.files.checkout"), { within: PR_VIEW });
+    await clickButton(app, str("ui.checkOutBranch"), { within: PR_VIEW });
     await app.waitFor(() => repo.git("branch", "--show-current") === "feature/login", 30_000, { message: "feature/login checked out" });
     assertEqual(repo.git("rev-parse", "HEAD"), repo.loginHead, "HEAD = the branch on the remote");
     assertEqual(repo.git("rev-parse", "--abbrev-ref", "feature/login@{upstream}"), "origin/feature/login", "tracks origin/feature/login");
@@ -841,7 +841,7 @@ scenario("pull requests: fork cannot be checked out, conflicts block merging, du
     // #8 comes from a fork: no branch Bitbucket offers for it.
     await openPr(app, tabId, 8);
     assertIncludes(await text(app, `${PR_VIEW} [data-pr-head]`), str("pullRequest.view.fromFork"), "marked as fork");
-    const checkout = await button(app, str("pullRequest.view.files.checkout"), { within: PR_VIEW });
+    const checkout = await button(app, str("ui.checkOutBranch"), { within: PR_VIEW });
     assert(checkout, "checkout button");
     assertEqual(await checkout.prop("disabled"), true, "checkout disabled for a fork");
     assertIncludes(await checkout.attr("title"), "Bitbucket offers no branch", "with the reason");
@@ -894,11 +894,11 @@ scenario("pull requests: fork cannot be checked out, conflicts block merging, du
     await setCenter(app, tabId, { kind: "pr_create", source: "schon-da" });
     await app.waitFor('[data-screen="pr-create"] input[name="title"]', 30_000);
     await app.waitFor(
-      async () => (await button(app, str("pullRequest.create.title"), { within: '[data-screen="pr-create"] footer' })) !== null,
+      async () => (await button(app, str("ui.createPullRequest"), { within: '[data-screen="pr-create"] footer' })) !== null,
       15_000,
       { message: "create button" },
     );
-    await clickButton(app, str("pullRequest.create.title"), { within: '[data-screen="pr-create"] footer' });
+    await clickButton(app, str("ui.createPullRequest"), { within: '[data-screen="pr-create"] footer' });
     const failure = await app.waitFor('[data-screen="pr-create"] [data-pr-error]', 20_000);
     const reason = await inner(app, failure);
     assertMatch(reason, /already an open pull request/i, "duplicate explained at the form");
@@ -973,7 +973,7 @@ scenario("issues: list, read an issue with comments, closed filter, search and a
     t.step("branch 2-problem-2 created");
 
     // Closed.
-    await clickButton(app, str("issues.state.closed"), { within: ISSUES, role: "radio" });
+    await clickButton(app, str("ui.closed"), { within: ISSUES, role: "radio" });
     await eventually(app, () => issueRows(app), [12, 8, 4], "closed issues");
     assertIncludes(
       mock.requests.filter((entry) => entry.path.endsWith("/issues")).at(-1)?.query.q ?? "",
@@ -1028,7 +1028,7 @@ scenario("issues: quotes in the search stay text, 'assigned to me' and empty res
     await eventually(app, () => issueRows(app), [2], "assigned to me");
 
     // Closed + mine: nothing → empty state with reset.
-    await clickButton(app, str("issues.state.closed"), { within: ISSUES, role: "radio" });
+    await clickButton(app, str("ui.closed"), { within: ISSUES, role: "radio" });
     await app.waitFor(`${ISSUES}[data-state="empty"]`, 15_000);
     assertIncludes(await text(app, ISSUES), str("issues.view.noResults"), "no results");
     await t.shot("issues-empty-filter");

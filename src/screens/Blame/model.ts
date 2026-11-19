@@ -217,7 +217,7 @@ class BlameMarker extends GutterMarker {
       avatar.textContent = block.uncommitted ? "–" : initials(block.authorName);
       const summary = document.createElement("span");
       summary.className = "gc-blame-summary";
-      summary.textContent = block.uncommitted ? t("blame.uncommitted") : block.summary || t("blame.noMessage");
+      summary.textContent = block.uncommitted ? t("blame.uncommitted") : block.summary || t("ui.noMessage");
       cell.append(avatar, summary);
       if (!block.uncommitted) {
         const date = document.createElement("span");

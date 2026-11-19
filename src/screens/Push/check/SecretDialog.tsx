@@ -38,7 +38,7 @@ function SecretDialog({ repoId, found, onDone }: { repoId: Id; found: SecretsFou
             {t("pushCheck.secrets.back")}
           </Button>
           <Button variant="danger" data-action="secrets-push" onClick={() => onDone(acceptedIds(found.findings))}>
-            {t("pushCheck.secrets.pushAnyway")}
+            {t("ui.pushAnyway")}
           </Button>
         </>
       }

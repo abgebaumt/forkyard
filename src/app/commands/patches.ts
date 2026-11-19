@@ -47,7 +47,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "patch.apply",
-    title: t("commands.patch.apply.title"),
+    title: t("ui.applyPatch"),
     group: "Commit",
     keywords: kw("commands.patch.apply.keywords"),
     when: hasRepo,

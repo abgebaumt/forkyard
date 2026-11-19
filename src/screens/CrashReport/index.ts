@@ -50,7 +50,7 @@ async function handleReport(report: CrashReportSummary, count: number, index: nu
       options: [
         { key: "view", label: t("crash.dialog.view"), description: t("crash.dialog.viewHint") },
         { key: "save", label: t("crash.dialog.save"), description: t("crash.dialog.saveHint") },
-        { key: "discard", label: t("crash.dialog.discard"), description: t("crash.dialog.discardHint"), danger: true },
+        { key: "discard", label: t("ui.discard"), description: t("crash.dialog.discardHint"), danger: true },
       ],
     });
     if (choice === null) return "closed";

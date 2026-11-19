@@ -54,24 +54,20 @@ function store(key: string, value: string) {
 function prMenu(repoId: Id, tabId: Id, pr: PrSummary): MenuEntry[] {
   return [
     menuItem(t("pullRequest.view.section.open"), GitPullRequestArrow, () => openPr(tabId, pr.number), { shortcut: "Enter" }),
-    menuItem(t("pullRequest.view.openInBrowser"), ExternalLink, () => void openInBrowser(pr.webUrl, t("pullRequest.view.page")), {
-      blocked: pr.webUrl ? null : t("pullRequest.view.section.noAddress"),
+    menuItem(t("ui.openInBrowser"), ExternalLink, () => void openInBrowser(pr.webUrl, t("ui.page")), {
+      blocked: pr.webUrl ? null : t("ui.noAddressKnown"),
     }),
     MENU_SEPARATOR,
-    menuItem(t("pullRequest.view.files.checkout"), GitBranch, () => void checkoutPr(repoId, pr), {
+    menuItem(t("ui.checkOutBranch"), GitBranch, () => void checkoutPr(repoId, pr), {
       hint: pr.sourceBranch.length > 28 ? undefined : pr.sourceBranch,
     }),
     MENU_SEPARATOR,
-    menuItem(
-      t("pullRequest.view.section.copyNumber"),
-      Copy,
-      () => void copyText(`#${pr.number}`, t("pullRequest.view.section.numberWhat")),
-    ),
+    menuItem(t("ui.copyNumber"), Copy, () => void copyText(`#${pr.number}`, t("pullRequest.view.section.numberWhat"))),
     menuItem(
       t("pullRequest.view.section.copyAddress"),
       Copy,
       () => void copyText(pr.webUrl ?? "", t("pullRequest.view.section.addressWhat")),
-      { blocked: pr.webUrl ? null : t("pullRequest.view.section.noAddress") },
+      { blocked: pr.webUrl ? null : t("ui.noAddressKnown") },
     ),
   ];
 }
@@ -101,8 +97,7 @@ function PrRow({ pr, state, query, current, tabId }: { pr: PrSummary; state: Sid
       label={label}
       labelContent={
         <>
-          <span className="text-text-muted tabular-nums">#{pr.number}</span>{" "}
-          <Marked text={pr.title || t("pullRequest.view.untitled")} query={query} />
+          <span className="text-text-muted tabular-nums">#{pr.number}</span> <Marked text={pr.title || t("ui.untitled")} query={query} />
         </>
       }
       tip={
@@ -262,7 +257,7 @@ export function PullRequestsSection({ repoId, tabId, query }: PullRequestsSectio
             icon={<Plug className="size-3.5" aria-hidden />}
             onClick={() => void openConnectDialog({ kind: repo.kind ?? undefined })}
           >
-            {t("pullRequest.view.section.connect")}
+            {t("ui.connect")}
           </Button>
         }
       >
@@ -279,11 +274,11 @@ export function PullRequestsSection({ repoId, tabId, query }: PullRequestsSectio
         <p className="selectable break-words text-text-muted">{info.text}</p>
         <div className="flex flex-wrap gap-1">
           <Button size="sm" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={refresh}>
-            {t("pullRequest.view.retry")}
+            {t("ui.retry")}
           </Button>
           {info.kind === "auth" || info.kind === "not_connected" ? (
             <Button size="sm" variant="ghost" onClick={openIntegrations}>
-              {t("pullRequest.view.section.integrations")}
+              {t("ui.integrations")}
             </Button>
           ) : null}
         </div>
@@ -309,7 +304,7 @@ export function PullRequestsSection({ repoId, tabId, query }: PullRequestsSectio
             action={
               all.length === 0 ? (
                 <Button size="sm" variant="ghost" onClick={create}>
-                  {t("pullRequest.view.section.create")}
+                  {t("ui.create")}
                 </Button>
               ) : undefined
             }
@@ -322,16 +317,16 @@ export function PullRequestsSection({ repoId, tabId, query }: PullRequestsSectio
   }
 
   const sectionMenu: MenuEntry[] = [
-    menuItem(open ? t("pullRequest.view.section.collapse") : t("pullRequest.view.section.expand"), null, toggle, {
+    menuItem(open ? t("ui.collapse") : t("ui.expand"), null, toggle, {
       blocked: filtering ? t("pullRequest.view.section.alwaysOpen") : null,
     }),
     MENU_SEPARATOR,
     menuItem(t("pullRequest.view.section.createMenu"), GitPullRequestCreate, create, {
-      blocked: connected ? null : t("pullRequest.view.section.noAccountShort"),
+      blocked: connected ? null : t("ui.noAccountConnected"),
     }),
-    menuItem(t("pullRequest.view.refresh"), RefreshCw, refresh),
-    menuItem(t("pullRequest.view.section.openAtHost"), ExternalLink, () => void openInBrowser(repo.webUrl, t("pullRequest.view.page")), {
-      blocked: repo.webUrl ? null : t("pullRequest.view.section.noAddress"),
+    menuItem(t("ui.refresh"), RefreshCw, refresh),
+    menuItem(t("pullRequest.view.section.openAtHost"), ExternalLink, () => void openInBrowser(repo.webUrl, t("ui.page")), {
+      blocked: repo.webUrl ? null : t("ui.noAddressKnown"),
     }),
     MENU_SEPARATOR,
     menuItem(t("pullRequest.view.section.integrationsMenu"), Settings2, openIntegrations),
@@ -341,7 +336,7 @@ export function PullRequestsSection({ repoId, tabId, query }: PullRequestsSectio
   return (
     <SideSection
       id="pull-requests"
-      title={t("pullRequest.view.section.title")}
+      title={t("ui.pullRequests")}
       icon={<GitPullRequestArrow aria-hidden />}
       count={
         !connected || prs.isPending || (prs.isError && !prs.data)
@@ -352,7 +347,7 @@ export function PullRequestsSection({ repoId, tabId, query }: PullRequestsSectio
       }
       open={open}
       onToggle={toggle}
-      listLabel={t("pullRequest.view.section.title")}
+      listLabel={t("ui.pullRequests")}
       items={placeholder ? [] : items}
       itemId={(pr) => String(pr.number)}
       itemText={(pr) => pr.title}
@@ -374,7 +369,7 @@ export function PullRequestsSection({ repoId, tabId, query }: PullRequestsSectio
         notice && prs.hasNextPage && !filtering ? (
           <div className="px-2 py-1">
             <Button size="sm" variant="ghost" loading={prs.isFetchingNextPage} onClick={() => void prs.fetchNextPage()}>
-              {t("pullRequest.view.section.loadMore")}
+              {t("ui.loadMore")}
             </Button>
           </div>
         ) : undefined
@@ -386,14 +381,14 @@ export function PullRequestsSection({ repoId, tabId, query }: PullRequestsSectio
             <IconButton
               size="sm"
               data-action="refresh"
-              label={t("pullRequest.view.section.refresh")}
+              label={t("ui.refreshPullRequests")}
               icon={<RefreshCw className={cn("size-3.5", prs.isFetching && "animate-spin")} aria-hidden />}
               onClick={refresh}
             />
             <IconButton
               size="sm"
               data-action="add"
-              label={t("pullRequest.view.section.createLabel")}
+              label={t("ui.createPullRequest")}
               icon={<Plus className="size-3.5" aria-hidden />}
               onClick={create}
             />

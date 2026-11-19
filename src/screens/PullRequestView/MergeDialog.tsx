@@ -70,7 +70,7 @@ function MergeDialog({
       footer={
         <>
           <Button data-autofocus disabled={busy} onClick={() => onDone(null)}>
-            {t("pullRequest.view.merge.cancel")}
+            {t("ui.cancel")}
           </Button>
           <Button variant="primary" loading={busy} icon={<GitMerge className="size-icon" aria-hidden />} onClick={() => void submit()}>
             {t("pullRequest.view.merge.submit")}

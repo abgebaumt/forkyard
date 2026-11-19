@@ -228,7 +228,7 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
     setChecking(true);
     setCheckResult(null);
     const result = await runAction(
-      t("ai.setup.provider.checkAction"),
+      t("ui.checkTheProvider"),
       () => core.aiModels({ jobId: newJobId(), provider: chosen, baseUrl: current.baseUrl, key: typedKey, model: null }),
       { quiet: CHECK_QUIET },
     );
@@ -364,7 +364,7 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
             <div data-ai-setup-provider className="w-72">
               <Select<string>
                 id="ai-setup-provider"
-                label={t("ai.setup.provider.title")}
+                label={t("ui.provider")}
                 value={provider ?? ""}
                 placeholder={t("ai.settings.provider.placeholder")}
                 options={providerOptions}
@@ -377,7 +377,7 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
             </div>
             {provider && usesBaseUrl(provider) ? (
               <TextField
-                label={t("ai.settings.baseUrl.title")}
+                label={t("ui.address")}
                 hint={provider === "openai_compatible" ? t("ai.settings.baseUrl.description") : t("ai.settings.baseUrl.descriptionLocal")}
                 mono
                 value={draft.baseUrl ?? ""}
@@ -405,7 +405,7 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
             {provider ? (
               <div className="flex flex-wrap items-center gap-2">
                 <Button data-ai-setup-check loading={checking} onClick={() => void check(draft, keyDraft.trim() || null)}>
-                  {t("ai.setup.provider.check")}
+                  {t("ui.check")}
                 </Button>
                 {checkResult ? (
                   <p
@@ -425,7 +425,7 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
           <div className="flex flex-col gap-3">
             {provider && isCli(provider) ? (
               <TextField
-                label={t("ai.setup.model.title")}
+                label={t("ui.model")}
                 hint={t("ai.setup.model.cliHint")}
                 mono
                 placeholder={t("ai.setup.model.cliDefault", { name: nameOf(provider) })}
@@ -436,18 +436,18 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
               <div data-ai-setup-model className="w-72">
                 <Select<string>
                   id="ai-setup-model"
-                  label={t("ai.setup.model.title")}
+                  label={t("ui.model")}
                   value={draft.model ?? ""}
-                  placeholder={t("ai.setup.model.placeholder")}
+                  placeholder={t("ui.modelId")}
                   options={draft.models.map((model) => ({ value: model, label: model }))}
                   onValueChange={(value) => setDraft({ ...draft, model: value })}
                 />
               </div>
             ) : (
               <TextField
-                label={t("ai.setup.model.title")}
+                label={t("ui.model")}
                 mono
-                placeholder={t("ai.setup.model.placeholder")}
+                placeholder={t("ui.modelId")}
                 value={draft.model ?? ""}
                 onChange={(event) => setDraft({ ...draft, model: event.target.value || null })}
               />
@@ -481,7 +481,7 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
             {repoId ? (
               <div>
                 <Button variant="ghost" data-ai-setup-what-is-sent onClick={() => onDone({ kind: "whatIsSent", repoId })}>
-                  {t("ai.setup.done.whatIsSent")}
+                  {t("ui.whatIsSent")}
                 </Button>
               </div>
             ) : (
@@ -500,7 +500,7 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
         return (
           <>
             <Button data-autofocus data-ai-setup-cancel onClick={() => onDone(null)}>
-              {t("ai.setup.cancel")}
+              {t("ui.cancel")}
             </Button>
           </>
         );
@@ -508,7 +508,7 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
         return (
           <>
             <Button data-autofocus data-ai-setup-cancel onClick={() => onDone(null)}>
-              {t("ai.setup.cancel")}
+              {t("ui.cancel")}
             </Button>
             <Button data-ai-setup-other onClick={otherChoice}>
               {t("ai.setup.other")}
@@ -520,7 +520,7 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
               loading={busy || checking}
               onClick={() => void continueWithPick()}
             >
-              {pick && action === "turnOn" ? t("ai.setup.turnOnWith", { name: nameOf(pick.provider) }) : t("ai.setup.continue")}
+              {pick && action === "turnOn" ? t("ai.setup.turnOnWith", { name: nameOf(pick.provider) }) : t("ui.continue")}
             </Button>
           </>
         );
@@ -531,7 +531,7 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
               {t("ai.setup.back")}
             </Button>
             <Button variant="primary" data-ai-setup-primary disabled={!canLeaveProvider(draft)} onClick={() => setStep("model")}>
-              {t("ai.setup.continue")}
+              {t("ui.continue")}
             </Button>
           </>
         );
@@ -542,7 +542,7 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
               {t("ai.setup.back")}
             </Button>
             <Button variant="primary" data-ai-setup-primary disabled={!canLeaveModel(draft)} onClick={() => setStep("features")}>
-              {t("ai.setup.continue")}
+              {t("ui.continue")}
             </Button>
           </>
         );
@@ -560,7 +560,7 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
       case "done":
         return (
           <Button variant="primary" data-ai-setup-close onClick={close}>
-            {t("ai.setup.close")}
+            {t("ui.close")}
           </Button>
         );
     }
@@ -570,7 +570,7 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
     <Dialog
       open
       size="lg"
-      title={t("ai.setup.title")}
+      title={t("ui.setUpAi")}
       description={t("ai.setup.intro")}
       onOpenChange={(open) => {
         if (!open) close();

@@ -98,7 +98,7 @@ function PlanFailure({ session, phase }: { session: PlanSession; phase: Extract<
           <>
             {/* A new request: `confirmSend` shows the `limit` trigger, the click there confirms this text. */}
             <Button size="sm" onClick={session.retry}>
-              {t("ai.state.limitSend")}
+              {t("ui.sendThisTime")}
             </Button>
             <Button size="sm" variant="ghost" onClick={session.changeLimit}>
               {t("ai.state.limitChange")}
@@ -107,7 +107,7 @@ function PlanFailure({ session, phase }: { session: PlanSession; phase: Extract<
         ) : null}
         {view.kind === "unavailable" ? (
           <Button size="sm" onClick={session.retry}>
-            {t("ai.state.retry")}
+            {t("ui.retry")}
           </Button>
         ) : null}
         {view.kind === "invalid" ? (
@@ -295,7 +295,7 @@ function StepEditor({ session, phase }: { session: PlanSession; phase: Extract<P
         </span>
       </span>
       <button type="submit" className="sr-only">
-        {t("palette.plan.save")}
+        {t("ui.apply")}
       </button>
     </form>
   );
@@ -314,7 +314,7 @@ function FieldInput({
   if (field.kind === "boolean") return <Checkbox label={label} checked={value === true} onCheckedChange={onChange} />;
   if (field.kind === "choice" || field.kind === "optional_choice") {
     const options = [
-      ...(field.kind === "optional_choice" ? [{ value: "", label: t("palette.plan.default") }] : []),
+      ...(field.kind === "optional_choice" ? [{ value: "", label: t("ui.default") }] : []),
       ...field.choices.map((choice) => ({ value: choice, label: MODE_WORDS[choice] ?? choice })),
     ];
     return (

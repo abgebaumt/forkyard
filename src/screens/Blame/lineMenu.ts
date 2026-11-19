@@ -32,7 +32,7 @@ export function blameLineMenu(input: BlameLineMenuInput): MenuEntry[] {
       ? { label: t("blame.menu.previousVersion"), shortcut: "P", onSelect: () => input.previous() }
       : { label: t("blame.menu.previousVersion"), shortcut: "P", disabled: true, hint: "reason" in parent ? parent.reason : undefined };
   return [
-    { label: t("blame.menu.copyLine"), onSelect: () => input.copy(input.text) },
+    { label: t("ui.copyLine"), onSelect: () => input.copy(input.text) },
     show,
     previous,
     { type: "separator" },

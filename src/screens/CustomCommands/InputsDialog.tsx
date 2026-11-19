@@ -26,7 +26,7 @@ function InputsDialog({ command, onDone }: { command: CustomCommandDef; onDone: 
       }}
       footer={
         <>
-          <Button onClick={() => onDone(null)}>{t("customCommands.inputs.cancel")}</Button>
+          <Button onClick={() => onDone(null)}>{t("ui.cancel")}</Button>
           <Button variant="primary" type="submit" form="custom-command-inputs">
             {t("customCommands.inputs.run")}
           </Button>

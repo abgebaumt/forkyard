@@ -73,7 +73,7 @@ export function IssueDetailsPane({ repoId, tabId, number, known, onBack }: Issue
             />
           ) : null}
           <h3 className="selectable m-0 min-w-0 flex-1 text-lg font-semibold break-words text-text" data-issue-title>
-            {issue ? issue.title || t("issues.untitled") : `Issue #${number}`}{" "}
+            {issue ? issue.title || t("ui.untitled") : `Issue #${number}`}{" "}
             <span className="font-normal text-text-muted tabular-nums">{issue?.key ?? `#${number}`}</span>
           </h3>
         </div>
@@ -86,8 +86,8 @@ export function IssueDetailsPane({ repoId, tabId, number, known, onBack }: Issue
                   {t("issues.details.by")} <Person user={issue.author} />
                 </span>
               ) : null}
-              <When value={details?.createdAt ?? null} prefix={t("issues.details.created")} />
-              <When value={issue.updatedAt} prefix={t("issues.details.changed")} />
+              <When value={details?.createdAt ?? null} prefix={t("ui.created")} />
+              <When value={issue.updatedAt} prefix={t("ui.changed")} />
               {issue.commentCount ? (
                 <span className="inline-flex items-center gap-1 whitespace-nowrap">
                   <MessageSquare className="size-3.5" aria-hidden />
@@ -109,7 +109,7 @@ export function IssueDetailsPane({ repoId, tabId, number, known, onBack }: Issue
                 ) : null}
                 {issue.labels.length ? (
                   <div className="flex items-start gap-2">
-                    <dt className="w-24 shrink-0 text-text-muted">{t("issues.details.labels")}</dt>
+                    <dt className="w-24 shrink-0 text-text-muted">{t("ui.labels")}</dt>
                     <dd className="m-0 min-w-0">
                       <Labels labels={issue.labels} />
                     </dd>
@@ -138,7 +138,7 @@ export function IssueDetailsPane({ repoId, tabId, number, known, onBack }: Issue
                 disabled={!issue.webUrl}
                 onClick={() => void openIssueInBrowser(issue)}
               >
-                {t("issues.details.openInBrowser")}
+                {t("ui.openInBrowser")}
               </Button>
               <IconButton
                 size="sm"
@@ -171,27 +171,21 @@ export function IssueDetailsPane({ repoId, tabId, number, known, onBack }: Issue
         >
           {details ? (
             <>
-              <section aria-label={t("issues.details.description")} data-issue-body>
-                <SafeMarkdown
-                  source={details.body}
-                  origin={t("issues.details.descriptionOrigin")}
-                  empty={t("issues.details.noDescription")}
-                />
+              <section aria-label={t("ui.description")} data-issue-body>
+                <SafeMarkdown source={details.body} origin={t("issues.details.descriptionOrigin")} empty={t("ui.noDescription")} />
               </section>
-              <section aria-label={t("issues.details.comments")} className="mt-5" data-issue-comments>
+              <section aria-label={t("ui.comments")} className="mt-5" data-issue-comments>
                 <h4 className="m-0 mb-2 text-xs font-semibold tracking-wide text-text-muted uppercase">
-                  {details.comments.length
-                    ? t("issues.details.commentsCount", { count: details.comments.length })
-                    : t("issues.details.comments")}
+                  {details.comments.length ? t("issues.details.commentsCount", { count: details.comments.length }) : t("ui.comments")}
                 </h4>
                 {details.comments.length === 0 ? (
-                  <p className="text-sm text-text-muted">{t("issues.details.noComments")}</p>
+                  <p className="text-sm text-text-muted">{t("ui.noCommentsYet")}</p>
                 ) : (
                   <ol className="m-0 flex list-none flex-col gap-3 p-0">
                     {details.comments.map((comment) => (
                       <li key={comment.id} data-comment={comment.id} className="rounded-md border border-border bg-surface">
                         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-3 py-1.5 text-sm text-text-muted">
-                          {comment.author ? <Person user={comment.author} /> : <span>{t("issues.details.unknown")}</span>}
+                          {comment.author ? <Person user={comment.author} /> : <span>{t("ui.unknown")}</span>}
                           <When value={comment.createdAt} prefix="" />
                         </p>
                         <div className="px-3 py-2">

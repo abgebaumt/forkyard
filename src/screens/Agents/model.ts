@@ -28,9 +28,9 @@ const TONES: Record<AgentStatus, StatusTone> = {
 };
 
 const LABELS: Record<AgentStatus, string> = {
-  starting: t("agents.status.starting"),
+  starting: t("ui.starting"),
   running: t("agents.status.running"),
-  waiting: t("agents.status.waiting"),
+  waiting: t("ui.waitingForYou"),
   done: t("agents.status.done"),
   failed: t("agents.status.failed"),
   stopped: t("agents.status.stopped"),
@@ -85,7 +85,7 @@ export function testLabel(test: AgentTestResult | null): string | null {
 
 // --- Start dialog -------------------------------------------------------------------
 
-export const startLabel = (unattended: boolean): string => (unattended ? t("agents.start.startUnattended") : t("agents.start.start"));
+export const startLabel = (unattended: boolean): string => (unattended ? t("agents.start.startUnattended") : t("ui.start"));
 
 export interface UnattendedChoice {
   available: boolean;
@@ -270,4 +270,4 @@ export function cockpitKeyAction(key: string, shiftKey: boolean, rowId: Id | nul
 
 /** “Agents n” with the agents whose program runs; without any just “Agents”. */
 export const toolbarLabel = (running: number): string =>
-  running > 0 ? t("agents.toolbar.labelCount", { count: running }) : t("agents.toolbar.label");
+  running > 0 ? t("agents.toolbar.labelCount", { count: running }) : t("ui.agents");

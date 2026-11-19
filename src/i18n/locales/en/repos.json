@@ -1,10 +1,8 @@
 {
-  "title": "Repositories",
   "count_one": "{{count}} repository",
   "count_other": "{{count}} repositories",
   "countFiltered": "{{shown}} of {{total}}",
   "loading": "Loading repositories",
-  "retry": "Try again",
   "sections": {
     "favorites": "Favorites",
     "ungrouped": "No group",
@@ -15,7 +13,6 @@
     "clone": "Clone …",
     "init": "Create new …"
   },
-  "pickFolderTitle": "Open repository",
   "notice": {
     "close": "Dismiss notice",
     "notARepoTitle": "“{{name}}” is not a Git repository",
@@ -31,13 +28,11 @@
   },
   "listError": "The list couldn't be loaded",
   "noMatch": {
-    "title": "No match",
     "body": "No name, alias, path or group name contains “{{filter}}”."
   },
   "filter": {
     "label": "Filter repositories",
-    "placeholder": "Filter list",
-    "clear": "Clear filter"
+    "placeholder": "Filter list"
   },
   "grouping": {
     "label": "List arrangement",
@@ -59,11 +54,8 @@
     "relocate": "Choose new location …",
     "open": "Open",
     "openInTab": "Open in new tab",
-    "favoriteRemove": "Remove from favorites",
     "favoriteAdd": "Mark as favorite",
-    "aliasChange": "Change alias …",
     "aliasSet": "Set alias …",
-    "aliasRemove": "Remove alias",
     "groupChange": "Change group …",
     "groupAssign": "Assign group …",
     "groupLeave": "Remove from group “{{group}}”",
@@ -71,8 +63,7 @@
     "color": "Color",
     "noColor": "No color",
     "cleanup": "Clean up repository …",
-    "showInFileManager": "{{revealInFileManager}}",
-    "remove": "Remove from list"
+    "showInFileManager": "{{revealInFileManager}}"
   },
   "groupMenu": {
     "empty": "the group is empty",
@@ -100,16 +91,13 @@
   },
   "actions": {
     "favoriteSet": "Mark as favorite",
-    "favoriteRemove": "Remove from favorites",
     "colorChange": "Change color",
-    "aliasRemove": "Remove alias",
     "groupRemove": "Remove group",
     "maxChars": "At most {{count}} characters.",
     "aliasChangeTitle": "Change alias of “{{name}}”",
     "aliasSetTitle": "Set alias for “{{name}}”",
     "aliasLabel": "Alias",
     "aliasDescription": "The alias appears in the list and on the tab. The folder on disk keeps its name.",
-    "aliasSave": "Save alias",
     "groupTitle": "Group for “{{name}}”",
     "groupLabel": "Group",
     "groupExisting": "Existing: {{groups}}. A new name creates a new group.",
@@ -138,15 +126,12 @@
     "forgetHint": "Only the entry disappears."
   },
   "sync": {
-    "waiting": "waiting",
     "fetch": {
-      "title": "Fetch",
       "running": "fetching …",
       "dialogTitle": "Fetch group “{{group}}”",
       "description": "Fetch for {{repos}}. Only the state of the remotes is fetched – nothing changes locally."
     },
     "pull": {
-      "title": "Pull",
       "running": "pulling …",
       "dialogTitle": "Pull group “{{group}}”",
       "description": "Pull for {{repos}}, each with its checked-out branch and the repository's pull mode."
@@ -165,14 +150,12 @@
     "paused": "The pull is paused – continue or abort it in the repository's tab.",
     "fastForward": "Updated by fast-forward.",
     "updated": "Updated.",
-    "cancelled": "cancelled",
     "noRemote": "No remote set up – skipped.",
     "noUpstream": "The checked-out branch doesn't track a remote branch – skipped.",
     "dirty": "Uncommitted changes are in the way. Commit or stash them first, then pull.",
     "inProgress": "A merge, rebase, cherry-pick or revert is still in progress there.",
     "status": {
       "waiting": "Waiting",
-      "running": "Running",
       "done": "Done",
       "unchanged": "Unchanged",
       "attention": "Attention",
@@ -190,10 +173,8 @@
       "cancelled": "{{count}} cancelled"
     },
     "cancelling": "Cancelling …",
-    "cancel": "Cancel",
     "retry_one": "Retry {{count}} repository",
     "retry_other": "Retry {{count}} repositories",
-    "close": "Close",
     "listLabel": "Repositories in group {{group}}",
     "open": "Open",
     "progressLabel": "{{kind}} {{name}}"
@@ -202,7 +183,6 @@
     "heading": "README – {{name}}",
     "linkTitle": "Open link outside the app?",
     "linkBody": "The link comes from the README and opens in the system's default program:",
-    "linkOpen": "Open link",
     "loading": "Loading README",
     "empty": "The README is empty",
     "blockedImages_one": "{{count}} image not loaded – the preview fetches nothing from the network",
@@ -216,9 +196,6 @@
     "noneBody": "There is no README file in the root folder of this repository.",
     "imageRemote": "The preview doesn't load images from the network.",
     "imageLocal": "The preview doesn't show images from the repository.",
-    "imageAlt": "Image: {{alt}}",
-    "image": "Image",
-    "taskDone": "done",
-    "taskOpen": "open"
+    "imageAlt": "Image: {{alt}}"
   }
 }

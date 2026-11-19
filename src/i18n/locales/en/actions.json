@@ -1,13 +1,11 @@
 {
   "cli": {
-    "label": "Install command-line command",
     "managed": "The forkyard command comes with this installation.",
     "managedHint": "The package or installer has put it on the PATH already (deb/rpm: /usr/bin/forkyard, Windows: the program folder).",
     "installed": "Linked {{path}}.",
     "ready": "Open a new terminal and run “forkyard --help”.",
     "notOnPath": "Its folder is not on your PATH yet – add it, then open a new terminal."
   },
-  "undoLabel": "Undo",
   "ancestry": {
     "atLeastTwo": "select at least two commits",
     "containsMerge": "the selection contains a merge commit",
@@ -32,12 +30,8 @@
     },
     "startWithSummary": "{{name}} (“{{summary}}”)",
     "create": {
-      "title": "New branch",
       "startsAt": "The branch starts at {{start}}.",
       "startsAtHead": "The branch starts at the current commit.",
-      "name": "Name",
-      "placeholder": "feature/new-idea",
-      "action": "Create branch",
       "done": "Branch “{{name}}” created",
       "doneCheckedOut": "Branch “{{name}}” created and checked out"
     },
@@ -47,11 +41,9 @@
       "other": "Another action is still running in the repository. Try again in a moment."
     },
     "checkout": {
-      "action": "Checkout",
       "detached": {
         "title": "HEAD detached at {{sha}}",
-        "description": "No branch is checked out. New commits belong to no branch until you create one.",
-        "action": "Create branch here"
+        "description": "No branch is checked out. New commits belong to no branch until you create one."
       },
       "done": "“{{name}}” checked out",
       "follows": "Tracks {{upstream}}."
@@ -65,7 +57,6 @@
     },
     "rename": {
       "title": "Rename branch “{{name}}”",
-      "label": "New name",
       "unchanged": "The name is unchanged.",
       "action": "Rename",
       "done": "Branch is now called “{{name}}”"
@@ -92,7 +83,6 @@
       "bodyManyUnmerged_one": "{{count}} branch is not merged. Afterwards you can only find its commits through Undo or the reflog.",
       "bodyManyUnmerged_other": "{{count}} branches are not merged. Afterwards you can only find their commits through Undo or the reflog.",
       "anyway": "Delete anyway",
-      "action": "Delete branch",
       "actionMany": "Delete branches",
       "doneOne": "Branch “{{name}}” deleted",
       "doneMany": "{{count}} branches deleted",
@@ -101,27 +91,21 @@
     },
     "upstream": {
       "set": "Set upstream",
-      "unset": "Unset upstream",
       "setDone": "“{{name}}” now tracks {{upstream}}",
       "unsetDone": "“{{name}}” no longer has an upstream",
       "changeTitle": "Change upstream of “{{name}}”",
       "setTitle": "Set upstream for “{{name}}”",
       "description": "Pull fetches from this remote branch, push writes to it.",
-      "label": "Remote branch",
       "current": "current upstream",
       "empty": "No remote branch known yet. A fetch gets them; a push sets the upstream on its own."
     },
     "pick": {
-      "label": "Branch",
-      "checkedOut": "checked out",
-      "remote": "Remote",
       "follows": "tracks {{upstream}}",
       "empty": "There is no matching branch."
     }
   },
   "clipboard": {
     "copied": "{{what}} copied",
-    "failed": "Copy failed",
     "failedDescription": "The clipboard is not reachable right now. Select the text and copy it by hand."
   },
   "fastForward": {
@@ -134,8 +118,6 @@
     "upToDateDescription": "“{{branch}}” is already at “{{upstream}}” or ahead of it."
   },
   "files": {
-    "stage": "Stage",
-    "unstage": "Unstage",
     "discard": {
       "titleAll": "Discard all changes?",
       "titleOne": "Discard changes to “{{path}}”?",
@@ -149,7 +131,6 @@
       "body": "The unstaged changes are removed from the working directory. Staged changes stay. Undo brings them back right afterwards.",
       "fullPath": "Full path",
       "actionAll": "Discard all",
-      "action": "Discard",
       "doneAll": "All changes discarded",
       "doneOne": "Changes to “{{path}}” discarded",
       "doneMany_one": "Changes to {{count}} file discarded",
@@ -158,14 +139,12 @@
       "blockedOperation": "A {{operation}} is in progress. Undoing everything here means aborting the {{operation}}."
     },
     "external": {
-      "editor": "Open in editor",
       "terminal": "Open in terminal",
       "fileManager": "{{revealInFileManager}}",
       "diffTool": "Open in external diff tool",
       "mergeTool": "Open in external merge tool"
     },
     "ignore": {
-      "action": "Ignore",
       "done": "“{{pattern}}” is now in .gitignore",
       "doneUntracked": "“{{pattern}}” is in .gitignore and no longer tracked",
       "file": "Only this file",
@@ -177,8 +156,6 @@
     "stashOne": "Only {{path}}",
     "stashMany": "Only {{count}} files: {{paths}}",
     "resolve": {
-      "ours": "Take current version",
-      "theirs": "Take incoming version",
       "doneOne": "“{{path}}” resolved",
       "doneMany_one": "{{count}} file resolved",
       "doneMany_other": "{{count}} files resolved",
@@ -188,11 +165,6 @@
     }
   },
   "gitflow": {
-    "kind": {
-      "feature": "Feature",
-      "release": "Release",
-      "hotfix": "Hotfix"
-    },
     "init": "Set up Git Flow",
     "initDone": "Git Flow set up",
     "initDescription": "Main branch {{main}}, development branch {{develop}}.",
@@ -225,9 +197,7 @@
   "history": {
     "quoted": "“{{text}}”",
     "commitNotLoaded": "Commit {{sha}} could not be loaded.",
-    "messageWhat": "Message",
     "revert": {
-      "label": "Revert",
       "nothing": "Nothing to revert",
       "nothingDescription": "The changes from {{sha}} are already no longer in the current state."
     },
@@ -269,7 +239,6 @@
       "doneHard": "The old state is discarded – Undo ({{shortcut}}) brings it back."
     },
     "cherryPick": {
-      "label": "Cherry-pick",
       "labelMany": "Cherry-pick of {{count}} commits",
       "nothing": "Nothing to apply",
       "nothingDescription": "The changes are already in the checked-out branch."
@@ -279,16 +248,14 @@
       "impossible": "Squash not possible",
       "impossibleDescription": "Squashing only works like this: {{reason}}.",
       "title": "Squash {{count}} commits",
-      "description": "The selected commits become one. Author and date of the oldest are kept; the later commits of the branch are rebuilt.",
-      "action": "Squash"
+      "description": "The selected commits become one. Author and date of the oldest are kept; the later commits of the branch are rebuilt."
     },
     "reword": {
       "failed": "Edit message failed",
       "title": "Edit message of the last commit",
       "action": "Edit message",
       "pushedTitle": "This commit is already on the remote",
-      "pushedText": "The change creates a new commit. Afterwards the branch differs from the remote and needs a force push.",
-      "done": "Message changed"
+      "pushedText": "The change creates a new commit. Afterwards the branch differs from the remote and needs a force push."
     },
     "restore": {
       "titleOne": "Overwrite “{{path}}” with the version from {{sha}}?",
@@ -307,9 +274,7 @@
   },
   "hosts": {
     "prWord": {
-      "github": "pull request",
-      "gitlab": "merge request",
-      "default": "pull request"
+      "gitlab": "merge request"
     },
     "unexpectedShape": "The core returned {{what}} in an unexpected form.",
     "what": {
@@ -375,12 +340,9 @@
       "usernameInvalid": "The user name must not contain spaces or colons."
     },
     "browser": {
-      "page": "page",
-      "noUrl": "No address is known for this {{what}}",
-      "open": "Open in browser"
+      "noUrl": "No address is known for this {{what}}"
     },
     "failed": "{{label}} failed",
-    "openIntegrations": "Open integrations",
     "connect": {
       "label": "Connect account",
       "rejected": "The host rejected the token",
@@ -427,13 +389,11 @@
       "done": "“{{pattern}}” no longer goes through LFS"
     },
     "pull": {
-      "label": "Fetch LFS files",
       "done": "LFS files fetched"
     },
     "prune": {
       "title": "Clean up the local LFS storage?",
       "body": "This deletes old LFS files under .git/lfs that the checked-out state and the most recent commits don’t need and that are on the remote. The files in your working directory stay. If you need an old state later, Git LFS fetches the files from the remote again – it has to be reachable for that.",
-      "action": "Clean up",
       "label": "Clean up LFS",
       "done": "LFS cleaned up",
       "doneSummary": "LFS cleaned up: {{summary}}"
@@ -461,8 +421,6 @@
   },
   "merge": {
     "operation": {
-      "merge": "merge",
-      "rebase": "rebase",
       "cherryPick": "cherry-pick",
       "revert": "revert"
     },
@@ -535,15 +493,12 @@
     "pushJob": "Push {{branch}}",
     "pushRejected": "Push rejected",
     "create": {
-      "label": "Create pull request",
       "done": "Pull request #{{number}} created"
     },
     "comment": {
-      "label": "Comment",
       "done": "Comment sent"
     },
     "method": {
-      "merge": "Merge commit",
       "squash": "Squash",
       "rebase": "Rebase",
       "mergeHint": "All commits stay, plus a merge commit in the target branch.",
@@ -570,15 +525,12 @@
       "title": "Close pull request #{{number}}?",
       "body": "“{{title}}” is closed at the host without merging. Branch and commits stay; the pull request can be reopened.",
       "action": "Close pull request",
-      "label": "Close",
       "done": "Pull request #{{number}} closed"
     },
     "reopen": {
-      "label": "Reopen",
       "done": "Pull request #{{number}} reopened"
     },
     "checkout": {
-      "label": "Check out branch",
       "job": "Fetch pull request #{{number}}",
       "done": "The branch of pull request #{{number}} has been fetched and checked out."
     }
@@ -594,18 +546,13 @@
       "losesUpstream_other": "{{count}} local branches lose their upstream.",
       "undo": "Undo brings the remote back right afterwards.",
       "detailsLabel": "Lose their upstream",
-      "action": "Remove remote",
       "done": "Remote “{{name}}” removed"
     }
   },
   "repos": {
-    "open": "Open repository",
-    "newTab": "New tab",
     "openTab": "Open tab",
     "switchTab": "Switch tab",
-    "closeTab": "Close tab",
     "moveTab": "Move tab",
-    "zoom": "Zoom",
     "unsaved": {
       "titleOne": "Save changes to “{{name}}”?",
       "titleMany": "Save changes to {{count}} files?",
@@ -615,22 +562,18 @@
       "save": "Save and close",
       "saveDescription_one": "The file is saved, then the tab closes.",
       "saveDescription_other": "All files are saved, then the tab closes.",
-      "discard": "Don’t save",
       "discardDescription": "The unsaved text is lost.",
       "failed": "Not everything could be saved",
       "failedDescription": "The tab stays open. Not saved: {{files}}"
     },
     "forget": {
       "title": "Remove “{{name}}” from the list?",
-      "body": "Only the entry disappears; the folder {{path}} stays unchanged on disk.",
-      "action": "Remove from list",
-      "label": "Remove"
+      "body": "Only the entry disappears; the folder {{path}} stays unchanged on disk."
     }
   },
   "stash": {
     "gone": "That stash no longer exists",
     "goneDescription": "It has been applied or deleted in the meantime. The list has been reloaded.",
-    "label": "Stash",
     "done": "Changes stashed",
     "doneFiles_one": "{{count}} file stashed",
     "doneFiles_other": "{{count}} files stashed",
@@ -651,7 +594,6 @@
     },
     "rename": {
       "title": "Rename stash",
-      "label": "Description",
       "unchanged": "The description is unchanged.",
       "done": "Stash is now called “{{name}}”"
     }
@@ -660,8 +602,7 @@
     "state": {
       "initialized": "initialized",
       "uninitialized": "not initialized",
-      "outOfSync": "differs",
-      "modified": "modified"
+      "outOfSync": "differs"
     },
     "hint": {
       "initialized": "Exactly the recorded commit is checked out.",
@@ -672,7 +613,6 @@
     "fetchJob": "Fetch submodule: {{path}}",
     "updateJob": "Update submodule: {{path}}",
     "add": {
-      "label": "Add submodule",
       "done": "Submodule “{{path}}” added – the change is staged"
     },
     "update": {
@@ -692,7 +632,6 @@
       "label": "Open submodule",
       "notFetched": "“{{path}}” has not been fetched yet",
       "notFetchedDescription": "A submodule can only be opened once it is initialized.",
-      "init": "Initialize now",
       "noFolder": "The repository folder is not known."
     },
     "remove": {
@@ -727,11 +666,9 @@
     },
     "noRemote": {
       "title": "{{label}}: no remote set up",
-      "description": "This repository has no remote yet. Add a remote, then it works.",
-      "action": "Add remote"
+      "description": "This repository has no remote yet. Add a remote, then it works."
     },
     "fetch": {
-      "label": "Fetch",
       "labelFrom": "Fetch from {{remote}}",
       "refs_one": "{{count}} ref updated",
       "refs_other": "{{count}} refs updated",
@@ -746,7 +683,6 @@
       "nothingNew": "Nothing new on the remote."
     },
     "pull": {
-      "label": "Pull",
       "dirty": {
         "title": "Uncommitted changes are in the way of the pull",
         "description": "The pull would overwrite files you have changed. Nothing has been changed yet.",
@@ -758,12 +694,10 @@
       "noUpstream": {
         "title": "Pull: no upstream",
         "description": "The branch doesn’t track a remote branch yet (or it was deleted). Set an upstream – or push, which creates one.",
-        "descriptionBranch": "“{{branch}}” doesn’t track a remote branch yet (or it was deleted). Set an upstream – or push, which creates one.",
-        "action": "Set upstream …"
+        "descriptionBranch": "“{{branch}}” doesn’t track a remote branch yet (or it was deleted). Set an upstream – or push, which creates one."
       }
     },
     "push": {
-      "label": "Push",
       "labelForced": "Force push",
       "jobForced": "Push (forced)",
       "done": "Pushed to {{target}}",
@@ -789,7 +723,6 @@
       "description": "The remote contains commits that are missing locally.",
       "pull": "Pull first",
       "pullDescription": "Gets the missing commits; then pushes again.",
-      "force": "Force push …",
       "forceDescription": "Overwrites the remote branch. You see beforehand which commits are lost there."
     },
     "deleteRemote": {
@@ -808,7 +741,6 @@
     "currentCommit": "the current commit",
     "noRemote": "No remote set up",
     "create": {
-      "label": "Create tag",
       "done": "Tag “{{name}}” created",
       "doneAnnotated": "Annotated tag “{{name}}” created"
     },
@@ -821,14 +753,12 @@
       "bodyRemote": "The tag disappears here and on the remote. Anyone who has already fetched it keeps their copy.",
       "body": "The tag is only deleted locally; it stays on the remote.",
       "actionRemote": "Delete locally and on remote",
-      "action": "Delete tag",
       "doneRemote": "Tag “{{name}}” deleted locally and on {{remote}}",
       "done": "Tag “{{name}}” deleted"
     },
     "push": {
       "pickRemote": "Push to which remote?",
       "pickRemoteDescription": "The tag “{{name}}” is transferred there.",
-      "label": "Push tag",
       "job": "Push tag {{name}}",
       "rejected": "Tag “{{name}}” was rejected",
       "rejectedShort": "Tag was rejected",
@@ -836,11 +766,8 @@
       "done": "Tag “{{name}}” pushed to {{remote}}"
     },
     "releaseNotes": {
-      "label": "Release notes",
       "write": "Write release notes",
-      "rewrite": "Write again",
       "writing": "Writing release notes …",
-      "whatIsSent": "What is sent?",
       "range_one": "{{count}} commit since {{from}}",
       "range_other": "{{count}} commits since {{from}}",
       "rangeFromStart_one": "{{count}} commit since the first commit",
@@ -858,18 +785,12 @@
       "also": "Also",
       "external": "External",
       "targets": {
-        "changelog": "Insert into CHANGELOG.md",
         "changelogHint": "As a normal change in the working directory – review and commit it yourself.",
         "hostRelease": "Create release on {{host}}",
-        "hostReleaseHint": "Pushes the tag to {{remote}} first. Leaves this computer and cannot be undone.",
-        "clipboard": "Copy to clipboard"
+        "hostReleaseHint": "Pushes the tag to {{remote}} first. Leaves this computer and cannot be undone."
       },
       "titleTag": "Release notes for {{name}}",
       "titleCommit": "Release notes up to {{sha}}",
-      "notes": "Release notes",
-      "apply": "Apply",
-      "close": "Close",
-      "changelogLabel": "Insert into CHANGELOG.md",
       "releaseLabel": "Create release",
       "noRelease": {
         "title": "No release created",
@@ -884,8 +805,7 @@
         "changelog": "Release notes inserted into {{path}}",
         "changelogCreated": "{{path}} created with the release notes",
         "release": "Release “{{tag}}” created on {{host}}",
-        "openRelease": "Open",
-        "clipboard": "Release notes"
+        "openRelease": "Open"
       }
     }
   },
@@ -899,7 +819,6 @@
     "mergeFailed": "The merge tool could not be started"
   },
   "undo": {
-    "redoLabel": "Redo",
     "step": "“{{label}}”",
     "thisStep": "This step",
     "thisStepObject": "this step",
@@ -922,8 +841,6 @@
     },
     "doneUndo": "Undone",
     "doneRedo": "Redone",
-    "nothingUndo": "Nothing to undo",
-    "nothingRedo": "Nothing to redo",
     "overwriteUndo": "Undo would overwrite newer work",
     "overwriteRedo": "Redo would overwrite newer work",
     "stashUndo": "Stash and undo",
@@ -932,20 +849,16 @@
   },
   "worktrees": {
     "detachedAt": "detached at {{sha}}",
-    "noCommit": "no commit",
-    "add": "Create worktree",
     "open": {
       "missing": "The folder of “{{name}}” is missing",
       "missingHint": "If it no longer exists, “Clean up” removes the orphaned entry.",
       "current": "This worktree is already open here"
     },
     "lock": {
-      "label": "Lock",
       "done": "Worktree “{{name}}” locked",
       "reasonChanged": "Lock reason of “{{name}}” changed"
     },
     "unlock": {
-      "label": "Unlock",
       "done": "Worktree “{{name}}” unlocked"
     },
     "block": {
@@ -961,7 +874,6 @@
       "title": "Remove worktree “{{name}}”?",
       "body": "The folder is deleted with its contents. {{keeps}} An open tab for it is closed.",
       "detailsLabel": "This folder is deleted",
-      "action": "Remove worktree",
       "done": "Worktree “{{name}}” removed",
       "dirty": "The worktree still has changes."
     },

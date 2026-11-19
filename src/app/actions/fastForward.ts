@@ -34,7 +34,7 @@ export async function fastForwardBranch(repoId: Id, branch: string, upstream: st
       description: t("actions.fastForward.doneDescription", {
         summary: result.value.summary || t("actions.fastForward.summary", { branch, upstream }),
       }),
-      action: { label: t("actions.undoLabel"), onClick: () => void undo(repoId) },
+      action: { label: t("ui.undo"), onClick: () => void undo(repoId) },
     });
   } else if (result.value.status === "up_to_date") {
     toast({

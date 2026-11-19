@@ -3,10 +3,8 @@
   "description": "Everything in this app works without a mouse. Fixed keys apply while the focus is in the respective view.",
   "search": {
     "label": "Search shortcuts",
-    "placeholder": "Search for an action or key, e.g. “stash” or “F7”",
-    "clear": "Clear search"
+    "placeholder": "Search for an action or key, e.g. “stash” or “F7”"
   },
-  "close": "Close",
   "listLabel": "List of keyboard shortcuts",
   "matches_one": "{{count}} shortcut matches",
   "matches_other": "{{count}} shortcuts match",
@@ -15,7 +13,6 @@
     "hint": "Try another word – or look for the action in the command palette, which lists every command."
   },
   "parts": {
-    "commands": "Commands",
     "fixed": "Fixed keys in lists and views"
   },
   "footer": "Every command – with or without a shortcut – is in the command palette.",
@@ -25,19 +22,11 @@
   "gotoTabRange_one": "Go to tab 1 to {{count}}",
   "gotoTabRange_other": "Go to tab 1 to {{count}}",
   "groups": {
-    "general": "General",
     "view": "View and focus",
-    "tabs": "Tabs",
-    "repository": "Repository",
-    "remote": "Remote",
-    "branch": "Branch",
-    "commit": "Commit",
-    "stash": "Stash",
-    "file": "File"
+    "tabs": "Tabs"
   },
   "fixed": {
     "graph": {
-      "title": "Commit graph",
       "where": "Focus on a row in the graph",
       "entries": {
         "next": "Next commit",
@@ -70,7 +59,6 @@
       }
     },
     "wip": {
-      "title": "Local changes",
       "where": "Commit panel with the local changes",
       "entries": {
         "stage": "Stage file or folder",
@@ -97,21 +85,17 @@
       }
     },
     "search": {
-      "title": "Commit search",
       "where": "Search bar above the graph ({{mod}}+F)",
       "entries": {
         "next": "Next result",
         "previous": "Previous result",
-        "mark": "Mark result in the list",
-        "close": "Close search"
+        "mark": "Mark result in the list"
       }
     },
     "conflict": {
       "title": "Conflict tool",
       "where": "While resolving a conflict (merge, rebase, cherry-pick)",
       "entries": {
-        "next": "Next conflict",
-        "previous": "Previous conflict",
         "nextPreviousFile": "Next / previous conflicted file",
         "switchSide": "Switch side (current / incoming)",
         "take": "Take or deselect line or block",
@@ -130,9 +114,7 @@
         "squash": "Combine (squash)",
         "drop": "Leave out (drop)",
         "move": "Move commit",
-        "editMessage": "Edit message",
         "chooseAction": "Choose action; for cherry-pick: include / skip",
-        "start": "Start",
         "close": "Close without changing anything"
       }
     },
@@ -147,7 +129,6 @@
       }
     },
     "blame": {
-      "title": "Blame",
       "where": "A file’s lines with their last commit",
       "entries": {
         "move": "Move between lines",
@@ -161,19 +142,15 @@
       "title": "View and edit file",
       "where": "File view in the middle",
       "entries": {
-        "save": "Save",
-        "history": "File history",
         "close": "Close (asks if there are unsaved changes)"
       }
     },
     "terminal": {
-      "title": "Terminal",
       "where": "Focus in the terminal – every other key, including Tab, goes to the shell",
       "entries": {
         "leaveNextPrevious": "Leave terminal: next / previous area",
         "leaveArea": "Leave terminal: sidebar / view / commit panel",
         "copy": "Copy selection (Ctrl+C interrupts in the shell)",
-        "paste": "Paste",
         "scroll": "Scroll the output",
         "contextMenu": "Terminal context menu",
         "resize": "Change height (focus on the handle above; Enter hides)"
@@ -187,18 +164,15 @@
         "firstLast": "First / last tab",
         "move": "Move tab left / right",
         "rename": "Rename tab (alias; empty resets)",
-        "close": "Close tab",
         "contextMenu": "Tab context menu"
       }
     },
     "palette": {
-      "title": "Command palette",
       "where": "After {{mod}}+P",
       "entries": {
         "commands": "Commands only",
         "refs": "Branches and tags only",
         "files": "Files only",
-        "commits": "Search commits",
         "repositories": "Repositories only",
         "moreActions": "More actions for the result",
         "back": "Back or close"

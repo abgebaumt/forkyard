@@ -1,8 +1,6 @@
 {
   "title": "Git Flow",
   "loading": "Loading Git Flow",
-  "close": "Close",
-  "retry": "Try again",
   "setup": {
     "label": "Set up Git Flow",
     "sameBranch": "The main and development branches must be different.",
@@ -15,9 +13,6 @@
     "developExists": "This branch already exists – it will be used.",
     "developCreated": "Will be created from {{base}}.",
     "prefixes": "Branch name prefixes",
-    "feature": "Feature",
-    "release": "Release",
-    "hotfix": "Hotfix",
     "versionTag": "Version tag",
     "versionTagPlaceholder": "no prefix",
     "failed": "Not set up",
@@ -63,7 +58,6 @@
     "title": "In progress ({{count}})",
     "empty": "No feature, release or hotfix in progress.",
     "label": "Active Git Flow branches",
-    "checkedOut": "checked out",
     "finishLabel": "Finish {{kind}} “{{name}}” …",
     "finish": "Finish …"
   },
@@ -76,7 +70,6 @@
     "title": "Finish {{kind}} “{{name}}”?",
     "taggedDescription": "<branch>{{branch}}</branch> is merged into <main>{{main}}</main>, marked there as a version, and merged back into <develop>{{develop}}</develop>. Afterwards {{develop}} is checked out.",
     "featureDescription": "<branch>{{branch}}</branch> is merged into <develop>{{develop}}</develop> with a merge commit. Afterwards {{develop}} is checked out.",
-    "cancel": "Cancel",
     "submit": "Finish {{kind}}",
     "blocked": "Finishing isn't possible right now",
     "deleteBranch": "Delete branch afterwards",

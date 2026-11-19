@@ -1,8 +1,6 @@
 {
   "title": "Gitflow",
   "loading": "Gitflow wird geladen",
-  "close": "Schließen",
-  "retry": "Erneut versuchen",
   "setup": {
     "label": "Gitflow einrichten",
     "sameBranch": "Haupt- und Entwicklungs-Branch müssen verschieden sein.",
@@ -15,9 +13,6 @@
     "developExists": "Diesen Branch gibt es schon – er wird verwendet.",
     "developCreated": "Wird angelegt, ab {{base}}.",
     "prefixes": "Präfixe der Branch-Namen",
-    "feature": "Feature",
-    "release": "Release",
-    "hotfix": "Hotfix",
     "versionTag": "Versions-Tag",
     "versionTagPlaceholder": "kein Vorsatz",
     "failed": "Nicht eingerichtet",
@@ -63,7 +58,6 @@
     "title": "In Arbeit ({{count}})",
     "empty": "Kein Feature, Release oder Hotfix in Arbeit.",
     "label": "Laufende Gitflow-Branches",
-    "checkedOut": "ausgecheckt",
     "finishLabel": "{{kind}} „{{name}}“ abschließen …",
     "finish": "Abschließen …"
   },
@@ -76,7 +70,6 @@
     "title": "{{kind}} „{{name}}“ abschließen?",
     "taggedDescription": "<branch>{{branch}}</branch> wird in <main>{{main}}</main> gemergt, dort als Version markiert und zurück in <develop>{{develop}}</develop> gemergt. Danach ist {{develop}} ausgecheckt.",
     "featureDescription": "<branch>{{branch}}</branch> wird mit einem Merge-Commit in <develop>{{develop}}</develop> gemergt. Danach ist {{develop}} ausgecheckt.",
-    "cancel": "Abbrechen",
     "submit": "{{kind}} abschließen",
     "blocked": "Abschließen geht gerade nicht",
     "deleteBranch": "Branch danach löschen",

@@ -117,12 +117,12 @@ export function rowSync(ref: Ref): { ahead: number; behind: number; outgoing: bo
 }
 
 const kindText: Record<TreeNode["kind"], string> = {
-  branch: t("sidebar.kind.branch"),
-  remote_branch: t("sidebar.kind.remoteBranch"),
-  tag: t("sidebar.kind.tag"),
-  stash: t("sidebar.kind.stash"),
-  folder: t("sidebar.kind.folder"),
-  remote: t("sidebar.kind.remote"),
+  branch: t("ui.ref.local"),
+  remote_branch: t("ui.ref.remote"),
+  tag: t("ui.ref.tag"),
+  stash: t("ui.stash"),
+  folder: t("ui.folder"),
+  remote: t("ui.remote"),
   head: "HEAD",
 };
 
@@ -169,19 +169,19 @@ function tipLines(node: TreeNode): string[] {
 function describe(node: TreeNode, hidden: Tri, solo: Tri): string {
   const { ref, stash, head } = node;
   const parts = [`${kindText[node.kind]} ${node.kind === "head" && head?.kind === "detached" ? shortSha(head.sha) : node.path}`];
-  if (ref?.isHead) parts.push(t("sidebar.describe.checkedOut"));
+  if (ref?.isHead) parts.push(t("ui.checkedOut"));
   if (head?.kind === "detached") parts.push(t("sidebar.describe.detached"));
   if (head?.kind === "unborn") parts.push(t("sidebar.describe.unborn"));
   const sync = ref && ref.kind === "local" ? rowSync(ref) : null;
   if (sync && (sync.outgoing || refPublishState(ref!).kind === "elsewhere")) parts.push(sync.tip);
   else if (ref && (ref.ahead || ref.behind)) parts.push(syncText(ref.ahead, ref.behind, ref.upstream));
-  if (ref?.upstreamGone) parts.push(t("sidebar.describe.upstreamMissing"));
+  if (ref?.upstreamGone) parts.push(t("ui.upstreamMissing"));
   if (node.kind === "branch" && ref?.worktreePath) parts.push(t("sidebar.describe.inWorktree"));
   if (ref?.isAnnotated && ref.annotation) parts.push(ref.annotation.trim());
   if (stash) parts.push(`${stash.branch ? t("sidebar.describe.stashOn", { branch: stash.branch }) : ""}${formatRelative(stash.createdAt)}`);
   if (hidden === "all") parts.push(t("sidebar.describe.hidden"));
   else if (hidden === "some") parts.push(t("sidebar.describe.partlyHidden"));
-  if (solo === "all") parts.push(t("sidebar.describe.solo"));
+  if (solo === "all") parts.push(t("ui.solo"));
   else if (solo === "some") parts.push(t("sidebar.describe.partlySolo"));
   return parts.join(", ");
 }
@@ -350,7 +350,7 @@ function RefRowInner({
       <Tip label={t("sidebar.tip.upstreamGone", { upstream: ref.upstream ?? "" })} side="right">
         <span className="inline-flex shrink-0 items-center text-warning" data-upstream-gone>
           <CloudOff className="size-3.5" aria-hidden />
-          <span className="sr-only">{t("sidebar.describe.upstreamMissing")}</span>
+          <span className="sr-only">{t("ui.upstreamMissing")}</span>
         </span>
       </Tip>
     );

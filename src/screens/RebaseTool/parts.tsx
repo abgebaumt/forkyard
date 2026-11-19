@@ -66,8 +66,8 @@ export function ColumnBar({ direction, lead }: { direction: string; lead: ReactN
         <ArrowDownNarrowWide className="size-icon shrink-0" aria-hidden />
         <span className="truncate font-medium tracking-normal">{direction}</span>
       </span>
-      <span className="hidden w-36 shrink-0 @2xl:block">{t("rebase.column.author")}</span>
-      <span className="hidden w-24 shrink-0 text-right @xl:block">{t("rebase.column.date")}</span>
+      <span className="hidden w-36 shrink-0 @2xl:block">{t("ui.author")}</span>
+      <span className="hidden w-24 shrink-0 text-right @xl:block">{t("ui.date")}</span>
       <span className="w-16 shrink-0 text-right">SHA</span>
     </div>
   );
@@ -273,9 +273,9 @@ export function LoadError({
       title={t("rebase.loadError.title")}
       actions={
         <>
-          <Button onClick={onClose}>{t("rebase.backToGraph")}</Button>
+          <Button onClick={onClose}>{t("ui.backToGraph")}</Button>
           <Button variant="primary" onClick={onRetry}>
-            {t("rebase.retry")}
+            {t("ui.retry")}
           </Button>
         </>
       }

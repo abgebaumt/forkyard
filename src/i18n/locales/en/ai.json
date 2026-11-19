@@ -39,22 +39,16 @@
     "stack_split": "Proposes where to cut a branch into pull requests that build on each other."
   },
   "settings": {
-    "title": "AI",
     "intro": "Commit messages, pull request texts and more with a provider of your choice. Off until you turn it on; one provider and one key for every profile.",
-    "masterCard": "AI features",
     "master": {
-      "title": "AI features",
       "description": "Turns every AI function on or off. Turning it off cancels running requests at once.",
       "unset": "Not set up yet. “Set up …” finds the AI tools on this computer – or choose a provider below and turn this on."
     },
-    "providerCard": "Provider",
     "provider": {
-      "title": "Provider",
       "description": "Who answers the requests. Local models run on this computer, and nothing leaves it.",
       "placeholder": "Choose a provider"
     },
     "baseUrl": {
-      "title": "Address",
       "description": "Address of the service including the version, e.g. https://openrouter.ai/api/v1. Unencrypted http:// only to this computer.",
       "descriptionLocal": "Leave empty for the standard port on this computer."
     },
@@ -65,21 +59,16 @@
       "none": "No key stored",
       "placeholder": "Paste the key",
       "save": "Save the key",
-      "remove": "Remove key",
       "removed": "Key removed"
     },
     "check": {
       "title": "Connection",
       "description": "Asks the provider for its models – with the key entered above, if there is one.",
-      "button": "Check",
-      "action": "Check the provider",
       "ok_one": "Connected – {{count}} model found",
       "ok_other": "Connected – {{count}} models found"
     },
     "model": {
-      "title": "Model",
-      "description": "Check the connection to choose from the provider’s models, or enter the model ID.",
-      "placeholder": "Model ID"
+      "description": "Check the connection to choose from the provider’s models, or enter the model ID."
     },
     "price": {
       "title": "Price",
@@ -99,7 +88,6 @@
       "description": "Patterns in .gitignore syntax, one per line, for every repository. A repository can add its own in .forkyard/ai-ignore. Files that look like secrets (.env, private keys, key stores) are never sent; known secret patterns in other content are redacted as far as possible."
     },
     "whatIsSent": {
-      "title": "What is sent?",
       "description": "Shows the exact text for the staged changes of the open repository – without sending anything.",
       "button": "Show example",
       "noRepo": "Open a repository to see an example."
@@ -129,8 +117,7 @@
     "invalidAmount": "Enter an amount in USD, e.g. 0.10.",
     "setup": {
       "title": "Setup",
-      "description": "Finds Claude Code, Codex, opencode, local models and stored keys on this computer and turns AI on in a few steps. Nothing is sent.",
-      "button": "Set up …"
+      "description": "Finds Claude Code, Codex, opencode, local models and stored keys on this computer and turns AI on in a few steps. Nothing is sent."
     },
     "cliCard": "Command-line tools",
     "cliPath": {
@@ -144,9 +131,7 @@
     "signInNoRepo": "Open a repository to sign in in its terminal, or run the sign-in command in a terminal of your own."
   },
   "project": {
-    "title": "AI and agents",
     "intro": "Applies to this repository only.",
-    "card": "AI",
     "off": {
       "title": "AI off for this repository",
       "description": "No AI element appears for this repository, and nothing of it is sent."
@@ -158,7 +143,6 @@
     }
   },
   "preview": {
-    "title": "What is sent?",
     "lookIntro": "Exactly this text would go to the provider. Nothing was sent.",
     "confirmIntro": "Please confirm before this goes to the provider.",
     "size": "{{chars}} characters, about {{tokens}} tokens",
@@ -167,8 +151,6 @@
     "shortened": "Shortened to the start and end of each hunk: {{files}}",
     "dontAskAgain": "Don’t ask again for this",
     "send": "Send",
-    "cancel": "Cancel",
-    "close": "Close",
     "loading": "Prepare “What is sent?”",
     "confirmAction": "Confirm sending",
     "ask": {
@@ -192,7 +174,6 @@
     "exact": "{{amount}} USD"
   },
   "search": {
-    "card": "Search by meaning",
     "embedder": {
       "title": "Embeddings for the search",
       "description": "A provider on this computer can serve the search alone. Otherwise the main provider’s embeddings are used; without embeddings the main provider rephrases the question into a search.",
@@ -201,7 +182,6 @@
       "lmstudio": "LM Studio (on this computer)"
     },
     "baseUrl": {
-      "title": "Address",
       "description": "Only addresses on this computer."
     },
     "model": {
@@ -217,9 +197,7 @@
       "count_other": "{{count}} commits with {{model}}"
     },
     "delete": {
-      "title": "Delete index",
       "description": "Removes the index of every repository and model. The next search by meaning builds it again.",
-      "button": "Delete index",
       "confirmTitle": "Delete the search index of every repository?",
       "confirmBody": "The index only serves the search by meaning; nothing in your repositories changes. This cannot be undone – the next search by meaning builds it again and sends the commit texts to the embedding provider once more.",
       "done_one": "{{count}} index deleted",
@@ -231,30 +209,22 @@
     "tooltip": "Commit messages, PR texts and more with an AI provider of your choice. Off by default."
   },
   "intro": {
-    "title": "New in 1.2: AI features and coding agents – off by default.",
-    "setup": "Set up …",
-    "close": "Close"
+    "title": "New in 1.2: AI features and coding agents – off by default."
   },
   "state": {
     "loading": "Writing …",
     "loadingFor": "{{label}} ({{seconds}} s)",
-    "cancel": "Cancel",
     "slowLocal": "Local models take longer",
     "slowRemote": "The provider is answering slowly",
-    "retry": "Try again",
     "invalid": "Answer unusable",
     "again": "Again",
     "showSent": "Show what was sent",
-    "limitSend": "Send this time",
     "limitChange": "Change limit",
     "setup": "Set up AI …"
   },
   "suggestion": {
-    "draft": "Draft",
     "ready": "Suggestion ready",
-    "replace": "Replace",
-    "append": "Append",
-    "discard": "Discard"
+    "append": "Append"
   },
   "names": {
     "anthropic": "Anthropic",
@@ -268,7 +238,6 @@
     "opencode": "opencode"
   },
   "setup": {
-    "title": "Set up AI",
     "intro": "Forkyard looks for AI tools on this computer. Nothing is sent while setting up.",
     "searching": "Searching …",
     "failed": "The search failed: {{message}}",
@@ -301,11 +270,8 @@
     },
     "keyStored": "API key stored",
     "turnOnWith": "Turn on with {{name}}",
-    "continue": "Continue",
     "other": "Other choice",
     "back": "Back",
-    "cancel": "Cancel",
-    "close": "Close",
     "nothing": {
       "title": "How do you want to use AI?",
       "key": "Use an API key",
@@ -315,25 +281,19 @@
       "cockpitHint": "Coding agents work without an AI provider. AI can be turned on later in Settings › AI."
     },
     "provider": {
-      "title": "Provider",
-      "check": "Check",
-      "checkAction": "Check the provider",
       "ok_one": "Connected – {{count}} model found",
       "ok_other": "Connected – {{count}} models found",
       "cliOk": "{{name}} is ready and signed in."
     },
     "model": {
-      "title": "Model",
       "cliDefault": "Default of {{name}}",
-      "cliHint": "Leave empty to use the tool’s default model.",
-      "placeholder": "Model ID"
+      "cliHint": "Leave empty to use the tool’s default model."
     },
     "features": {
       "hint": "Every function can be switched off later in Settings › AI."
     },
     "turnOn": "Turn on",
     "done": {
-      "whatIsSent": "What is sent?",
       "noRepo": "Open a repository to see an example of what is sent."
     },
     "where": {

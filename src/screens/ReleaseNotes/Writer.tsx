@@ -18,8 +18,8 @@ function ErrorLine({ error, writer, onSetup, onSignIn }: { error: AiFailure; wri
     error.kind === "invalid" || error.kind === "notLoggedIn"
       ? t("ai.state.again")
       : error.kind === "limit"
-        ? t("ai.state.limitSend")
-        : t("ai.state.retry");
+        ? t("ui.sendThisTime")
+        : t("ui.retry");
   return (
     <div role="alert" aria-live="assertive" data-release-notes-error="" className="flex flex-wrap items-center gap-2 text-sm text-danger">
       <span>{error.text}</span>
@@ -89,11 +89,11 @@ export function ReleaseNotesWriter({
     <div className="flex flex-col gap-1.5" data-release-notes="">
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" data-release-notes-write="" onClick={onWrite}>
-          {loading ? t("ai.state.cancel") : state.notes ? t("actions.tags.releaseNotes.rewrite") : t("actions.tags.releaseNotes.write")}
+          {loading ? t("ui.cancel") : state.notes ? t("ui.writeAgain") : t("actions.tags.releaseNotes.write")}
         </Button>
         {openSetup ? null : (
           <Button size="sm" variant="ghost" data-release-notes-what="" onClick={() => void writer.whatIsSent()}>
-            {t("actions.tags.releaseNotes.whatIsSent")}
+            {t("ui.whatIsSent")}
           </Button>
         )}
       </div>
@@ -103,9 +103,9 @@ export function ReleaseNotesWriter({
       {writer.error ? <ErrorLine error={writer.error} writer={writer} onSetup={onSetup} onSignIn={onSignIn} /> : null}
       {state.draft ? (
         <p className="flex items-center gap-2 text-sm text-text-muted">
-          <span className="font-medium text-text">{t("ai.suggestion.draft")}</span>
+          <span className="font-medium text-text">{t("ui.draft")}</span>
           <Button size="sm" variant="ghost" onClick={writer.discardDraft}>
-            {t("ai.suggestion.discard")}
+            {t("ui.discard")}
           </Button>
         </p>
       ) : null}
@@ -113,13 +113,13 @@ export function ReleaseNotesWriter({
         <div role="status" className="flex flex-wrap items-center gap-2 text-sm text-text">
           <span>{state.pending.kind === "ready" ? t("ai.suggestion.ready") : t("actions.tags.releaseNotes.suggestion")}</span>
           <Button size="sm" onClick={() => writer.resolvePending("replace")}>
-            {t("ai.suggestion.replace")}
+            {t("ui.replace")}
           </Button>
           <Button size="sm" onClick={() => writer.resolvePending("append")}>
             {t("ai.suggestion.append")}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => writer.resolvePending("discard")}>
-            {t("ai.suggestion.discard")}
+            {t("ui.discard")}
           </Button>
         </div>
       ) : null}

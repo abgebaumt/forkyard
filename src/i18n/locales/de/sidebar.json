@@ -10,14 +10,6 @@
     "unpublishedNone": "Noch nicht auf dem Remote",
     "followsOther": "folgt {{upstream}} (anderer Name)"
   },
-  "kind": {
-    "branch": "Lokaler Branch",
-    "remoteBranch": "Remote-Branch",
-    "tag": "Tag",
-    "stash": "Stash",
-    "folder": "Ordner",
-    "remote": "Remote"
-  },
   "tip": {
     "upstreamGone": "Upstream {{upstream}} gibt es nicht mehr",
     "upstream": "Upstream: {{upstream}}",
@@ -36,15 +28,12 @@
     "followsOther": "Folgt {{upstream}} (anderer Name) – ein Push fragt, wohin"
   },
   "describe": {
-    "checkedOut": "ausgecheckt",
     "detached": "losgelöst",
     "unborn": "ausgecheckt, noch kein Commit",
-    "upstreamMissing": "Upstream fehlt",
     "inWorktree": "in einem anderen Worktree ausgecheckt",
     "stashOn": "auf {{branch}}, ",
     "hidden": "im Graphen ausgeblendet",
     "partlyHidden": "teilweise ausgeblendet",
-    "solo": "Solo",
     "partlySolo": "teilweise Solo"
   },
   "rename": {
@@ -62,39 +51,24 @@
   },
   "noBranch": "ohne Branch",
   "section": {
-    "local": "Lokal",
-    "remote": "Remote",
-    "tags": "Tags",
-    "stashes": "Stashes",
-    "issues": "Issues",
-    "worktrees": "Worktrees",
-    "submodules": "Submodule",
     "show": "{{title}}: im Graphen wieder zeigen",
     "hide": "{{title}}: im Graphen ausblenden",
     "solo": "Solo: nur {{title}} im Graphen zeigen",
     "showAll": "Alle Sektionen zeigen",
     "maximize": "Maximieren",
-    "hideSection": "Sektion ausblenden",
     "sections": "Sektionen"
   },
   "menu": {
-    "none": "Keine Aktionen verfügbar",
     "deleteBranches_one": "{{count}} Branch löschen …",
     "deleteBranches_other": "{{count}} Branches löschen …",
     "rename": "Umbenennen",
-    "checkout": "Auschecken",
     "deleteBranch": "Branch löschen …",
-    "viewStash": "Stash ansehen",
-    "collapse": "Einklappen",
-    "expand": "Ausklappen",
-    "showInGraph": "Im Graphen zeigen"
+    "viewStash": "Stash ansehen"
   },
   "saveView": "Ansicht speichern",
   "renamed": "Branch heißt jetzt „{{name}}“",
   "dropBranch": "Branch ablegen",
   "stashesFailed": "Stashes lassen sich nicht laden",
-  "noMatch": "Kein Treffer",
-  "addRemote": "Remote hinzufügen",
   "noRemote": "Noch kein Remote",
   "noLocal": "Keine lokalen Branches",
   "noTags": "Keine Tags",
@@ -104,9 +78,7 @@
     "hide": "{{title}} im Graphen ausblenden"
   },
   "add": {
-    "branch": "Branch anlegen",
-    "tag": "Tag am aktuellen Commit anlegen",
-    "stash": "Änderungen stashen"
+    "tag": "Tag am aktuellen Commit anlegen"
   },
   "summary": {
     "hidden": "{{count}} ausgeblendet",
@@ -114,13 +86,10 @@
   },
   "filter": {
     "label": "Branches, Tags und Stashes filtern",
-    "placeholder": "Filtern ({{shortcut}})",
-    "clear": "Filter leeren"
+    "placeholder": "Filtern ({{shortcut}})"
   },
   "viewFiltered": {
-    "tip": "{{summary}}. Das ändert nur, was der Graph zeigt – nicht das Repository.",
-    "title": "Ansicht gefiltert",
-    "reset": "Zurücksetzen"
+    "tip": "{{summary}}. Das ändert nur, was der Graph zeigt – nicht das Repository."
   },
   "refsFailed": "Branches und Tags lassen sich nicht laden",
   "noHits": {

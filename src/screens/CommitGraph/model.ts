@@ -69,7 +69,7 @@ export const isCommitRow = (row: GraphRow | undefined): row is GraphRow & { sha:
   Boolean(row?.sha && (row.kind === "commit" || row.kind === "merge"));
 
 export const shortRefName = (fullName: string) =>
-  fullName === STASH_REF ? t("commitGraph.filter.stashes") : fullName.replace(/^refs\/(heads|remotes|tags)\//, "");
+  fullName === STASH_REF ? t("ui.stashes") : fullName.replace(/^refs\/(heads|remotes|tags)\//, "");
 
 /** “main, origin/main and develop” – what the selection “current branch, upstream, target” shows. */
 export function smartText(selection: SmartSelection): string {

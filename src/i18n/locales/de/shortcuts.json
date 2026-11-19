@@ -3,10 +3,8 @@
   "description": "Alles in dieser App geht auch ohne Maus. Feste Tasten gelten, solange der Fokus in der jeweiligen Ansicht steht.",
   "search": {
     "label": "Kürzel suchen",
-    "placeholder": "Aktion oder Taste suchen, z. B. „stash“ oder „F7“",
-    "clear": "Suche leeren"
+    "placeholder": "Aktion oder Taste suchen, z. B. „stash“ oder „F7“"
   },
-  "close": "Schließen",
   "listLabel": "Liste der Tastenkürzel",
   "matches_one": "{{count}} Kürzel passt",
   "matches_other": "{{count}} Kürzel passen",
@@ -15,7 +13,6 @@
     "hint": "Versuch ein anderes Wort – oder suche die Aktion in der Command Palette, dort steht jeder Befehl."
   },
   "parts": {
-    "commands": "Befehle",
     "fixed": "Feste Tasten in Listen und Ansichten"
   },
   "footer": "Jeder Befehl – auch ohne Kürzel – steht in der Command Palette.",
@@ -25,15 +22,8 @@
   "gotoTabRange_one": "Zu Tab 1 bis {{count}}",
   "gotoTabRange_other": "Zu Tab 1 bis {{count}}",
   "groups": {
-    "general": "Allgemein",
     "view": "Ansicht und Fokus",
-    "tabs": "Tabs",
-    "repository": "Repository",
-    "remote": "Remote",
-    "branch": "Branch",
-    "commit": "Commit",
-    "stash": "Stash",
-    "file": "Datei"
+    "tabs": "Tabs"
   },
   "fixed": {
     "graph": {
@@ -50,7 +40,6 @@
         "contextMenu": "Kontextmenü der Zeile",
         "collapseMerge": "Ausgewählten Merge ein- / ausklappen"
       },
-      "title": "Commit-Graph",
       "where": "Fokus auf einer Zeile im Graphen"
     },
     "lists": {
@@ -78,7 +67,6 @@
         "stageAllCommit": "Alles stagen und committen",
         "toggleCommitStash": "Commit / Stash umschalten (im Umschalter)"
       },
-      "title": "Lokale Änderungen",
       "where": "Commit Panel mit den lokalen Änderungen"
     },
     "diff": {
@@ -100,16 +88,12 @@
       "entries": {
         "next": "Nächster Treffer",
         "previous": "Voriger Treffer",
-        "mark": "Treffer in der Liste markieren",
-        "close": "Suche schließen"
+        "mark": "Treffer in der Liste markieren"
       },
-      "title": "Commit-Suche",
       "where": "Suchleiste über dem Graphen ({{mod}}+F)"
     },
     "conflict": {
       "entries": {
-        "next": "Nächster Konflikt",
-        "previous": "Voriger Konflikt",
         "nextPreviousFile": "Nächste / vorige Konfliktdatei",
         "switchSide": "Seite wechseln (aktuell / eingehend)",
         "take": "Zeile oder Block übernehmen bzw. abwählen",
@@ -128,9 +112,7 @@
         "squash": "Zusammenfassen (squash)",
         "drop": "Weglassen (drop)",
         "move": "Commit verschieben",
-        "editMessage": "Message bearbeiten",
         "chooseAction": "Aktion wählen; beim Cherry-Pick: mitnehmen / auslassen",
-        "start": "Starten",
         "close": "Schließen, ohne etwas zu ändern"
       },
       "title": "Rebase-Tool",
@@ -154,13 +136,10 @@
         "card": "Karte mit dem ganzen Commit der Zeile ein / aus",
         "close": "Karte schließen, dann Blame schließen"
       },
-      "title": "Blame",
       "where": "Zeilen einer Datei mit ihrem letzten Commit"
     },
     "file": {
       "entries": {
-        "save": "Speichern",
-        "history": "Historie der Datei",
         "close": "Schließen (fragt bei ungespeicherten Änderungen)"
       },
       "title": "Datei ansehen und bearbeiten",
@@ -171,12 +150,10 @@
         "leaveNextPrevious": "Terminal verlassen: nächster / voriger Bereich",
         "leaveArea": "Terminal verlassen: Left Panel / Ansicht / Commit Panel",
         "copy": "Auswahl kopieren (Ctrl+C bricht in der Shell ab)",
-        "paste": "Einfügen",
         "scroll": "In der Ausgabe blättern",
         "contextMenu": "Kontextmenü des Terminals",
         "resize": "Höhe ändern (Fokus auf dem Griff darüber; Enter blendet aus)"
       },
-      "title": "Terminal",
       "where": "Fokus im Terminal – jede andere Taste, auch Tab, geht an die Shell"
     },
     "tabs": {
@@ -185,7 +162,6 @@
         "firstLast": "Erster / letzter Tab",
         "move": "Tab nach links / rechts verschieben",
         "rename": "Tab umbenennen (Alias; leer setzt zurück)",
-        "close": "Tab schließen",
         "contextMenu": "Kontextmenü des Tabs"
       },
       "title": "Tab-Leiste",
@@ -196,12 +172,10 @@
         "commands": "Nur Befehle",
         "refs": "Nur Branches und Tags",
         "files": "Nur Dateien",
-        "commits": "Commits suchen",
         "repositories": "Nur Repositories",
         "moreActions": "Weitere Aktionen zum Treffer",
         "back": "Zurück bzw. schließen"
       },
-      "title": "Command Palette",
       "where": "Nach {{mod}}+P"
     },
     "dialogs": {

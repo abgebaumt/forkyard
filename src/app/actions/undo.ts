@@ -54,7 +54,7 @@ const QUIET: ErrorCode[] = [
 async function runStep(repoId: Id, direction: Direction) {
   const before = queryClient.getQueryData<UndoState>(qk.undo(repoId));
   const label = direction === "undo" ? before?.undo?.label : before?.redo?.label;
-  const name = direction === "undo" ? t("actions.undoLabel") : t("actions.undo.redoLabel");
+  const name = direction === "undo" ? t("ui.undo") : t("ui.redo");
   const result = await runAction(
     name,
     withFreshStatus(repoId, () => core[direction]({ repoId })),
@@ -73,7 +73,7 @@ async function runStep(repoId: Id, direction: Direction) {
     // If the last action simply can no longer be undone (already pushed), the reason is shown with it.
     const reason = direction === "undo" ? (await core.undoPeek({ repoId }).catch(() => null))?.undoBlocked : null;
     if (reason) toast({ tone: "info", sticky: true, title: t("actions.undo.title.localUndo"), description: reason });
-    else toast({ tone: "info", title: direction === "undo" ? t("actions.undo.nothingUndo") : t("actions.undo.nothingRedo") });
+    else toast({ tone: "info", title: direction === "undo" ? t("ui.nothingToUndo") : t("ui.nothingToRedo") });
   } else {
     // The core names the files that were edited further since the action: then its sentence applies.
     const changedSince = code === "dirty_worktree" && /seit dieser Aktion|since this action/i.test(result.error.message);

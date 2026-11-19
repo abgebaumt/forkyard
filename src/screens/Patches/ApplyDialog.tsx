@@ -119,9 +119,7 @@ export function ApplyPatchDialog({ repoId, tabId, onClose }: { repoId: Id; tabId
         title: t("patches.apply.applied"),
         description: t("patches.apply.appliedText", { count }),
         action:
-          undoState?.undo && /Patch/i.test(undoState.undo.label)
-            ? { label: t("patches.apply.undo"), onClick: () => void undo(repoId) }
-            : undefined,
+          undoState?.undo && /Patch/i.test(undoState.undo.label) ? { label: t("ui.undo"), onClick: () => void undo(repoId) } : undefined,
       });
       onClose();
     } catch (error) {
@@ -163,7 +161,7 @@ export function ApplyPatchDialog({ repoId, tabId, onClose }: { repoId: Id; tabId
       }}
       footer={
         <>
-          <Button onClick={onClose}>{t("patches.apply.cancel")}</Button>
+          <Button onClick={onClose}>{t("ui.cancel")}</Button>
           <Button
             variant="primary"
             loading={applying}

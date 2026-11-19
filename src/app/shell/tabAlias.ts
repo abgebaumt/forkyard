@@ -35,7 +35,7 @@ export function aliasFromInput(repo: Pick<Repo, "name" | "alias">, input: string
 export async function setTabAlias(repo: Repo, input: string) {
   const alias = aliasFromInput(repo, input);
   if (alias === undefined) return null;
-  const label = alias === null ? t("shell.alias.remove") : t("shell.alias.save");
+  const label = alias === null ? t("ui.removeAlias") : t("ui.saveAlias");
   const result = await runAction(label, () => core.repoUpdate({ repoId: repo.id, alias }));
   if (!result.ok) return result;
   const updated = result.value;

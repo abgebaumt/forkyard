@@ -79,7 +79,7 @@ export function AboutSection() {
 
   const summary = [
     `Forkyard ${info.version}`,
-    `${t("preferences.about.summary.git", { version: info.gitVersion ?? t("preferences.about.notFound") })}${info.gitPath ? ` (${info.gitPath})` : ""}`,
+    `${t("preferences.about.summary.git", { version: info.gitVersion ?? t("ui.notFound") })}${info.gitPath ? ` (${info.gitPath})` : ""}`,
     t("preferences.about.summary.platform", { name: platformName[info.platform] }),
     t("preferences.about.summary.dataDir", { path: info.dataDir }),
   ].join("\n");
@@ -87,7 +87,7 @@ export function AboutSection() {
   return (
     <section>
       <SectionHeader
-        title={t("preferences.about.title")}
+        title={t("ui.about")}
         actions={
           <Button
             icon={<Copy className="size-icon" aria-hidden />}
@@ -97,7 +97,7 @@ export function AboutSection() {
                   ? toast({ tone: "success", title: t("preferences.about.copied") })
                   : toast({
                       tone: "danger",
-                      title: t("preferences.about.copyFailed"),
+                      title: t("ui.copyFailed"),
                       description: t("preferences.about.clipboardUnavailable"),
                     }),
               );
@@ -125,7 +125,7 @@ export function AboutSection() {
           <Mono>{info.version}</Mono>
         </Fact>
         <Fact name={t("preferences.about.gitVersion")}>
-          {info.gitVersion ? <Mono>{info.gitVersion}</Mono> : <span className="text-danger">{t("preferences.about.notFound")}</span>}
+          {info.gitVersion ? <Mono>{info.gitVersion}</Mono> : <span className="text-danger">{t("ui.notFound")}</span>}
           <span className="shrink-0 text-sm text-text-muted">{t("preferences.about.minimum", { version: info.gitMinVersion })}</span>
         </Fact>
         <Fact name={t("preferences.about.gitPath")}>

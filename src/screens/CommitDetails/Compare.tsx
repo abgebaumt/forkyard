@@ -43,7 +43,7 @@ function BriefsProblem({ tabId, briefs, title }: { tabId: Id; briefs: CommitBrie
         title={gone ? t("commitDetails.compare.gone") : t("commitDetails.compare.loadFailed")}
         detail={text}
         onRetry={briefs.retry}
-        action={{ label: t("commitDetails.compare.clearSelection"), onClick: () => useAppStore.getState().clearSelection(tabId) }}
+        action={{ label: t("ui.clearSelection"), onClick: () => useAppStore.getState().clearSelection(tabId) }}
       >
         {gone ? t("commitDetails.compare.goneHint") : hint || undefined}
       </PanelError>
@@ -63,7 +63,7 @@ interface SideProps {
 
 /** One side of the comparison: a commit or the working directory. */
 function Side({ tabId, side, sha, brief, age }: SideProps) {
-  const label = side === "from" ? t("commitDetails.compare.from") : t("commitDetails.compare.to");
+  const label = side === "from" ? t("ui.from") : t("ui.to");
   const dataSide = side === "from" ? "Von" : "Nach";
   const { data: settings } = useSettings();
   const frame = "flex w-full min-w-0 items-start gap-2 rounded-md border border-border bg-surface-sunken px-2 py-1.5 text-left";
@@ -75,7 +75,7 @@ function Side({ tabId, side, sha, brief, age }: SideProps) {
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5 font-medium text-text">
             <FolderOpen className="size-3.5 shrink-0 text-text-muted" aria-hidden />
-            {t("commitDetails.compare.workingDirectory")}
+            {t("ui.workingDirectory")}
           </span>
           <span className="block text-sm text-text-muted">{t("commitDetails.compare.workingDirectoryHint")}</span>
         </span>
@@ -258,7 +258,7 @@ export function TwoCommits({ repoId, tabId, shas }: { repoId: Id; tabId: Id; sha
 
 export function MultiCommits({ repoId, tabId, shas }: { repoId: Id; tabId: Id; shas: Sha[] }) {
   const briefs = useCommitBriefs(repoId, shas);
-  if (!briefs.ready) return <BriefsProblem tabId={tabId} briefs={briefs} title={t("commitDetails.compare.selection")} />;
+  if (!briefs.ready) return <BriefsProblem tabId={tabId} briefs={briefs} title={t("ui.selection")} />;
   const analysis = analyzeSelection(shas, briefs.briefs);
   // If the sequence reaches back to the first commit, there is no revision before it: the comparison is against the empty tree.
   if (analysis.kind !== "gap") {
@@ -275,7 +275,7 @@ export function MultiCommits({ repoId, tabId, shas }: { repoId: Id; tabId: Id; s
   const ordered = analysis.ordered;
   return (
     <>
-      <PanelBar title={t("commitDetails.compare.selection")}>
+      <PanelBar title={t("ui.selection")}>
         <span data-testid="selection-count" className="ml-1 text-sm text-text-muted">
           {t("commitDetails.commitCount", { count: shas.length })}
         </span>

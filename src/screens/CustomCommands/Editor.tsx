@@ -65,9 +65,9 @@ function Editor({
       }}
       footer={
         <>
-          <Button onClick={() => onDone(null)}>{t("customCommands.editor.cancel")}</Button>
+          <Button onClick={() => onDone(null)}>{t("ui.cancel")}</Button>
           <Button variant="primary" type="submit" form="custom-command-editor">
-            {t("customCommands.editor.save")}
+            {t("ui.save")}
           </Button>
         </>
       }
@@ -85,7 +85,7 @@ function Editor({
           <div className="min-w-0 flex-1">
             <TextField
               data-autofocus
-              label={t("customCommands.editor.title")}
+              label={t("ui.title")}
               value={draft.title}
               error={shown.title}
               autoComplete="off"
@@ -94,7 +94,7 @@ function Editor({
           </div>
           <div className="min-w-0 flex-1">
             <TextField
-              label={t("customCommands.editor.id")}
+              label={t("ui.id")}
               mono
               value={draft.id}
               error={shown.id}
@@ -105,7 +105,7 @@ function Editor({
           </div>
         </div>
         <SegmentedControl
-          label={t("customCommands.editor.kind")}
+          label={t("ui.kind")}
           value={draft.kind}
           options={KINDS.map((kind) => ({ value: kind, label: t(`customCommands.kinds.${kind}`) }))}
           onValueChange={(kind) => patch({ kind })}
@@ -121,7 +121,7 @@ function Editor({
         />
         {draft.kind === "shell" ? (
           <Select<CustomCommandCwd>
-            label={t("customCommands.editor.cwd")}
+            label={t("ui.workingDirectory")}
             value={draft.cwd}
             options={[
               { value: "worktree", label: t("customCommands.editor.cwdWorktree") },
@@ -166,7 +166,7 @@ function Editor({
               <div className="flex items-end gap-2">
                 <div className="min-w-0 flex-1">
                   <TextField
-                    label={t("customCommands.editor.inputId")}
+                    label={t("ui.id")}
                     mono
                     value={input.id}
                     autoComplete="off"

@@ -119,7 +119,7 @@ export function SettingRow({ title, description, stacked, group, changed, childr
             <span className="text-xs font-medium text-accent">
               {t("preferences.row.changed")} ·{" "}
               <button type="button" className="text-text-muted underline underline-offset-2 hover:text-text" onClick={changed.onReset}>
-                {t("preferences.row.reset")}
+                {t("ui.reset")}
               </button>
             </span>
           ) : null}

@@ -69,7 +69,7 @@ function lockMenu(repoId: Id, paths: string[]): MenuEntry[] {
   if (lockable.length > 0) {
     entries.push(
       item(
-        lockable.length === 1 ? t("menus.file.lock") : t("menus.file.lockMany", { n: lockable.length }),
+        lockable.length === 1 ? t("ui.lock") : t("menus.file.lockMany", { n: lockable.length }),
         Lock,
         () => void lockFiles(repoId, lockable),
       ),
@@ -78,7 +78,7 @@ function lockMenu(repoId: Id, paths: string[]): MenuEntry[] {
   if (ownLocked.length > 0) {
     entries.push(
       item(
-        ownLocked.length === 1 ? t("menus.file.unlock") : t("menus.file.unlockMany", { n: ownLocked.length }),
+        ownLocked.length === 1 ? t("ui.unlock") : t("menus.file.unlockMany", { n: ownLocked.length }),
         LockOpen,
         () => void unlockFiles(repoId, ownLocked, false),
       ),
@@ -88,7 +88,7 @@ function lockMenu(repoId: Id, paths: string[]): MenuEntry[] {
     const single = foreignLocked.length === 1 ? foreignLocked[0]! : null;
     entries.push(
       item(
-        single ? t("menus.file.forceUnlock") : t("menus.file.forceUnlockMany", { n: foreignLocked.length }),
+        single ? t("ui.forceUnlock") : t("menus.file.forceUnlockMany", { n: foreignLocked.length }),
         LockOpen,
         () =>
           void unlockFiles(
@@ -134,17 +134,17 @@ export function fileMenu(ctx: MenuBase & { files: FileChange[]; source: DiffSour
     primary.push(
       single ? item(t("menus.file.resolveConflict"), Wrench, () => store().openConflict(tabId, single.path)) : null,
       single ? item(t("menus.file.openMergeTool"), ExternalLink, () => void openMergeTool(repoId, single.path)) : null,
-      item(t("menus.file.takeOurs"), Check, () => void resolveConflictSide(repoId, paths, "ours"), {
+      item(t("ui.takeCurrentVersion"), Check, () => void resolveConflictSide(repoId, paths, "ours"), {
         hint: single ? undefined : t("menus.file.nFiles", { n: count }),
       }),
-      item(t("menus.file.takeTheirs"), Check, () => void resolveConflictSide(repoId, paths, "theirs"), {
+      item(t("ui.takeIncomingVersion"), Check, () => void resolveConflictSide(repoId, paths, "theirs"), {
         hint: single ? undefined : t("menus.file.nFiles", { n: count }),
       }),
     );
   } else if (source.kind === "unstaged") {
     const ignore = ignoreMenu(repoId, files);
     primary.push(
-      item(single ? t("menus.file.stage") : t("menus.file.stageMany", { n: count }), Plus, () => void stagePaths(repoId, paths), {
+      item(single ? t("ui.stage") : t("menus.file.stageMany", { n: count }), Plus, () => void stagePaths(repoId, paths), {
         shortcut: "S",
         blocked: someConflicts,
       }),
@@ -154,15 +154,15 @@ export function fileMenu(ctx: MenuBase & { files: FileChange[]; source: DiffSour
         () => void stashFiles(repoId, paths),
         { blocked: someConflicts },
       ),
-      item(t("menus.file.ignore"), EyeOff, () => undefined, ignore.length ? { children: ignore } : { blocked: t("menus.file.ignoreNone") }),
-      item(single ? t("menus.file.discard") : t("menus.file.discardMany", { n: count }), Trash2, () => void discardPaths(repoId, paths), {
+      item(t("ui.ignore"), EyeOff, () => undefined, ignore.length ? { children: ignore } : { blocked: t("menus.file.ignoreNone") }),
+      item(single ? t("ui.discardChanges") : t("menus.file.discardMany", { n: count }), Trash2, () => void discardPaths(repoId, paths), {
         danger: true,
         blocked: someConflicts,
       }),
     );
   } else if (source.kind === "staged") {
     primary.push(
-      item(single ? t("menus.file.unstage") : t("menus.file.unstageMany", { n: count }), Minus, () => void unstagePaths(repoId, paths), {
+      item(single ? t("ui.unstage") : t("menus.file.unstageMany", { n: count }), Minus, () => void unstagePaths(repoId, paths), {
         shortcut: "U",
         hint: t("menus.file.unstageHint"),
       }),
@@ -214,8 +214,8 @@ export function fileMenu(ctx: MenuBase & { files: FileChange[]; source: DiffSour
     SEPARATOR,
     ...lockMenu(repoId, paths),
     SEPARATOR,
-    item(t("menus.file.history"), History, () => single && store().openHistory(tabId, single.path), { blocked: one }),
-    item(t("menus.file.blame"), Users, () => single && store().openBlame(tabId, single.path, viewSha), {
+    item(t("ui.history"), History, () => single && store().openHistory(tabId, single.path), { blocked: one }),
+    item(t("ui.blame"), Users, () => single && store().openBlame(tabId, single.path, viewSha), {
       hint: one ? undefined : t("menus.file.blameHint"),
       blocked:
         one ??
@@ -227,10 +227,10 @@ export function fileMenu(ctx: MenuBase & { files: FileChange[]; source: DiffSour
               ? t("menus.file.deletedInCommit")
               : null),
     }),
-    item(t("menus.file.view"), FileText, () => single && store().openFile(tabId, single.path, viewSha, "view"), {
+    item(t("ui.viewFile"), FileText, () => single && store().openFile(tabId, single.path, viewSha, "view"), {
       blocked: one ?? (viewSha === null ? gone : single?.status === "deleted" ? t("menus.file.deletedInCommit") : null),
     }),
-    item(t("menus.file.edit"), FilePenLine, () => single && store().openFile(tabId, single.path, null, "edit"), {
+    item(t("ui.editFile"), FilePenLine, () => single && store().openFile(tabId, single.path, null, "edit"), {
       blocked: one ?? gone ?? (single?.isBinary ? t("menus.file.binary") : null),
     }),
     // New file next to the selected one: the folder is already in the field.
@@ -238,7 +238,7 @@ export function fileMenu(ctx: MenuBase & { files: FileChange[]; source: DiffSour
       ? item(t("menus.file.create"), FilePlus, () => void createFile(repoId, tabId, (files[0]?.path ?? "").replace(/[^/]*$/, "")))
       : null,
     worktree
-      ? item(t("menus.file.delete"), FileX, () => single && void deleteFile(repoId, tabId, single.path), {
+      ? item(t("ui.deleteFile"), FileX, () => single && void deleteFile(repoId, tabId, single.path), {
           danger: true,
           blocked: one ?? gone ?? (single?.status === "conflicted" ? t("menus.file.resolveConflictFirst") : null),
         })
@@ -247,7 +247,7 @@ export function fileMenu(ctx: MenuBase & { files: FileChange[]; source: DiffSour
     item(t("menus.file.openDiffTool"), GitCompareArrows, () => single && void openDiffTool(repoId, single.path, source), {
       blocked: one ?? (single?.status === "conflicted" ? t("menus.file.useMergeTool") : null),
     }),
-    item(t("menus.file.openEditor"), ExternalLink, () => single && void openExternal(repoId, "editor", single.path), {
+    item(t("ui.openInEditor"), ExternalLink, () => single && void openExternal(repoId, "editor", single.path), {
       blocked: one ?? gone,
     }),
     item(
@@ -257,9 +257,9 @@ export function fileMenu(ctx: MenuBase & { files: FileChange[]; source: DiffSour
       { blocked: one },
     ),
     item(
-      single ? t("menus.file.copyPath") : t("menus.file.copyPaths", { n: count }),
+      single ? t("ui.copyPath") : t("menus.file.copyPaths", { n: count }),
       Copy,
-      () => void copyText(paths.join("\n"), single ? t("menus.file.path") : t("menus.file.paths", { n: count })),
+      () => void copyText(paths.join("\n"), single ? t("ui.path") : t("menus.file.paths", { n: count })),
     ),
     item(
       single ? t("menus.file.patch") : t("menus.file.patchMany", { n: count }),

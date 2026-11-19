@@ -24,7 +24,7 @@ export function tagMenu(ctx: MenuBase & { ref: Ref }): MenuEntry[] {
   const several = (remotes?.length ?? 1) > 1;
   const only = remotes?.length === 1 ? remotes[0]!.name : null;
   return tidy([
-    item(t("menus.checkout"), LogIn, () => void checkout(repoId, ref.fullName, { tabId }), {
+    item(t("ui.checkOut"), LogIn, () => void checkout(repoId, ref.fullName, { tabId }), {
       hint: t("menus.detachedHint"),
       blocked: busy,
     }),
@@ -40,7 +40,7 @@ export function tagMenu(ctx: MenuBase & { ref: Ref }): MenuEntry[] {
       () => void pushTag(repoId, ref.name),
       { blocked: noRemote },
     ),
-    item(t("menus.copyName"), Copy, () => void copyText(ref.name, t("menus.tag.name"))),
+    item(t("menus.copyName"), Copy, () => void copyText(ref.name, t("ui.tagName"))),
     releaseNotesEntry(repoId, { kind: "tag", name: ref.name }),
     SEPARATOR,
     item(t("menus.tag.deleteLocal"), Trash2, () => void deleteTag(repoId, ref.name, null), { danger: true }),
@@ -67,10 +67,10 @@ export function stashMenu(ctx: MenuBase & { stash: Stash }): MenuEntry[] {
       blocked: conflicted,
     }),
     SEPARATOR,
-    item(t("menus.rename"), Pencil, () => void renameStash(repoId, stash)),
+    item(t("ui.rename"), Pencil, () => void renameStash(repoId, stash)),
     item(t("menus.createPatch"), FileDiff, () => void patchFromStash(repoId, stash)),
     SEPARATOR,
-    item(t("menus.stash.delete"), Trash2, () => void dropStash(repoId, stash), { danger: true }),
+    item(t("ui.delete"), Trash2, () => void dropStash(repoId, stash), { danger: true }),
   ]);
 }
 
@@ -81,7 +81,7 @@ export function remoteMenu(ctx: MenuBase & { remote: Remote }): MenuEntry[] {
       tooltip: t("menus.remote.fetchFrom", { name: t("menus.quoted", { name: remote.name }) }),
     }),
     item(t("menus.remote.edit"), Pencil, () => editRemote(remote.name)),
-    item(t("menus.remote.copyUrl"), Copy, () => void copyText(remote.fetchUrl, t("menus.remote.url")), {
+    item(t("ui.copyUrl"), Copy, () => void copyText(remote.fetchUrl, t("menus.remote.url")), {
       tooltip: t("menus.remote.copyUrlTip", { url: remote.fetchUrl }),
     }),
     SEPARATOR,
@@ -101,7 +101,7 @@ export function reflogMenu(ctx: MenuBase & { sha: Sha; exists: boolean }): MenuE
   const detached = cachedStatus(repoId)?.head.kind === "detached";
   return tidy([
     item(t("menus.createBranchHere"), GitBranchPlus, () => void createBranch(repoId, { start: sha, tabId }), { blocked }),
-    item(t("menus.commit.checkout"), LogIn, () => void checkoutCommit(repoId, sha, tabId), {
+    item(t("ui.checkOutCommit"), LogIn, () => void checkoutCommit(repoId, sha, tabId), {
       hint: t("menus.detachedHint"),
       blocked: blocked ?? (headSha(repoId) === sha && detached ? t("menus.commit.alreadyCheckedOut") : null),
     }),
@@ -110,6 +110,6 @@ export function reflogMenu(ctx: MenuBase & { sha: Sha; exists: boolean }): MenuE
       ...(blocked ? { blocked } : { children: resetMenu(ctx, sha) }),
     }),
     SEPARATOR,
-    item(t("menus.commit.copySha"), Copy, () => void copyText(sha, "SHA"), { hint: short(sha) }),
+    item(t("ui.copySha"), Copy, () => void copyText(sha, "SHA"), { hint: short(sha) }),
   ]);
 }

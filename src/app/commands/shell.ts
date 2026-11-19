@@ -24,7 +24,7 @@ const tabNumberCommands: AppCommand[] = Array.from({ length: 9 }, (_, index) => 
 export const commands: AppCommand[] = [
   {
     id: "tab.new",
-    title: t("commands.tab.new.title"),
+    title: t("ui.tabs.new"),
     group: "Tabs",
     shortcut: "Mod+T",
     keywords: kw("commands.tab.new.keywords"),
@@ -32,7 +32,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "tab.close",
-    title: t("commands.tab.close.title"),
+    title: t("ui.closeTab"),
     group: "Tabs",
     shortcut: "Mod+W",
     when: (ctx) => Boolean(ctx.tabId),
@@ -81,7 +81,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "app.palette",
-    title: t("commands.app.palette.title"),
+    title: t("ui.commandPalette"),
     group: "General",
     shortcut: "Mod+P",
     keywords: kw("commands.app.palette.keywords"),
@@ -89,7 +89,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "view.search",
-    title: t("commands.view.search.title"),
+    title: t("ui.searchCommits"),
     group: "View",
     shortcut: "Mod+F",
     keywords: kw("commands.view.search.keywords"),
@@ -101,7 +101,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "app.preferences",
-    title: t("commands.app.preferences.title"),
+    title: t("ui.settings"),
     group: "General",
     shortcut: "Mod+,",
     keywords: kw("commands.app.preferences.keywords"),
@@ -124,7 +124,7 @@ export const commands: AppCommand[] = [
   },
   {
     id: "view.zoomIn",
-    title: t("commands.view.zoomIn.title"),
+    title: t("ui.zoomIn"),
     group: "View",
     // The key shown is the one called "Plus" everywhere; "=" (the same key on the US layout) counts as an alias.
     shortcut: "Mod++",
@@ -133,14 +133,14 @@ export const commands: AppCommand[] = [
   },
   {
     id: "view.zoomOut",
-    title: t("commands.view.zoomOut.title"),
+    title: t("ui.zoomOut"),
     group: "View",
     shortcut: "Mod+-",
     run: () => changeZoom(-ZOOM_STEP),
   },
   {
     id: "view.zoomReset",
-    title: t("commands.view.zoomReset.title"),
+    title: t("ui.resetZoom"),
     group: "View",
     shortcut: "Mod+0",
     run: () => setZoom(1),

@@ -2,11 +2,7 @@
   "row": {
     "missingLocked": "Ordner fehlt · gesperrt",
     "missingOrphaned": "Ordner fehlt · verwaist",
-    "detached": "losgelöst · {{sha}}",
-    "noCommit": "ohne Commit",
-    "main": "Hauptordner",
-    "locked": "gesperrt",
-    "changed": "geändert"
+    "detached": "losgelöst · {{sha}}"
   },
   "describe": {
     "name": "Worktree {{name}}",
@@ -28,13 +24,10 @@
     "orphanFlag": "Der Ordner fehlt – der Eintrag ist verwaist"
   },
   "block": {
-    "here": "hier ausgecheckt",
-    "elsewhere": "in anderem Worktree"
+    "here": "hier ausgecheckt"
   },
   "dialog": {
-    "title": "Worktree anlegen",
     "description": "Ein zweiter Arbeitsordner für dasselbe Repository: ein anderer Branch liegt ausgecheckt daneben, ohne dass du hier wechseln oder stashen musst.",
-    "cancel": "Abbrechen",
     "modeHint": {
       "new": "Legt einen neuen Branch an und checkt ihn im neuen Ordner aus.",
       "existing": "Checkt einen vorhandenen lokalen Branch im neuen Ordner aus. Jeder Branch kann nur in einem Worktree ausgecheckt sein.",
@@ -65,9 +58,7 @@
     "createdOpened": "Worktree „{{name}}“ angelegt und geöffnet",
     "created": "Worktree „{{name}}“ angelegt",
     "openInTab": "In neuem Tab öffnen",
-    "loading": "Branches werden geladen",
     "loadError": "Die Branches ließen sich nicht laden",
-    "retry": "Erneut versuchen",
     "unborn": {
       "title": "Erst committen, dann Worktrees",
       "text": "Dieses Repository hat noch keinen Commit. Ein Worktree braucht einen Stand, den er auschecken kann."
@@ -75,30 +66,24 @@
     "failed": "Der Worktree wurde nicht angelegt",
     "mode": {
       "label": "Was wird ausgecheckt?",
-      "new": "Neuer Branch",
       "existing": "Vorhandener Branch",
       "detached": "Losgelöst"
     },
     "name": {
-      "label": "Name des neuen Branches",
-      "placeholder": "feature/neue-idee"
+      "label": "Name des neuen Branches"
     },
     "start": "Beginnt bei",
     "noFree": {
       "title": "Kein Branch frei",
       "text": "Alle lokalen Branches sind schon in einem Worktree ausgecheckt. Lege stattdessen einen neuen Branch an."
     },
-    "branch": "Branch",
-    "branchPlaceholder": "Branch wählen",
     "commitFrom": "Commit von",
     "commitHint": "Der Worktree steht danach auf diesem Commit, ohne Branch.",
     "parent": {
       "label": "Übergeordneter Ordner",
       "placeholder": "Ordner, in dem der Worktree entsteht"
     },
-    "browse": "Durchsuchen …",
     "folder": {
-      "label": "Ordnername",
       "placeholder": "wird aus dem Branch vorgeschlagen"
     },
     "target": "Entsteht in:",
@@ -110,7 +95,6 @@
     "title": "Worktree „{{name}}“ sperren",
     "description": "Ein gesperrter Worktree wird weder entfernt noch aufgeräumt – gedacht für Ordner auf Wechseldatenträgern oder Netzlaufwerken, die nicht immer da sind.",
     "saveReason": "Grund speichern",
-    "lock": "Sperren",
     "reason": {
       "label": "Grund (optional)",
       "placeholder": "z. B. liegt auf der externen Platte",
@@ -121,9 +105,7 @@
     "mainNoLock": "der Hauptordner lässt sich nicht sperren",
     "folderMissing": "Ordner fehlt",
     "alreadyOpen": "ist hier schon geöffnet",
-    "copyPath": "Pfad kopieren",
     "pathWhat": "Pfad des Worktrees",
-    "unlock": "Entsperren",
     "lock": "Sperren …",
     "lockHint": "schützt vor Entfernen und Aufräumen",
     "changeReason": "Grund der Sperre ändern …",
@@ -135,14 +117,9 @@
     "removeTip": "Worktree „{{name}}“ entfernen"
   },
   "section": {
-    "title": "Worktrees",
     "loadError": "Worktrees lassen sich nicht laden",
-    "create": "Anlegen",
     "empty": "Keine Worktrees",
-    "collapse": "Einklappen",
-    "expand": "Ausklappen",
     "alwaysOpen": "beim Filtern immer offen",
-    "hide": "Sektion ausblenden",
     "hideHint": "zurück über das Menü einer anderen Sektion",
     "noOrphans": "kein Eintrag ohne Ordner",
     "busy": "Worktrees werden geändert",

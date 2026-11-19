@@ -1,6 +1,5 @@
 {
   "filter": {
-    "stashes": "Stashes",
     "list": "{{first}} und {{last}}",
     "currentBranch": "aktueller Branch",
     "upstream": "Upstream",
@@ -11,14 +10,11 @@
     "hiddenOne": "{{name}} ausgeblendet",
     "hiddenMany": "{{count}} Refs ausgeblendet",
     "clear": "Filter aufheben",
-    "title": "Ansicht gefiltert",
     "showAll": "Alle zeigen"
   },
   "loading": "Die Historie wird geladen",
   "loadFailed": "Die Historie konnte nicht geladen werden",
-  "retry": "Erneut versuchen",
   "outputTitle": "Historie laden: Ausgabe von Git",
-  "showOutput": "Ausgabe anzeigen",
   "detached": {
     "title": "Kein Branch ausgecheckt (Detached HEAD)",
     "text": "· <code>{{sha}}</code> · neue Commits gehören zu keinem Branch",
@@ -54,8 +50,7 @@
   },
   "checkout": {
     "title": "Commit {{sha}} auschecken?",
-    "body": "Danach ist kein Branch mehr ausgecheckt (Detached HEAD). Neue Commits gehören zu keinem Branch, bis du einen anlegst; deine Branches bleiben, wie sie sind.",
-    "confirm": "Commit auschecken"
+    "body": "Danach ist kein Branch mehr ausgecheckt (Detached HEAD). Neue Commits gehören zu keinem Branch, bis du einen anlegst; deine Branches bleiben, wie sie sind."
   },
   "reveal": {
     "notInView": "Commit {{sha}} ist in dieser Ansicht nicht enthalten",
@@ -68,8 +63,6 @@
     "seeking_one": "Commit {{sha}} wird gesucht … {{count, number}} Commit geladen",
     "seeking_other": "Commit {{sha}} wird gesucht … {{count, number}} Commits geladen"
   },
-  "label": "Commit-Graph",
-  "cancel": "Abbrechen",
   "smartLoading": "Die Branches sind noch nicht geladen",
   "stale": "Der Graph ist nicht auf dem neuesten Stand",
   "empty": {

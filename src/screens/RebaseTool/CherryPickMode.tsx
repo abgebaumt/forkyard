@@ -90,7 +90,7 @@ export function CherryPickMode({
   const header = (
     <ToolHeader
       icon={<Cherry className="size-icon" aria-hidden />}
-      title={t("rebase.tool.cherryPick")}
+      title={t("ui.cherryPick")}
       onClose={onClose}
       subtitle={
         <>
@@ -114,7 +114,7 @@ export function CherryPickMode({
           state="empty"
           icon={<Cherry className="size-8" aria-hidden />}
           title={t("rebase.pick.noneTitle")}
-          actions={<Button onClick={onClose}>{t("rebase.backToGraph")}</Button>}
+          actions={<Button onClick={onClose}>{t("ui.backToGraph")}</Button>}
         >
           {t("rebase.pick.noneBody")}
         </StatePanel>
@@ -161,7 +161,7 @@ export function CherryPickMode({
 
   const start = async () => {
     if (blocked || busy) return;
-    const label = chosen.length === 1 ? t("rebase.tool.cherryPick") : t("rebase.pick.labelMany", { count: chosen.length });
+    const label = chosen.length === 1 ? t("ui.cherryPick") : t("rebase.pick.labelMany", { count: chosen.length });
     const result = await runAction(
       label,
       withFreshStatus(repoId, () => core.cherryPick({ repoId, shas: chosen })),
@@ -278,7 +278,7 @@ export function CherryPickMode({
       </span>
       <ToolFooter
         keys={[
-          [t("rebase.keys.spaceKey"), t("rebase.pick.keyToggle")],
+          [t("ui.keys.space"), t("rebase.pick.keyToggle")],
           ["Alt+↑ Alt+↓", t("rebase.keys.move")],
           ["Mod+Enter", t("rebase.keys.start")],
         ]}
@@ -294,7 +294,7 @@ export function CherryPickMode({
         }
       >
         <Button variant="ghost" onClick={onClose}>
-          {t("rebase.cancel")}
+          {t("ui.cancel")}
         </Button>
         <StartButton
           action="start"

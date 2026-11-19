@@ -100,7 +100,7 @@ function ReviewDialog({
     <Dialog
       open
       size="lg"
-      title={t("pushCheck.review.title")}
+      title={t("ui.reviewBeforePush")}
       description={t("pushCheck.review.description")}
       onOpenChange={(open) => {
         if (!open) onDone(false);
@@ -153,7 +153,7 @@ function ReviewDialog({
               {failure.kind === "limit" ? (
                 <>
                   <Button size="sm" onClick={() => void sendThisTime()}>
-                    {t("ai.state.limitSend")}
+                    {t("ui.sendThisTime")}
                   </Button>
                   <Button
                     size="sm"
@@ -169,7 +169,7 @@ function ReviewDialog({
               ) : null}
               {failure.kind === "unavailable" ? (
                 <Button size="sm" onClick={again}>
-                  {t("ai.state.retry")}
+                  {t("ui.retry")}
                 </Button>
               ) : null}
               {failure.kind !== "setup" &&

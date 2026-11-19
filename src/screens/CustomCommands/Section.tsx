@@ -145,21 +145,21 @@ export function CustomCommandsSection({ repoId }: { repoId: Id | null }) {
       );
   };
   const importFile = async () => {
-    const path = await core.pickFile({ title: t("customCommands.settings.importTitle") });
+    const path = await core.pickFile({ title: t("ui.importCustomCommands") });
     if (!path) return;
-    const read = await runAction(t("customCommands.settings.importLabel"), () => core.customCommandsImport({ path }));
+    const read = await runAction(t("ui.importCustomCommands"), () => core.customCommandsImport({ path }));
     if (!read.ok) return;
     const merged = mergeImported(own, read.value);
     await save(merged.commands, t("customCommands.settings.imported", { added: merged.added.length, replaced: merged.replaced.length }));
   };
   const exportFile = async () => {
     const path = await pickSavePath({
-      title: t("customCommands.settings.exportTitle"),
+      title: t("ui.exportCustomCommands"),
       defaultPath: "forkyard-commands.json",
       filters: [{ name: t("customCommands.settings.jsonFilter"), extensions: ["json"] }],
     });
     if (!path) return;
-    await runAction(t("customCommands.settings.exportLabel"), () => core.customCommandsExport({ path }), {
+    await runAction(t("ui.exportCustomCommands"), () => core.customCommandsExport({ path }), {
       success: t("customCommands.settings.exported", { path }),
     });
   };
@@ -167,7 +167,7 @@ export function CustomCommandsSection({ repoId }: { repoId: Id | null }) {
   return (
     <section data-section="custom-commands">
       <SectionHeader
-        title={t("customCommands.settings.title")}
+        title={t("ui.customCommands")}
         actions={
           <>
             <Button onClick={() => void importFile()}>{t("customCommands.settings.import")}</Button>
@@ -193,7 +193,7 @@ export function CustomCommandsSection({ repoId }: { repoId: Id | null }) {
               actions={
                 <>
                   <Button size="sm" onClick={() => void edit(command)}>
-                    {t("customCommands.settings.edit")}
+                    {t("ui.edit")}
                   </Button>
                   <Button size="sm" variant="danger" onClick={() => void remove(command)}>
                     {t("customCommands.settings.delete")}

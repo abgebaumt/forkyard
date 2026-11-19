@@ -77,7 +77,7 @@ function bisectEntries(ctx: MenuBase, shas: Sha[]): MenuEntry[] {
     ...(autopilot === "hidden"
       ? []
       : [
-          item(t("menus.commit.bisectAutopilot"), null, () => void startAutopilot(ctx.repoId, shas, ctx.tabId), {
+          item(t("ui.bisectAutopilot"), null, () => void startAutopilot(ctx.repoId, shas, ctx.tabId), {
             blocked: autopilotRunning(ctx.repoId) ? t("commands.bisect.autopilot.running") : null,
           }),
         ]),
@@ -94,7 +94,7 @@ function mergeEntries(ctx: MenuBase, sha: Sha, row: GraphRow | undefined): MenuE
     ...(row.collapsible
       ? [
           item(
-            collapsed ? t("menus.commit.expandMerge") : t("menus.commit.collapseMerge"),
+            collapsed ? t("ui.expandMerge") : t("menus.commit.collapseMerge"),
             collapsed ? ChevronsUpDown : ChevronsDownUp,
             () => void setMergeCollapsed(ctx.repoId, merge, !collapsed),
             {
@@ -159,7 +159,7 @@ export function commitMenu(ctx: MenuBase & { shas: Sha[] }): MenuEntry[] {
         blocked: busy ?? (detached ? t("menus.noBranch") : squash.ok === false ? squash.reason : null),
       }),
       count === 2 && first && second
-        ? item(t("menus.commit.compare"), GitCompareArrows, () => compareCommits(tabId, first, second), {
+        ? item(t("ui.compare"), GitCompareArrows, () => compareCommits(tabId, first, second), {
             hint: `${short(first)} ↔ ${short(second)}`,
           })
         : null,
@@ -181,17 +181,17 @@ export function commitMenu(ctx: MenuBase & { shas: Sha[] }): MenuEntry[] {
     item(t("menus.commit.createTagHere"), Tag, () => void createTag(repoId, sha)),
     releaseNotesEntry(repoId, { kind: "commit", sha }),
     SEPARATOR,
-    item(t("menus.commit.checkout"), LogIn, () => void checkoutCommit(repoId, sha, tabId), {
+    item(t("ui.checkOutCommit"), LogIn, () => void checkoutCommit(repoId, sha, tabId), {
       hint: t("menus.detachedHint"),
       blocked: busy ?? (isHead && detached ? t("menus.commit.alreadyCheckedOut") : null),
     }),
     SEPARATOR,
-    item(t("menus.commit.cherryPick"), Cherry, () => void cherryPick(repoId, [sha], tabId), {
+    item(t("ui.cherryPick"), Cherry, () => void cherryPick(repoId, [sha], tabId), {
       hint: t("menus.commit.onto", { name: current.label }),
       tooltip: t("menus.commit.cherryPickTip", { name: current.full }),
       blocked: busy ?? (contained ? t("menus.alreadyIn", { name: current.label }) : null),
     }),
-    item(t("menus.commit.revert"), Undo2, () => void revertCommit(repoId, sha, tabId), {
+    item(t("ui.revert"), Undo2, () => void revertCommit(repoId, sha, tabId), {
       hint: t("menus.commit.revertHint"),
       blocked: busy ?? (contained === false ? t("menus.commit.notIn", { name: current.label }) : null),
     }),
@@ -221,7 +221,7 @@ export function commitMenu(ctx: MenuBase & { shas: Sha[] }): MenuEntry[] {
     ...bisectEntries(ctx, [sha]),
     SEPARATOR,
     isHead ? item(t("menus.commit.reword"), Pencil, () => void rewordHead(repoId, sha, tabId), { blocked: busy }) : null,
-    item(t("menus.commit.copySha"), Copy, () => void copyText(sha, "SHA"), { hint: short(sha) }),
+    item(t("ui.copySha"), Copy, () => void copyText(sha, "SHA"), { hint: short(sha) }),
     item(t("menus.commit.copyMessage"), Copy, () => void copyCommitMessage(repoId, sha), {
       tooltip: row?.summary ? t("menus.commit.copyMessageTip", { summary: row.summary }) : undefined,
     }),

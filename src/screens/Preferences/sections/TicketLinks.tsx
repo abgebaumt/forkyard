@@ -93,7 +93,7 @@ function PresetsCard({ config, onSave }: { config: LinkRulesConfig; onSave: Save
           </div>
           <div className="min-w-48 flex-1">
             <TextField
-              label={t("preferences.project.links.baseUrl")}
+              label={t("ui.address")}
               mono
               value={baseUrl}
               placeholder={PRESET_PLACEHOLDERS[kind]}
@@ -112,7 +112,7 @@ function PresetsCard({ config, onSave }: { config: LinkRulesConfig; onSave: Save
             </div>
           ) : null}
           <Button icon={<Plus className="size-icon" aria-hidden />} loading={busy} disabled={!baseUrl.trim()} onClick={() => void add()}>
-            {t("preferences.project.links.add")}
+            {t("ui.add")}
           </Button>
         </div>
         <p className="text-sm text-text-muted">
@@ -184,7 +184,7 @@ function CustomRulesCard({ config, onSave }: { config: LinkRulesConfig; onSave: 
       ))}
       <div className="flex flex-col gap-2 py-3">
         <TextField
-          label={t("preferences.project.links.pattern")}
+          label={t("ui.pattern")}
           mono
           maxLength={200}
           value={pattern}
@@ -274,8 +274,8 @@ export function TicketLinksSection({ repoId }: { repoId: Id }) {
 
   return (
     <section>
-      <Intro repoId={repoId}>{t("preferences.project.links.title")}</Intro>
-      <SettingsCard title={t("preferences.project.links.hostCard")}>
+      <Intro repoId={repoId}>{t("ui.ticketLinks")}</Intro>
+      <SettingsCard title={t("ui.host")}>
         <SettingRow
           title={t("preferences.project.links.host")}
           description={noHost ? t("preferences.project.links.noHost") : t("preferences.project.links.hostDescription")}
