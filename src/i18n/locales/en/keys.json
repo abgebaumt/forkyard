@@ -1,8 +1,9 @@
 {
-  "change": "Change shortcut for {{command}}",
+  "change": "Change shortcut for {{command}}, currently {{keys}}",
   "none": "No shortcut",
   "recording": "Press the new combination …",
   "recordingHint": "Esc cancels, Backspace removes the shortcut.",
+  "recordingHintMac": "Esc cancels, Delete removes the shortcut.",
   "conflict": "Used by {{command}}",
   "assignAnyway": "Assign anyway",
   "refused": "Can't be assigned: {{reason}}",
@@ -18,6 +19,7 @@
     "body": "Every command gets its default shortcut back. Your own shortcuts are removed."
   },
   "fixedNote": "These keys belong to their view and can't be changed.",
+  "fixedElsewhere": "Keys inside lists and views are fixed; the shortcut overview lists them.",
   "description": "Click a shortcut and press the new combination. Changes apply at once.",
   "filter": "Filter shortcuts",
   "empty": "No command matches “{{query}}”."

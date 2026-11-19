@@ -239,7 +239,7 @@ export function Preferences({
       case "commands":
         return <CustomCommandsSection repoId={repo?.trusted ? repoId : null} />;
       case "keys":
-        return <KeysSection />;
+        return withSettings(() => <KeysSection />);
       case "notifications":
         return withSettings((value) => <NotificationsSection settings={value} />);
       case "ai":

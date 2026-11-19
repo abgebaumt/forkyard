@@ -19,7 +19,7 @@ export function KeysSection() {
         className="mb-3 max-w-80"
       />
       <KeybindingEditor filter={filter} />
-      <p className="mt-2 text-sm text-text-muted">{t("keys.fixedNote")}</p>
+      <p className="mt-2 text-sm text-text-muted">{t("keys.fixedElsewhere")}</p>
     </div>
   );
 }

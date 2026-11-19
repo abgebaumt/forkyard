@@ -4,21 +4,19 @@
  * once, a taken one asks first, a reserved one is refused with the reason. Esc cancels, Backspace
  * removes the key. While recording, no key reaches the dialogs or the global shortcuts.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getBaseCommands, useCommands } from "../../app/registry";
-import { assign, remove, reset, shortcutFromEvent, type Keybindings, type Refusal } from "../../app/keybindings";
+import { remove, reset, shortcutFromEvent, type Keybindings, type Refusal } from "../../app/keybindings";
 import { confirm } from "../../app/dialogs";
 import { useSettings } from "../../app/queries";
 import { Button } from "../../ui/Button";
 import { Kbd } from "../../ui/Kbd";
 import { cn } from "../../ui/cn";
-import { isMacShortcuts, shortcutPlatform } from "../../ui/shortcut";
+import { ariaShortcut, isMacShortcuts, shortcutPlatform } from "../../ui/shortcut";
 import { applySettings } from "../Preferences/settings";
-import { onRecordKey, type RecordState } from "./editor";
+import { assignKey, onRecordKey, type RecordState } from "./editor";
 import { filterSections, registrySections } from "./model";
 import { t } from "../../i18n";
-
-const EMPTY: Keybindings = {};
 
 function reasonText(reason: Refusal): string {
   if (reason.kind === "fixed") return t("keys.reason.fixed", { group: reason.group, label: reason.label });
@@ -27,15 +25,19 @@ function reasonText(reason: Refusal): string {
 
 export function KeybindingEditor({ filter }: { filter: string }) {
   const commands = useCommands();
-  const overrides = useSettings().data?.keybindings ?? EMPTY;
+  // Undefined while loading or failed: a write would then replace every override with one entry.
+  const overrides = useSettings().data?.keybindings;
   const [state, setState] = useState<RecordState>({ kind: "idle" });
+  const rootRef = useRef<HTMLDivElement>(null);
   const sections = useMemo(() => filterSections(registrySections(commands, { editing: true }), filter), [commands, filter]);
 
   const save = (keybindings: Keybindings) => void applySettings({ keybindings });
-  const assignTo = (commandId: string, combo: string) => save(assign(overrides, commandId, combo, commands, shortcutPlatform()));
+  const context = () => ({ effective: commands, base: getBaseCommands(), platform: shortcutPlatform() });
+  const focusKey = (commandId: string) =>
+    rootRef.current?.querySelector<HTMLElement>(`[data-keybinding="${CSS.escape(commandId)}"]`)?.focus();
 
   useEffect(() => {
-    if (state.kind === "idle") return;
+    if (state.kind === "idle" || !overrides) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.isComposing) return;
       // While asking about a conflict, Tab and Enter belong to its buttons; only Esc is ours.
@@ -43,14 +45,10 @@ export function KeybindingEditor({ filter }: { filter: string }) {
       // Window, capture phase: before Radix (Esc closes the dialog) and the global shortcuts.
       event.preventDefault();
       event.stopPropagation();
-      const platform = shortcutPlatform();
-      const next = onRecordKey(state, shortcutFromEvent(event, isMacShortcuts()), event.key, {
-        effective: commands,
-        base: getBaseCommands(),
-        platform,
-      });
+      const next = onRecordKey(state, shortcutFromEvent(event, isMacShortcuts()), event.key, context());
       setState(next.state);
-      if (next.action.kind === "set") save(assign(overrides, state.commandId, next.action.combo, commands, platform));
+      if (state.kind === "conflict") focusKey(state.commandId);
+      if (next.action.kind === "set") save(assignKey(overrides, state.commandId, next.action.combo, context()));
       else if (next.action.kind === "remove") save(remove(overrides, state.commandId));
     };
     window.addEventListener("keydown", onKeyDown, true);
@@ -62,8 +60,10 @@ export function KeybindingEditor({ filter }: { filter: string }) {
     if (ok) save({});
   };
 
+  if (!overrides) return null;
+
   return (
-    <div data-keys-editor>
+    <div ref={rootRef} data-keys-editor>
       {Object.keys(overrides).length ? (
         <div className="mb-2 flex justify-end">
           <Button size="sm" variant="ghost" data-keys-reset-all onClick={() => void resetAll()}>
@@ -87,14 +87,31 @@ export function KeybindingEditor({ filter }: { filter: string }) {
                   <div className="flex min-h-control-md items-center gap-3">
                     <span className="min-w-0 flex-1 text-base text-text">{entry.label}</span>
                     {Object.hasOwn(overrides, id) ? (
-                      <Button size="sm" variant="ghost" data-keybinding-reset={id} onClick={() => save(reset(overrides, id))}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        data-keybinding-reset={id}
+                        onClick={() => {
+                          save(reset(overrides, id));
+                          focusKey(id);
+                        }}
+                      >
                         {t("ui.reset")}
                       </Button>
                     ) : null}
                     <button
                       type="button"
                       data-keybinding={id}
-                      aria-label={listening ? undefined : t("keys.change", { command: entry.label })}
+                      aria-label={
+                        listening
+                          ? undefined
+                          : t("keys.change", {
+                              command: entry.label,
+                              keys: entry.keys.length
+                                ? entry.keys.map((alternative) => ariaShortcut(alternative.join("+"))).join(", ")
+                                : t("keys.none"),
+                            })
+                      }
                       onClick={() => setState(listening ? { kind: "idle" } : { kind: "recording", commandId: id })}
                       onBlur={() => listening && setState({ kind: "idle" })}
                       className={cn(
@@ -103,7 +120,7 @@ export function KeybindingEditor({ filter }: { filter: string }) {
                       )}
                     >
                       {listening ? (
-                        <span aria-live="polite" className="text-sm text-text" data-keys-recording>
+                        <span className="text-sm text-text" data-keys-recording>
                           {t("keys.recording")}
                         </span>
                       ) : entry.keys.length ? (
@@ -115,7 +132,10 @@ export function KeybindingEditor({ filter }: { filter: string }) {
                   </div>
                   <div aria-live="polite">
                     {mine?.kind === "recording" ? (
-                      <p className="pb-1 text-right text-sm text-text-muted">{t("keys.recordingHint")}</p>
+                      <p className="pb-1 text-right text-sm text-text-muted">
+                        <span className="sr-only">{t("keys.recording")} </span>
+                        {t(isMacShortcuts() ? "keys.recordingHintMac" : "keys.recordingHint")}
+                      </p>
                     ) : null}
                     {mine?.kind === "refused" ? (
                       <p className="pb-1 text-right text-sm text-danger" data-keys-refused>
@@ -131,12 +151,20 @@ export function KeybindingEditor({ filter }: { filter: string }) {
                           data-keys-assign-anyway
                           onClick={() => {
                             setState({ kind: "idle" });
-                            assignTo(id, mine.combo);
+                            save(assignKey(overrides, id, mine.combo, context()));
+                            focusKey(id);
                           }}
                         >
                           {t("keys.assignAnyway")}
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setState({ kind: "idle" })}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setState({ kind: "idle" });
+                            focusKey(id);
+                          }}
+                        >
                           {t("ui.cancel")}
                         </Button>
                       </div>
