@@ -43,6 +43,7 @@ import {
 } from "./actions";
 import { getDraft, joinMessage, splitMessage } from "./draft";
 import { SPLIT_LIMITS, getWipTab, useWipStore, useWipTab, type WipArea } from "./state";
+import { busyKeys } from "../../app/actions/keys";
 
 export type PanelMode = "commit" | "stash";
 
@@ -103,7 +104,7 @@ function OperationBanner({ repoId, tabId, status }: { repoId: Id; tabId: Id; sta
   const operation = status.operation;
   const open = status.conflicted.length;
   const seen = useWipTab(tabId).conflictSeen;
-  const busy = useBusy(`${repoId}:operation`);
+  const busy = useBusy(busyKeys.operation(repoId));
   // Counted is what this session saw in conflict AND what the index lists as resolved – so the
   // number is right even after a restart in the middle of a merge.
   const stillOpen = new Set(status.conflicted.map((file) => file.path));

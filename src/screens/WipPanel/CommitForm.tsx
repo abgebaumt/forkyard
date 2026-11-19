@@ -16,6 +16,7 @@ import { useWipStore, useWipTab } from "./state";
 import { ComposeButton } from "../Compose/ComposeButton";
 import { AiDraftStatus, AiWriteButton } from "./AiDraftControls";
 import { cancelWriteMessage, noteEdited, settleAiDraft, undoInsertion } from "./aiDraftActions";
+import { busyKeys } from "../../app/actions/keys";
 
 /** From here on the summary shows its counter, from `SUMMARY_LIMIT` in the warning colour. */
 const SUMMARY_COUNTER_FROM = 50;
@@ -48,7 +49,7 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const wip = useWipTab(tabId);
   const patch = useWipStore.getState().patch;
   const committing = useBusy(wipBusy.commit(repoId));
-  const continuing = useBusy(`${repoId}:operation`);
+  const continuing = useBusy(busyKeys.operation(repoId));
   const shift = useShiftHeld();
   const summaryId = useId();
   const descriptionId = useId();

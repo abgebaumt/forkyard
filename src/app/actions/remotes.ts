@@ -5,6 +5,7 @@ import { qk, queryClient } from "../queries";
 import { runAction } from "../run";
 import { useAppStore } from "../store";
 import { cachedRefs, clip } from "./context";
+import { busyKeys } from "./keys";
 
 /** Opens the remote dialog for editing name and URLs. */
 export function editRemote(name: string): void {
@@ -35,7 +36,7 @@ export async function removeRemote(repoId: Id, remote: Pick<Remote, "name" | "fe
   });
   if (!ok) return null;
   const result = await runAction(t("actions.remotes.remove.action"), () => core.remoteRemove({ repoId, name: remote.name }), {
-    busyKey: `${repoId}:remote`,
+    busyKey: busyKeys.write(repoId, "remote"),
     success: t("actions.remotes.remove.done", { name: clip(remote.name) }),
   });
   if (result.ok) queryClient.setQueryData(qk.remotes(repoId), result.value);

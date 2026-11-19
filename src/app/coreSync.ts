@@ -24,6 +24,7 @@ import { useAppStore } from "./store";
 import { createIndexScheduler } from "./ai/indexScheduler";
 import { featureVisible } from "./ai/visibility";
 import { agentOwner, isLive, keepFirstPage, qk, queryClient } from "./queries";
+import { busyKeys } from "./actions/keys";
 
 // ---------------------------------------------------------------------------
 // Invalidation
@@ -116,7 +117,7 @@ const QUIET_FETCH_FAILURES: ReadonlySet<string> = new Set(["offline", "auth_fail
 
 function reportBackgroundFetch(repoId: Id, exitCode: number | null, output: string, code: string | null): void {
   const busy = useAppStore.getState().busy;
-  if (busy[`${repoId}:fetch`] || busy[`${repoId}:pull`] || busy[`${repoId}:push`] || wasManualSync(repoId)) return;
+  if (busy[busyKeys.fetch(repoId)] || busy[busyKeys.pull(repoId)] || busy[busyKeys.push(repoId)] || wasManualSync(repoId)) return;
   const settings = queryClient.getQueryData<Settings>(qk.settings);
   const name = queryClient.getQueryData<Repo[]>(qk.repos)?.find((repo) => repo.id === repoId);
   const where = name ? (name.alias ?? name.name) : t("app.queries.repository");

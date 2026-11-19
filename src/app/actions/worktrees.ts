@@ -12,8 +12,9 @@ import { runAction, type ActionResult } from "../run";
 import { useAppStore } from "../store";
 import { clip } from "./context";
 import { openRepositoryAt } from "./repos";
+import { busyKeys } from "./keys";
 
-export const worktreeBusyKey = (repoId: Id) => `${repoId}:worktree`;
+export const worktreeBusyKey = (repoId: Id) => busyKeys.write(repoId, "worktree");
 
 /** Last part of a path, without a trailing separator. */
 export function folderName(path: string): string {

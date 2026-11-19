@@ -13,8 +13,9 @@ import { newJobId, runAction, showError, type ActionResult } from "../run";
 import { clip } from "./context";
 import { openRepositoryAt } from "./repos";
 import { moveTargetProblem, normalizePath } from "../../screens/SubmoduleDialog/model";
+import { busyKeys } from "./keys";
 
-export const submoduleBusyKey = (repoId: Id) => `${repoId}:submodule`;
+export const submoduleBusyKey = (repoId: Id) => busyKeys.write(repoId, "submodule");
 
 /** State of a submodule as a word – shown in the row, in the tooltip and for screen readers. */
 export const submoduleStateText: Record<SubmoduleState, string> = {

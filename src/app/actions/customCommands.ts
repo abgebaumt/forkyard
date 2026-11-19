@@ -11,6 +11,7 @@ import { confirm, showOutput, type ConfirmOptions } from "../dialogs";
 import { newJobId, runAction } from "../run";
 import { useAppStore } from "../store";
 import { openInBrowser } from "./hosts";
+import { busyKeys } from "./keys";
 
 function reportUntrusted(): void {
   toast({
@@ -65,7 +66,7 @@ export async function runCustomCommand(repoId: Id, entry: CustomCommandEntry, co
   const call = (confirmed: boolean) => {
     const jobId = newJobId();
     return runAction(command.title, () => core.customCommandRun({ repoId, id: entry.key, context, inputs, jobId, confirmed }), {
-      busyKey: `${repoId}:custom:${entry.key}`,
+      busyKey: busyKeys.write(repoId, `custom:${entry.key}`),
       quiet: ["command_untrusted"],
       job: { id: jobId, title: command.title, repoId },
     });

@@ -13,6 +13,7 @@ import { runAction } from "../run";
 import { withStatus } from "../statusCache";
 import { useAppStore } from "../store";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
+import { busyKeys } from "../actions/keys";
 
 /** Path of the file currently shown in the centre (diff, file, history, blame). */
 function centerPath(ctx: CommandContext): string | null {
@@ -87,7 +88,7 @@ export async function deleteFile(repoId: string, tabId: string, path: string): P
   const result = await runAction(
     t("commands.file.delete.action"),
     withStatus(repoId, () => core.fileDelete({ repoId, path })),
-    { busyKey: `${repoId}:file-delete` },
+    { busyKey: busyKeys.write(repoId, "file-delete") },
   );
   if (!result.ok) return false;
   void queryClient.invalidateQueries({ queryKey: qk.undo(repoId) });

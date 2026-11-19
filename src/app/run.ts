@@ -30,7 +30,7 @@ const SILENT: ErrorCode[] = ["cancelled", "duplicate"];
  * Runs `fn`. Errors are shown as a toast (they stay, text is selectable, with "Show output" when
  * there is Git output) and returned as `{ ok: false }` – never thrown.
  *
- *   const result = await runAction("Push", () => core.push({...}), { busyKey: `${repoId}:push` });
+ *   const result = await runAction("Push", () => core.push({...}), { busyKey: busyKeys.push(repoId) });
  *   if (result.ok) …
  */
 export async function runAction<T>(label: string, fn: () => Promise<T>, options: RunOptions<T> = {}): Promise<ActionResult<T>> {

@@ -11,8 +11,9 @@ import { toast } from "../../ui/Feedback";
 import { toCoreError } from "../errors";
 import { newJobId, showError } from "../run";
 import { useAppStore } from "../store";
+import { busyKeys } from "./keys";
 
-export const cleanupBusyKey = (repoId: Id) => `${repoId}:cleanup`;
+export const cleanupBusyKey = (repoId: Id) => busyKeys.write(repoId, "cleanup");
 
 /** Runs the clean-up; `null` if one already runs for the repository or the core refused it. */
 export async function runCleanup(repoId: Id, options: CleanupOptions): Promise<CleanupResult | null> {

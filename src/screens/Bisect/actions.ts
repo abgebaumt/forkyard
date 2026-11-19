@@ -12,8 +12,9 @@ import { runAction } from "../../app/run";
 import { useAppStore } from "../../app/store";
 import { t } from "../../i18n";
 import { markTarget } from "./model";
+import { busyKeys } from "../../app/actions/keys";
 
-export const bisectBusyKey = (repoId: Id) => `${repoId}:bisect`;
+export const bisectBusyKey = (repoId: Id) => busyKeys.write(repoId, "bisect");
 
 const MARK_LABELS: Record<BisectVerdict, string> = {
   good: t("bisect.mark.good"),

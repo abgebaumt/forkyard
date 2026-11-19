@@ -13,6 +13,7 @@ import { withStatus } from "../../app/statusCache";
 import { toast } from "../../ui/Feedback";
 import { t } from "../../i18n";
 import { baseName } from "../../app/paths";
+import { busyKeys } from "../../app/actions/keys";
 
 /**
  * Which revision a row of the history shows. For a deleting commit the file no longer exists
@@ -23,7 +24,7 @@ export function versionOf(entry: FileHistoryEntry): { sha: Sha | null; path: str
   return { sha: entry.commit.sha, path: entry.path, beforeDelete: false };
 }
 
-export const restoreBusyKey = (repoId: Id) => `${repoId}:file-restore`;
+export const restoreBusyKey = (repoId: Id) => busyKeys.write(repoId, "file-restore");
 
 /**
  * Brings the version back into the working directory (it ends up staged). If the file has local
