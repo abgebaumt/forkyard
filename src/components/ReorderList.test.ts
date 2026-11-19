@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dropZone } from "./ReorderList";
+import { dropZone, releasedEarly } from "./ReorderList";
 
 describe("dropZone", () => {
   it("the outer quarters insert, the middle folds onto the row", () => {
@@ -10,5 +10,14 @@ describe("dropZone", () => {
       "onto",
       "after",
     ]);
+  });
+});
+
+describe("releasedEarly", () => {
+  it("ends only a handed-over drag on a move without buttons", () => {
+    expect(releasedEarly({ started: true, handedOver: true }, 0)).toBe(true);
+    expect(releasedEarly({ started: true, handedOver: true }, 1)).toBe(false);
+    // A drag the list started itself sees its own pointerup; a stray button-less move must not end it.
+    expect(releasedEarly({ started: true }, 0)).toBe(false);
   });
 });
