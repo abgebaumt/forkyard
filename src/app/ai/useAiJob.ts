@@ -25,8 +25,7 @@ export type JobEvent =
   | { type: "done"; jobId: string }
   /** `jobId` null: an error outside a job (preview, gate). */
   | { type: "fail"; jobId: string | null; view: AiErrorView }
-  | { type: "cancel" }
-  | { type: "reset" };
+  | { type: "cancel" };
 
 const IDLE: AiRun = { kind: "idle" };
 export const JOB_IDLE: JobState = { run: IDLE, active: null, asking: false };
@@ -49,8 +48,6 @@ export function jobStep(state: JobState, event: JobEvent): JobState {
     }
     case "cancel":
       return { ...state, run: IDLE, active: null };
-    case "reset":
-      return { ...state, run: IDLE };
   }
 }
 
@@ -61,8 +58,6 @@ export interface AiJob {
   loading: AiLoadingView | null;
   /** True while a job is out or its send gate is open (also before React re-rendered). */
   busy: () => boolean;
-  /** Back to idle (e.g. before a new preview). */
-  reset: () => void;
   /** Shows an error inline; a cancel only resets. */
   fail: (error: unknown) => void;
   /**
@@ -151,7 +146,6 @@ export function useAiJob(local: boolean, label?: string): AiJob {
     running,
     loading: run.kind === "running" ? loadingView(now - run.startedAt, local, label) : null,
     busy,
-    reset: () => void dispatch({ type: "reset" }),
     fail,
     start,
     cancel,
