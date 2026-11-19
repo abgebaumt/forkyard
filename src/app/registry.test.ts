@@ -1,17 +1,21 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // No DOM in the tests: `window` is a plain event target (stubbed after the imports), and React's hooks run without a renderer
-// (an effect runs at once, an external store re-runs the hook on every notification).
+// (an effect runs at once, an external store re-runs the hook on every notification). Their cleanups run after each test.
 
 let rendering: { subscribed: boolean; render: () => void } | null = null;
+const cleanups: (() => void)[] = [];
 vi.mock("react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react")>()),
-  useEffect: (effect: () => void) => effect(),
+  useEffect: (effect: () => (() => void) | undefined) => {
+    const cleanup = effect();
+    if (typeof cleanup === "function") cleanups.push(cleanup);
+  },
   useSyncExternalStore: <T>(subscribe: (listener: () => void) => () => void, snapshot: () => T): T => {
     const hook = rendering!;
     if (!hook.subscribed) {
       hook.subscribed = true;
-      subscribe(hook.render);
+      cleanups.push(subscribe(hook.render));
     }
     return snapshot();
   },
@@ -31,9 +35,8 @@ function renderHook<T>(hook: () => T): { current: T } {
   return result;
 }
 
-const { commandShortcut, getBaseCommands, registerCommands, setKeybindings, useCommandShortcut, useGlobalShortcuts } = await import(
-  "./registry"
-);
+const { commandShortcut, getBaseCommands, registerCommands, setKeybindings, useCommandShortcut, useGlobalShortcuts, useKeybindings } =
+  await import("./registry");
 vi.stubGlobal("window", new EventTarget());
 vi.stubGlobal("document", { querySelector: () => null });
 vi.stubGlobal("HTMLElement", class {});
@@ -50,7 +53,10 @@ function press(init: Partial<KeyboardEvent>) {
   window.dispatchEvent(event);
 }
 
-afterEach(() => setKeybindings({}));
+afterEach(() => {
+  for (const cleanup of cleanups.splice(0)) cleanup();
+  setKeybindings({});
+});
 
 describe("registry with own shortcuts", () => {
   it("the effective shortcut runs, the old one does not", async () => {
@@ -90,5 +96,13 @@ describe("registry with own shortcuts", () => {
     expect(shortcut.current).toBe("Mod+T");
     setKeybindings({ "tab.new": ["Mod+Alt+N"] });
     expect(shortcut.current).toBe("Mod+Alt+N");
+  });
+
+  it("useKeybindings applies the setting, and no setting yet means the declared shortcuts", () => {
+    setKeybindings({ "tab.new": ["Mod+Alt+N"] });
+    renderHook(() => useKeybindings(undefined));
+    expect(commandShortcut("tab.new")).toBe("Mod+T");
+    renderHook(() => useKeybindings({ "tab.new": null }));
+    expect(commandShortcut("tab.new")).toBeUndefined();
   });
 });

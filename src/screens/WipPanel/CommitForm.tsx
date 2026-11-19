@@ -4,6 +4,7 @@ import { SUMMARY_LIMIT, type Id } from "../../core";
 import { useAiStatus, useCommitDetails, useDraft, useRemotes, useRepoSettings, useSettings, useStatus } from "../../app/queries";
 import { featureVisible } from "../../app/ai/visibility";
 import { useBusy } from "../../app/store";
+import { useCommandShortcut } from "../../app/registry";
 import { Button } from "../../ui/Button";
 import { Checkbox, TextArea, TextField } from "../../ui/Field";
 import { Tip } from "../../ui/Tooltip";
@@ -120,6 +121,7 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const description = prepared?.description ?? text.description;
 
   const plan = planCommit(status, draft, shift);
+  const commitShortcut = useCommandShortcut(plan.stageAll ? "wip.commitAll" : "wip.commit");
   const push = pushAfterState(wip.pushAfter, settings, status, remotes);
   const busy = committing || continuing;
   const locks = useLockIndex(repoId);
@@ -265,7 +267,7 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           label={
             plan.blocked ?? (plan.stageAll ? t("wip.form.tipStageAll") : plan.mode === "commit" ? t("wip.form.tipCommit") : plan.label)
           }
-          shortcut={plan.blocked ? undefined : plan.stageAll ? "Mod+Shift+Enter" : "Mod+Enter"}
+          shortcut={plan.blocked ? undefined : commitShortcut}
         >
           <Button
             variant="primary"

@@ -86,7 +86,8 @@
   },
   "filter": {
     "label": "Branches, Tags und Stashes filtern",
-    "placeholder": "Filtern ({{shortcut}})"
+    "placeholder": "Filtern ({{shortcut}})",
+    "placeholderNoKey": "Filtern"
   },
   "viewFiltered": {
     "tip": "{{summary}}. Das ändert nur, was der Graph zeigt – nicht das Repository."

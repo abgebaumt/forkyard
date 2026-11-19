@@ -40,6 +40,7 @@ import { useBranchHover } from "../../components/graph/useBranchHover";
 import { Button, IconButton } from "../../ui/Button";
 import { PanelSection } from "../../ui/Git";
 import { ariaShortcut, formatShortcut } from "../../ui/shortcut";
+import { useCommandShortcut } from "../../app/registry";
 import { ContextMenu, type MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
 import { openBranchCleanup } from "../BranchCleanup/actions";
@@ -81,9 +82,6 @@ export interface LeftPanelProps {
   repoId: Id;
   tabId: Id;
 }
-
-/** Shortcut that jumps into the filter bar (command in src/app/commands/leftpanel.ts). */
-export const FILTER_SHORTCUT = "Mod+Alt+F";
 
 /** Height of a stash row: two text lines, corresponds to `h-10` in TreeRow. */
 const STASH_ROW_HEIGHT = 40;
@@ -873,7 +871,8 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
     };
   };
 
-  const filterHint = formatShortcut(FILTER_SHORTCUT);
+  // Shortcut that jumps into the filter bar (command `leftPanel.filter`).
+  const filterShortcut = useCommandShortcut("leftPanel.filter");
   const filterSummary = [
     view.hiddenRefs.length ? t("sidebar.summary.hidden", { count: view.hiddenRefs.length }) : null,
     view.soloRefs.length ? t("sidebar.summary.solo", { count: view.soloRefs.length }) : null,
@@ -895,8 +894,12 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
             role="searchbox"
             data-left-filter
             aria-label={t("sidebar.filter.label")}
-            aria-keyshortcuts={ariaShortcut(FILTER_SHORTCUT)}
-            placeholder={t("sidebar.filter.placeholder", { shortcut: filterHint })}
+            aria-keyshortcuts={filterShortcut ? ariaShortcut(filterShortcut) : undefined}
+            placeholder={
+              filterShortcut
+                ? t("sidebar.filter.placeholder", { shortcut: formatShortcut(filterShortcut) })
+                : t("sidebar.filter.placeholderNoKey")
+            }
             spellCheck={false}
             autoComplete="off"
             value={query}

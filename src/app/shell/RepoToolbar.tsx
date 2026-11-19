@@ -68,6 +68,18 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const openOverlay = useAppStore((state) => state.openOverlay);
   const toggleTerminal = useAppStore((state) => state.toggleTerminal);
   const setSearchOpen = useAppStore((state) => state.setSearchOpen);
+  const undoKey = useCommandShortcut("repo.undo");
+  const redoKey = useCommandShortcut("repo.redo");
+  const pullKey = useCommandShortcut("sync.pull");
+  const pushKey = useCommandShortcut("sync.push");
+  const fetchKey = useCommandShortcut("sync.fetch");
+  const branchKey = useCommandShortcut("branch.create");
+  const stashKey = useCommandShortcut("stash.create");
+  const popKey = useCommandShortcut("stash.pop");
+  const terminalKey = useCommandShortcut("view.terminal");
+  const searchKey = useCommandShortcut("view.search");
+  const paletteKey = useCommandShortcut("app.palette");
+  const preferencesKey = useCommandShortcut("app.preferences");
 
   const fetching = useBusy(busyKeys.fetch(repoId));
   const pulling = useBusy(busyKeys.pull(repoId));
@@ -148,7 +160,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     { type: "separator" },
     {
       label: t("ui.fetchAllRemotes"),
-      shortcut: useCommandShortcut("sync.fetch"),
+      shortcut: fetchKey,
       disabled: Boolean(fetchBlocked),
       tooltip: fetchBlocked ?? undefined,
       onSelect: () => void fetchAll(repoId),
@@ -174,7 +186,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label={t("ui.undo")}
         icon={icon(Undo2)}
-        shortcut={useCommandShortcut("repo.undo")}
+        shortcut={undoKey}
         compact={compact}
         busy={undoing}
         disabled={Boolean(undoBlocked)}
@@ -184,7 +196,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label={t("ui.redo")}
         icon={icon(Redo2)}
-        shortcut={useCommandShortcut("repo.redo")}
+        shortcut={redoKey}
         compact={compact}
         busy={undoing}
         disabled={Boolean(redoBlocked)}
@@ -195,7 +207,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label="Pull"
         icon={icon(ArrowDownToLine)}
-        shortcut={useCommandShortcut("sync.pull")}
+        shortcut={pullKey}
         compact={compact}
         busy={pulling}
         disabled={Boolean(pullBlocked)}
@@ -208,7 +220,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label="Push"
         icon={icon(ArrowUpFromLine)}
-        shortcut={useCommandShortcut("sync.push")}
+        shortcut={pushKey}
         compact={compact}
         busy={pushing}
         disabled={Boolean(pushBlocked)}
@@ -233,7 +245,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label="Fetch"
         icon={icon(CloudDownload)}
-        shortcut={useCommandShortcut("sync.fetch")}
+        shortcut={fetchKey}
         compact={compact}
         busy={fetching}
         disabled={Boolean(fetchBlocked)}
@@ -244,7 +256,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label="Branch"
         icon={icon(GitBranchPlus)}
-        shortcut={useCommandShortcut("branch.create")}
+        shortcut={branchKey}
         compact={compact}
         busy={branching || rewriting}
         disabled={Boolean(branchBlocked)}
@@ -254,7 +266,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label="Stash"
         icon={icon(Archive)}
-        shortcut={useCommandShortcut("stash.create")}
+        shortcut={stashKey}
         compact={compact}
         busy={stashing}
         disabled={Boolean(stashBlocked)}
@@ -264,7 +276,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label="Pop"
         icon={icon(ArchiveRestore)}
-        shortcut={useCommandShortcut("stash.pop")}
+        shortcut={popKey}
         compact={compact}
         busy={popping}
         disabled={Boolean(popBlocked)}
@@ -280,7 +292,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label="Terminal"
         icon={icon(SquareTerminal)}
-        shortcut={useCommandShortcut("view.terminal")}
+        shortcut={terminalKey}
         compact={compact}
         pressed={view.terminalOpen}
         hint={view.terminalOpen ? t("shell.toolbar.terminalHide") : t("shell.toolbar.terminalShow")}
@@ -310,7 +322,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label={t("shell.toolbar.search")}
         icon={icon(Search)}
-        shortcut={useCommandShortcut("view.search")}
+        shortcut={searchKey}
         compact={compact}
         pressed={view.searchOpen}
         hint={t("shell.toolbar.searchHint")}
@@ -319,7 +331,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label={t("ui.commands")}
         icon={<CommandIcon className="size-icon" aria-hidden />}
-        shortcut={useCommandShortcut("app.palette")}
+        shortcut={paletteKey}
         compact={compact}
         hint={t("ui.commandPalette")}
         onClick={() => openOverlay({ kind: "palette", mode: "all" })}
@@ -327,7 +339,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label={t("ui.settings")}
         icon={icon(SettingsIcon)}
-        shortcut={useCommandShortcut("app.preferences")}
+        shortcut={preferencesKey}
         compact={compact}
         onClick={() => openOverlay({ kind: "preferences", section: "general" })}
       />
@@ -338,6 +350,8 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
 /** Toolbar in the repository management tab: without repo actions. */
 export function ManagementToolbar() {
   const openOverlay = useAppStore((state) => state.openOverlay);
+  const paletteKey = useCommandShortcut("app.palette");
+  const preferencesKey = useCommandShortcut("app.preferences");
   const { data: settings } = useSettings();
   const compact = settings ? !settings.toolbarLabels : false;
   return (
@@ -346,7 +360,7 @@ export function ManagementToolbar() {
       <ToolbarButton
         label={t("ui.commands")}
         icon={<CommandIcon className="size-icon" aria-hidden />}
-        shortcut={useCommandShortcut("app.palette")}
+        shortcut={paletteKey}
         compact={compact}
         hint={t("ui.commandPalette")}
         onClick={() => openOverlay({ kind: "palette", mode: "all" })}
@@ -354,7 +368,7 @@ export function ManagementToolbar() {
       <ToolbarButton
         label={t("ui.settings")}
         icon={icon(SettingsIcon)}
-        shortcut={useCommandShortcut("app.preferences")}
+        shortcut={preferencesKey}
         compact={compact}
         onClick={() => openOverlay({ kind: "preferences", section: "general" })}
       />

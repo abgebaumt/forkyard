@@ -92,6 +92,10 @@ export async function resetBranch(repoId: Id, sha: Sha, mode: ResetMode, tabId?:
   const branch = currentBranch(repoId);
   const subject = branch ? t("actions.history.reset.subjectBranch", { name: clip(branch, 40) }) : "HEAD";
   const head = headSha(repoId);
+  // Loaded lazily: the registry imports the command files, and they import these actions.
+  const { commandShortcut } = await import("../registry");
+  const undoShortcut = commandShortcut("repo.undo");
+  const undoKey = undoShortcut ? formatShortcut(undoShortcut) : null;
   const index = await loadGraphIndex(repoId);
   const outside = index && !index.rows.has(sha) ? await parentsOutsideGraph(repoId, index, sha) : undefined;
   const range = index && head ? commitsBetween(index, sha, head, outside) : null;
@@ -129,7 +133,7 @@ export async function resetBranch(repoId: Id, sha: Sha, mode: ResetMode, tabId?:
         commits,
         changes,
         untracked ? t("actions.history.reset.untracked") : null,
-        t("actions.history.reset.undo", { shortcut: formatShortcut("Mod+Z") }),
+        undoKey ? t("actions.history.reset.undo", { shortcut: undoKey }) : t("actions.history.reset.undoNoKey"),
       ]
         .filter(Boolean)
         .join(" "),
@@ -158,7 +162,9 @@ export async function resetBranch(repoId: Id, sha: Sha, mode: ResetMode, tabId?:
         ? t("actions.history.reset.doneSoft", { kept })
         : mode === "mixed"
           ? t("actions.history.reset.doneMixed", { kept })
-          : t("actions.history.reset.doneHard", { shortcut: formatShortcut("Mod+Z") }),
+          : undoKey
+            ? t("actions.history.reset.doneHard", { shortcut: undoKey })
+            : t("actions.history.reset.doneHardNoKey"),
   });
   if (mode === "hard") {
     if (tabId) useAppStore.getState().revealCommit(tabId, sha);
