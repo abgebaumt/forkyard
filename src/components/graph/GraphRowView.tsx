@@ -12,7 +12,6 @@ import { graphStats } from "./GraphCanvas";
 import { DetachedHeadChip, GhostLabel, HEAD_CHIP_WIDTH, RowRefs } from "./RowRefs";
 import { useRowDim, useRowGhost, type RowMarks } from "./rowMarks";
 import { locale, t } from "../../i18n";
-import type { BisectMark } from "../../screens/Bisect/model";
 import type { CompiledRule } from "../../app/ticketLinks";
 import { keepFocus, LinkedText } from "../LinkedText";
 
@@ -183,6 +182,9 @@ function SyncArrow({ sync }: { sync: Exclude<SyncMark, "none"> }) {
     </span>
   );
 }
+
+/** How bisect marked a commit (drawn as a chip on its row). */
+export type BisectMark = "good" | "bad" | "skip";
 
 const BISECT_LABELS: Record<BisectMark, string> = {
   good: t("graph.row.bisectGood"),
