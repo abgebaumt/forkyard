@@ -14,6 +14,7 @@ import type {
   Tab,
 } from "../../core";
 import { t } from "../../i18n";
+import { formatShortcut } from "../../ui/shortcut";
 
 export type StatusTone = "accent" | "warning" | "success" | "danger" | "muted";
 
@@ -185,13 +186,16 @@ export interface CleanupLine {
   text: string;
 }
 
-/** The lines of the cleanup confirmation, the warning about unpushed commits first. */
-export function cleanupLines(preview: AgentCleanupPreview): CleanupLine[] {
+/** The lines of the cleanup confirmation, the warning about unpushed commits first. `undoKey`: the effective shortcut of `repo.undo`. */
+export function cleanupLines(preview: AgentCleanupPreview, undoKey: string | undefined): CleanupLine[] {
   const lines: CleanupLine[] = [];
   if (preview.unpushedCommits > 0) lines.push({ tone: "warning", text: t("agents.cleanup.unpushed", { count: preview.unpushedCommits }) });
   if (preview.changedFiles > 0) lines.push({ tone: "info", text: t("agents.cleanup.changes", { count: preview.changedFiles }) });
   if (preview.running) lines.push({ tone: "info", text: t("agents.cleanup.running") });
-  lines.push({ tone: "info", text: t("agents.cleanup.removed") });
+  lines.push({
+    tone: "info",
+    text: undoKey ? t("agents.cleanup.removed", { shortcut: formatShortcut(undoKey) }) : t("agents.cleanup.removedNoKey"),
+  });
   return lines;
 }
 

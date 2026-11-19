@@ -8,11 +8,13 @@ import { core, type DateFormat, type DiffMode, type PullMode, type Settings, typ
 import { pullModeHints } from "../../../app/actions/sync";
 import { SystemNotificationsRow, systemIntro, useSystemNotificationState } from "./SystemRow";
 import { formatDate } from "../../../app/format";
+import { useCommandShortcut } from "../../../app/registry";
 import { Button } from "../../../ui/Button";
 import { SegmentedControl } from "../../../ui/Field";
 import { NumberField } from "../../../ui/NumberField";
 import { Select } from "../../../ui/Select";
 import { Switch } from "../../../ui/Switch";
+import { formatShortcut } from "../../../ui/shortcut";
 import { SigningSettings } from "./Signing";
 import { isChanged, resetPatch } from "../defaults";
 import { CommitText, SectionHeader, SettingRow, SettingsCard } from "../parts";
@@ -217,6 +219,8 @@ const languages: { value: LanguageSetting; label: string }[] = [
 ];
 
 export function AppearanceSection({ settings }: { settings: Settings }) {
+  const zoomIn = useCommandShortcut("view.zoomIn");
+  const zoomOut = useCommandShortcut("view.zoomOut");
   const percent = Math.round(settings.zoom * 100);
   const example = formatDate(Date.now() - 3 * 3600 * 1000, settings.dateFormat);
   return (
@@ -254,7 +258,11 @@ export function AppearanceSection({ settings }: { settings: Settings }) {
         </SettingRow>
         <SettingRow
           title={t("ui.zoom")}
-          description={t("preferences.appearance.zoom.description")}
+          description={
+            zoomIn && zoomOut
+              ? `${t("preferences.appearance.zoom.description")} ${t("preferences.appearance.zoom.keys", { zoomIn: formatShortcut(zoomIn), zoomOut: formatShortcut(zoomOut) })}`
+              : t("preferences.appearance.zoom.description")
+          }
           changed={percent === 100 ? undefined : { onReset: () => void applySettings({ zoom: 1 }) }}
         >
           {(ids) => (

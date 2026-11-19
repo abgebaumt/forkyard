@@ -9,6 +9,7 @@ import { aiVisibility, featureVisible } from "../../../app/ai/visibility";
 import { errorView } from "../../../app/ai/requestState";
 import { describeError, toCoreError } from "../../../app/errors";
 import { t } from "../../../i18n";
+import { formatShortcut } from "../../../ui/shortcut";
 
 export const ASK_PREFIX = "?";
 export const MAX_REQUEST_CHARS = 500;
@@ -360,17 +361,23 @@ export function afterRun(result: PlanRunResult): { close: boolean; toast: string
   return result.completed ? { close: true, toast: t("palette.plan.doneToast", { count: done }) } : { close: false, toast: "" };
 }
 
-export function resultText(result: PlanRunResult): string {
+/** `undoKey`: the effective shortcut of `repo.undo`, undefined without one. */
+export function resultText(result: PlanRunResult, undoKey: string | undefined): string {
   const done = result.steps.some((step) => step.status === "done");
-  if (result.cancelled) return done ? t("palette.plan.cancelled") : t("palette.plan.nothingDone");
+  const shortcut = undoKey ? formatShortcut(undoKey) : undefined;
+  if (result.cancelled) {
+    if (!done) return t("palette.plan.nothingDone");
+    return shortcut ? t("palette.plan.cancelled", { shortcut }) : t("palette.plan.cancelledNoKey");
+  }
   const failed = result.steps.find((step) => step.status === "failed");
   if (!failed) return "";
-  return done ? t("palette.plan.stopped", { n: failed.index + 1 }) : t("palette.plan.stoppedFirst");
+  if (!done) return t("palette.plan.stoppedFirst");
+  return shortcut ? t("palette.plan.stopped", { n: failed.index + 1, shortcut }) : t("palette.plan.stoppedNoKey", { n: failed.index + 1 });
 }
 
 /** For `aria-live="polite"`: a plan that is ready, the end of a run. */
-export function liveText(phase: PlanPhase): string {
+export function liveText(phase: PlanPhase, undoKey: string | undefined): string {
   if (phase.kind === "preview" && !phase.busy) return t("palette.plan.ready", { count: phase.preview.steps.length });
-  if (phase.kind === "result") return resultText(phase.result);
+  if (phase.kind === "result") return resultText(phase.result, undoKey);
   return "";
 }

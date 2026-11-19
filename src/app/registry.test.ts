@@ -73,6 +73,20 @@ describe("registry with own shortcuts", () => {
     run.mockRestore();
   });
 
+  it("Windows AltGr typing a character does not fire a stored Ctrl+Alt shortcut", async () => {
+    const run = vi.spyOn(getBaseCommands().find((command) => command.id === "app.preferences")!, "run").mockImplementation(() => {});
+    setKeybindings({ "app.preferences": ["Mod+Alt+Q"] });
+    renderHook(() => useGlobalShortcuts(false));
+    // German layout: AltGr+Q types "@"
+    press({ key: "@", code: "KeyQ", ctrlKey: true, altKey: true });
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(run).not.toHaveBeenCalled();
+    press({ key: "q", code: "KeyQ", ctrlKey: true, altKey: true });
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(run).toHaveBeenCalledTimes(1);
+    run.mockRestore();
+  });
+
   it("overrides apply to commands registered later", () => {
     setKeybindings({ "custom.demo": ["Alt+F9"] });
     const stop = registerCommands([{ id: "custom.demo", title: "Demo", group: "Repository", run: vi.fn() }]);

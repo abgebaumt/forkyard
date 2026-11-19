@@ -70,7 +70,13 @@ export function fixedSections(commands: readonly AppCommand[]): Section[] {
   return fixedKeyGroups.map((group) => ({
     id: `fixed-${group.id}`,
     title: group.title,
-    where: group.where,
+    where:
+      typeof group.where === "string"
+        ? group.where
+        : group.where((id) => {
+            const key = shortcutOf(id);
+            return key ? formatShortcut(key) : undefined;
+          }),
     entries: group.entries.flatMap((entry, index) => {
       const keys = entry.commands ? entry.commands.map(shortcutOf).filter((key): key is string => Boolean(key)) : entry.keys;
       return keys.length ? [{ key: `${group.id}-${index}`, label: entry.label, keys: keys.map((key) => [key]) }] : [];

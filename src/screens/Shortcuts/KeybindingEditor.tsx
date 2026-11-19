@@ -12,7 +12,7 @@ import { useSettings } from "../../app/queries";
 import { Button } from "../../ui/Button";
 import { Kbd } from "../../ui/Kbd";
 import { cn } from "../../ui/cn";
-import { ariaShortcut, isMacShortcuts, shortcutPlatform } from "../../ui/shortcut";
+import { formatShortcut, isMacShortcuts, shortcutPlatform } from "../../ui/shortcut";
 import { LoadError, SettingsSkeleton } from "../Preferences/parts";
 import { applySettings } from "../Preferences/settings";
 import { assignKey, onRecordKey, type RecordState } from "./editor";
@@ -95,6 +95,7 @@ export function KeybindingEditor({ filter }: { filter: string }) {
                         size="sm"
                         variant="ghost"
                         data-keybinding-reset={id}
+                        aria-label={t("keys.reset", { command: entry.label })}
                         onClick={() => {
                           save(reset(overrides, id));
                           focusKey(id);
@@ -112,7 +113,7 @@ export function KeybindingEditor({ filter }: { filter: string }) {
                           : t("keys.change", {
                               command: entry.label,
                               keys: entry.keys.length
-                                ? entry.keys.map((alternative) => ariaShortcut(alternative.join("+"))).join(", ")
+                                ? entry.keys.map((alternative) => formatShortcut(alternative.join("+"))).join(", ")
                                 : t("keys.none"),
                             })
                       }

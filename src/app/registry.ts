@@ -8,7 +8,7 @@ import type { AppInfo, Status, Tab } from "../core";
 import type { AppCommand, CommandContext } from "./commandTypes";
 import { hasCommandModifier, matchesShortcut } from "./commandTypes";
 import { hasOpenDialog } from "./dialogs";
-import { applyKeybindings, type Keybindings } from "./keybindings";
+import { applyKeybindings, isAltGrText, type Keybindings } from "./keybindings";
 import { qk, queryClient } from "./queries";
 import { showError } from "./run";
 import { useAppStore } from "./store";
@@ -162,7 +162,8 @@ export function useGlobalShortcuts(mac: boolean) {
       // Editors (CodeMirror) and input fields that handle a shortcut themselves take precedence.
       // The guard against browser shortcuts (webviewGuards) also calls preventDefault – that does not count.
       if ((event.defaultPrevented && !preventedByGuard(event)) || event.isComposing) return;
-      if (modalOpen()) return;
+      // Recorded the same way: a character typed with AltGr never runs a stored Ctrl+Alt shortcut.
+      if (modalOpen() || isAltGrText(event, mac)) return;
       const inText = isTextTarget(event.target);
       for (const command of registered) {
         const shortcuts = [command.shortcut, ...(command.aliases ?? [])].filter((item): item is string => Boolean(item));

@@ -346,6 +346,7 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
 
   const externalShortcut = useCommandShortcut("repo.openTerminal");
   const hideShortcut = useCommandShortcut("view.terminal");
+  const leaveKey = useCommandShortcut("focus.next");
   const restart = () => void restartTerminal(tabId);
 
   return (
@@ -449,7 +450,7 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
           id={TERMINAL_HINT_ID}
           className="pointer-events-none absolute top-1 right-3 z-1 hidden rounded-sm border border-border bg-surface px-1.5 py-0.5 text-xs text-text-muted group-has-[textarea:focus]/term:block"
         >
-          {t("terminal.exitHint")}
+          {leaveKey ? t("terminal.exitHint", { shortcut: formatShortcut(leaveKey) }) : t("terminal.exitHintNoKey")}
         </p>
         {/* Focus is in xterm.js's input field; the border shows that the keyboard currently belongs to the shell. */}
         <div

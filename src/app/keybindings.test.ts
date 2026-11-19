@@ -113,6 +113,15 @@ describe("refusal", () => {
     expect(refusal("Mod+F", "linux", ["Mod+F"])).toBeNull(); // own default stays valid
   });
 
+  it("reserves Alt+Space everywhere and the macOS screenshot keys", () => {
+    for (const platform of ["windows", "linux", "mac"] as const)
+      expect(refusal("Alt+Space", platform, []), platform).toEqual({ kind: "system" });
+    for (const digit of ["3", "4", "5"]) {
+      expect(refusal(`Mod+Shift+${digit}`, "mac", [])).toEqual({ kind: "system" });
+      expect(refusal(`Mod+Shift+${digit}`, "linux", [])).toBeNull();
+    }
+  });
+
   it("names the group and entry of a fixed key", () => {
     const fixed = refusal("Mod+Shift+V", "linux", []);
     expect(fixed).toEqual({ kind: "fixed", group: t("ui.terminal"), label: t("ui.paste") });
@@ -124,7 +133,8 @@ describe("refusal", () => {
     const refused = getCommands().flatMap((command) =>
       [command.shortcut, ...(command.aliases ?? [])].filter((key): key is string => Boolean(key) && refusal(key!, "linux", []) !== null),
     );
-    expect(refused.sort()).toEqual(["Mod+.", "Mod+Alt+F", "Mod+Enter", "Mod+F", "Mod+Shift+Enter"]);
+    // Mod+Enter: the rebase tool's start; Mod+F: the conflict tool's search.
+    expect(refused.sort()).toEqual(["Mod+.", "Mod+Enter", "Mod+F"]);
   });
 
   it("global commands that pass through a view are not fixed keys", () => {
