@@ -121,7 +121,7 @@ Settings have three levels: **global** (`app_settings`; which `Settings` fields 
 ### UI (`src/`)
 
 - `src/screens/<Name>/`: one folder per screen.
-- `src/app/`: shell, state (`store.ts`, Zustand), reads via TanStack Query (`queries.ts`, keys `qk`; refetch on `repo:changed`), write queue (`writeQueue.ts`), error display (`run.ts`), focus and Escape guards.
+- `src/app/`: shell, state (`store.ts`, Zustand), reads via TanStack Query (`queries.ts`, keys `qk`; refetch on core events in `coreSync.ts`), write queue (`writeQueue.ts`), error display (`run.ts`), focus and Escape guards.
 - **Command registry:** every file `src/app/commands/*.ts` exporting `export const commands: AppCommand[]` is collected automatically via `import.meta.glob` (command palette, shortcuts, menus). Action logic lives in `src/app/actions/`.
 - `src/ui/`: primitives on top of Radix. `src/components/graph`: canvas commit graph; the lane layout is computed by the core (`graph_page`), the UI only draws.
 - **i18n:** `src/i18n` (i18next). Every visible string is `t("<area>.<key>")` with the text in `src/i18n/locales/en/<area>.json` and `de/<area>.json` (same keys; `src/i18n/i18n.test.ts` checks this and that every literal key exists). `t()` works at module level; changing the language reloads the window. Use `locale()` for `Intl` formats. Messages from the Rust core are English.

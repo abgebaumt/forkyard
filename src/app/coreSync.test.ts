@@ -1,6 +1,7 @@
 import { QueryClient, type InfiniteData } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
-import { invalidateRepo, keepFirstPage, qk } from "./queries";
+import { invalidateRepo } from "./coreSync";
+import { keepFirstPage, qk } from "./queries";
 
 const three: InfiniteData<string, string | null> = { pages: ["a", "b", "c"], pageParams: [null, "x", "y"] };
 

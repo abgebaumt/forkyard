@@ -1,12 +1,12 @@
 /**
- * All reads from the core as TanStack Query hooks, plus the key factory `qk` and the ONE
- * place that subscribes to the core's events and invalidates selectively (useCoreSync).
+ * All reads from the core as TanStack Query hooks, plus the key factory `qk`. What the core's
+ * events invalidate lives in `./coreSync.ts`.
  *
  * Keys are hierarchical: everything of a repo starts with ["repo", repoId, …],
  * so a repo can be invalidated as a whole.
  */
-import { useEffect, useMemo } from "react";
-import { QueryClient, useInfiniteQuery, useQueries, useQuery, type InfiniteData, type Query, type QueryKey } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { QueryClient, useInfiniteQuery, useQueries, useQuery, type InfiniteData } from "@tanstack/react-query";
 import {
   core,
   CoreError,
@@ -19,30 +19,19 @@ import {
   type GraphPage,
   type Id,
   type ReflogPage,
-  type Repo,
   type LineArchaeology,
-  type RepoChange,
-  type Settings,
   type Sha,
   type StackStatus,
   type Tab,
 } from "../core";
-import { toast } from "../ui/Feedback";
-import { t } from "../i18n";
 import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./actions/hostTypes";
-import { reportHookOutput } from "./notifications/hooks";
-import { reportSubmoduleUpdate } from "./notifications/submodules";
 import { issueApi, type IssueFilter } from "../screens/Issues/api";
 import { isFixedRev } from "../screens/Archaeology/model";
-import { desktopNotify, wasManualSync } from "./notify";
 import { readStatus } from "./statusOrder";
-import { useAppStore, type ArchaeologyTarget } from "./store";
+import type { ArchaeologyTarget } from "./store";
 import { compileRules, type CompiledRule } from "./ticketLinks";
 import { writesSettled } from "./writeQueue";
 import { parseSearchQuery } from "./searchFilters";
-import { createIndexScheduler } from "./ai/indexScheduler";
-import { featureVisible } from "./ai/visibility";
-import type { AiStatus as SemanticAiStatus, RepoSettings as SemanticRepoSettings } from "../core";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -320,7 +309,7 @@ export const useBisectAutopilot = (repoId: Id | null | undefined) =>
   });
 
 /** Commits, ranges and stashes never change – only sources involving the working directory go stale. */
-const isLive = (source: DiffSource) =>
+export const isLive = (source: DiffSource) =>
   source.kind === "unstaged" || source.kind === "staged" || (source.kind === "range" && source.to === null);
 
 export const useCommitDetails = (repoId: Id | null | undefined, source: DiffSource | null | undefined) =>
@@ -659,238 +648,7 @@ export const useIssue = (repoId: Id | null | undefined, number: number | null | 
     staleTime: HOST_STALE_MS,
   });
 
-// ---------------------------------------------------------------------------
-// Invalidation
-// ---------------------------------------------------------------------------
-
-/** Key part at position 2 (after "repo", repoId). */
-const part = (query: Query) => query.queryKey[2] as string | undefined;
-
-/** Queries that depend on the working directory or index. */
-function dependsOnWorktree(query: Query): boolean {
-  const key = query.queryKey;
-  switch (part(query)) {
-    case "status":
-    case "conflict":
-      return true;
-    case "diff":
-    case "commit":
-      return isLive(key[3] as DiffSource);
-    case "file":
-    case "blame":
-    case "tree":
-      return key[3] === null;
-    // A working-directory line is traced through blame; `HEAD` moves; a full SHA never changes.
-    case "lineArchaeology":
-      return !isFixedRev(key[3]);
-    // Submodule state and the LFS patterns (.gitattributes) depend on the working directory.
-    // `.forkyard/commands.json` (custom commands) as well.
-    case "submodules":
-    case "lfs":
-    case "customCommands":
-      return true;
-    // `.forkyard/links.json` is read from the working directory (otherwise from HEAD).
-    case "linkRules":
-      return true;
-    default:
-      return false;
-  }
-}
-
-const REFS_PARTS = new Set([
-  "refs",
-  "graph",
-  "status",
-  "undo",
-  "search",
-  "fileHistory",
-  "rebasePlan",
-  "readme",
-  "worktrees",
-  "reflog",
-  "bisect",
-  "agents",
-  "stack",
-]);
-const STASH_PARTS = new Set(["stashes", "graph", "undo"]);
-// "hostRepo": a repository's host follows from its remote URL, and so do its host link rules ("linkRules").
-const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo", "linkRules", "lineArchaeology", "stack"]);
-const OPERATION_PARTS = new Set(["status", "conflict", "undo", "bisect"]);
-
 /** Keeps only the first page of an infinite query, so a refetch reloads one page instead of every loaded one. */
 export function keepFirstPage<T, P>(data: InfiniteData<T, P> | undefined): InfiniteData<T, P> | undefined {
   return data && data.pages.length > 1 ? { pages: data.pages.slice(0, 1), pageParams: data.pageParams.slice(0, 1) } : data;
-}
-
-/** What a `repo:changed` means for a repo's queries. */
-export function invalidateRepo(client: QueryClient, repoId: Id, what: RepoChange[]): Promise<void> {
-  const changes = new Set(what);
-  // Other refs, other rows: refetching every scrolled page would be thousands of commits.
-  if (changes.has("refs") || changes.has("head") || changes.has("stash")) client.setQueryData(qk.graph(repoId), keepFirstPage);
-  return client.invalidateQueries({
-    queryKey: qk.repo(repoId),
-    predicate: (query) => {
-      const name = part(query);
-      if (!name) return false;
-      // The undo state also depends on the working directory: discard creates an entry and reports only "worktree".
-      if ((changes.has("worktree") || changes.has("index")) && (dependsOnWorktree(query) || name === "undo")) return true;
-      if ((changes.has("refs") || changes.has("head")) && (REFS_PARTS.has(name) || dependsOnWorktree(query))) return true;
-      if (changes.has("stash") && STASH_PARTS.has(name)) return true;
-      if (changes.has("config") && CONFIG_PARTS.has(name)) return true;
-      if (changes.has("operation") && OPERATION_PARTS.has(name)) return true;
-      if (changes.has("locks") && name === "lfsLocks") return true;
-      if ((changes.has("head") || changes.has("config")) && name === "lfsInUse") return true;
-      return false;
-    },
-  });
-}
-
-/**
- * A fetch in the activity log that nobody clicked is the core's auto-fetch. It only reports on
- * new refs or on the first failure of a kind – here that becomes, depending on the settings, a
- * toast (and a notification if the window is not in front).
- */
-/** Error codes for which a failed auto-fetch does not interrupt: no network, no credentials, timeout, unknown host. */
-const QUIET_FETCH_FAILURES: ReadonlySet<string> = new Set(["offline", "auth_failed", "timeout", "host_key_unknown"]);
-
-function reportBackgroundFetch(repoId: Id, exitCode: number | null, output: string, code: string | null): void {
-  const busy = useAppStore.getState().busy;
-  if (busy[`${repoId}:fetch`] || busy[`${repoId}:pull`] || busy[`${repoId}:push`] || wasManualSync(repoId)) return;
-  const settings = queryClient.getQueryData<Settings>(qk.settings);
-  const name = queryClient.getQueryData<Repo[]>(qk.repos)?.find((repo) => repo.id === repoId);
-  const where = name ? (name.alias ?? name.name) : t("app.queries.repository");
-  if (exitCode === 0) {
-    if (!settings?.notifyOnFetch) return;
-    toast({ tone: "info", title: t("app.queries.fetchNews", { where }), description: t("app.queries.fetchNewsText") });
-    desktopNotify(true, t("app.queries.fetchNews", { where }), t("app.queries.fetchNewsShort"));
-    return;
-  }
-  if (!settings?.notifyOnError || !output.startsWith("Auto-fetch failed")) return;
-  const reason = (output.split("\n")[0] ?? "").replace(/^Auto-fetch failed:\s*/, "");
-  // No network, no credentials, unknown host: that is normal on the road and no reason to interrupt.
-  // The entry is in the activity log; a manual fetch prompts or names the error.
-  if (code !== null && QUIET_FETCH_FAILURES.has(code)) return;
-  toast({ tone: "warning", title: t("app.queries.fetchFailed", { where }), description: reason || undefined });
-  desktopNotify(true, t("app.queries.fetchFailed", { where }), reason);
-}
-
-/** Grows the index of the search by meaning after fetch and commit; the core does nothing before the first search. */
-const semanticIndex = createIndexScheduler({
-  delayMs: 3000,
-  enabled: (repoId) =>
-    featureVisible(
-      queryClient.getQueryData<SemanticAiStatus>(qk.aiStatus),
-      "semantic_search",
-      queryClient.getQueryData<SemanticRepoSettings>(qk.repoSettings(repoId))?.aiOff ?? false,
-    ),
-  update: async (repoId) => {
-    const done = await core.aiSemanticIndexUpdate({ repoId, jobId: `semantic-index-${repoId}-${Date.now().toString(36)}` });
-    if (done.added > 0 || done.removed > 0) await queryClient.invalidateQueries({ queryKey: qk.aiSemanticStatus(repoId) });
-  },
-});
-
-export const APP_KEYS: Record<string, QueryKey> = {
-  // Host accounts (connected, disconnected, verified).
-  host_accounts: qk.hostAccounts,
-  tabs: qk.tabs,
-  repos: qk.repos,
-  settings: qk.settings,
-  profiles: qk.profiles,
-  ai: qk.aiStatus,
-  // A profile switch changes both lists, even when it ends in an error.
-  credentials: qk.credentials,
-  ssh_keys: qk.sshKeys,
-};
-
-/**
- * Subscribes to all of the core's events and keeps query cache and store up to date.
- * Call exactly once in the shell.
- */
-export function useCoreSync(activeRepoId: Id | null) {
-  useEffect(() => {
-    const store = useAppStore.getState;
-    const stops = [
-      core.on("agents:changed", ({ repoId, running }) => {
-        store().setAgentsRunning(running);
-        store().noteAgentRepo(repoId);
-        void queryClient.invalidateQueries({ queryKey: qk.agents(repoId) });
-      }),
-      core.on("repo:changed", ({ repoId, what }) => {
-        void invalidateRepo(queryClient, repoId, what);
-        const owner = agentOwner(repoId);
-        if (owner && (what.includes("worktree") || what.includes("index") || what.includes("refs") || what.includes("head"))) {
-          void queryClient.invalidateQueries({ queryKey: qk.agents(owner) });
-        }
-        semanticIndex.changed(repoId, what);
-      }),
-      core.on("app:changed", ({ what }) => {
-        for (const item of what) {
-          const key = APP_KEYS[item];
-          if (key) void queryClient.invalidateQueries({ queryKey: key });
-        }
-        if (what.includes("settings")) void queryClient.invalidateQueries({ queryKey: qk.agentTemplates });
-        // Host accounts have changed (connected, token replaced, disconnected): whatever is loaded about issues –
-        // including a list that failed because of the expired token – counts as stale and reloads; link rules follow from the recognised host.
-        if (what.includes("host_accounts")) {
-          void queryClient.invalidateQueries({
-            predicate: (query) =>
-              query.queryKey[0] === "repo" && (part(query) === "issues" || part(query) === "issue" || part(query) === "linkRules"),
-          });
-        }
-        if (what.includes("custom_commands")) {
-          void queryClient.invalidateQueries({
-            predicate: (query) =>
-              (query.queryKey[0] === "app" && query.queryKey[1] === "customCommands") ||
-              (query.queryKey[0] === "repo" && part(query) === "customCommands"),
-          });
-        }
-        // AI settings (embedder, model) or "Delete index": way and index of the search by meaning.
-        if (what.includes("ai")) {
-          void queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === "repo" && part(query) === "aiSemantic" });
-        }
-        // Switching profile changes settings, tabs and identity
-        if (what.includes("profiles")) {
-          void queryClient.invalidateQueries({ queryKey: qk.settings });
-          void queryClient.invalidateQueries({ queryKey: qk.tabs });
-        }
-      }),
-      core.on("log:appended", (entry) => {
-        void queryClient.invalidateQueries({ queryKey: qk.activityAll });
-        if (!entry.repoId || !/^git\s+fetch\b/.test(entry.command)) return;
-        if (entry.exitCode === 0) store().markFetched(entry.repoId);
-        reportBackgroundFetch(entry.repoId, entry.exitCode, entry.output, entry.code ?? null);
-      }),
-      core.on("job:progress", (payload) => {
-        store().updateJob(payload);
-        // The bisect autopilot reports each step under its own phase (`PROGRESS_PHASE` in the core): its bar reloads the run.
-        if (payload.phase === "bisect-autopilot" && payload.repoId)
-          void queryClient.invalidateQueries({ queryKey: qk.bisectAutopilot(payload.repoId) });
-      }),
-      core.on("job:done", ({ jobId }) => store().finishJob(jobId)),
-      core.on("credential:request", (request) => store().enqueueCredential(request)),
-      // Hook output and failures: one toast per incident, see notifications/hooks.ts.
-      core.on("hook:output", (payload) => reportHookOutput(payload, queryClient.getQueryData<Settings>(qk.settings)?.notifyOnError)),
-      // Collision check of coding agents: the report replaces the cached one (no refetch needed).
-      core.on("agents:collisions", (report) => {
-        queryClient.setQueryData(qk.agentCollisions(report.repoId), report);
-      }),
-      // Follow-up job after checkout, pull …: refresh the list; a failure is a warning toast.
-      core.on("submodules:updated", (event) => {
-        void queryClient.invalidateQueries({ queryKey: qk.submodules(event.repoId) });
-        reportSubmoduleUpdate(event);
-      }),
-    ];
-    return () => stops.forEach((stop) => stop());
-  }, []);
-
-  // Status refresh when the window gets focus (changes from terminal or editor).
-  useEffect(() => {
-    if (!activeRepoId) return;
-    const onFocus = () => {
-      void queryClient.invalidateQueries({ queryKey: qk.status(activeRepoId) });
-      void queryClient.invalidateQueries({ queryKey: qk.refs(activeRepoId) });
-    };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [activeRepoId]);
 }
