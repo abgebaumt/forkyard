@@ -33,10 +33,12 @@ pub struct DigestRef {
     /// `Remote` or `Tag`.
     pub kind: RefKind,
     pub change: DigestRefChange,
+    /// For a tag the commit it pointed to.
     pub old_sha: Option<Sha>,
     /// For a tag the commit it points to.
     pub new_sha: Option<Sha>,
-    /// Foreign commits only.
+    /// Foreign commits not reachable from any seen ref. At most 500 commits are read per ref, own
+    /// ones are dropped afterwards. 0 for a ref when the seen state had no ref at all.
     pub new_commits: u32,
     /// First 20, newest first.
     pub commits: Vec<DigestCommit>,
@@ -113,7 +115,7 @@ pub struct Digest {
     pub refs: Vec<DigestRef>,
     /// Distinct foreign commits across all refs.
     pub new_commits: u32,
-    /// Sorted by path.
+    /// Sorted by path. Only from the commits read per ref (at most 500, see `DigestRef::new_commits`).
     pub your_files: Vec<DigestFile>,
     pub behind: Option<DigestBehind>,
     pub prs: Option<DigestPrs>,

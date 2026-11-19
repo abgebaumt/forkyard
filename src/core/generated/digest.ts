@@ -16,7 +16,7 @@ export type Digest = {
    */
   newCommits: number;
   /**
-   * Sorted by path.
+   * Sorted by path. Only from the commits read per ref (at most 500, see `DigestRef::new_commits`).
    */
   yourFiles: Array<DigestFile>;
   behind: DigestBehind | null;
@@ -85,13 +85,17 @@ export type DigestRef = {
    */
   kind: RefKind;
   change: DigestRefChange;
+  /**
+   * For a tag the commit it pointed to.
+   */
   oldSha: string | null;
   /**
    * For a tag the commit it points to.
    */
   newSha: string | null;
   /**
-   * Foreign commits only.
+   * Foreign commits not reachable from any seen ref. At most 500 commits are read per ref, own
+   * ones are dropped afterwards. 0 for a ref when the seen state had no ref at all.
    */
   newCommits: number;
   /**
