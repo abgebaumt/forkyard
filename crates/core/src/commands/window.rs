@@ -102,7 +102,7 @@ fn move_tab(tx: &Connection, profile_id: &str, tab: &Tab, target: &str, position
 
 /// Moves a tab of the calling window into `window` at `position`. Returns the caller's tabs.
 pub async fn tab_move_to_window(core: &Core, tab_id: String, window: String, position: i64) -> CoreResult<Vec<Tab>> {
-    let source = windowing::caller_or_main();
+    let source = calling_window(core);
     if window == source {
         return repos::tab_move(core, tab_id, position).await;
     }
@@ -124,7 +124,7 @@ pub async fn tab_move_to_window(core: &Core, tab_id: String, window: String, pos
 
 /// Tears a tab of the calling window out into a new window at `at` (screen, logical). Returns the label.
 pub async fn tab_move_to_new_window(core: &Core, tab_id: String, at: Option<ScreenPoint>) -> CoreResult<String> {
-    let source = windowing::caller_or_main();
+    let source = calling_window(core);
     let label = windowing::new_label();
     let remembered = core.state::<Windows>().geometry.lock().get(&source).copied();
     let (moved, windows) = core.db.tx(|tx| {
@@ -172,7 +172,7 @@ pub async fn tab_handoff_take(core: &Core, tab_id: String) -> CoreResult<Option<
 
 /// The calling window's tab strip (client coordinates); `None` forgets it.
 pub async fn window_strip_report(core: &Core, strip: Option<StripReport>) -> CoreResult<()> {
-    let window = windowing::caller_or_main();
+    let window = calling_window(core);
     let state = core.state::<Windows>();
     let mut strips = state.strips.lock();
     match strip {
@@ -260,12 +260,26 @@ pub fn window_closed(core: &Core, label: &str) {
     }
 }
 
-/// Profile switch: the remembered geometry belongs to the old profile's windows; it is saved and forgotten.
+/// Profile switch: the remembered geometry belongs to the old profile's windows. Saved here; after the
+/// commit `forget_geometry` drops it.
 pub(crate) fn save_all_geometry(core: &Core, tx: &Connection, profile_id: &str) -> CoreResult<()> {
-    for (label, g) in core.state::<Windows>().geometry.lock().drain() {
-        db::windows::set_geometry(tx, profile_id, &label, &g)?;
+    let remembered = core.state::<Windows>().geometry.lock().clone();
+    for (label, g) in &remembered {
+        db::windows::set_geometry(tx, profile_id, label, g)?;
     }
     Ok(())
+}
+
+pub(crate) fn forget_geometry(core: &Core) {
+    core.state::<Windows>().geometry.lock().clear();
+}
+
+/// The window a command acts in: the caller, or for a call without one (tests, spawned tasks) the most
+/// recently focused window, so that no tab lands in a window without a row.
+pub fn calling_window(core: &Core) -> String {
+    windowing::caller().unwrap_or_else(|| {
+        core.db.with(|c| db::windows::fallback(c, &db::profiles::active_id(c)?)).unwrap_or_else(|_| windowing::MAIN.to_string())
+    })
 }
 
 #[cfg(test)]

@@ -368,3 +368,67 @@ async fn repo_changes_reach_every_window() {
     assert!(tc.events.targeted(names::REPO_CHANGED).is_empty());
     assert!(!tc.events.named(names::REPO_CHANGED).is_empty());
 }
+
+/// `main` closed while W stays: rows [W].
+fn close_main(tc: &TestCore) {
+    window_closed(tc, "main");
+    assert_eq!(window_labels(tc), vec![W]);
+}
+
+#[tokio::test]
+async fn a_start_without_main_and_without_remembered_tabs_keeps_one_window() {
+    let tc = TestCore::new().await;
+    tabs_list(&tc).await.unwrap();
+    add_window(&tc);
+    in_w(W, tabs_list(&tc)).await.unwrap();
+    close_main(&tc);
+    settings_set(&tc, serde_json::json!({"rememberTabs": false})).await.unwrap();
+    let tc = tc.restart().await;
+    assert_eq!(window_labels(&tc), vec!["main"]);
+    assert_eq!(tabs_list(&tc).await.unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn a_start_without_main_makes_the_first_window_main() {
+    let tc = TestCore::new().await;
+    tabs_list(&tc).await.unwrap();
+    add_window(&tc);
+    let w_tab = in_w(W, tabs_list(&tc)).await.unwrap().remove(0);
+    close_main(&tc);
+    let tc = tc.restart().await;
+    assert_eq!(window_labels(&tc), vec!["main"]);
+    assert_eq!(tabs_list(&tc).await.unwrap(), vec![Tab { window: "main".into(), ..w_tab }]);
+}
+
+#[tokio::test]
+async fn forgetting_a_repository_does_not_rename_open_windows() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let opened = tc.open(&repo).await;
+    add_window(&tc);
+    let w_tab = in_w(W, tabs_list(&tc)).await.unwrap().remove(0);
+    close_main(&tc);
+    tc.db
+        .tx(|tx| {
+            let profile_id = db::profiles::active_id(tx)?;
+            db::windows::insert(tx, &profile_id, "w-ffffffffffffffffffffffffffffffff", None)
+        })
+        .unwrap();
+    in_w(W, crate::commands::repos::repo_forget(&tc, opened.repo.id)).await.unwrap();
+    assert_eq!(window_labels(&tc), vec![W, "w-ffffffffffffffffffffffffffffffff"]);
+    let w_tabs = in_w(W, tabs_list(&tc)).await.unwrap();
+    assert_eq!(w_tabs.iter().map(|t| (t.id.as_str(), t.window.as_str())).collect::<Vec<_>>(), vec![(w_tab.id.as_str(), W)]);
+}
+
+#[tokio::test]
+async fn calls_without_a_window_act_in_the_last_focused_one() {
+    let tc = TestCore::new().await;
+    tabs_list(&tc).await.unwrap();
+    add_window(&tc);
+    in_w(W, tabs_list(&tc)).await.unwrap();
+    close_main(&tc);
+    let tabs = tab_open(&tc, None).await.unwrap();
+    assert!(tabs.iter().all(|t| t.window == W) && tabs.len() == 2, "no tab under a window without a row");
+    note_focus(&tc, W);
+    assert_eq!(calling_window(&tc), W);
+}

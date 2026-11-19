@@ -8,7 +8,7 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors;
 use crate::model::{AppChange, OpenedRepo, ProfileRef, Repo, Tab, TabKind};
 use crate::util;
-use crate::{autofetch, watcher, windowing};
+use crate::{autofetch, watcher};
 
 /// Largest README read for the preview.
 const README_MAX_BYTES: u64 = 1024 * 1024;
@@ -110,7 +110,7 @@ pub async fn repo_open_with(core: &Core, path: String, add_to_profile: bool) -> 
         return Err(CoreError::not_a_repo(trimmed));
     }
     let root = resolve_root(core, &input).await?;
-    let window = windowing::caller_or_main();
+    let window = crate::commands::window::calling_window(core);
     let opened = core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
         let row = db::repos::upsert(tx, &root)?;
@@ -266,7 +266,7 @@ pub async fn repo_readme(core: &Core, repo_id: String) -> CoreResult<Option<Stri
 }
 
 fn list_tabs(core: &Core) -> CoreResult<Vec<Tab>> {
-    let window = windowing::caller_or_main();
+    let window = crate::commands::window::calling_window(core);
     core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
         db::tabs::ensure_consistent(tx, &profile_id, &window)?;
@@ -282,7 +282,7 @@ pub async fn tabs_list(core: &Core) -> CoreResult<Vec<Tab>> {
 /// Opens a management tab (`repo_id: None`) or a repo tab; an existing tab of the same
 /// repository is activated instead of duplicated.
 pub async fn tab_open(core: &Core, repo_id: Option<String>) -> CoreResult<Vec<Tab>> {
-    let window = windowing::caller_or_main();
+    let window = crate::commands::window::calling_window(core);
     let tabs = core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
         let tab_id = match &repo_id {
@@ -311,7 +311,7 @@ pub async fn tab_open(core: &Core, repo_id: Option<String>) -> CoreResult<Vec<Ta
 /// Closes a tab. If it was active, its right neighbour becomes active (otherwise the left one).
 /// If the last tab is closed, a management tab remains.
 pub async fn tab_close(core: &Core, tab_id: String) -> CoreResult<Vec<Tab>> {
-    let window = windowing::caller_or_main();
+    let window = crate::commands::window::calling_window(core);
     let (tabs, closed) = core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
         let tab = db::tabs::require_in(tx, &profile_id, &window, &tab_id)?;
@@ -334,7 +334,7 @@ pub async fn tab_close(core: &Core, tab_id: String) -> CoreResult<Vec<Tab>> {
 
 /// Moves a tab to `position` (0 = far left; too large = far right).
 pub async fn tab_move(core: &Core, tab_id: String, position: i64) -> CoreResult<Vec<Tab>> {
-    let window = windowing::caller_or_main();
+    let window = crate::commands::window::calling_window(core);
     let tabs = core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
         db::tabs::require_in(tx, &profile_id, &window, &tab_id)?;
@@ -350,7 +350,7 @@ pub async fn tab_move(core: &Core, tab_id: String, position: i64) -> CoreResult<
 }
 
 pub async fn tab_activate(core: &Core, tab_id: String) -> CoreResult<Vec<Tab>> {
-    let window = windowing::caller_or_main();
+    let window = crate::commands::window::calling_window(core);
     let (tabs, repo_id) = core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
         let tab = db::tabs::require_in(tx, &profile_id, &window, &tab_id)?;
