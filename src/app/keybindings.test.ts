@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { t } from "../i18n";
+import { fixedKeyGroups } from "../screens/Shortcuts/fixedKeys";
 import { formatShortcut } from "../ui/shortcut";
 import { type AppCommand, matchesShortcut } from "./commandTypes";
-import { applyKeybindings, assign, canonical, conflictWith, refusal, remove, reset, shortcutFromEvent } from "./keybindings";
+import { applyKeybindings, assign, canonical, conflictWith, defaultKeys, refusal, remove, reset, shortcutFromEvent } from "./keybindings";
 import { getCommands } from "./registry";
 
 const cmd = (id: string, shortcut?: string, aliases?: string[]): AppCommand => ({
@@ -58,6 +60,10 @@ describe("canonical", () => {
     expect(canonical("Ctrl+K", "mac")).toBe("Ctrl+K");
     expect(canonical("Shift+Alt+Ctrl+Mod+x", "mac")).toBe("Mod+Ctrl+Alt+Shift+X");
     expect(canonical("Mod++", "linux")).toBe("Mod++");
+    expect(canonical("mod+escape", "linux")).toBe("Mod+Escape");
+    expect(canonical("shift+f7", "linux")).toBe("Shift+F7");
+    expect(canonical("Mod+ß", "linux")).toBe("Mod+ß");
+    expect(canonical("Mod+ﬁ", "linux")).toBe("Mod+ﬁ");
   });
 });
 
@@ -74,6 +80,10 @@ describe("conflicts", () => {
     expect(next).toEqual({ "repo.x": ["Mod+F"], "view.search": null });
     const zoom = assign({}, "repo.x", "Mod+=", base, "linux");
     expect(zoom["view.zoomIn"]).toEqual(["Mod+Plus", "Mod+Shift+="]);
+  });
+
+  it("assign replaces all keys of the command, aliases included", () => {
+    expect(assign({}, "view.zoomIn", "Mod+Shift+Z", base, "linux")).toEqual({ "view.zoomIn": ["Mod+Shift+Z"] });
   });
 
   it("assign stores the canonical form and leaves the input untouched", () => {
@@ -105,8 +115,9 @@ describe("refusal", () => {
 
   it("names the group and entry of a fixed key", () => {
     const fixed = refusal("Mod+Shift+V", "linux", []);
-    expect(fixed?.kind).toBe("fixed");
-    expect(fixed && "group" in fixed && fixed.group && fixed.label).toBeTruthy();
+    expect(fixed).toEqual({ kind: "fixed", group: t("ui.terminal"), label: t("ui.paste") });
+    expect(refusal("Mod+Space", "windows", [])).toEqual({ kind: "system" });
+    expect(refusal("Mod+Space", "linux", [])).toEqual({ kind: "system" });
   });
 
   it("only defaults a view also handles itself are refused for other commands", () => {
@@ -118,6 +129,19 @@ describe("refusal", () => {
 
   it("global commands that pass through a view are not fixed keys", () => {
     for (const key of ["F6", "Shift+F6", "Alt+1", "Alt+2", "Alt+3", "Mod+Shift+H"]) expect(refusal(key, "linux", []), key).toBeNull();
+  });
+
+  it("fixed entries that name commands list exactly those commands' defaults", () => {
+    const byId = new Map(getCommands().map((command) => [command.id, command]));
+    for (const entry of fixedKeyGroups.flatMap((group) => group.entries)) {
+      if (!entry.commands) continue;
+      const keys = entry.commands.flatMap((id) => {
+        const command = byId.get(id);
+        expect(command, id).toBeDefined();
+        return command ? defaultKeys(command) : [];
+      });
+      expect(keys.sort(), entry.label).toEqual([...entry.keys].sort());
+    }
   });
 });
 
@@ -139,6 +163,17 @@ describe("shortcutFromEvent", () => {
     [ev(" ", "Space", { ctrlKey: true }), false, "Mod+Space"],
     [ev("+", "NumpadAdd", { ctrlKey: true }), false, "Mod++"],
     [ev("ArrowUp", "ArrowUp", { ctrlKey: true, shiftKey: true }), false, "Mod+Shift+ArrowUp"],
+    [ev("ß", "Minus", { ctrlKey: true }), false, "Mod+ß"],
+    [ev("ü", "BracketLeft", { ctrlKey: true }), false, "Mod+ü"],
+    [ev("Ü", "BracketLeft", { ctrlKey: true, shiftKey: true }), false, "Mod+Ü"],
+    [ev("f", "KeyF", { ctrlKey: true, altKey: true }), false, "Mod+Alt+F"],
+    // Windows AltGr (Ctrl+Alt) on a German keyboard types characters
+    [ev("{", "Digit7", { ctrlKey: true, altKey: true }), false, null],
+    [ev("@", "KeyQ", { ctrlKey: true, altKey: true }), false, null],
+    [ev("€", "KeyE", { ctrlKey: true, altKey: true }), false, null],
+    // Numpad with NumLock off
+    [ev("End", "Numpad1", { ctrlKey: true }), false, "Mod+End"],
+    [ev("1", "Numpad1", { ctrlKey: true }), false, "Mod+1"],
   ];
 
   it("records shortcuts per platform", () => {
@@ -150,11 +185,17 @@ describe("shortcutFromEvent", () => {
     expect(shortcutFromEvent(ev("Dead", "Equal", { ctrlKey: true }), false)).toBeNull();
   });
 
-  it("a recorded shortcut matches its own event", () => {
+  it("a recorded shortcut matches its own event, also after canonical", () => {
     for (const [event, mac, expected] of events) {
       if (!expected) continue;
-      expect(matchesShortcut(event as KeyboardEvent, shortcutFromEvent(event, mac) ?? "", mac), expected).toBe(true);
+      const recorded = shortcutFromEvent(event, mac) ?? "";
+      expect(matchesShortcut(event as KeyboardEvent, recorded, mac), expected).toBe(true);
+      expect(matchesShortcut(event as KeyboardEvent, canonical(recorded, mac ? "mac" : "linux"), mac), expected).toBe(true);
     }
+  });
+
+  it("an unshifted letter does not fire its Shift variant", () => {
+    expect(matchesShortcut(ev("ü", "BracketLeft", { ctrlKey: true }) as KeyboardEvent, "Mod+Ü", false)).toBe(false);
   });
 });
 

@@ -9,6 +9,34 @@ import { type AppCommand, parseShortcut } from "./commandTypes";
 
 export type Keybindings = Record<string, string[] | null>;
 
+const NAMED_KEYS = [
+  "Enter",
+  "Escape",
+  "Tab",
+  "Backspace",
+  "Delete",
+  "Insert",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "Space",
+  "ContextMenu",
+  "Plus",
+];
+const NAMED_BY_LOWER = new Map(NAMED_KEYS.map((key) => [key.toLowerCase(), key]));
+
+/** Named keys in `KeyboardEvent.key` spelling ("escape" → "Escape", "f7" → "F7"). */
+function namedKey(key: string): string {
+  if (key.length === 1) return key;
+  if (/^f\d{1,2}$/i.test(key)) return key.toUpperCase();
+  return NAMED_BY_LOWER.get(key.toLowerCase()) ?? key;
+}
+
 /** Modifiers in the order Mod, Ctrl, Alt, Shift, then the key; Ctrl is Mod off macOS. */
 export function canonical(shortcut: string, platform: ShortcutPlatform): string {
   const parsed = parseShortcut(shortcut);
@@ -18,7 +46,7 @@ export function canonical(shortcut: string, platform: ShortcutPlatform): string 
   if (parsed.ctrl && mac) parts.push("Ctrl");
   if (parsed.alt) parts.push("Alt");
   if (parsed.shift) parts.push("Shift");
-  parts.push(parsed.key.length === 1 ? parsed.key.toUpperCase() : parsed.key);
+  parts.push(/^[a-z]$/.test(parsed.key) ? parsed.key.toUpperCase() : namedKey(parsed.key));
   return parts.join("+");
 }
 
@@ -43,16 +71,13 @@ export type Refusal = { kind: "plain" } | { kind: "fixed"; group: string; label:
 
 const TEXT_KEYS = ["Mod+A", "Mod+C", "Mod+V", "Mod+X"];
 
+// Mod+Space off macOS: input method switch.
 const DESKTOP_SYSTEM_KEYS = ["Alt+F4", "Alt+Tab", "Ctrl+Alt+Delete", "Ctrl+Alt+ArrowLeft", "Ctrl+Alt+ArrowRight"];
 const SYSTEM_KEYS: Record<ShortcutPlatform, string[]> = {
-  windows: DESKTOP_SYSTEM_KEYS,
-  linux: [...DESKTOP_SYSTEM_KEYS, "Ctrl+Alt+T"],
+  windows: [...DESKTOP_SYSTEM_KEYS, "Mod+Space"],
+  linux: [...DESKTOP_SYSTEM_KEYS, "Mod+Space", "Ctrl+Alt+T"],
   mac: ["Mod+Q", "Mod+H", "Mod+M", "Mod+Tab", "Mod+Space", "Mod+Alt+Escape"],
 };
-
-// Listed in fixedKeys.ts for the view they pass through, but they are registry commands
-// (focus.*, file.history): rebinding them frees the key, so they are conflicts, not fixed.
-const GLOBAL_IN_FIXED = new Set(["F6", "Shift+F6", "Alt+1", "Alt+2", "Alt+3", "Mod+Shift+H"]);
 
 /** Why a combination cannot be assigned at all; `null` if it can. A command's own defaults always can. */
 export function refusal(combo: string, platform: ShortcutPlatform, ownDefaults: readonly string[]): Refusal | null {
@@ -62,7 +87,7 @@ export function refusal(combo: string, platform: ShortcutPlatform, ownDefaults: 
   const parsed = parseShortcut(key);
   if (!parsed.mod && !parsed.ctrl && !parsed.alt && !/^F([1-9]|1\d|2[0-4])$/.test(parsed.key)) return { kind: "plain" };
   for (const group of fixedKeyGroups) {
-    const entry = group.entries.find((e) => e.keys.some((k) => !GLOBAL_IN_FIXED.has(k) && same(k)));
+    const entry = group.entries.find((e) => !e.commands && e.keys.some(same));
     if (entry) return { kind: "fixed", group: group.title, label: entry.label };
   }
   if (TEXT_KEYS.some(same)) return { kind: "text" };
@@ -120,9 +145,12 @@ export function shortcutFromEvent(
   mac: boolean,
 ): string | null {
   if (NO_KEY.has(event.key) || (event.metaKey && !mac)) return null;
+  // Windows AltGr arrives as Ctrl+Alt: a typed character ("{", "@", "€") is text, not a shortcut.
+  if (!mac && event.ctrlKey && event.altKey && event.key.length === 1 && !/^[a-z0-9 ]$/i.test(event.key)) return null;
   let key: string;
   let shift = event.shiftKey;
-  const digit = /^(?:Digit|Numpad)(\d)$/.exec(event.code)?.[1];
+  // Numpad only when it types the digit (NumLock off gives End, ArrowDown …).
+  const digit = /^Digit(\d)$/.exec(event.code)?.[1] ?? (/^Numpad\d$/.test(event.code) && /^\d$/.test(event.key) ? event.key : undefined);
   if (/^[a-z]$/i.test(event.key)) key = event.key.toUpperCase();
   else if (/^Key[A-Z]$/.test(event.code)) key = event.code.slice(3);
   // A digit unless Shift turned it into another character (German Shift+7 is "/").
