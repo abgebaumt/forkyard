@@ -2,7 +2,7 @@
  * Actions of the file history: view a version, blame at a revision, restore a version (with a
  * prompt only if there are local changes, undo in the notification).
  */
-import { core, type FileHistoryEntry, type Id, type Sha } from "../../core";
+import { core, type FileHistoryEntry, type Id } from "../../core";
 import { loadStatus } from "../../app/actions/context";
 import { undo } from "../../app/actions/undo";
 import { confirm } from "../../app/dialogs";
@@ -14,15 +14,7 @@ import { toast } from "../../ui/Feedback";
 import { t } from "../../i18n";
 import { baseName } from "../../app/paths";
 import { busyKeys } from "../../app/actions/keys";
-
-/**
- * Which revision a row of the history shows. For a deleting commit the file no longer exists
- * there – what is meant then is the version directly before (first parent).
- */
-export function versionOf(entry: FileHistoryEntry): { sha: Sha | null; path: string; beforeDelete: boolean } {
-  if (entry.status === "deleted") return { sha: entry.commit.parents[0] ?? null, path: entry.path, beforeDelete: true };
-  return { sha: entry.commit.sha, path: entry.path, beforeDelete: false };
-}
+import { versionOf } from "./model";
 
 export const restoreBusyKey = (repoId: Id) => busyKeys.write(repoId, "file-restore");
 
