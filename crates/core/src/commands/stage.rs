@@ -15,7 +15,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use serde_json::{json, Value};
+use serde_json::json;
 
 use crate::app::Core;
 use crate::commands::diff::patch::{self, Direction};
@@ -188,7 +188,6 @@ pub async fn discard_patch(core: &Core, repo_id: String, selection: PatchSelecti
             return read_status(core, &repo_id).await;
         };
         let head = read_head(core, &repo_id).await?;
-        let backup = Pending::back_up(core, &repo_id, Some(std::slice::from_ref(&patch.path))).await?;
         // With `core.autocrlf` (or `eol` attributes) `git apply` rewrites the WHOLE file with the
         // line endings a checkout would give it – including lines nobody touched.
         // The state before is recorded so that they keep their line endings.
@@ -198,20 +197,21 @@ pub async fn discard_patch(core: &Core, repo_id: String, selection: PatchSelecti
             .filter(|meta| meta.is_file() && meta.len() <= KEEP_EOL_MAX_BYTES)
             .and_then(|_| std::fs::read(&file).ok());
         let hunks = patch::parse_diff(&patch.bytes).into_iter().next().map(|parsed| parsed.hunks).unwrap_or_default();
-        // `git apply` checks everything first and then writes: after an error nothing has changed.
-        if let Err(e) = apply(core, &repo_id, patch.bytes, false, true).await {
-            backup.forget(core).await;
-            return Err(e);
-        }
-        if let (Some(before), Ok(after)) = (before, std::fs::read(&file)) {
-            if let Some(exact) = keep_line_endings(&before, &after, &hunks) {
-                if let Err(e) = std::fs::write(&file, exact) {
-                    log::warn!("Line endings not restored after discarding: {e}");
+        let discarded = async {
+            // `git apply` checks everything first and then writes: after an error nothing has changed.
+            apply(core, &repo_id, patch.bytes, false, true).await?;
+            if let (Some(before), Ok(after)) = (before, std::fs::read(&file)) {
+                if let Some(exact) = keep_line_endings(&before, &after, &hunks) {
+                    if let Err(e) = std::fs::write(&file, exact) {
+                        log::warn!("Line endings not restored after discarding: {e}");
+                    }
                 }
             }
-        }
+            Ok(())
+        };
         let label = format!("Undo discarding changes in ‘{}’", selection.path);
-        backup.record_discard(core, &head, label, Some(vec![selection.path.clone()]), Value::Null).await;
+        let paths = std::slice::from_ref(&patch.path);
+        Pending::around(core, &repo_id, &head, paths, label, vec![selection.path.clone()], discarded).await?;
         read_status(core, &repo_id).await
     })
     .await
@@ -219,11 +219,6 @@ pub async fn discard_patch(core: &Core, repo_id: String, selection: PatchSelecti
 
 /// Up to this size the file's line endings are preserved after discarding lines.
 const KEEP_EOL_MAX_BYTES: u64 = 64 * 1024 * 1024;
-
-/// Lines of a file including their line ending (`\n`, `\r\n` or none at the end of the file).
-fn lines_with_endings(bytes: &[u8]) -> Vec<&[u8]> {
-    bytes.split_inclusive(|byte| *byte == b'\n').collect()
-}
 
 /// The line ending of a line from [`lines_with_endings`].
 fn ending_of(line: &[u8]) -> &'static [u8] {
@@ -265,7 +260,7 @@ pub(crate) fn keep_line_endings(before: &[u8], after: &[u8], hunks: &[patch::Pat
     if hunks.is_empty() || !before.contains(&b'\n') {
         return None;
     }
-    let old = lines_with_endings(before);
+    let old = patch::lines_with_endings(before);
     // Most frequent line ending of the file – for restored lines without a neighbour.
     let crlf = old.iter().filter(|line| line.ends_with(b"\r\n")).count();
     let usual: &[u8] = if crlf * 2 > old.len() { b"\r\n" } else { b"\n" };
@@ -658,12 +653,11 @@ pub async fn file_delete(core: &Core, repo_id: String, path: String) -> CoreResu
             }
         }
         let head = read_head(core, &repo_id).await?;
-        let backup = Pending::back_up(core, &repo_id, Some(std::slice::from_ref(&raw))).await?;
-        if let Err(e) = remove_file_and_empty_parents(&root, &raw) {
-            backup.forget(core).await;
-            return Err(CoreError::io(format!("“{rel}” could not be deleted: {e}")));
-        }
-        backup.record_discard(core, &head, format!("Undo deleting ‘{rel}’"), Some(vec![rel.clone()]), Value::Null).await;
+        let removed = async {
+            remove_file_and_empty_parents(&root, &raw).map_err(|e| CoreError::io(format!("“{rel}” could not be deleted: {e}")))
+        };
+        Pending::around(core, &repo_id, &head, std::slice::from_ref(&raw), format!("Undo deleting ‘{rel}’"), vec![rel.clone()], removed)
+            .await?;
         read_status(core, &repo_id).await
     })
     .await

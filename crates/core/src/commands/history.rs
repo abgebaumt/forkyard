@@ -242,13 +242,8 @@ fn hunk_of(diff: &[u8]) -> Option<(Option<String>, u32, u32)> {
                 .filter(|name| !name.starts_with(b"\""))
                 .map(|name| util::decode_lossy(name).trim_end_matches('\t').to_string());
         } else if line.starts_with(b"@@ ") {
-            let text = util::decode_lossy(line);
-            let new = text.split_whitespace().find(|part| part.starts_with('+'))?;
-            let (start, count) = match new[1..].split_once(',') {
-                Some((start, count)) => (start.parse().ok()?, count.parse().ok()?),
-                None => (new[1..].parse().ok()?, 1),
-            };
-            return Some((path, start, count));
+            let hunk = crate::commands::diff::patch::parse_hunk_header(line)?;
+            return Some((path, hunk.new_start, hunk.new_lines));
         }
     }
     None

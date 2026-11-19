@@ -98,6 +98,32 @@ impl Pending {
         self.index_tree.clone()
     }
 
+    /// The pipeline of a step that moves no ref (apply a patch, discard lines, delete a file):
+    /// backup of `paths` → `step` → undo entry (`record_discard` with `listed`). A failing step must
+    /// have changed nothing (`git apply` checks everything first): its backup goes again. Checks
+    /// that refuse the step belong before this call – then not even a backup is made.
+    pub(crate) async fn around<T>(
+        core: &Core,
+        repo_id: &str,
+        head: &Head,
+        paths: &[Vec<u8>],
+        label: String,
+        listed: Vec<String>,
+        step: impl std::future::Future<Output = CoreResult<T>>,
+    ) -> CoreResult<T> {
+        let backup = Pending::back_up(core, repo_id, Some(paths)).await?;
+        match step.await {
+            Ok(value) => {
+                backup.record_discard(core, head, label, Some(listed), Value::Null).await;
+                Ok(value)
+            }
+            Err(e) => {
+                backup.forget(core).await;
+                Err(e)
+            }
+        }
+    }
+
     /// The step did not happen: the backup refs go again.
     pub(crate) async fn forget(self, core: &Core) {
         if let Err(e) = delete_backup_refs(core, &self.repo_id, &self.id).await {

@@ -172,7 +172,7 @@ fn read_hunk_body(lines: &mut Lines<'_>, hunk: &mut PatchHunk) {
 }
 
 /// `@@ -a[,b] +c[,d] @@[ section]`
-fn parse_hunk_header(line: &[u8]) -> Option<PatchHunk> {
+pub(crate) fn parse_hunk_header(line: &[u8]) -> Option<PatchHunk> {
     let rest = line.strip_prefix(b"@@ -")?;
     let end = rest.windows(3).position(|w| w == b" @@")?;
     let ranges = std::str::from_utf8(&rest[..end]).ok()?;
@@ -499,6 +499,41 @@ fn normalize(lines: Vec<Emitted>, direction: Direction) -> Vec<Emitted> {
         }
     }
     out
+}
+
+/// The lines of `bytes`, each with its line ending (the last one may have none).
+pub fn lines_with_endings(bytes: &[u8]) -> Vec<&[u8]> {
+    bytes.split_inclusive(|byte| *byte == b'\n').collect()
+}
+
+/// The one line-replacement patch: lines `first..last` (0-based, end exclusive) of `lines` (from
+/// `lines_with_endings`) replaced by `new_lines` (each with its ending, or none at the end of the
+/// file), with `context` lines around them, byte-exact for `git apply`. Lines without a line ending
+/// get Git's "\ No newline at end of file"; the path is quoted like Git.
+pub fn replace_lines(path: &[u8], lines: &[&[u8]], first: usize, last: usize, new_lines: &[Vec<u8>], context: usize) -> Vec<u8> {
+    let before = first.saturating_sub(context);
+    let after = (last + context).min(lines.len());
+    let old_len = after - before;
+    let new_len = (first - before) + new_lines.len() + (after - last);
+    let new_start = if new_len == 0 { before } else { before + 1 };
+    let (a, b) = (quote_path(b"a/", path), quote_path(b"b/", path));
+    let mut patch = Vec::new();
+    for part in [&b"diff --git "[..], &a, b" ", &b, b"\n--- ", &a, b"\n+++ ", &b] {
+        patch.extend_from_slice(part);
+    }
+    patch.extend_from_slice(format!("\n@@ -{},{old_len} +{new_start},{new_len} @@\n", before + 1).as_bytes());
+    let emit = |patch: &mut Vec<u8>, sign: u8, line: &[u8]| {
+        patch.push(sign);
+        patch.extend_from_slice(line);
+        if !line.ends_with(b"\n") {
+            patch.extend_from_slice(b"\n\\ No newline at end of file\n");
+        }
+    };
+    lines[before..first].iter().for_each(|line| emit(&mut patch, b' ', line));
+    lines[first..last].iter().for_each(|line| emit(&mut patch, b'-', line));
+    new_lines.iter().for_each(|line| emit(&mut patch, b'+', line));
+    lines[last..after].iter().for_each(|line| emit(&mut patch, b' ', line));
+    patch
 }
 
 /// Path for the patch header, quoted like Git does with `core.quotepath=false`:

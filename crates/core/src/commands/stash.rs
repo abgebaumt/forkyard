@@ -853,8 +853,11 @@ pub async fn stash_apply_paths(
 
         let head = crate::git::repo::read_head(core, repo_id).await?;
         let raw: Vec<Vec<u8>> = wanted.iter().map(|rel| rel.as_bytes().to_vec()).collect();
-        let backup = crate::undo::Pending::back_up(core, repo_id, Some(&raw)).await?;
-        let written: CoreResult<()> = async {
+        let label = match wanted.as_slice() {
+            [one] => format!("Undo applying ‘{one}’ from the stash"),
+            many => format!("Undo applying {} files from the stash", many.len()),
+        };
+        let written = async {
             if !patch.is_empty() {
                 core.git_for(repo_id)?
                     .literal_paths()
@@ -875,17 +878,8 @@ pub async fn stash_apply_paths(
                 quiet()?.args(["checkout-index", "-z", "--stdin"]).env("GIT_INDEX_FILE", temp.path()).stdin(input).run().await?;
             }
             Ok(())
-        }
-        .await;
-        if let Err(e) = written {
-            backup.forget(core).await;
-            return Err(e);
-        }
-        let label = match wanted.as_slice() {
-            [one] => format!("Undo applying ‘{one}’ from the stash"),
-            many => format!("Undo applying {} files from the stash", many.len()),
         };
-        backup.record_discard(core, &head, label, Some(wanted.clone()), serde_json::Value::Null).await;
+        crate::undo::Pending::around(core, repo_id, &head, &raw, label, wanted.clone(), written).await?;
         crate::commands::status::read_status(core, repo_id).await
     })
     .await
