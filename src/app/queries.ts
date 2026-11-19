@@ -64,6 +64,7 @@ export const qk = {
   keyring: ["app", "keyring"] as const,
   avatar: (email: string) => ["app", "avatar", email] as const,
   tabs: ["app", "tabs"] as const,
+  windows: ["app", "windows"] as const,
   repos: ["app", "repos"] as const,
   settings: ["app", "settings"] as const,
   profiles: ["app", "profiles"] as const,
@@ -171,6 +172,8 @@ export const useAppInfo = () => useQuery({ queryKey: qk.appInfo, queryFn: () => 
 export const useKeyringAvailable = () =>
   useQuery({ queryKey: qk.keyring, queryFn: () => core.appKeyringAvailable(), staleTime: Infinity }).data;
 export const useTabs = () => useQuery({ queryKey: qk.tabs, queryFn: () => core.tabsList() });
+/** The windows of the active profile; reloads on `app:changed` with `windows`. */
+export const useWindows = () => useQuery({ queryKey: qk.windows, queryFn: () => core.windowList() });
 export const useRepos = () => useQuery({ queryKey: qk.repos, queryFn: () => core.repoList() });
 // Settings and profiles are read only once no change to them is in flight (see writeQueue.ts).
 export const useSettings = () => useQuery({ queryKey: qk.settings, queryFn: () => writesSettled().then(() => core.settingsGet()) });

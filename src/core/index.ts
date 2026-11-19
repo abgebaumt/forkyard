@@ -2,13 +2,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { Core, CoreCommands, CoreSystem } from "./api";
+import type { Core, CoreCommands, CoreSystem, Unsubscribe } from "./api";
 import { CoreError, type CoreErrorData, type CoreEvents } from "./types";
 import { setStartupSender, traceCall } from "./startupTrace";
 
 export * from "./types";
 export * from "./limits";
-export type { Core, CoreCommands, CommandName, Unsubscribe } from "./api";
+export type { Core, CoreCommands, CommandName, Unsubscribe, WindowEventName } from "./api";
 
 const toSnake = (name: string) => name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
@@ -42,6 +42,34 @@ function ownWindow(): string | undefined {
   }
 }
 
+/** An event subscription as `Unsubscribe`; `start` begins listening and may throw outside Tauri. */
+function subscribe<P>(
+  start: (deliver: (message: { payload: P }) => void) => Promise<() => void>,
+  handler: (payload: P) => void,
+): Unsubscribe {
+  let active = true;
+  let unlisten: (() => void) | undefined;
+  const ready = new Promise<() => void>((resolve) =>
+    resolve(
+      start((message) => {
+        if (active) handler(message.payload);
+      }),
+    ),
+  ).then(
+    (stop) => {
+      if (active) unlisten = stop;
+      else stop();
+    },
+    // Without Tauri (preview in the browser) there are no events; `ready` must still never hang.
+    () => undefined,
+  );
+  const stop = () => {
+    active = false;
+    unlisten?.();
+  };
+  return Object.assign(stop, { ready });
+}
+
 const system: CoreSystem = {
   async pickFolder({ title, defaultPath }) {
     if (import.meta.env.DEV && window.__gcTestPicks?.length) return window.__gcTestPicks.shift() ?? null;
@@ -54,27 +82,13 @@ const system: CoreSystem = {
     return typeof picked === "string" ? picked : null;
   },
   on(event, handler) {
-    let active = true;
-    let unlisten: (() => void) | undefined;
-    const ready = listen<CoreEvents[typeof event]>(
-      event,
-      (message) => {
-        if (active) handler(message.payload);
-      },
-      { target: ownWindow() },
-    ).then(
-      (stop) => {
-        if (active) unlisten = stop;
-        else stop();
-      },
-      // Without Tauri (preview in the browser) there are no events; `ready` must still never hang.
-      () => undefined,
-    );
-    const stop = () => {
-      active = false;
-      unlisten?.();
-    };
-    return Object.assign(stop, { ready });
+    return subscribe<CoreEvents[typeof event]>((deliver) => listen(event, deliver, { target: ownWindow() }), handler);
+  },
+  onWindow(event, handler) {
+    return subscribe<CoreEvents[typeof event]>((deliver) => getCurrentWebviewWindow().listen(event, deliver), handler);
+  },
+  windowLabel() {
+    return ownWindow() ?? "main";
   },
   async notify({ title, body }) {
     try {

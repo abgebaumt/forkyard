@@ -8,12 +8,14 @@
  * `app:close_requested`. If the UI does not answer (it hangs), the next close closes anyway –
  * nobody stays trapped in the app.
  */
-import { core } from "../core";
+import { QueryObserver } from "@tanstack/react-query";
+import { core, type WindowInfo } from "../core";
 import { t } from "../i18n";
 import { discardUnsaved, onUnsavedChange, saveUnsaved, unsavedFiles } from "../screens/FileView/buffer";
 import { choose, confirm } from "./dialogs";
 import { hasDirtyCenter, useAppStore } from "./store";
 import { toast } from "../ui/Feedback";
+import { qk, queryClient } from "./queries";
 
 export interface Losses {
   /** Files with unsaved text in the editor. */
@@ -22,7 +24,7 @@ export interface Losses {
   views: boolean;
   /** Titles of the running actions. */
   jobs: string[];
-  /** Coding agents whose programs run (they are ended). */
+  /** Coding agents whose programs run (they are ended only when the last window closes). */
   agents: number;
 }
 
@@ -34,7 +36,7 @@ function losses(): Losses {
     jobs: Object.values(state.jobs)
       .filter((job) => job.askBeforeQuit)
       .map((job) => job.title),
-    agents: state.agentsRunning,
+    agents: (queryClient.getQueryData<WindowInfo[]>(qk.windows)?.length ?? 0) <= 1 ? state.agentsRunning : 0,
   };
 }
 
@@ -60,7 +62,7 @@ async function onCloseRequested() {
   try {
     const now = losses();
     if (!anything(now)) {
-      await core.appQuit();
+      await core.windowClose();
       return;
     }
     const lines: string[] = [];
@@ -107,7 +109,7 @@ async function onCloseRequested() {
       });
       if (!ok) return;
     }
-    await core.appQuit();
+    await core.windowClose();
   } finally {
     asking = false;
     // Cancelled: the guard stays in effect.
@@ -124,6 +126,8 @@ export function installCloseGuard(): void {
   });
   // Views with unsaved work (conflict tool) do not report changes individually.
   window.setInterval(sync, 1000);
-  core.on("app:close_requested", () => void onCloseRequested());
+  // Keeps the window list fresh (`app:changed` refetches only observed queries): whether this is the last window decides about agents.
+  new QueryObserver(queryClient, { queryKey: qk.windows, queryFn: () => core.windowList() }).subscribe(sync);
+  core.onWindow("app:close_requested", () => void onCloseRequested());
   sync();
 }

@@ -1345,6 +1345,9 @@ export interface CoreCommands {
 /** Unsubscribes an event subscription; `ready` resolves as soon as the subscription is in place at the core. */
 export type Unsubscribe = (() => void) & { ready: Promise<void> };
 
+/** Events the core sends to one window only (`emit_to`): they are heard through `onWindow`. */
+export type WindowEventName = "credential:request" | "app:open_request" | "app:close_requested";
+
 /** What does not go through a core command but through the window. */
 export interface CoreSystem {
   /** The operating system's folder dialog. null on cancel. */
@@ -1354,7 +1357,11 @@ export interface CoreSystem {
    * Subscribe to an event; the return value unsubscribes. Whoever must not miss an event (e.g. before
    * `terminalOpen`) first waits for `ready`: `const stop = core.on(…); await stop.ready;`.
    */
-  on<E extends keyof CoreEvents>(event: E, handler: (payload: CoreEvents[E]) => void): Unsubscribe;
+  on<E extends Exclude<keyof CoreEvents, WindowEventName>>(event: E, handler: (payload: CoreEvents[E]) => void): Unsubscribe;
+  /** Like `on`, for an event addressed to this window alone. */
+  onWindow<E extends WindowEventName>(event: E, handler: (payload: CoreEvents[E]) => void): Unsubscribe;
+  /** This window's label (`"main"` outside Tauri); any window may be gone, `"main"` included. */
+  windowLabel(): string;
   /**
    * Operating system notification. Asks for permission the first time. false if it
    * is denied or the system cannot show one – not an error. A click on the
