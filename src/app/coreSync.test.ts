@@ -1,6 +1,6 @@
 import { QueryClient, type InfiniteData } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
-import { invalidateRepo } from "./coreSync";
+import { invalidateRepo, jobBelongsHere } from "./coreSync";
 import { keepFirstPage, qk } from "./queries";
 
 const three: InfiniteData<string, string | null> = { pages: ["a", "b", "c"], pageParams: [null, "x", "y"] };
@@ -26,5 +26,14 @@ describe("invalidateRepo", () => {
     client.setQueryData(qk.graph("r"), three);
     await invalidateRepo(client, "r", ["locks"]);
     expect(client.getQueryData<InfiniteData<string>>(qk.graph("r"))?.pages).toHaveLength(3);
+  });
+});
+
+describe("jobBelongsHere", () => {
+  it("a job started here is always shown", () => expect(jobBelongsHere("j1", null, new Set(["j1"]), new Set())).toBe(true));
+  it("a job of another window is shown only for a repo with a tab here", () => {
+    expect(jobBelongsHere("j2", "r1", new Set(), new Set(["r1"]))).toBe(true);
+    expect(jobBelongsHere("j2", "r2", new Set(), new Set(["r1"]))).toBe(false);
+    expect(jobBelongsHere("j3", null, new Set(), new Set(["r1"]))).toBe(false);
   });
 });

@@ -146,9 +146,10 @@ export function useLaunchRequests(ready: boolean): void {
   useEffect(() => {
     if (!ready || attached) return;
     attached = true;
-    core.on("app:open_request", enqueue);
+    // Listen first: the core sends further requests to this window once it has asked for its own.
     void core
-      .appLaunchRequest()
+      .onWindow("app:open_request", enqueue)
+      .ready.then(() => core.appLaunchRequest())
       .then((request) => {
         if (request) enqueue(request);
       })

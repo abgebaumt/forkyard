@@ -13,6 +13,7 @@ import {
   type RepoSettings as SemanticRepoSettings,
   type DiffSource,
   type Settings,
+  type Tab,
 } from "../core";
 import { toast } from "../ui/Feedback";
 import { t } from "../i18n";
@@ -155,6 +156,7 @@ export const APP_KEYS: Record<string, QueryKey> = {
   // Host accounts (connected, disconnected, verified).
   host_accounts: qk.hostAccounts,
   tabs: qk.tabs,
+  windows: qk.windows,
   repos: qk.repos,
   settings: qk.settings,
   profiles: qk.profiles,
@@ -163,6 +165,20 @@ export const APP_KEYS: Record<string, QueryKey> = {
   credentials: qk.credentials,
   ssh_keys: qk.sshKeys,
 };
+
+/**
+ * Whether this window shows a job's progress: one it started itself, or one in a repository it has a tab for.
+ * Every window hears every job; the others belong to other windows.
+ */
+export function jobBelongsHere(jobId: string, repoId: Id | null, ownJobs: ReadonlySet<string>, tabRepoIds: ReadonlySet<Id>): boolean {
+  return ownJobs.has(jobId) || (repoId !== null && tabRepoIds.has(repoId));
+}
+
+/** `jobBelongsHere` against this window's store (`runAction` registers its jobs before they start) and tabs. */
+function ownsJob(jobId: string, repoId: Id | null): boolean {
+  const tabRepoIds = new Set((queryClient.getQueryData<Tab[]>(qk.tabs) ?? []).flatMap((tab) => (tab.repoId ? [tab.repoId] : [])));
+  return jobBelongsHere(jobId, repoId, new Set(Object.keys(useAppStore.getState().jobs)), tabRepoIds);
+}
 
 /**
  * Subscribes to all of the core's events and keeps query cache and store up to date.
@@ -223,13 +239,16 @@ export function useCoreSync(activeRepoId: Id | null) {
         reportBackgroundFetch(entry.repoId, entry.exitCode, entry.output, entry.code ?? null);
       }),
       core.on("job:progress", (payload) => {
+        if (!ownsJob(payload.jobId, payload.repoId)) return;
         store().updateJob(payload);
         // The bisect autopilot reports each step under its own phase (`PROGRESS_PHASE` in the core): its bar reloads the run.
         if (payload.phase === "bisect-autopilot" && payload.repoId)
           void queryClient.invalidateQueries({ queryKey: qk.bisectAutopilot(payload.repoId) });
       }),
-      core.on("job:done", ({ jobId }) => store().finishJob(jobId)),
-      core.on("credential:request", (request) => store().enqueueCredential(request)),
+      core.on("job:done", ({ jobId, repoId }) => {
+        if (ownsJob(jobId, repoId)) store().finishJob(jobId);
+      }),
+      core.onWindow("credential:request", (request) => store().enqueueCredential(request)),
       // Hook output and failures: one toast per incident, see notifications/hooks.ts.
       core.on("hook:output", (payload) => reportHookOutput(payload, queryClient.getQueryData<Settings>(qk.settings)?.notifyOnError)),
       // Collision check of coding agents: the report replaces the cached one (no refetch needed).
@@ -251,6 +270,8 @@ export function useCoreSync(activeRepoId: Id | null) {
     const onFocus = () => {
       void queryClient.invalidateQueries({ queryKey: qk.status(activeRepoId) });
       void queryClient.invalidateQueries({ queryKey: qk.refs(activeRepoId) });
+      // Another window may have changed the commit message draft.
+      void queryClient.invalidateQueries({ queryKey: qk.draft(activeRepoId) });
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);

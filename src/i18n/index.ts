@@ -106,6 +106,12 @@ void i18next.use(initReactI18next).init({
 
 if (typeof document !== "undefined") document.documentElement.lang = language;
 
+// Another window changed the language: follow it (the `storage` event reaches only the other windows).
+if (typeof window !== "undefined")
+  window.addEventListener?.("storage", (event) => {
+    if (event.key === STORAGE_KEY && resolveLanguage(languageSetting()) !== language) window.location.reload();
+  });
+
 export const i18n = i18next;
 /** Translates a key; placeholders as `{{name}}`, plural via `count` (`_one`/`_other`). */
 export const t = i18next.t.bind(i18next);
