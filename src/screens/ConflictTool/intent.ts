@@ -1,11 +1,9 @@
 /**
  * The column “Intent” of the conflict tool, without React: which blocks go to
  * the core (line ranges only – the core reads the text from the index itself), the small diff of a
- * proposal against the block's current text, which blocks may be applied, the request state (an
- * answer that arrives after “Cancel” or for an older request is dropped) and the remembered width.
+ * proposal against the block's current text, which blocks may be applied and the remembered width.
  */
 import type { ConflictBlockRange, ConflictIntent, ConflictIntentBlock } from "../../core";
-import type { AiErrorView } from "../../app/ai/requestState";
 import { diffLines, splitText, type MergeModel } from "./model";
 
 /** The conflict blocks of the model, in order, as line ranges of both sides. */
@@ -58,40 +56,10 @@ export function blockNote(block: ConflictIntentBlock): "shortened" | "redacted" 
 
 export type IntentDecision = "taken" | "discarded";
 
-export type IntentState =
-  | { kind: "idle" }
-  | { kind: "preparing"; startedAt: number }
-  | { kind: "loading"; startedAt: number; jobId: string }
-  | { kind: "ready"; intent: ConflictIntent; decisions: Partial<Record<number, IntentDecision>> }
-  | { kind: "error"; view: AiErrorView };
-
-export type IntentEvent =
-  | { type: "start"; at: number }
-  | { type: "sending"; jobId: string }
-  | { type: "answer"; jobId: string; intent: ConflictIntent }
-  | { type: "failed"; jobId: string | null; view: AiErrorView }
-  | { type: "cancel" }
-  | { type: "decide"; block: number; decision: IntentDecision };
-
-/** `preparing` = building “What is sent?” and asking where the core wants it; `loading` = the job runs. */
-export function intentReducer(state: IntentState, event: IntentEvent): IntentState {
-  switch (event.type) {
-    case "start":
-      return { kind: "preparing", startedAt: event.at };
-    case "sending":
-      return state.kind === "preparing" ? { kind: "loading", startedAt: state.startedAt, jobId: event.jobId } : state;
-    case "answer":
-      return state.kind === "loading" && state.jobId === event.jobId ? { kind: "ready", intent: event.intent, decisions: {} } : state;
-    case "failed": {
-      const mine = event.jobId === null ? state.kind === "preparing" : state.kind === "loading" && state.jobId === event.jobId;
-      if (!mine) return state;
-      return event.view.kind === "cancelled" ? { kind: "idle" } : { kind: "error", view: event.view };
-    }
-    case "cancel":
-      return state.kind === "preparing" || state.kind === "loading" ? { kind: "idle" } : state;
-    case "decide":
-      return state.kind === "ready" ? { ...state, decisions: { ...state.decisions, [event.block]: event.decision } } : state;
-  }
+/** The answer with what the user did per block (Apply / Discard). */
+export interface IntentResult {
+  intent: ConflictIntent;
+  decisions: Partial<Record<number, IntentDecision>>;
 }
 
 const OPEN_KEY = "gc.conflictIntentOpen";
