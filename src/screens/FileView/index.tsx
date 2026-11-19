@@ -66,8 +66,8 @@ import {
   type Eol,
 } from "./buffer";
 import { MarkdownPreview } from "./MarkdownPreview";
-import { goBack } from "./nav";
-import { BackButton, CodeSkeleton, Divider, FileTitle, Tag, isPlainEscape } from "./parts";
+import { goBack } from "../../app/backNav";
+import { BackButton, CodeSkeleton, Divider, FileTitle, Tag, isPlainEscape } from "../../components/ViewParts";
 import { baseName } from "../../app/paths";
 import { busyKeys } from "../../app/actions/keys";
 

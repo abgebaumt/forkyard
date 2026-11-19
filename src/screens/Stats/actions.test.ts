@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getCommands } from "../../app/registry";
 import type { CommandContext } from "../../app/commandTypes";
 import { getTabView, showsSidePanels, useAppStore } from "../../app/store";
-import { backLabel } from "../FileView/nav";
+import { backLabel } from "../../app/backNav";
 import { closeStats, leaveStats, openStats, rememberChoice, rememberedChoice, toggleStats } from "./actions";
 
 describe("opening the statistics", () => {

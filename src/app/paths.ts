@@ -1,6 +1,6 @@
 /**
  * Text helpers for repository paths, ref names and remote hosts. Repository paths always use "/"
- * (a backslash is a legal file name character in Git); OS paths live in CloneDialog/paths.ts.
+ * (a backslash is a legal file name character in Git); OS paths live in osPaths.ts.
  */
 import type { RemoteHost } from "../core";
 

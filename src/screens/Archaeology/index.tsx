@@ -25,7 +25,7 @@ import { TicketLink } from "../../components/LinkedText";
 import { Button, IconButton } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { Tip } from "../../ui/Tooltip";
-import { showInGraph } from "../FileView/nav";
+import { showInGraph } from "../../app/backNav";
 import { locale, t } from "../../i18n";
 import { confidenceLabel, errorActions, explainView, timelineRows, whyLabel, type ExplainState, type TimelineRow } from "./model";
 

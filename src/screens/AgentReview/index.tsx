@@ -16,7 +16,7 @@ import { SegmentedControl } from "../../ui/Field";
 import { cn } from "../../ui/cn";
 import { t } from "../../i18n";
 import { displayName } from "../Agents/model";
-import { isPlainEscape } from "../FileView/parts";
+import { isPlainEscape } from "../../components/ViewParts";
 import { reviewColumns } from "./model";
 import { closeAgentReview, showColumns, stopComparing } from "./navigation";
 import { pickComparison } from "./actions";

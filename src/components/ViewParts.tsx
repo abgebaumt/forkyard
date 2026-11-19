@@ -4,13 +4,13 @@
  */
 import { ArrowLeft, X } from "lucide-react";
 import type { ReactNode } from "react";
-import type { Id } from "../../core";
-import { IconButton } from "../../ui/Button";
-import { cn } from "../../ui/cn";
-import { Tip } from "../../ui/Tooltip";
-import { backLabel, goBack, useBackTarget } from "./nav";
-import { t } from "../../i18n";
-import { splitPath } from "../../app/paths";
+import type { Id } from "../core";
+import { IconButton } from "../ui/Button";
+import { cn } from "../ui/cn";
+import { Tip } from "../ui/Tooltip";
+import { backLabel, goBack, useBackTarget } from "../app/backNav";
+import { t } from "../i18n";
+import { splitPath } from "../app/paths";
 
 export function Divider() {
   return <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-border" />;
