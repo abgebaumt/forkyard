@@ -218,8 +218,8 @@ pub async fn operation_abort(core: &Core, repo_id: String) -> CoreResult<Status>
             Ok::<_, CoreError>(())
         }
         .await;
-        // The backup goes only when the work is back, or when the abort failed on a lock before
-        // touching anything (HEAD unchanged). Otherwise Git may have reset part of it: it stays.
+        // The backup goes only when the work is back. After any failed abort it stays: even a
+        // lock error can come after Git already reset the working tree (e.g. HEAD.lock held).
         let safe = match (&aborted, extra) {
             (Ok(()), Some(extra)) => match extra.restore(core, repo_id).await {
                 Ok(()) => true,
@@ -229,10 +229,7 @@ pub async fn operation_abort(core: &Core, repo_id: String) -> CoreResult<Status>
                 }
             },
             (Ok(()), None) => true,
-            (Err(e), _) => {
-                e.is(ErrorCode::Locked)
-                    && rev::rev_parse(core, repo_id, "HEAD^{commit}").await.ok().flatten().as_deref() == head_before.as_deref()
-            }
+            (Err(_), _) => false,
         };
         if safe || head_before.is_none() {
             backup.forget(core).await;
