@@ -10,12 +10,13 @@ import { core, type Id, type Sha } from "../../core";
 import { confirmSend } from "../../app/ai/gate";
 import { openAiSettings, openAiSetup } from "../../app/ai/open";
 import { AiPreviewDialog } from "../../app/ai/PreviewDialog";
-import { errorView, loadingView, type AiErrorView } from "../../app/ai/requestState";
+import type { AiErrorView } from "../../app/ai/requestState";
+import { useAiJob } from "../../app/ai/useAiJob";
 import { placeSuggestion } from "../../app/ai/suggestion";
 import { showDialog } from "../../app/dialogs";
 import { shortSha } from "../../app/format";
 import { useAiStatus } from "../../app/queries";
-import { newJobId, runAction } from "../../app/run";
+import { runAction } from "../../app/run";
 import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
 import { TextArea, TextField } from "../../ui/Field";
@@ -42,8 +43,6 @@ export interface AutopilotPlan {
   script: string;
   stepTimeoutSecs: number;
 }
-
-type Writing = { kind: "idle" } | { kind: "loading"; jobId: string; startedAt: number } | { kind: "error"; view: AiErrorView };
 
 interface Pending {
   script: string;
@@ -112,28 +111,15 @@ function AutopilotDialog({ repoId, range, onDone }: { repoId: Id; range: Autopil
   const [draft, setDraft] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
-  const [writing, setWriting] = useState<Writing>({ kind: "idle" });
+  const job = useAiJob(ai?.local ?? false);
   const [minutes, setMinutes] = useState(DEFAULT_STEP_MINUTES);
-  const [now, setNow] = useState(() => Date.now());
   const [nested, setNested] = useState<NestedPreviewState | null>(null);
   const asker = useRef(nestedPreview(setNested)).current;
   const scriptRef = useRef(script);
   scriptRef.current = script;
-  const jobRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (writing.kind !== "loading") return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [writing.kind]);
-  // Closing the dialog while the AI writes cancels the request; its answer is discarded.
-  useEffect(
-    () => () => {
-      asker.close(null);
-      if (jobRef.current) void core.jobCancel({ jobId: jobRef.current });
-    },
-    [asker],
-  );
+  // Closing the dialog while the AI writes cancels the request (useAiJob); its answer is discarded.
+  useEffect(() => () => asker.close(null), [asker]);
 
   const request = () => ({ description: description.trim(), testCommand: testCommand.trim() || null, bad: range.bad, good: range.good });
   const preview = () =>
@@ -148,45 +134,33 @@ function AutopilotDialog({ repoId, range, onDone }: { repoId: Id; range: Autopil
 
   const write = async () => {
     const asked = request();
-    const shown = await preview();
-    if (!shown.ok || !(await confirmSend(repoId, "bisect_script", shown.value, asker.ask))) return;
-    const jobId = newJobId();
-    const atStart = scriptRef.current;
-    jobRef.current = jobId;
-    setPending(null);
-    setNow(Date.now());
-    setWriting({ kind: "loading", jobId, startedAt: Date.now() });
-    try {
-      const answer = await core.bisectAutopilotScript({ repoId, jobId, request: asked, locale: locale() });
-      if (jobRef.current !== jobId) return;
-      jobRef.current = null;
-      setWriting({ kind: "idle" });
-      setSummary(answer.summary || null);
-      const placement = placeSuggestion(scriptRef.current, atStart, answer.script);
-      if (placement.kind === "insert") {
-        setScript(placement.text);
-        setDraft(true);
-      } else {
-        setPending({ script: answer.script, summary: answer.summary, typed: placement.kind === "ready" });
-      }
-    } catch (raw) {
-      if (jobRef.current !== jobId) return;
-      jobRef.current = null;
-      const view = errorView(raw);
-      setWriting(view.kind === "cancelled" ? { kind: "idle" } : { kind: "error", view });
+    let atStart = "";
+    const answer = await job.start(
+      (jobId) => {
+        atStart = scriptRef.current;
+        setPending(null);
+        return core.bisectAutopilotScript({ repoId, jobId, request: asked, locale: locale() });
+      },
+      async () => {
+        const shown = await preview();
+        return shown.ok && (await confirmSend(repoId, "bisect_script", shown.value, asker.ask));
+      },
+    );
+    if (!answer) return;
+    setSummary(answer.summary || null);
+    const placement = placeSuggestion(scriptRef.current, atStart, answer.script);
+    if (placement.kind === "insert") {
+      setScript(placement.text);
+      setDraft(true);
+    } else {
+      setPending({ script: answer.script, summary: answer.summary, typed: placement.kind === "ready" });
     }
   };
 
-  const cancelWriting = () => {
-    const jobId = jobRef.current;
-    jobRef.current = null;
-    setWriting({ kind: "idle" });
-    if (jobId) void core.jobCancel({ jobId });
-  };
-
-  const loading = writing.kind === "loading" ? loadingView(now - writing.startedAt, ai?.local ?? false) : null;
+  const cancelWriting = job.cancel;
+  const loading = job.loading;
   const problem = scriptProblem(script);
-  const canRun = problem === null && writing.kind !== "loading";
+  const canRun = problem === null && !job.running;
   const noDescription = description.trim() === "";
 
   return (
@@ -236,7 +210,7 @@ function AutopilotDialog({ repoId, range, onDone }: { repoId: Id; range: Autopil
           onChange={(event) => setTestCommand(event.target.value.replace(/[\r\n]+/g, " "))}
         />
         <div className="flex items-center gap-2">
-          {writing.kind === "loading" ? (
+          {job.running ? (
             <Button size="sm" data-autopilot-write onClick={cancelWriting}>
               {t("ai.state.cancel")}
             </Button>
@@ -252,9 +226,9 @@ function AutopilotDialog({ repoId, range, onDone }: { repoId: Id; range: Autopil
             {loading ? `${loading.text}${loading.slow ? ` · ${loading.slow}` : ""}` : ""}
           </p>
         </div>
-        {writing.kind === "error" ? (
+        {job.run.kind === "failed" ? (
           <AutopilotErrorLine
-            view={writing.view}
+            view={job.run.view}
             onRetry={() => void write()}
             onShowSent={() => void showSent()}
             onSetup={() => {
