@@ -524,7 +524,7 @@ pub async fn squash_commits(core: State<'_, Core>, repo_id: String, shas: Vec<St
 
 #[tauri::command]
 pub async fn revert_commit(core: State<'_, Core>, repo_id: String, sha: String) -> R<OpResult> {
-    c::merge::revert_commit(&core, repo_id, sha).await
+    c::rebase::revert_commit(&core, repo_id, sha).await
 }
 
 #[tauri::command]

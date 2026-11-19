@@ -5,7 +5,8 @@
 use std::time::{Duration, SystemTime};
 
 use crate::commands::branches::branch_checkout;
-use crate::commands::merge::{merge_start, operation_abort, reset_branch, revert_commit};
+use crate::commands::merge::{merge_start, operation_abort, reset_branch};
+use crate::commands::rebase::revert_commit;
 use crate::commands::rebase::{cherry_pick, rebase_apply, rebase_plan, rebase_start, squash_commits};
 use crate::commands::stash::{stash_apply, stash_create, stash_pop};
 use crate::commands::status::read_status;

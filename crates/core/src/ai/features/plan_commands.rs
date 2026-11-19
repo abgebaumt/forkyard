@@ -411,7 +411,7 @@ pub async fn execute(core: &Core, repo_id: &str, job_id: &str, action: &PlanActi
         PlanAction::ResetBranch { sha, mode } => merge::reset_branch(core, id, sha, mode).await.map(drop),
         PlanAction::RebaseStart { onto, branch } => settle(core, repo_id, rebase::rebase_start(core, id, onto, branch)).await,
         PlanAction::CherryPick { shas } => settle(core, repo_id, rebase::cherry_pick(core, id, shas)).await,
-        PlanAction::RevertCommit { sha } => settle(core, repo_id, merge::revert_commit(core, id, sha)).await,
+        PlanAction::RevertCommit { sha } => settle(core, repo_id, rebase::revert_commit(core, id, sha)).await,
         PlanAction::MergeStart { source, mode } => settle(core, repo_id, merge::merge_start(core, id, source, mode)).await,
         PlanAction::StashCreate { message, include_untracked, paths } => {
             let paths = (!paths.is_empty()).then_some(paths);

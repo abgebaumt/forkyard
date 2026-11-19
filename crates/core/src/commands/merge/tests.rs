@@ -1,6 +1,7 @@
 //! Tests for merge.rs against real temp repositories.
 
 use super::*;
+use crate::commands::rebase::revert_commit;
 use crate::db::undo::UndoEntry;
 use crate::events::names;
 use crate::model::{FileChange, FileStatus};
