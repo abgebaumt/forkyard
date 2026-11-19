@@ -10,6 +10,7 @@
 //! - The UI picks up the request of its own launch with `app_launch_request`; anything that
 //!   arrives later is reported by the event `app:open_request`.
 
+use std::collections::HashSet;
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpStream};
@@ -43,8 +44,8 @@ const MAX_CONNECTIONS: usize = 8;
 #[derive(Default)]
 struct LaunchInner {
     pending: Option<LaunchRequest>,
-    /// The UI has picked up the launch request; from now on requests go out as events.
-    attached: bool,
+    /// Windows whose UI has asked for the launch request; from then on it listens for the event.
+    attached: HashSet<String>,
 }
 
 /// Request waiting for the UI.
@@ -234,32 +235,60 @@ pub fn set_initial(core: &Core, request: Option<LaunchRequest>) {
 }
 
 /// The request the app was launched with (or that has since come from a second instance) –
-/// once, and only to the most recently focused window (any window while none was ever focused);
-/// `None` otherwise. Later requests arrive as the event `app:open_request`.
+/// once, to the most recently focused window, or to any window while none was ever focused or
+/// the focused one has already asked; `None` otherwise. Later requests arrive as the event
+/// `app:open_request`.
 pub async fn app_launch_request(core: &Core) -> CoreResult<Option<LaunchRequest>> {
     let caller = window::calling_window(core);
-    let takes = core.db.with(|c| {
-        let profile_id = db::profiles::active_id(c)?;
-        Ok(!db::windows::ever_focused(c, &profile_id)? || db::windows::fallback(c, &profile_id)? == caller)
-    })?;
+    let focused = core
+        .db
+        .with(|c| {
+            let profile_id = db::profiles::active_id(c)?;
+            db::windows::ever_focused(c, &profile_id)?.then(|| db::windows::fallback(c, &profile_id)).transpose()
+        })
+        // Better in any window than lost.
+        .unwrap_or(None);
     let state = core.state::<LaunchState>();
     let mut inner = state.inner.lock();
-    inner.attached = true;
+    let takes = focused.as_ref().map_or(true, |f| *f == caller || inner.attached.contains(f));
+    inner.attached.insert(caller);
     Ok(if takes { inner.pending.take() } else { None })
 }
 
-/// Hands a request to the UI: as an event to the most recently focused window once the UI has
-/// picked up the launch request; before that it waits (the most recent one wins) for `app_launch_request`.
+/// Hands a request to the UI: as an event to the most recently focused window once its UI has
+/// asked for the launch request; until then it waits (the most recent one wins) for
+/// `app_launch_request` or for `focused`.
 pub fn deliver(core: &Core, request: LaunchRequest) {
+    let target = window::last_focused(core);
     let state = core.state::<LaunchState>();
     {
         let mut inner = state.inner.lock();
-        if !inner.attached {
+        if !inner.attached.contains(&target) {
             inner.pending = Some(request);
             return;
         }
     }
-    core.emit_to(&window::last_focused(core), names::APP_OPEN_REQUEST, &request);
+    core.emit_to(&target, names::APP_OPEN_REQUEST, &request);
+}
+
+/// The window got the focus: a request still waiting goes to it once its UI listens.
+pub fn focused(core: &Core, label: &str) {
+    let state = core.state::<LaunchState>();
+    let request = {
+        let mut inner = state.inner.lock();
+        if !inner.attached.contains(label) {
+            return;
+        }
+        inner.pending.take()
+    };
+    if let Some(request) = request {
+        core.emit_to(label, names::APP_OPEN_REQUEST, &request);
+    }
+}
+
+/// The window is gone; a later window with the same label (`main`) has to ask again.
+pub fn window_closed(core: &Core, label: &str) {
+    core.state::<LaunchState>().inner.lock().attached.remove(label);
 }
 
 // ---------------------------------------------------------------------------
@@ -556,15 +585,41 @@ mod tests {
         let tc = TestCore::new().await;
         add_focused_window(&tc);
         let dir = tempfile::tempdir().unwrap();
-        let first = validated(&dir.path().to_string_lossy(), None, None).unwrap();
-        crate::windowing::scoped(W.into(), app_launch_request(&tc)).await.unwrap();
-        deliver(&tc, first.clone());
-        assert_eq!(tc.events.targeted(names::APP_OPEN_REQUEST), vec![(W.to_string(), serde_json::to_value(&first).unwrap())]);
-
-        let second = validated(&dir.path().to_string_lossy(), Some("abcd1234"), None).unwrap();
-        set_initial(&tc, Some(second.clone()));
+        let initial = validated(&dir.path().to_string_lossy(), Some("abcd1234"), None).unwrap();
+        set_initial(&tc, Some(initial.clone()));
         assert_eq!(crate::windowing::scoped("main".into(), app_launch_request(&tc)).await.unwrap(), None, "not the focused window");
-        assert_eq!(crate::windowing::scoped(W.into(), app_launch_request(&tc)).await.unwrap(), Some(second));
+        assert_eq!(crate::windowing::scoped(W.into(), app_launch_request(&tc)).await.unwrap(), Some(initial));
+
+        let later = validated(&dir.path().to_string_lossy(), None, None).unwrap();
+        deliver(&tc, later.clone());
+        assert_eq!(tc.events.targeted(names::APP_OPEN_REQUEST), vec![(W.to_string(), serde_json::to_value(&later).unwrap())]);
+    }
+
+    /// Each window's UI asks once. A request must not get lost when the focus moves in between.
+    #[tokio::test]
+    async fn a_waiting_request_follows_the_focus() {
+        let tc = TestCore::new().await;
+        add_focused_window(&tc);
+        let dir = tempfile::tempdir().unwrap();
+        let request = validated(&dir.path().to_string_lossy(), None, None).unwrap();
+        set_initial(&tc, Some(request.clone()));
+        assert_eq!(crate::windowing::scoped("main".into(), app_launch_request(&tc)).await.unwrap(), None);
+        crate::commands::window::note_focus(&tc, "main");
+        assert_eq!(crate::windowing::scoped(W.into(), app_launch_request(&tc)).await.unwrap(), None);
+        assert_eq!(tc.events.targeted(names::APP_OPEN_REQUEST), vec![("main".to_string(), serde_json::to_value(&request).unwrap())]);
+
+        // The focused window has already asked: the next one to ask takes it.
+        set_initial(&tc, Some(request.clone()));
+        assert_eq!(crate::windowing::scoped(W.into(), app_launch_request(&tc)).await.unwrap(), Some(request.clone()));
+
+        // A window whose UI has not asked yet does not get events; the request waits for it.
+        tc.events.clear();
+        let fresh = "w-ffffffffffffffffffffffffffffffff";
+        tc.db.tx(|tx| crate::db::windows::insert(tx, &crate::db::profiles::active_id(tx)?, fresh, None)).unwrap();
+        crate::commands::window::note_focus(&tc, fresh);
+        deliver(&tc, request.clone());
+        assert!(tc.events.named(names::APP_OPEN_REQUEST).is_empty());
+        assert_eq!(crate::windowing::scoped(fresh.into(), app_launch_request(&tc)).await.unwrap(), Some(request));
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

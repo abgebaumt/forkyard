@@ -487,6 +487,7 @@ async fn a_prompt_goes_only_to_the_window_the_action_came_from() {
     let asking = helper(&session, "Password for 'https://anna@git.example.com': ");
     let request = fx.request(1).await;
     assert_eq!(fx.tc.events.targeted(names::CREDENTIAL_REQUEST), vec![(W.to_string(), request.clone())]);
+    assert_eq!(fx.request_count(), 1, "not also sent to the other windows");
     credential_answer(&fx.tc, id_of(&request), Some("x".into()), false).await.unwrap();
     assert_eq!(asking.await.unwrap().as_deref(), Some("x"));
 }
@@ -506,6 +507,23 @@ async fn a_prompt_of_a_closed_window_goes_to_the_last_focused_one() {
     assert_eq!(fx.tc.events.targeted(names::CREDENTIAL_REQUEST), vec![(x.to_string(), request.clone())]);
     credential_answer(&fx.tc, id_of(&request), None, false).await.unwrap();
     assert_eq!(asking.await.unwrap(), None);
+}
+
+#[tokio::test]
+async fn an_open_prompt_moves_when_its_window_closes() {
+    let fx = Fixture::new().await;
+    add_window(&fx.tc, W);
+    crate::commands::window::note_focus(&fx.tc, "main");
+    let session = crate::windowing::scoped(W.into(), fx.broker().begin(SessionMode::Interactive)).await;
+    let asking = helper(&session, "Password for 'https://anna@git.example.com': ");
+    let request = fx.request(1).await;
+    crate::commands::window::window_closed(&fx.tc, W);
+    assert_eq!(
+        fx.tc.events.targeted(names::CREDENTIAL_REQUEST),
+        vec![(W.to_string(), request.clone()), ("main".to_string(), request.clone())]
+    );
+    credential_answer(&fx.tc, id_of(&request), Some("x".into()), false).await.unwrap();
+    assert_eq!(asking.await.unwrap().as_deref(), Some("x"));
 }
 
 #[tokio::test]
