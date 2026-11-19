@@ -42,6 +42,12 @@ All notable changes to Forkyard are listed here. The format follows
   lists and views, text editing keys and keys the operating system keeps are refused with the reason.
   Reset per command or all at once. The new shortcut works at once in every window, shows in the
   palette, menus and tooltips, and stays after a restart.
+- Edit history in the graph: drag a commit of the current branch to a new place, drop it onto another
+  commit to squash it (with Alt: fixup), double-click its message to reword it, press Del to drop it –
+  or use E, Alt+↑/↓ and P/R/S/F/D on the keyboard. "Edit history from here" goes further back. While
+  editing, the graph shows only the branch's commits in the planned order; a bar shows the number of
+  changes, the conflict preview and whether a force push will be needed. "Apply" rewrites the branch in
+  one step that one Undo takes back; "Open in rebase tool" carries the plan over.
 
 ### Fixed
 
