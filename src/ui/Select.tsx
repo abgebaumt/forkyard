@@ -3,7 +3,7 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react";
 import { Select as RadixSelect } from "radix-ui";
 import { cn } from "./cn";
 import { menuSurface } from "./Menu";
-import { collisionPadding } from "../app/zoom";
+import { collisionPadding } from "./zoom";
 
 export interface SelectOption<T extends string = string> {
   /** Must not be empty (Radix); for "none" use a separate value such as "none". */

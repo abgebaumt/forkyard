@@ -1,7 +1,7 @@
 import { useLayoutEffect, useState, type ReactElement, type ReactNode } from "react";
 import { Tooltip } from "radix-ui";
 import { Kbd } from "./Kbd";
-import { collisionPadding } from "../app/zoom";
+import { collisionPadding } from "./zoom";
 
 export function TooltipProvider({ children }: { children: ReactNode }) {
   return (

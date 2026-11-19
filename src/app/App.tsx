@@ -18,7 +18,7 @@ import { useCoreSync } from "./coreSync";
 import { qk, queryClient, useAppInfo, useRepoLocked, useRepoMissing, useSettings, useTabs } from "./queries";
 import { useGlobalShortcuts } from "./registry";
 import { NARROW_WINDOW, useAppStore } from "./store";
-import { useEffectiveZoom } from "./zoom";
+import { useEffectiveZoom } from "../ui/zoom";
 import { CredentialHost } from "./shell/CredentialHost";
 import { FullPage, StartupScreen } from "./shell/FullPage";
 import { OverlayHost } from "./shell/OverlayHost";
