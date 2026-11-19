@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { APP_KEYS, qk } from "./queries";
+import { APP_KEYS } from "./coreSync";
+import { qk } from "./queries";
 
 describe("APP_KEYS", () => {
   it("maps the profile-dependent lists to their query keys", () => {
