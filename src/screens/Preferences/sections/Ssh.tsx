@@ -17,6 +17,7 @@ import { Switch } from "../../../ui/Switch";
 import { Badge, GroupTitle, LoadError, Mono, SectionHeader, SettingRow } from "../parts";
 import { applySettings } from "../settings";
 import { t } from "../../../i18n";
+import { writeClipboard } from "../../../app/actions/clipboard";
 
 const setKeys = (keys: SshKey[]) => queryClient.setQueryData(qk.sshKeys, keys);
 
@@ -40,12 +41,9 @@ async function copyPublicKey(key: SshKey) {
     });
     return;
   }
-  try {
-    await navigator.clipboard.writeText(key.publicKey);
+  if (await writeClipboard(key.publicKey))
     toast({ tone: "success", title: t("preferences.ssh.copied"), description: t("preferences.ssh.copiedHint") });
-  } catch {
-    toast({ tone: "danger", title: t("preferences.ssh.copyFailed"), description: t("preferences.ssh.copyFailedHint") });
-  }
+  else toast({ tone: "danger", title: t("preferences.ssh.copyFailed"), description: t("preferences.ssh.copyFailedHint") });
 }
 
 async function importKey() {

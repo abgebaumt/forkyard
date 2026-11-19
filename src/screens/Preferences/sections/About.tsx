@@ -14,6 +14,7 @@ import { isChanged, resetPatch } from "../defaults";
 import { LoadError, Mono, SectionHeader, SettingRow, SettingsCard, SettingsSkeleton } from "../parts";
 import { applySettings } from "../settings";
 import { t } from "../../../i18n";
+import { writeClipboard } from "../../../app/actions/clipboard";
 
 const platformName: Record<Platform, string> = { windows: "Windows", linux: "Linux", macos: "macOS" };
 
@@ -91,14 +92,14 @@ export function AboutSection() {
           <Button
             icon={<Copy className="size-icon" aria-hidden />}
             onClick={() => {
-              navigator.clipboard.writeText(summary).then(
-                () => toast({ tone: "success", title: t("preferences.about.copied") }),
-                () =>
-                  toast({
-                    tone: "danger",
-                    title: t("preferences.about.copyFailed"),
-                    description: t("preferences.about.clipboardUnavailable"),
-                  }),
+              void writeClipboard(summary).then((ok) =>
+                ok
+                  ? toast({ tone: "success", title: t("preferences.about.copied") })
+                  : toast({
+                      tone: "danger",
+                      title: t("preferences.about.copyFailed"),
+                      description: t("preferences.about.clipboardUnavailable"),
+                    }),
               );
             }}
           >
