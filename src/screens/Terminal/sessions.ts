@@ -654,6 +654,12 @@ export class Session {
     this.listeners.clear();
   }
 
+  /** Lets go of the running shell without ending it: another window adopts it (`adoptSessions`). */
+  handOver(): void {
+    this.forget();
+    this.dispose();
+  }
+
   // --- Insight for tests ----------------------------------------------------
 
   /** The whole buffer as text; wrapped lines are joined again. */
@@ -786,6 +792,62 @@ export function closeSession(tabId: Id, key: Id): number {
   }
   notifyTabs();
   return left;
+}
+
+/** Lines of output a moved terminal shows from its old window. */
+const HANDOFF_LINES = 1000;
+
+/** A running session that moves to another window with its tab. */
+export interface TerminalHandoff {
+  terminalId: Id;
+  key: Id;
+  title: string;
+  program: boolean;
+  /** The last 1000 lines, plain text. */
+  scrollback: string;
+}
+
+/**
+ * Takes the tab's sessions out of this window without ending them, before the tab list changes
+ * (`reconcileWithTabs` would end them). Ended sessions are dropped.
+ */
+export function releaseSessions(tabId: Id): TerminalHandoff[] {
+  const group = groups.get(tabId);
+  if (!group) return [];
+  const list: TerminalHandoff[] = [];
+  for (const entry of group.tabs.entries) {
+    const session = group.sessions.get(entry.key);
+    const terminalId = session && isLiveStatus(session.getStatus()) ? session.id : null;
+    if (!session || !terminalId) continue;
+    const scrollback = session.bufferText().split("\n").slice(-HANDOFF_LINES).join("\n");
+    list.push({ terminalId, key: entry.key, title: entry.title, program: entry.kind === "program", scrollback });
+    session.handOver();
+  }
+  disposeSession(tabId);
+  return list;
+}
+
+/**
+ * Attaches to the sessions another window released. The first start resolves the existing terminal;
+ * a later restart opens a new shell (a program's own opener stayed in the old window).
+ */
+export function adoptSessions(tabId: Id, repoId: Id, list: TerminalHandoff[]): void {
+  const group = groupOf(tabId, repoId);
+  for (const item of list) {
+    let adopted = false;
+    const fallback = shellOpener(repoId);
+    const opener: Opener = async (size) => {
+      if (adopted) return fallback(size);
+      adopted = true;
+      await core.terminalResize({ terminalId: item.terminalId, ...size });
+      return item.terminalId;
+    };
+    const tabs = item.program ? addProgram(group.tabs, item.key, item.title) : addShell(group.tabs, item.key, shellTitle);
+    const session = addSession(group, tabId, item.key, opener, tabs);
+    // Started now, not when shown: output that arrives meanwhile lands in the buffer.
+    session.start();
+    if (item.scrollback) session.term.write(`${item.scrollback.replace(/\n/g, "\r\n")}\r\n`);
+  }
 }
 
 /** Ends every session of the tab. */
