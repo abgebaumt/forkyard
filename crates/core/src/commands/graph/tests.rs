@@ -1841,13 +1841,13 @@ async fn a_large_hidden_block_at_the_page_boundary_needs_few_log_calls() {
     view_state_set(&tc, id.clone(), json!({"collapseAllMerges": true})).await.unwrap();
 
     // Page size 2: the second page holds m1, then all 50 hidden commits follow before `a`.
-    super::page::LOG_READS.with(|n| n.set(0));
+    super::walker_tests::log_spawns(&tc);
     let rows = all_rows(&tc, &id, 2).await;
-    let reads = super::page::LOG_READS.with(std::cell::Cell::get);
+    let spawns = super::walker_tests::log_spawns(&tc);
     assert_eq!(ids(&rows), vec![m2.as_str(), merge.as_str(), m1.as_str(), a.as_str()], "{}", sketch(&rows));
     assert_eq!(find(&rows, &merge).collapsed_count, Some(50));
     check_rows(&rows, true).unwrap();
-    assert!(reads <= 4, "{reads} `git log` calls for two pages");
+    assert_eq!(spawns.len(), 1, "one `git log` for both pages: {spawns:?}");
 }
 
 // ---------------------------------------------------------------------------

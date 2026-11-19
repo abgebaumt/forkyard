@@ -4,11 +4,13 @@
 //! and not `--topo-order`. Children still come before their parents (the lane layout
 //! needs that), otherwise the commit date decides; branches interleave.
 //!
-//! Every page is a `git log --date-order --skip=<n> -n <limit>` over the same
-//! starting points; Git always returns the same order for that. The cursor carries the number
-//! of commits already delivered, the open lanes and a fingerprint of refs,
-//! HEAD, stashes and view. If any of these changed, the next page no longer
-//! fits the loaded ones: `stale_state`, the UI reloads.
+//! The first page starts one `git log --date-order` over the starting points and reads only as far
+//! as the page needs; the running walker (`walker`) waits for the next page, which reads on from it.
+//! If the walker is gone, the page starts a new `git log --skip=<n>`: Git always returns the same
+//! order for the same starting points, so the rows are the same. The cursor carries the walker,
+//! the number of commits already read, the open lanes and a fingerprint of refs, HEAD, stashes and
+//! view. If any of these changed, the next page no longer fits the loaded ones: `stale_state`, the
+//! UI reloads.
 //!
 //! Collapsed merges (`RepoViewState.collapsedMerges`, `collapseAllMerges`): for each visible merge
 //! to be collapsed, `collapse_for` reads the commits it brought in (`rev-list M^2 --not M^1`, minus
@@ -25,12 +27,12 @@ use base64::Engine;
 use serde::{Deserialize, Serialize};
 
 use super::layout::{LayoutState, Placed};
+use super::walker::{GraphWalkers, Walker};
 use super::{display_text, parse_i64, read_ref_tips, read_stashes, split_shas, RefTip, StashEntry};
 use crate::app::Core;
 use crate::commands::status;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
-use crate::git::log::{Records, HEADER, HEADER_FIELDS, LOG_SAFE};
 use crate::git::rev::is_sha;
 use crate::model::{GraphPage, GraphRow, GraphRowKind, RefLabelInfo, RepoViewState, SyncMark};
 use crate::util;
@@ -48,10 +50,6 @@ const CURSOR_VERSION: u32 = 2;
 pub(super) const MAX_COLLAPSE: usize = 20_000;
 /// At most this many commits per direction are marked as not pushed / not pulled.
 const MAX_SYNC: u32 = 5_000;
-/// Records per `git log` call once hidden commits left the page short: at least this many, doubling
-/// up to `MAX_READ_CHUNK`.
-const MIN_READ_CHUNK: usize = 1_000;
-const MAX_READ_CHUNK: usize = 64_000;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Cursor {
@@ -64,6 +62,9 @@ struct Cursor {
     /// Commits that only hidden commits lead to and that have not appeared yet.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     f: Vec<String>,
+    /// The walker the next page reads on from (`walker::GraphWalkers`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    w: Option<String>,
 }
 
 impl Cursor {
@@ -489,40 +490,6 @@ async fn side_commits(
     Ok(out.stdout_lines().into_iter().map(util::decode_lossy).filter(|sha| is_sha(sha)).collect())
 }
 
-#[cfg(test)]
-thread_local! {
-    /// Number of `read_records` calls on this thread (tests run on a current-thread runtime).
-    pub(super) static LOG_READS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
-}
-
-/// `limit` records of `git log` after the first `skip`, over the starting points in `stdin`.
-async fn read_records(core: &Core, path: &Path, repo_id: &str, stdin: &str, skip: u64, limit: usize) -> CoreResult<Vec<Vec<Vec<u8>>>> {
-    #[cfg(test)]
-    LOG_READS.with(|n| n.set(n.get() + 1));
-    let mut records = Records::new(HEADER_FIELDS);
-    let mut out = Vec::with_capacity(limit);
-    let mut on_field = |field: &[u8]| -> bool {
-        if let Some(record) = records.push(field) {
-            out.push(record);
-        }
-        true
-    };
-    core.git
-        .cmd(path)
-        .repo(repo_id)
-        .read()
-        .args(["log", "--date-order"])
-        .args(LOG_SAFE)
-        .args(["--ignore-missing", "-z", &format!("--format={HEADER}")])
-        .arg(format!("--skip={skip}"))
-        .arg(format!("--max-count={limit}"))
-        .arg("--stdin")
-        .stdin(stdin.to_owned())
-        .run_records(0, None, &mut on_field)
-        .await?;
-    Ok(out)
-}
-
 /// Commits of the checked-out branch that its upstream lacks (`@{u}..HEAD`) and the other way round.
 #[derive(Debug, Default)]
 struct SyncSets {
@@ -624,11 +591,15 @@ pub(super) async fn graph_page_checking(
     let head_sha = Some(head?).filter(|out| out.success()).map(|out| out.stdout_text()).filter(|sha| is_sha(sha));
     let plan = build_plan(tips?, head_sha, stashes?, &view);
 
-    let (offset, state, hidden) = match cursor {
-        Some(c) if c.h == plan.fingerprint => (c.o, c.s, c.f.into_iter().collect()),
+    let (offset, state, hidden, walker_id) = match cursor {
+        Some(c) if c.h == plan.fingerprint => (c.o, c.s, c.f.into_iter().collect(), c.w),
         Some(_) => return Err(CoreError::stale_state()),
-        None => (0, LayoutState::new(), HashSet::new()),
+        None => (0, LayoutState::new(), HashSet::new(), None),
     };
+    let walkers = core.state::<GraphWalkers>();
+    if first_page {
+        walkers.drop_other_fingerprints(repo_id, &plan.fingerprint);
+    }
     let mut builder = PageBuilder { plan: &plan, state, rows: Vec::new(), max_lane: 0, commits: 0, hidden, sync };
 
     if first_page && wip_count > 0 {
@@ -647,40 +618,39 @@ pub(super) async fn graph_page_checking(
     let mut has_more = false;
     // Commits read from `git log` so far, hidden ones included: the next page starts after them.
     let mut consumed = offset;
+    let mut kept_walker = None;
     if !plan.tips.is_empty() {
-        let mut stdin = String::with_capacity(plan.tips.len() * 41);
-        for tip in &plan.tips {
-            stdin.push_str(tip);
-            stdin.push('\n');
-        }
-        // Hidden commits do not count towards `limit`: read on until the page is full or the history
-        // ends. One commit more than needed: if it comes, there is another page. Every call sorts the
-        // whole history (`--date-order`), so after the first one the chunk grows: a long hidden run
-        // costs a few calls, not one per missing row. Extra records are harmless – `consumed` only
-        // counts the ones processed.
-        let mut chunk = limit + 1;
-        loop {
-            let want = (limit - builder.commits + 1).max(chunk);
-            chunk = (chunk.max(MIN_READ_CHUNK / 2) * 2).min(MAX_READ_CHUNK);
-            let records = read_records(core, &path, repo_id, &stdin, consumed, want).await?;
-            let got = records.len();
-            for fields in records {
-                if builder.commits >= limit {
-                    has_more = true;
-                    break;
+        let taken = walker_id.and_then(|id| walkers.take(repo_id, &id, &plan.fingerprint, offset));
+        let mut walker = match taken {
+            Some(walker) => walker,
+            None => {
+                let mut stdin = String::with_capacity(plan.tips.len() * 41);
+                for tip in &plan.tips {
+                    stdin.push_str(tip);
+                    stdin.push('\n');
                 }
-                consumed += 1;
-                let collapse = match builder.wants_collapse(&fields) {
-                    Some(parents) => {
-                        Some(collapse_for(core, &path, repo_id, &plan, &util::decode_lossy(&fields[0]), &parents, MAX_COLLAPSE).await?)
-                    }
-                    None => None,
-                };
-                builder.commit(&fields, collapse);
+                Walker::start(core, &path, repo_id, &plan.fingerprint, stdin, offset).await?
             }
-            if has_more || got < want {
+        };
+        // Hidden commits do not count towards `limit`: read on until the page is full or the history
+        // ends. One commit more than needed: if it comes, there is another page and it goes back.
+        while let Some(fields) = walker.next().await? {
+            if builder.commits >= limit {
+                walker.unread(fields);
+                has_more = true;
                 break;
             }
+            let collapse = match builder.wants_collapse(&fields) {
+                Some(parents) => {
+                    Some(collapse_for(core, &path, repo_id, &plan, &util::decode_lossy(&fields[0]), &parents, MAX_COLLAPSE).await?)
+                }
+                None => None,
+            };
+            builder.commit(&fields, collapse);
+        }
+        consumed = walker.offset;
+        if has_more {
+            kept_walker = Some(walker);
         }
     }
 
@@ -689,10 +659,14 @@ pub(super) async fn graph_page_checking(
     let next_cursor = if has_more {
         let mut f: Vec<String> = hidden.into_iter().collect();
         f.sort_unstable();
-        Some(Cursor { v: CURSOR_VERSION, o: consumed, h: plan.fingerprint.clone(), s: state, f }.encode()?)
+        let w = kept_walker.as_ref().map(|walker| walker.id.clone());
+        Some(Cursor { v: CURSOR_VERSION, o: consumed, h: plan.fingerprint.clone(), s: state, f, w }.encode()?)
     } else {
         None
     };
+    if let Some(walker) = kept_walker {
+        walkers.put(walker);
+    }
     Ok(GraphPage { rows, next_cursor, max_lane })
 }
 
@@ -852,7 +826,8 @@ mod tests {
     fn cursor_roundtrip_and_garbage() {
         let mut state = LayoutState::new();
         state.place("a", &["b".to_string()], false);
-        let text = Cursor { v: CURSOR_VERSION, o: 2000, h: "abc".into(), s: state.clone(), f: vec!["s1".into()] }.encode().unwrap();
+        let text =
+            Cursor { v: CURSOR_VERSION, o: 2000, h: "abc".into(), s: state.clone(), f: vec!["s1".into()], w: None }.encode().unwrap();
         let back = Cursor::decode(&text).unwrap();
         assert_eq!((back.o, back.h.as_str(), &back.s, back.f.as_slice()), (2000, "abc", &state, ["s1".to_string()].as_slice()));
         let old = URL_SAFE_NO_PAD.encode(br#"{"v":1,"o":0,"h":"","s":{"l":[],"n":0}}"#);

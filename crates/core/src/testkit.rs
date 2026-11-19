@@ -14,6 +14,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::ffi::OsString;
+use std::io::Write;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
@@ -212,6 +213,15 @@ impl TestRepo {
         cmd.env("GIT_COMMITTER_NAME", name).env("GIT_COMMITTER_EMAIL", email).env("GIT_COMMITTER_DATE", committer_date);
         check(cmd.output().expect("start git"), "commit");
         self.head()
+    }
+
+    /// `git fast-import --quiet` with `stream`; panics on error.
+    pub fn fast_import(&self, stream: &[u8]) {
+        let mut cmd = git_command(&self.root, &self.global_config, &["fast-import", "--quiet"], None);
+        let mut child = cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("start git");
+        // Dropping stdin after the write ends the stream.
+        child.stdin.take().expect("stdin").write_all(stream).expect("fast-import stream");
+        check(child.wait_with_output().expect("git"), "fast-import");
     }
 
     pub fn head(&self) -> String {

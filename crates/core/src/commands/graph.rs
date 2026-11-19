@@ -17,6 +17,9 @@ mod search;
 mod search_filter_tests;
 #[cfg(test)]
 mod tests;
+mod walker;
+#[cfg(test)]
+mod walker_tests;
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -31,10 +34,21 @@ pub use details::parse_co_authors;
 pub use page::{MAX_PAGE_SIZE, STASH_REF, WIP_ID};
 pub(crate) use search::{commit_summaries, is_search_date, SEARCH_REFS};
 pub use search::{MAX_SEARCH_PATHS, MAX_SEARCH_RESULTS, MIN_SHA_PREFIX};
+pub use walker::{MAX_WALKERS, WALKER_IDLE};
 
 /// One page of the graph with a finished lane layout; first page with `cursor: None` (with WIP and stash rows).
 pub async fn graph_page(core: &Core, repo_id: String, cursor: Option<String>, limit: u32) -> CoreResult<GraphPage> {
     crate::startup::first_call("graph_page", page::graph_page(core, &repo_id, cursor.as_deref(), limit)).await
+}
+
+/// Ends the `git log` walkers kept for the repository's next graph pages; returns how many there were.
+pub fn release_graph_walkers(core: &Core, repo_id: &str) -> usize {
+    core.state::<walker::GraphWalkers>().release(repo_id)
+}
+
+/// `git log` walkers kept for next graph pages, for one repository or all.
+pub fn graph_walker_count(core: &Core, repo_id: Option<&str>) -> usize {
+    core.state::<walker::GraphWalkers>().count(repo_id)
 }
 
 /// Metadata and changed files of a commit, range or stash.
