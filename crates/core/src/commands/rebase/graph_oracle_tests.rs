@@ -43,9 +43,11 @@ async fn graph_gestures_match_git_rebase_i() {
         .collect();
     rebase_apply(&tc, id.clone(), base.clone(), rows).await.unwrap();
 
-    let log = |branch: &str| repo.git(&["log", "--reverse", "--format=%T %s", &format!("{base}..{branch}")]);
-    assert_eq!(log("feature"), log("oracle"));
-    assert_eq!(log("feature").lines().count(), 2);
+    // Trees, subjects and whole messages (the squash joins the messages of c1 and c4 like Git does).
+    let log = |format: &str, branch: &str| repo.git(&["log", "--reverse", &format!("--format={format}"), &format!("{base}..{branch}")]);
+    assert_eq!(log("%T %s", "feature"), log("%T %s", "oracle"));
+    assert_eq!(log("%B", "feature"), log("%B", "oracle"));
+    assert_eq!(log("%s", "feature").lines().count(), 2);
 }
 
 fn git_word(action: RebaseAction) -> &'static str {
