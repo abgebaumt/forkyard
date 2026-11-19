@@ -126,6 +126,7 @@ import {
   smartText,
   type FlatGraph,
 } from "./model";
+import { EditHistory } from "./EditHistory";
 import { useRowDrag } from "./useRowDrag";
 
 export interface CommitGraphProps {
@@ -1136,7 +1137,8 @@ export function CommitGraph({ repoId, tabId }: CommitGraphProps) {
   const { data: viewState } = useViewState(repoId);
   const { data: bisect } = useBisectStatus(repoId);
   const flat = useMemo(() => flatten(graph.data?.pages), [graph.data]);
-  const editing = useGraphEdit((state) => state.byTab[tabId] !== undefined);
+  const edit = useGraphEdit((state) => state.byTab[tabId]);
+  const editing = edit !== undefined;
   // While the edit is shown its guard holds the centre (another view may have taken the slot meanwhile).
   useEffect(() => (editing ? registerEditGuard(tabId) : undefined), [editing, tabId]);
   const hasRows = flat.rows.length > 1;
@@ -1256,7 +1258,9 @@ export function CommitGraph({ repoId, tabId }: CommitGraphProps) {
             </EmptyState>
           )}
         </div>
-      ) : editing ? null : (
+      ) : edit ? (
+        <EditHistory repoId={repoId} tabId={tabId} edit={edit} flat={flat} />
+      ) : (
         <GraphGrid
           repoId={repoId}
           tabId={tabId}
