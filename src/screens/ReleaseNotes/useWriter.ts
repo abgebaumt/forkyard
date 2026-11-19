@@ -11,17 +11,15 @@ import { core, type AiPreview, type Id, type ReleaseNotes } from "../../core";
 import { locale, t } from "../../i18n";
 import { confirmSend } from "../../app/ai/gate";
 import { showAiPreview, type PreviewChoice } from "../../app/ai/PreviewDialog";
-import { errorView, type AiErrorView } from "../../app/ai/requestState";
+import type { AiLoadingView } from "../../app/ai/requestState";
 import { applySuggestion } from "../../app/ai/suggestion";
-import { newJobId, runAction } from "../../app/run";
+import { useAiJob, type AiFailure } from "../../app/ai/useAiJob";
+import { runAction } from "../../app/run";
 import { answerPlacement } from "./model";
 
 export interface WriterState {
-  phase: "idle" | "loading" | "done" | "error";
-  startedAt: number;
-  now: number;
+  phase: "idle" | "done";
   notes: ReleaseNotes | null;
-  error: AiErrorView | null;
   /** Inserted into an empty field: marked as draft until the user edits or discards it. */
   draft: { before: string } | null;
   /** The field had text ("choose") or was edited meanwhile ("ready"): the suggestion waits. */
@@ -37,6 +35,9 @@ export interface WriterPreview {
 
 export interface Writer {
   state: WriterState;
+  /** Loading text while the request runs, else null. */
+  loading: AiLoadingView | null;
+  error: AiFailure | null;
   preview: WriterPreview | null;
   write(): Promise<void>;
   /** "What is sent?" without sending, in the nested dialog. */
@@ -48,7 +49,7 @@ export interface Writer {
   edited(): void;
 }
 
-const IDLE: WriterState = { phase: "idle", startedAt: 0, now: 0, notes: null, error: null, draft: null, pending: null, emptyText: null };
+const IDLE: WriterState = { phase: "idle", notes: null, draft: null, pending: null, emptyText: null };
 
 const inputFor = (to: string | null) => ({ kind: "release_notes" as const, from: null, to });
 
@@ -66,13 +67,15 @@ export async function showReleaseNotesPreview(
 export function useReleaseNotesWriter(options: {
   repoId: Id;
   to: string | null;
+  /** The provider runs on this machine (slower hint). */
+  local: boolean;
   current: () => string;
   apply: (text: string) => void;
 }): Writer {
   const [state, setState] = useState<WriterState>(IDLE);
   const [preview, setPreview] = useState<WriterPreview | null>(null);
   const answer = useRef<((choice: PreviewChoice | null) => void) | null>(null);
-  const job = useRef<string | null>(null);
+  const job = useAiJob(options.local, t("actions.tags.releaseNotes.writing"));
   const opts = useRef(options);
   const stateRef = useRef(state);
   useEffect(() => {
@@ -81,12 +84,6 @@ export function useReleaseNotesWriter(options: {
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
-
-  useEffect(() => {
-    if (state.phase !== "loading") return;
-    const timer = window.setInterval(() => setState((s) => ({ ...s, now: Date.now() })), 1000);
-    return () => window.clearInterval(timer);
-  }, [state.phase]);
 
   const ask = useCallback(
     (shown: AiPreview, mode: "look" | "confirm") =>
@@ -109,54 +106,44 @@ export function useReleaseNotesWriter(options: {
     () => () => {
       answer.current?.(null);
       answer.current = null;
-      const id = job.current;
-      job.current = null;
-      if (id) void core.jobCancel({ jobId: id });
     },
     [],
   );
 
-  const write = useCallback(async () => {
+  const write = async () => {
     const { repoId, to } = opts.current;
-    const preview = await runAction(t("actions.tags.releaseNotes.label"), () =>
-      core.aiPreview({ repoId, feature: "release_notes", input: inputFor(to), locale: locale() }),
+    let atStart = "";
+    const notes = await job.start(
+      (jobId) => {
+        atStart = opts.current.current();
+        setState(IDLE);
+        return core.aiReleaseNotes({ repoId, jobId, from: null, to, locale: locale() });
+      },
+      async () => {
+        const preview = await runAction(t("actions.tags.releaseNotes.label"), () =>
+          core.aiPreview({ repoId, feature: "release_notes", input: inputFor(to), locale: locale() }),
+        );
+        return preview.ok && (await confirmSend(repoId, "release_notes", preview.value, ask));
+      },
     );
-    if (!preview.ok) return;
-    if (!(await confirmSend(repoId, "release_notes", preview.value, ask))) return;
-    const atStart = opts.current.current();
-    const jobId = newJobId();
-    job.current = jobId;
-    const started = Date.now();
-    setState({ ...IDLE, phase: "loading", startedAt: started, now: started });
-    try {
-      const notes = await core.aiReleaseNotes({ repoId, jobId, from: null, to, locale: locale() });
-      if (job.current !== jobId) return;
-      job.current = null;
-      const outcome = answerPlacement(opts.current.current(), atStart, notes);
-      if (outcome.kind === "empty") {
-        setState({ ...IDLE, phase: "done", notes, emptyText: outcome.text });
-      } else if (outcome.kind === "insert") {
-        opts.current.apply(outcome.text);
-        setState({ ...IDLE, phase: "done", notes, draft: { before: atStart } });
-      } else {
-        setState({ ...IDLE, phase: "done", notes, pending: { text: notes.markdown, kind: outcome.kind } });
-      }
-    } catch (raw) {
-      if (job.current !== jobId) return;
-      job.current = null;
-      const view = errorView(raw);
-      setState(view.kind === "cancelled" ? IDLE : { ...IDLE, phase: "error", error: view });
+    if (!notes) return;
+    const outcome = answerPlacement(opts.current.current(), atStart, notes);
+    if (outcome.kind === "empty") {
+      setState({ ...IDLE, phase: "done", notes, emptyText: outcome.text });
+    } else if (outcome.kind === "insert") {
+      opts.current.apply(outcome.text);
+      setState({ ...IDLE, phase: "done", notes, draft: { before: atStart } });
+    } else {
+      setState({ ...IDLE, phase: "done", notes, pending: { text: notes.markdown, kind: outcome.kind } });
     }
-  }, [ask]);
+  };
 
   const whatIsSent = useCallback(() => showReleaseNotesPreview(opts.current.repoId, opts.current.to, ask), [ask]);
 
-  const cancel = useCallback(() => {
-    const id = job.current;
-    job.current = null;
+  const cancel = () => {
+    job.cancel();
     setState(IDLE);
-    if (id) void core.jobCancel({ jobId: id });
-  }, []);
+  };
 
   const resolvePending = useCallback((how: "replace" | "append" | "discard") => {
     const pending = stateRef.current.pending;
@@ -174,5 +161,17 @@ export function useReleaseNotesWriter(options: {
 
   const edited = useCallback(() => setState((s) => (s.draft ? { ...s, draft: null } : s)), []);
 
-  return { state, preview, write, whatIsSent, closePreview, cancel, resolvePending, discardDraft, edited };
+  return {
+    state,
+    loading: job.loading,
+    error: job.run.kind === "failed" ? job.run.view : null,
+    preview,
+    write,
+    whatIsSent,
+    closePreview,
+    cancel,
+    resolvePending,
+    discardDraft,
+    edited,
+  };
 }

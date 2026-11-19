@@ -3,22 +3,11 @@ import type { Id } from "../../core";
 import { t } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { AiPreviewDialog } from "../../app/ai/PreviewDialog";
-import { loadingView, type AiErrorView } from "../../app/ai/requestState";
+import type { AiFailure } from "../../app/ai/useAiJob";
 import { doneLine } from "./model";
 import type { Writer } from "./useWriter";
 
-function ErrorLine({
-  error,
-  writer,
-  onSetup,
-  onSignIn,
-}: {
-  error: AiErrorView;
-  writer: Writer;
-  onSetup: () => void;
-  onSignIn?: () => void;
-}) {
-  if (error.kind === "cancelled") return null;
+function ErrorLine({ error, writer, onSetup, onSignIn }: { error: AiFailure; writer: Writer; onSetup: () => void; onSignIn?: () => void }) {
   const retry =
     error.kind === "unavailable" ||
     error.kind === "invalid" ||
@@ -72,7 +61,6 @@ function ErrorLine({
 export function ReleaseNotesWriter({
   writer,
   openSetup,
-  local,
   onSetup,
   onSignIn,
 }: {
@@ -81,13 +69,12 @@ export function ReleaseNotesWriter({
   to: string | null;
   writer: Writer;
   openSetup: boolean;
-  local: boolean;
   onSetup: () => void;
   onSignIn?: () => void;
 }) {
   const { state } = writer;
-  const loading = state.phase === "loading";
-  const view = loading ? loadingView(state.now - state.startedAt, local, t("actions.tags.releaseNotes.writing")) : null;
+  const view = writer.loading;
+  const loading = view !== null;
   const status = view
     ? view.slow
       ? `${view.text} – ${view.slow}`
@@ -113,7 +100,7 @@ export function ReleaseNotesWriter({
       <p aria-live="polite" data-release-notes-state="" className="text-sm text-text-muted">
         {status}
       </p>
-      {state.error ? <ErrorLine error={state.error} writer={writer} onSetup={onSetup} onSignIn={onSignIn} /> : null}
+      {writer.error ? <ErrorLine error={writer.error} writer={writer} onSetup={onSetup} onSignIn={onSignIn} /> : null}
       {state.draft ? (
         <p className="flex items-center gap-2 text-sm text-text-muted">
           <span className="font-medium text-text">{t("ai.suggestion.draft")}</span>
