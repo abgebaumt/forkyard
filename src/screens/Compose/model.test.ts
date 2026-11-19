@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { ComposeNote, ComposeUnit, DiffLine } from "../../core";
 import {
   SKIP,
+  applyProposal,
+  keptSelection,
+  movedSelection,
+  stepSelection,
   blockedReason,
   brokenNeeds,
   commitProblems,
@@ -258,6 +262,28 @@ describe("Compose selection", () => {
     expect(s).toEqual({ cursor: EXP, ids: [DE1, EXPTEST, EXP], anchor: DE1 });
     expect(extendSelection(selectOne(emptySelection, ENV), 1, ids).ids).toEqual([ENV]);
   });
+
+  it("↑/↓ moves the cursor one unit, clamped at both ends; without a cursor it starts at the first", () => {
+    expect(stepSelection(selectOne(emptySelection, DE0), 1, ids)?.cursor).toBe(ids[ids.indexOf(DE0) + 1]);
+    expect(stepSelection(selectOne(emptySelection, ids[0]!), -1, ids)?.cursor).toBe(ids[0]);
+    expect(stepSelection(selectOne(emptySelection, ids.at(-1)!), 1, ids)?.cursor).toBe(ids.at(-1));
+    expect(stepSelection(emptySelection, 1, ids)?.cursor, "-1 + 1 = the first").toBe(ids[0]);
+    expect(stepSelection(emptySelection, 1, [])).toBeNull();
+  });
+
+  it("keeps the selected units that still exist, or nothing when the cursor unit is gone", () => {
+    const s = { cursor: DE0, ids: [DE0, DE1, CL], anchor: DE0 };
+    expect(keptSelection(s, new Set([DE0, CL]))).toEqual({ cursor: DE0, ids: [DE0, CL], anchor: DE0 });
+    expect(keptSelection({ ...s, ids: [DE1] }, new Set([DE0])).ids, "at least the cursor").toEqual([DE0]);
+    expect(keptSelection(s, new Set([DE1, CL]))).toEqual(emptySelection);
+    expect(keptSelection(emptySelection, new Set([DE0]))).toEqual(emptySelection);
+  });
+
+  it("after a move the moved units are selected; the cursor stays on its unit if it moved too", () => {
+    const s = { cursor: DE1, ids: [DE0, DE1], anchor: DE0 };
+    expect(movedSelection(s, [DE0, DE1])).toEqual({ cursor: DE1, ids: [DE0, DE1], anchor: DE0 });
+    expect(movedSelection(s, [CL])).toEqual({ cursor: CL, ids: [CL], anchor: CL });
+  });
 });
 
 describe("Compose views", () => {
@@ -355,6 +381,20 @@ describe("Compose plan and new proposals", () => {
       order,
     );
     expect(shape(same).commits).toEqual([["feat(admin): Zwei-Faktor-Status", MFA, STAFF0]]);
+  });
+
+  it("a proposal keeps placed units and drops pins of units that are gone", () => {
+    const a = moveUnits(proposal(), [STAFF0], 0, order, BY_ID).arrangement;
+    const groups = [{ title: "feat: alles", body: "", reason: "", units: UNITS.map((u) => u.id).filter((id) => id !== STAFF0) }];
+    const result = applyProposal(a, new Set([STAFF0, "gone#0@9"]), UNITS, groups);
+    expect([...result.pinned]).toEqual([STAFF0]);
+    expect(shape(result.original), "the proposal as the AI made it").toEqual(shape(fromProposal(UNITS, groups)));
+    expect(shape(result.arrangement).commits.at(-1), "the placed unit keeps its commit").toEqual([
+      "feat(admin): Zwei-Faktor-Status",
+      STAFF0,
+    ]);
+    const plain = applyProposal(a, new Set(), UNITS, groups);
+    expect(plain.arrangement).toEqual(plain.original);
   });
 
   it("reads the job progress line", () => {

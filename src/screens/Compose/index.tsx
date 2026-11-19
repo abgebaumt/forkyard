@@ -41,18 +41,22 @@ import { FileMatrix } from "./FileMatrix";
 import { History } from "./History";
 import {
   SKIP,
+  applyProposal,
   blockedReason,
+  brokenText,
   commitProblems,
   displayOrder,
   emptySelection,
   extendSelection,
   firstProblem,
-  fromProposal,
+  groupName,
   groupOf,
+  keptSelection,
   keepOf,
   keyAction,
   mergeWithNext,
   moveCommit,
+  movedSelection,
   moveUnits,
   nextUnsure,
   notesOf,
@@ -60,9 +64,9 @@ import {
   planOf,
   rangeSelection,
   refreshed,
-  reproposed,
   selectOne,
   setTitle,
+  stepSelection,
   stepTarget,
   summaryOf,
   toggleSelection,
@@ -155,10 +159,7 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
 
   /** A unit ID the selection may point at after the units changed. */
   const keepSelection = (ids: Set<string>) => {
-    const current = selectionRef.current;
-    const kept = current.ids.filter((id) => ids.has(id));
-    if (current.cursor && ids.has(current.cursor)) setSelection({ ...current, ids: kept.length ? kept : [current.cursor] });
-    else setSelection(emptySelection);
+    setSelection(keptSelection(selectionRef.current, ids));
   };
 
   const load = async (): Promise<ComposeState | null> => {
@@ -204,10 +205,11 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     if (!proposal) return;
     show(proposal.state);
     const ids = new Set(proposal.state.units.map((unit) => unit.id));
-    const pinned = new Set([...reviewRef.current.pinned].filter((id) => ids.has(id)));
-    const nextOrder = orderOf(proposal.state.units);
-    const fresh = fromProposal(proposal.state.units, proposal.groups);
-    const merged = reproposed(fresh, refreshed(arrangementRef.current, proposal.state.units), pinned, nextOrder);
+    const {
+      arrangement: merged,
+      original: fresh,
+      pinned,
+    } = applyProposal(arrangementRef.current, reviewRef.current.pinned, proposal.state.units, proposal.groups);
     arrange(merged, false);
     dirty.current = pinned.size > 0;
     setOriginal(fresh);
@@ -245,8 +247,6 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     setSelection(next);
   };
 
-  const groupName = (group: number) => (group === SKIP ? t("wip.compose.skipQuoted") : t("wip.compose.commit", { number: group + 1 }));
-
   /** Moves the selection (or `ids`) and marks the moved units as placed by the user. */
   const moveTo = (target: number | "new", ids = selectionRef.current.ids) => {
     const result = moveUnits(arrangementRef.current, ids, target, order, units);
@@ -258,12 +258,7 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     arrange(result.arrangement, true);
     setReview({ ...reviewRef.current, pinned: new Set([...reviewRef.current.pinned, ...result.moved]) });
     setMoved(new Set(result.moved));
-    const cursor = selectionRef.current.cursor;
-    setSelection({
-      cursor: cursor && result.moved.includes(cursor) ? cursor : result.moved[0]!,
-      ids: result.moved,
-      anchor: result.moved[0]!,
-    });
+    setSelection(movedSelection(selectionRef.current, result.moved));
     const name = groupName(result.target);
     say(
       result.moved.length === 1
@@ -331,12 +326,7 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     if (!current || applyingRef.current || blockedReason(plan)) return;
     const problem = firstProblem(plan, units);
     if (problem) {
-      const file = fileOf(units.get(problem.need)?.path ?? "");
-      const text =
-        problem.group === SKIP
-          ? t("wip.compose.broken.skipped", { commit: problem.commit + 1, file })
-          : t("wip.compose.broken.later", { commit: problem.commit + 1, file, number: problem.group + 1 });
-      const choice = await askBroken(text);
+      const choice = await askBroken(brokenText(problem, fileOf(units.get(problem.need)?.path ?? "")));
       if (choice !== "go") {
         if (choice === "fix") goto(problem.unit);
         return;
@@ -469,9 +459,8 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     const cursor = sel.cursor;
     switch (action.kind) {
       case "step": {
-        const at = cursor ? ids.indexOf(cursor) : -1;
-        const next = ids[Math.max(0, Math.min(ids.length - 1, at + action.delta))] ?? ids[0];
-        if (next) setSelection(selectOne(sel, next));
+        const next = stepSelection(sel, action.delta, ids);
+        if (next) setSelection(next);
         break;
       }
       case "extend":
