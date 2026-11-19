@@ -1,5 +1,5 @@
 /**
- * List for the rebase tool: virtualised, keyboard-operable and reorderable by pointer.
+ * List for the rebase tool and the graph's edit mode: virtualised, keyboard-operable and reorderable by pointer.
  *
  * Focus: the list itself is the one focusable element (listbox with aria-activedescendant).
  * Arrow keys, Home/End, Page Up/Down move the active row, Alt+↑/↓ moves it, Enter triggers the
@@ -7,7 +7,8 @@
  *
  * Dragging: pointer events, no HTML5 drag and drop (Tauri intercepts that on Windows). Dragging
  * only starts after a few pixels of movement so a click stays a click; Esc cancels. A line shows
- * where the row will land. At the top and bottom edge the list scrolls along.
+ * where the row will land. At the top and bottom edge the list scrolls along. With `onDropOn`, the
+ * middle of a row folds the dragged row onto it instead (graph edit mode: squash, Alt: fixup).
  */
 import {
   useCallback,
@@ -23,8 +24,8 @@ import {
 } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { GripVertical } from "lucide-react";
-import { cn } from "../../ui/cn";
-import { readRowHeight } from "../../components/VirtualList";
+import { cn } from "../ui/cn";
+import { readRowHeight } from "./VirtualList";
 
 /** Movement from which a click becomes a drag (in CSS pixels). */
 const DRAG_THRESHOLD = 4;
@@ -32,6 +33,14 @@ const DRAG_THRESHOLD = 4;
 export interface RowState {
   active: boolean;
   dragging: boolean;
+  /** The dragged row would be folded onto this one. */
+  dropTarget: boolean;
+}
+
+/** Where a pointer at `offset` (px from the row's top) drops: the outer quarters insert, the middle folds onto the row. */
+export function dropZone(offset: number, rowHeight: number): "before" | "onto" | "after" {
+  if (offset < rowHeight / 4) return "before";
+  return offset > rowHeight - rowHeight / 4 ? "after" : "onto";
 }
 
 export interface ReorderListProps {
@@ -45,6 +54,10 @@ export interface ReorderListProps {
   reorderable: boolean;
   /** `to` is the insertion point (0 … count), before the row there. */
   onMove?: (from: number, to: number) => void;
+  /** Drop onto the middle of a row (`alt`: Alt was held). Without it there is no such zone. */
+  onDropOn?: (from: number, onto: number, alt: boolean) => void;
+  /** A drag that started elsewhere (the graph) and continues here; taken over once on mount. */
+  initialDrag?: { index: number; pointerId: number; clientX: number; clientY: number } | null;
   onKey?: (event: KeyboardEvent, index: number) => boolean;
   /** Enter or double click. */
   onActivate?: (index: number) => void;
@@ -66,6 +79,8 @@ interface Drag {
   started: boolean;
   /** Insertion point. */
   over: number;
+  /** Row the dragged one would be folded onto (instead of inserting). */
+  onto: number | null;
 }
 
 export function ReorderList(props: ReorderListProps) {
@@ -78,6 +93,8 @@ export function ReorderList(props: ReorderListProps) {
     isSelected,
     reorderable,
     onMove,
+    onDropOn,
+    initialDrag,
     onKey,
     onActivate,
     renderRow,
@@ -108,8 +125,8 @@ export function ReorderList(props: ReorderListProps) {
   const [drag, setDrag] = useState<Drag | null>(null);
   const dragRef = useRef<Drag | null>(null);
   const suppressClick = useRef(false);
-  const handlers = useRef({ onMove, onActiveChange, count });
-  handlers.current = { onMove, onActiveChange, count };
+  const handlers = useRef({ onMove, onDropOn, onActiveChange, count });
+  handlers.current = { onMove, onDropOn, onActiveChange, count };
 
   /** Pointer position in list coordinates. Computes via the ratio of screen to CSS height – so it is right with zoom too. */
   const contentY = useCallback(
@@ -127,6 +144,23 @@ export function ReorderList(props: ReorderListProps) {
     (clientY: number) => Math.max(0, Math.min(handlers.current.count, Math.round(contentY(clientY) / rowHeight))),
     [contentY, rowHeight],
   );
+  /** Insertion point and fold target below the pointer for a drag of row `from`. */
+  const targetAt = useCallback(
+    (clientY: number, from: number): Pick<Drag, "over" | "onto"> => {
+      const y = contentY(clientY);
+      const row = Math.floor(y / rowHeight);
+      const onto =
+        handlers.current.onDropOn &&
+        row !== from &&
+        row >= 0 &&
+        row < handlers.current.count &&
+        dropZone(y - row * rowHeight, rowHeight) === "onto"
+          ? row
+          : null;
+      return { over: insertionAt(clientY), onto };
+    },
+    [contentY, insertionAt, rowHeight],
+  );
 
   const update = (next: Drag | null) => {
     dragRef.current = next;
@@ -139,7 +173,7 @@ export function ReorderList(props: ReorderListProps) {
       const state = dragRef.current;
       if (!state || event.pointerId !== state.pointerId) return;
       const started = state.started || Math.abs(event.clientY - state.startY) > DRAG_THRESHOLD;
-      update({ ...state, started, lastX: event.clientX, lastY: event.clientY, over: started ? insertionAt(event.clientY) : state.over });
+      update({ ...state, started, lastX: event.clientX, lastY: event.clientY, ...(started ? targetAt(event.clientY, state.from) : {}) });
     };
     const finish = (event: PointerEvent) => {
       const state = dragRef.current;
@@ -148,7 +182,9 @@ export function ReorderList(props: ReorderListProps) {
       if (!state.started) return;
       suppressClick.current = true;
       window.setTimeout(() => (suppressClick.current = false), 0);
-      if (event.type === "pointerup" && state.over !== state.from && state.over !== state.from + 1) {
+      if (event.type === "pointerup" && state.onto !== null) {
+        handlers.current.onDropOn?.(state.from, state.onto, event.altKey);
+      } else if (event.type === "pointerup" && state.over !== state.from && state.over !== state.from + 1) {
         handlers.current.onMove?.(state.from, state.over);
         handlers.current.onActiveChange(state.over > state.from ? state.over - 1 : state.over);
       }
@@ -171,7 +207,7 @@ export function ReorderList(props: ReorderListProps) {
       else if (state.lastY > rect.bottom - edge) delta = rowHeight / 2;
       if (!delta) return;
       element.scrollTop += delta;
-      update({ ...state, over: insertionAt(state.lastY) });
+      update({ ...state, ...targetAt(state.lastY, state.from) });
     }, 50);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", finish);
@@ -188,6 +224,13 @@ export function ReorderList(props: ReorderListProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag === null]);
 
+  // A drag handed over from elsewhere is already past the threshold; taken over once on mount.
+  useEffect(() => {
+    if (!initialDrag) return;
+    const { index, pointerId, clientX, clientY } = initialDrag;
+    update({ from: index, pointerId, startY: clientY, lastX: clientX, lastY: clientY, started: true, ...targetAt(clientY, index) });
+  }, []);
+
   const onRowPointerDown = (event: ReactPointerEvent, index: number) => {
     if (!reorderable || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return;
     if (event.target instanceof Element && event.target.closest("[data-no-drag]")) return;
@@ -199,6 +242,7 @@ export function ReorderList(props: ReorderListProps) {
       lastY: event.clientY,
       started: false,
       over: index,
+      onto: null,
     });
   };
 
@@ -255,7 +299,7 @@ export function ReorderList(props: ReorderListProps) {
   };
 
   const dragging = drag?.started ? drag : null;
-  const showLine = dragging && dragging.over !== dragging.from && dragging.over !== dragging.from + 1;
+  const showLine = dragging && dragging.onto === null && dragging.over !== dragging.from && dragging.over !== dragging.from + 1;
   const total = virtualizer.getTotalSize();
   // The line stays fully visible even at the very top and bottom.
   const lineTop = dragging ? Math.max(0, Math.min(total - 2, dragging.over * rowHeight - 1)) : 0;
@@ -301,6 +345,7 @@ export function ReorderList(props: ReorderListProps) {
           const index = item.index;
           const isActive = index === current;
           const isDragged = dragging?.from === index;
+          const isDropTarget = dragging?.onto === index;
           return (
             <div
               key={item.key}
@@ -314,6 +359,7 @@ export function ReorderList(props: ReorderListProps) {
               data-row-sha={getKey(index)}
               data-active={isActive ? "" : undefined}
               data-dragged={isDragged ? "" : undefined}
+              data-drop-target={isDropTarget ? "" : undefined}
               onPointerDown={(event) => onRowPointerDown(event, index)}
               onClick={() => {
                 if (suppressClick.current) return;
@@ -329,10 +375,11 @@ export function ReorderList(props: ReorderListProps) {
                 // The list's keyboard focus: the same ring as everywhere, on the active row.
                 isActive && "outline-accent group-focus-visible:outline-2 group-focus-visible:-outline-offset-2",
                 isDragged && "bg-surface-raised opacity-60",
+                isDropTarget && "bg-accent-surface outline-2 -outline-offset-2 outline-accent",
               )}
               style={{ transform: `translateY(${item.start}px)` }}
             >
-              {renderRow(index, { active: isActive, dragging: isDragged })}
+              {renderRow(index, { active: isActive, dragging: isDragged, dropTarget: isDropTarget })}
             </div>
           );
         })}

@@ -19,7 +19,7 @@ import { Button } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { toast } from "../../ui/Feedback";
 import { Tip } from "../../ui/Tooltip";
-import { moveItem } from "./model";
+import { moveItem } from "../../app/rebasePlan/model";
 import {
   ColumnBar,
   CommitCells,
@@ -32,7 +32,7 @@ import {
   ToolHeader,
   type StartRef,
 } from "./parts";
-import { ReorderList } from "./ReorderList";
+import { ReorderList } from "../../components/ReorderList";
 import { useCommitRows } from "./useCommitRows";
 import { t } from "../../i18n";
 
