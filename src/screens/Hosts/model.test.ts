@@ -4,7 +4,7 @@ import { t } from "../../i18n";
 import { instanceLabels, stateText, tokenGuides } from "./model";
 
 const account = (patch: Partial<HostAccountInfo> = {}): HostAccountInfo => ({
-  id: 1,
+  id: "acc-1",
   kind: "github",
   baseUrl: null,
   username: null,
