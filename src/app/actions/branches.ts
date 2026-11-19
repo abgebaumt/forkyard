@@ -12,6 +12,7 @@ import { shortSha } from "../format";
 import { busyKeys } from "./keys";
 import { blockingFiles } from "./merge";
 import { stashChanges } from "./stash";
+import { confirmLeaveGraphEdit } from "../rebasePlan/graphEdit";
 
 /** Spaces become "-" while typing (branch and tag names). */
 export const normalizeRefName = (value: string) => value.replace(/\s/g, "-");
@@ -162,9 +163,11 @@ function reportBusyCheckout(repoId: Id, target: string): void {
 /**
  * Checks out: local branch, remote branch (creates the local tracking branch) or commit
  * or tag (afterwards no branch is checked out). If uncommitted changes block the switch,
- * it names the files and offers to stash them.
+ * it names the files and offers to stash them. With a `tabId`, unapplied history edits there are
+ * discarded first (after asking); declined = null.
  */
 export async function checkout(repoId: Id, target: string, options: CheckoutOptions = {}) {
+  if (options.tabId && !(await confirmLeaveGraphEdit(options.tabId))) return null;
   const run = () =>
     runAction(
       t("ui.checkout"),

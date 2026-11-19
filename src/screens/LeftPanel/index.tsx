@@ -321,7 +321,7 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
       setBusyId(node.id);
       const result = await checkout(repoId, node.ref.name, { tabId });
       setBusyId(null);
-      if (!result.ok) return;
+      if (!result?.ok) return;
       void queryClient.invalidateQueries({ queryKey: qk.refs(repoId) });
       // The remote branch has become a local one: that one is now in the selection.
       if (node.kind === "remote_branch" && node.ref.remote) selectOnly(`refs/heads/${node.ref.name.slice(node.ref.remote.length + 1)}`);

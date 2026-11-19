@@ -41,6 +41,8 @@
     "resetTip": "Reset {{name}} to {{sha}}",
     "rebaseOntoCommit": "Rebase {{name}} onto this commit",
     "interactiveHere": "Interactive rebase from here …",
+    "editHistory": "Edit history",
+    "editHistoryHere": "Edit history from here",
     "interactiveHint": "reorder, squash or drop the commits after it",
     "noLaterCommit": "no commit comes after this one",
     "onlyCommitsOf": "only for commits of {{name}}",

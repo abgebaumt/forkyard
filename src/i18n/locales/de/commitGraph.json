@@ -71,5 +71,13 @@
     "title": "Noch kein Commit",
     "showChanges": "Änderungen ansehen",
     "text": "Dieses Repository hat noch keine Historie. Lege den ersten Commit rechts im Commit Panel an."
+  },
+  "edit": {
+    "notInRange": "Dieser Commit gehört nicht zu den eigenen Commits des Branches. Mit „Verlauf ab hier bearbeiten“ geht es weiter zurück.",
+    "rootBlocked": "Der erste Commit kann nicht der Anfang sein",
+    "leaveTitle": "Änderungen am Verlauf verwerfen?",
+    "leaveBody": "Noch wurde nichts angewendet.",
+    "discard": "Verwerfen",
+    "ended": "Der Branch hat sich geändert – Bearbeiten beendet. Es wurde nichts angewendet."
   }
 }

@@ -71,5 +71,13 @@
     "title": "No commits yet",
     "showChanges": "View changes",
     "text": "This repository has no history yet. Create the first commit in the commit panel on the right."
+  },
+  "edit": {
+    "notInRange": "This commit isn't part of the branch's own commits. Use “Edit history from here” to go further back.",
+    "rootBlocked": "The first commit can't be the start",
+    "leaveTitle": "Discard your history edits?",
+    "leaveBody": "Nothing has been applied yet.",
+    "discard": "Discard",
+    "ended": "The branch changed – history editing ended. Nothing was applied."
   }
 }

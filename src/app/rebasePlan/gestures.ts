@@ -42,6 +42,7 @@ export function moveDisplayed(state: EditState, from: number, to: number): EditS
  * Folds `sha` into the group of `onto` (placed after the group's last member); no-op onto itself or a dropped row.
  * A row already in that group only changes between squash and fixup in place. A group root carries its
  * squashed rows along: the whole group folds into the target, the members keep their action.
+ * The folded row loses its own message (a reword's new text is dropped, `message: null`).
  */
 export function squashOnto(state: EditState, sha: Sha, onto: Sha, fixup: boolean): EditState {
   const { rows } = state;
