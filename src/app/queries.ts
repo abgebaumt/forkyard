@@ -87,6 +87,11 @@ export const qk = {
   activity: (scope: ActivityScope, repoId: Id | null) => ["activity", scope, repoId] as const,
   activityAll: ["activity"] as const,
 
+  /** Trust check of a repository (deliberately outside ["repo", …]: a `repo:changed` does not touch it). */
+  trust: (repoId: Id) => ["trust", repoId] as const,
+  /** Signing settings: with a repository its own, without one the global ones. */
+  signing: (repoId: Id | null) => (repoId ? (["repo", repoId, "signing"] as const) : (["app", "signing"] as const)),
+
   repo: (repoId: Id) => ["repo", repoId] as const,
   readme: (repoId: Id) => ["repo", repoId, "readme"] as const,
   refs: (repoId: Id) => ["repo", repoId, "refs"] as const,
@@ -110,6 +115,10 @@ export const qk = {
   viewState: (repoId: Id) => ["repo", repoId, "viewState"] as const,
   draft: (repoId: Id) => ["repo", repoId, "draft"] as const,
   repoSettings: (repoId: Id) => ["repo", repoId, "repoSettings"] as const,
+  /** Commit template text read from a file or the value itself (fallback when the core gives none). */
+  templateText: (repoId: Id, value: string) => ["repo", repoId, "repoSettings", "templateText", value] as const,
+  gitflow: (repoId: Id) => ["repo", repoId, "gitflow"] as const,
+  patch: (repoId: Id, source: DiffSource | null, paths: readonly string[] | null) => ["repo", repoId, "patch", source, paths] as const,
   linkRules: (repoId: Id) => ["repo", repoId, "linkRules"] as const,
   fileHistory: (repoId: Id, path: string) => ["repo", repoId, "fileHistory", path] as const,
   fileHistoryAll: (repoId: Id) => ["repo", repoId, "fileHistory"] as const,
@@ -262,11 +271,9 @@ export function useRepoLocked(repoId: Id | null | undefined): boolean {
   return Boolean(repoId) && repo?.trusted === false;
 }
 
-export const trustKey = (repoId: Id) => ["trust", repoId] as const;
-
 /** What the check finds in the repository (for the prompt). */
 export const useRepoTrust = (repoId: Id) =>
-  useQuery({ queryKey: trustKey(repoId), queryFn: () => core.repoTrustGet({ repoId }), staleTime: 0 });
+  useQuery({ queryKey: qk.trust(repoId), queryFn: () => core.repoTrustGet({ repoId }), staleTime: 0 });
 
 /** Graph as an infinite query. Concatenate `data.pages`; `fetchNextPage()` loads more. */
 export function useGraph(repoId: Id | null | undefined) {

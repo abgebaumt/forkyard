@@ -5,7 +5,7 @@
  */
 import { t } from "../../i18n";
 import { core, type GitflowKind, type Tab } from "../../core";
-import { cachedGitflow, gitflowBranch, gitflowKey, kindLabels, loadGitflow } from "../actions/gitflow";
+import { cachedGitflow, gitflowBranch, kindLabels, loadGitflow } from "../actions/gitflow";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
 import { qk, queryClient } from "../queries";
 import { openGitflow, openGitflowFinish } from "../../screens/Gitflow";
@@ -75,12 +75,12 @@ if (typeof window !== "undefined") {
   prefetchActive();
   // Branches and configuration change: the Gitflow state depends on both.
   core.on("repo:changed", ({ repoId, what }) => {
-    if (what.some((part) => part === "refs" || part === "config" || part === "head") && queryClient.getQueryState(gitflowKey(repoId))) {
-      void queryClient.invalidateQueries({ queryKey: gitflowKey(repoId) });
+    if (what.some((part) => part === "refs" || part === "config" || part === "head") && queryClient.getQueryState(qk.gitflow(repoId))) {
+      void queryClient.invalidateQueries({ queryKey: qk.gitflow(repoId) });
       if (
         !queryClient
           .getQueryCache()
-          .find({ queryKey: gitflowKey(repoId) })
+          .find({ queryKey: qk.gitflow(repoId) })
           ?.getObserversCount()
       )
         void loadGitflow(repoId).catch(() => undefined);

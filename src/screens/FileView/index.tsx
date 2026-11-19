@@ -554,7 +554,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
     );
     if (!result.ok) return;
     queryClient.setQueryData(qk.repoSettings(repoId), result.value);
-    await queryClient.invalidateQueries({ queryKey: ["repo", repoId, "file"] });
+    await queryClient.invalidateQueries({ queryKey: qk.fileAll(repoId) });
     toast({
       tone: "info",
       title: t("fileView.encoding.rereadDone", { encoding: encodingShort(encoding) }),

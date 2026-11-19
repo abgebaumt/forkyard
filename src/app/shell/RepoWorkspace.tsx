@@ -14,7 +14,7 @@ import { WipPanel } from "../../screens/WipPanel";
 import { EmptyState } from "../../ui/Feedback";
 import { closeTab, forgetRepo, openRepository } from "../actions/repos";
 import { core } from "../../core";
-import { qk, queryClient, trustKey, useRepo, useRepoLocked, useRepoMissing, useRepoTrust } from "../queries";
+import { qk, queryClient, useRepo, useRepoLocked, useRepoMissing, useRepoTrust } from "../queries";
 import { runAction } from "../run";
 import { PANEL_LIMITS, showsSidePanels, useAppStore, useLeftCollapsed, useTabView, type CenterView, type TabView } from "../store";
 import { FullPage } from "./FullPage";
@@ -260,7 +260,7 @@ function UntrustedRepo({ tab, repoId }: { tab: Tab; repoId: Id }) {
           <Button
             variant="ghost"
             icon={<RefreshCw className="size-icon" aria-hidden />}
-            onClick={() => void queryClient.invalidateQueries({ queryKey: trustKey(repoId) })}
+            onClick={() => void queryClient.invalidateQueries({ queryKey: qk.trust(repoId) })}
           >
             {t("shell.workspace.recheck")}
           </Button>
