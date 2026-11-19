@@ -58,7 +58,9 @@ export interface SidesViewProps {
   single: Side | null;
   onSingleChange: (side: Side) => void;
   code: CodeSettings;
-  tokens: { ours: LineTokens | null; theirs: LineTokens | null };
+  /** Read-only base column between both sides (only side by side). */
+  showBase: boolean;
+  tokens: { ours: LineTokens | null; base: LineTokens | null; theirs: LineTokens | null };
   onToggleSide: (chunk: number, side: Side) => void;
   onToggleLine: (chunk: number, side: Side, offset: number) => void;
   onSwap: (chunk: number) => void;
@@ -133,7 +135,8 @@ interface RowViewProps {
   titles: SideTitles;
   focusKey: string;
   digits: number;
-  tokens: { ours: LineTokens | null; theirs: LineTokens | null };
+  showBase: boolean;
+  tokens: { ours: LineTokens | null; base: LineTokens | null; theirs: LineTokens | null };
   onCell: (item: Item) => void;
   onSwap: (chunk: number) => void;
 }
@@ -148,6 +151,7 @@ const RowView = memo(function RowView({
   titles,
   focusKey,
   digits,
+  showBase,
   tokens,
   onCell,
   onSwap,
@@ -298,11 +302,37 @@ const RowView = memo(function RowView({
     );
   });
 
-  return <div className={cn("grid", sides.length === 2 ? "grid-cols-2" : "grid-cols-1")}>{cells}</div>;
+  if (showBase && sides.length === 2) {
+    // Display only: no checkbox, not reachable by keyboard.
+    const border = "min-w-0 border-l border-border";
+    const cell = row.type === "line" ? row.base : null;
+    // `same` blocks carry the ours text and line numbers as base (see buildRows).
+    const baseTokens = chunk.kind === "same" ? tokens.ours : tokens.base;
+    cells.splice(
+      1,
+      0,
+      row.type === "head" ? (
+        <div key="base" aria-hidden className={cn("border-t bg-surface", border)} />
+      ) : !cell ? (
+        <div key="base" aria-hidden className={cn("gc-cf-filler", border)} />
+      ) : (
+        <div key="base" data-base-cell="" data-line={cell.line + 1} className={cn("flex items-start gap-1.5 pl-2", border)}>
+          <span className="shrink-0 pr-2 text-right text-text-muted tabular-nums select-none" style={gutter}>
+            {cell.line + 1}
+          </span>
+          <span className="min-w-0 flex-1 break-all whitespace-pre-wrap text-text" data-line-text="">
+            <CodeText text={cell.text} tokens={baseTokens?.[cell.line]} />
+          </span>
+        </div>
+      ),
+    );
+  }
+
+  return <div className={cn("grid", cells.length === 3 ? "grid-cols-3" : cells.length === 2 ? "grid-cols-2" : "grid-cols-1")}>{cells}</div>;
 });
 
 export const SidesView = forwardRef<SidesViewHandle, SidesViewProps>(function SidesView(props, ref) {
-  const { model, rowModel, choices, manual, titles, single, code, tokens } = props;
+  const { model, rowModel, choices, manual, titles, single, code, showBase, tokens } = props;
   const { rows, chunkStart } = rowModel;
   const scroller = useRef<HTMLDivElement>(null);
   const sides: Side[] = single ? [single] : ["ours", "theirs"];
@@ -335,7 +365,12 @@ export const SidesView = forwardRef<SidesViewHandle, SidesViewProps>(function Si
   const digits = useMemo(
     () =>
       String(
-        Math.max(1, ...model.chunks.map((chunk) => Math.max(chunk.oursStart + chunk.ours.length, chunk.theirsStart + chunk.theirs.length))),
+        Math.max(
+          1,
+          ...model.chunks.map((chunk) =>
+            Math.max(chunk.oursStart + chunk.ours.length, chunk.theirsStart + chunk.theirs.length, chunk.baseStart + chunk.base.length),
+          ),
+        ),
       ).length,
     [model],
   );
@@ -364,7 +399,7 @@ export const SidesView = forwardRef<SidesViewHandle, SidesViewProps>(function Si
   // Row height or width change the wrapping: measure again.
   useLayoutEffect(() => {
     virtualizer.measure();
-  }, [virtualizer, lineHeight, single]);
+  }, [virtualizer, lineHeight, single, showBase]);
 
   const focusItem = useCallback(
     (item: Item | null, options: { scroll?: boolean } = {}) => {
@@ -511,7 +546,7 @@ export const SidesView = forwardRef<SidesViewHandle, SidesViewProps>(function Si
         aria-label={
           single
             ? t("conflict.sides.single", { side: titles[single].heading })
-            : t("conflict.sides.both", { ours: titles.ours.heading, theirs: titles.theirs.heading })
+            : t(showBase ? "conflict.sides.withBase" : "conflict.sides.both", { ours: titles.ours.heading, theirs: titles.theirs.heading })
         }
         tabIndex={items.length === 0 ? 0 : undefined}
         onKeyDown={onKeyDown}
@@ -554,6 +589,7 @@ export const SidesView = forwardRef<SidesViewHandle, SidesViewProps>(function Si
                   titles={titles}
                   focusKey={focusKey}
                   digits={digits}
+                  showBase={showBase}
                   tokens={tokens}
                   onCell={onCell}
                   onSwap={props.onSwap}

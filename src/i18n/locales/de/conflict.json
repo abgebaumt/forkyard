@@ -191,7 +191,15 @@
   },
   "sides": {
     "single": "{{side}} – Zeilen zum Übernehmen",
-    "both": "{{ours}} und {{theirs}} nebeneinander"
+    "both": "{{ours}} und {{theirs}} nebeneinander",
+    "withBase": "{{ours}}, Basis und {{theirs}} nebeneinander"
+  },
+  "base": {
+    "toggle": "Basis zeigen",
+    "toggleTip": "Den gemeinsamen Vorfahren zwischen beiden Seiten zeigen",
+    "heading": "Basis (gemeinsamer Vorfahre)",
+    "unavailable": "Keine Basis: Beide Seiten haben die Datei neu angelegt.",
+    "tooNarrow": "Die Basis braucht die Ansicht nebeneinander – Fenster breiter ziehen."
   },
   "intent": {
     "toggleTip": "Spalte ein- oder ausblenden, die erklärt, was beide Seiten wollten",

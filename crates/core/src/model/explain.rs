@@ -457,6 +457,9 @@ pub struct Settings {
     /// Ask GitHub once a day whether a newer stable release exists (`update_check`).
     #[serde(default = "yes")]
     pub check_for_updates: bool,
+    /// Conflict tool: show the common ancestor between both sides (global).
+    #[serde(default)]
+    pub conflict_show_base: bool,
     /// The user's own coding-agent templates (Settings › Coding agents). Global; the built-in
     /// templates (Claude Code, Codex, opencode) are not stored.
     #[serde(default)]
@@ -551,6 +554,7 @@ impl Default for Settings {
             notify_on_fetch: false,
             notify_on_error: true,
             check_for_updates: true,
+            conflict_show_base: false,
             agent_templates: Vec::new(),
             ssh_use_agent: true,
             proxy_url: None,

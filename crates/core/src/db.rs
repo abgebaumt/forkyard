@@ -806,8 +806,9 @@ mod tests {
     #[test]
     fn the_upgrade_moves_exactly_the_global_keys() {
         // Settings added after version 5 never existed at the profile level.
-        const ADDED_LATER: [&str; 15] = [
+        const ADDED_LATER: [&str; 16] = [
             "checkForUpdates",
+            "conflictShowBase",
             "aiEnabled",
             "aiProvider",
             "aiModel",

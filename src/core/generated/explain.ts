@@ -579,6 +579,10 @@ export type Settings = {
    */
   checkForUpdates: boolean;
   /**
+   * Conflict tool: show the common ancestor between both sides (global).
+   */
+  conflictShowBase: boolean;
+  /**
    * The user's own coding-agent templates (Settings › Coding agents). Global; the built-in
    * templates (Claude Code, Codex, opencode) are not stored.
    */

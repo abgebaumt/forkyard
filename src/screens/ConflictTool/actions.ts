@@ -2,12 +2,13 @@
  * Saving in the conflict tool: write and stage the result (or take one side completely),
  * then go to the next conflict file – or back to the WIP view, where the merge is concluded.
  */
-import { core, type Id, type Status } from "../../core";
+import { core, type Id, type Settings, type Status } from "../../core";
 import { cachedStatus } from "../../app/actions/context";
 import { busyKeys } from "../../app/actions/keys";
 import { operationNames, showWip } from "../../app/actions/merge";
 import { qk, queryClient } from "../../app/queries";
 import { runAction } from "../../app/run";
+import { enqueueWrite } from "../../app/writeQueue";
 import { withStatus } from "../../app/statusCache";
 import { getTabView, setCenterGuard, useAppStore } from "../../app/store";
 import { toast } from "../../ui/Feedback";
@@ -89,4 +90,13 @@ export async function resolveConflict(repoId: Id, tabId: Id, path: string, input
     focusCommitPanel();
   }
   return status;
+}
+
+/** Remembers globally whether the base column is shown; switches at once and rolls back on error. */
+export async function saveShowBase(on: boolean): Promise<void> {
+  const before = queryClient.getQueryData<Settings>(qk.settings);
+  if (before) queryClient.setQueryData(qk.settings, { ...before, conflictShowBase: on });
+  const result = await runAction(t("ui.saveSetting"), () => enqueueWrite(() => core.settingsSet({ patch: { conflictShowBase: on } })));
+  if (result.ok) queryClient.setQueryData(qk.settings, result.value);
+  else if (before) queryClient.setQueryData(qk.settings, before);
 }
