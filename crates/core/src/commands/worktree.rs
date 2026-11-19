@@ -287,7 +287,7 @@ pub(crate) fn forget_listed(core: &Core, path: &Path) {
             db::repos::delete(tx, id)?;
         }
         let profile_id = db::profiles::active_id(tx)?;
-        db::tabs::ensure_consistent(tx, &profile_id)
+        db::tabs::ensure_all(tx, &profile_id)
     });
     match removed {
         Ok(()) => core.emit_app_changed(&[AppChange::Repos, AppChange::Tabs]),

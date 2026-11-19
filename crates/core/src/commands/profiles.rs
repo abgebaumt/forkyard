@@ -114,7 +114,7 @@ pub async fn profile_activate(core: &Core, id: String) -> CoreResult<Vec<Profile
         let old = db::profiles::active_id(tx)?;
         let old_repos = db::tabs::open_repo_ids(tx, &old)?;
         db::profiles::set_active(tx, &id)?;
-        db::tabs::ensure_consistent(tx, &id)?;
+        db::tabs::ensure_all(tx, &id)?;
         let new_repos = db::tabs::open_repo_ids(tx, &id)?;
         let profile = db::profiles::get(tx, &id)?.ok_or_else(|| CoreError::not_found("Profile not found."))?;
         Ok((old_repos, new_repos, profile))

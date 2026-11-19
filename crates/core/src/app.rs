@@ -227,7 +227,7 @@ impl Core {
             if !settings.remember_tabs {
                 db::tabs::delete_all(tx, &profile_id)?;
             }
-            db::tabs::ensure_consistent(tx, &profile_id)
+            db::tabs::ensure_all(tx, &profile_id)
         })
     }
 

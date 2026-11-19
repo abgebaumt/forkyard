@@ -42,6 +42,7 @@ mod stacks;
 mod stats;
 mod status;
 mod view;
+mod windows;
 mod worktrees;
 
 pub use agent_collisions::*;
@@ -71,4 +72,5 @@ pub use stacks::*;
 pub use stats::*;
 pub use status::*;
 pub use view::*;
+pub use windows::*;
 pub use worktrees::*;

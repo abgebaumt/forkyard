@@ -30,6 +30,7 @@ pub mod stats_cache;
 pub mod tabs;
 pub mod undo;
 pub mod view_state;
+pub mod windows;
 
 /// The schema source is db/schema.sql: the complete schema in the latest version. A new
 /// database is created directly from it.
@@ -69,7 +70,26 @@ const UPGRADES: &[&str] = &[
     UNDO_STASH_DROP,
     // The never used workspaces (named repository groups) are gone.
     "drop table workspace_repositories; drop table workspaces;",
+    // v1.3: several windows; every existing tab belongs to "main".
+    WINDOWS,
 ];
+
+const WINDOWS: &str = "
+alter table tabs add column window_id text not null default 'main';
+drop index if exists tabs_one_active;
+create unique index tabs_one_active_per_window on tabs (profile_id, window_id) where is_active = 1;
+create index tabs_window_position on tabs (profile_id, window_id, position);
+create table profile_windows (
+  profile_id text not null references profiles (id) on delete cascade,
+  label      text not null check (label = 'main' or label glob 'w-*'),
+  position   integer not null check (position >= 0),
+  x real, y real, width real, height real,
+  maximized  integer not null default 0 check (maximized in (0, 1)),
+  focused_at text,
+  primary key (profile_id, label)
+) strict;
+insert into profile_windows (profile_id, label, position) select id, 'main', 0 from profiles;
+";
 
 const STATS_CACHE: &str = "
 create table if not exists stats_cache (
@@ -607,6 +627,8 @@ mod tests {
             "ai_usage",
             "ai_preview_seen",
             "agents",
+            "tabs",
+            "profile_windows",
         ] {
             assert_eq!(columns(&db, table), columns(&fresh, table), "{table}");
         }
@@ -979,6 +1001,56 @@ create index undo_entries_repo_time on undo_entries (repository_id, created_at d
         let removed = db.with(|c| credentials::delete_all(c, &profile)).unwrap();
         assert_eq!(removed.len(), 2);
         assert!(db.with(|c| credentials::list(c, &profile)).unwrap().is_empty());
+    }
+
+    /// Version 13 to 14: every profile gets its `main` window, every tab lands in it, and the one
+    /// active tab is per window instead of per profile.
+    #[test]
+    fn the_windows_step_moves_every_tab_into_main() {
+        assert!(UPGRADES.contains(&WINDOWS), "the step is part of UPGRADES");
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("v13.db");
+        drop(Db::open(&path).unwrap());
+        {
+            // Back to version 13: tabs without window_id, one active tab per profile, no windows.
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch(
+                "drop table profile_windows;
+                 drop index tabs_one_active_per_window;
+                 drop index tabs_window_position;
+                 alter table tabs drop column window_id;
+                 create unique index tabs_one_active on tabs (profile_id) where is_active = 1;
+                 insert into profiles (id, name, author_name, author_email, is_active) values ('a', 'A', '', '', 1), ('b', 'B', '', '', 0);
+                 insert into tabs (id, profile_id, kind, position, is_active) values ('t1', 'a', 'repo_management', 0, 1), ('t2', 'a', 'repo_management', 1, 0);
+                 pragma user_version = 13;",
+            )
+            .unwrap();
+        }
+        let db = Db::open(&path).unwrap();
+        let v: i64 = db.with(|c| Ok(c.query_row("pragma user_version", [], |r| r.get(0))?)).unwrap();
+        assert_eq!(v, LATEST_VERSION);
+        for profile in ["a", "b"] {
+            let rows: Vec<(String, u32)> =
+                db.with(|c| windows::list(c, profile)).unwrap().into_iter().map(|w| (w.label, w.position)).collect();
+            assert_eq!(rows, vec![("main".to_string(), 0)], "{profile}");
+        }
+        let tabs: Vec<(String, String, bool)> =
+            db.with(|c| tabs::list_all(c, "a")).unwrap().into_iter().map(|t| (t.id, t.window, t.is_active)).collect();
+        assert_eq!(tabs, vec![("t1".into(), "main".into(), true), ("t2".into(), "main".into(), false)]);
+        // A second active tab in another window is fine; a second one in `main` is not.
+        db.with(|c| {
+            windows::insert(c, "a", "w-other", None)?;
+            c.execute("insert into tabs (id, profile_id, kind, position, is_active, window_id) values ('t3', 'a', 'repo_management', 0, 1, 'w-other')", [])?;
+            Ok(())
+        })
+        .unwrap();
+        let err = db
+            .with(|c| {
+                c.execute("insert into tabs (id, profile_id, kind, position, is_active) values ('t4', 'a', 'repo_management', 2, 1)", [])?;
+                Ok(())
+            })
+            .unwrap_err();
+        assert_eq!(err.code, crate::ErrorCode::Io);
     }
 
     #[test]

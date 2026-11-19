@@ -72,7 +72,7 @@ pub fn stop_background_if_closed(core: &Core, repo_id: &str) {
         .db
         .with(|c| {
             let profile_id = db::profiles::active_id(c)?;
-            Ok(db::tabs::find_by_repo(c, &profile_id, repo_id)?.is_some())
+            Ok(db::tabs::find_by_repo_any(c, &profile_id, repo_id)?.is_some())
         })
         .unwrap_or(false);
     if !still_open {
@@ -122,16 +122,16 @@ pub async fn repo_open_with(core: &Core, path: String, add_to_profile: bool) -> 
             }
         }
         db::repos::touch_opened(tx, &row.id)?;
-        let tab_id = match db::tabs::find_by_repo(tx, &profile_id, &row.id)? {
+        let tab_id = match db::tabs::find_by_repo(tx, &profile_id, db::windows::MAIN, &row.id)? {
             Some(tab) => tab.id,
             None => {
-                let active = db::tabs::list(tx, &profile_id)?.into_iter().find(|t| t.is_active);
+                let active = db::tabs::list(tx, &profile_id, db::windows::MAIN)?.into_iter().find(|t| t.is_active);
                 match active {
                     Some(t) if t.kind == TabKind::Management => {
                         db::tabs::set_repo(tx, &t.id, &row.id)?;
                         t.id
                     }
-                    _ => db::tabs::append(tx, &profile_id, TabKind::Repo, Some(&row.id))?,
+                    _ => db::tabs::append(tx, &profile_id, db::windows::MAIN, TabKind::Repo, Some(&row.id))?,
                 }
             }
         };
@@ -214,7 +214,7 @@ pub async fn repo_forget(core: &Core, repo_id: String) -> CoreResult<()> {
         if gone {
             db::repos::delete(tx, &repo_id)?;
         }
-        db::tabs::ensure_consistent(tx, &profile_id)?;
+        db::tabs::ensure_all(tx, &profile_id)?;
         Ok(gone)
     })?;
     if gone {
@@ -262,8 +262,8 @@ pub async fn repo_readme(core: &Core, repo_id: String) -> CoreResult<Option<Stri
 fn list_tabs(core: &Core) -> CoreResult<Vec<Tab>> {
     core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
-        db::tabs::ensure_consistent(tx, &profile_id)?;
-        db::tabs::list(tx, &profile_id)
+        db::tabs::ensure_consistent(tx, &profile_id, db::windows::MAIN)?;
+        db::tabs::list(tx, &profile_id, db::windows::MAIN)
     })
 }
 
@@ -278,18 +278,18 @@ pub async fn tab_open(core: &Core, repo_id: Option<String>) -> CoreResult<Vec<Ta
     let tabs = core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
         let tab_id = match &repo_id {
-            None => db::tabs::append(tx, &profile_id, TabKind::Management, None)?,
+            None => db::tabs::append(tx, &profile_id, db::windows::MAIN, TabKind::Management, None)?,
             Some(id) => {
                 db::repos::require(tx, id)?;
                 db::repos::touch_opened(tx, id)?;
-                match db::tabs::find_by_repo(tx, &profile_id, id)? {
+                match db::tabs::find_by_repo(tx, &profile_id, db::windows::MAIN, id)? {
                     Some(t) => t.id,
-                    None => db::tabs::append(tx, &profile_id, TabKind::Repo, Some(id))?,
+                    None => db::tabs::append(tx, &profile_id, db::windows::MAIN, TabKind::Repo, Some(id))?,
                 }
             }
         };
         db::tabs::activate(tx, &profile_id, &tab_id)?;
-        db::tabs::list(tx, &profile_id)
+        db::tabs::list(tx, &profile_id, db::windows::MAIN)
     })?;
     if let Some(id) = &repo_id {
         start_background(core, id);
@@ -306,7 +306,7 @@ pub async fn tab_close(core: &Core, tab_id: String) -> CoreResult<Vec<Tab>> {
     let (tabs, closed_repo) = core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
         let tab = db::tabs::require(tx, &profile_id, &tab_id)?;
-        let mut ids: Vec<String> = db::tabs::list(tx, &profile_id)?.into_iter().map(|t| t.id).collect();
+        let mut ids: Vec<String> = db::tabs::list(tx, &profile_id, db::windows::MAIN)?.into_iter().map(|t| t.id).collect();
         let index = ids.iter().position(|id| *id == tab_id).unwrap_or(0);
         ids.retain(|id| *id != tab_id);
         db::tabs::delete(tx, &profile_id, &tab_id)?;
@@ -315,8 +315,8 @@ pub async fn tab_close(core: &Core, tab_id: String) -> CoreResult<Vec<Tab>> {
             let next = &ids[index.min(ids.len() - 1)];
             db::tabs::activate(tx, &profile_id, next)?;
         }
-        db::tabs::ensure_consistent(tx, &profile_id)?;
-        Ok((db::tabs::list(tx, &profile_id)?, tab.repo_id))
+        db::tabs::ensure_consistent(tx, &profile_id, db::windows::MAIN)?;
+        Ok((db::tabs::list(tx, &profile_id, db::windows::MAIN)?, tab.repo_id))
     })?;
     if let Some(repo_id) = closed_repo {
         stop_background_if_closed(core, &repo_id);
@@ -330,12 +330,12 @@ pub async fn tab_move(core: &Core, tab_id: String, position: i64) -> CoreResult<
     let tabs = core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
         db::tabs::require(tx, &profile_id, &tab_id)?;
-        let mut ids: Vec<String> = db::tabs::list(tx, &profile_id)?.into_iter().map(|t| t.id).collect();
+        let mut ids: Vec<String> = db::tabs::list(tx, &profile_id, db::windows::MAIN)?.into_iter().map(|t| t.id).collect();
         ids.retain(|id| *id != tab_id);
         let target = (position.max(0) as usize).min(ids.len());
         ids.insert(target, tab_id.clone());
         db::tabs::reorder(tx, &profile_id, &ids)?;
-        db::tabs::list(tx, &profile_id)
+        db::tabs::list(tx, &profile_id, db::windows::MAIN)
     })?;
     core.emit_app_changed(&[AppChange::Tabs]);
     Ok(tabs)
@@ -349,7 +349,7 @@ pub async fn tab_activate(core: &Core, tab_id: String) -> CoreResult<Vec<Tab>> {
         if let Some(id) = &tab.repo_id {
             db::repos::touch_opened(tx, id)?;
         }
-        Ok((db::tabs::list(tx, &profile_id)?, tab.repo_id))
+        Ok((db::tabs::list(tx, &profile_id, db::windows::MAIN)?, tab.repo_id))
     })?;
     if repo_id.is_some() {
         core.emit_app_changed(&[AppChange::Tabs, AppChange::Repos]);
