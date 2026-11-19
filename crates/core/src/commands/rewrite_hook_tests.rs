@@ -1,7 +1,8 @@
 //! Hooks during rebase, interactive rebase, squash, cherry-pick, revert and tag push: their
 //! output arrives as `hook:output`, a refusing hook as `hook_failed`.
 
-use crate::commands::merge::{operation_abort, revert_commit};
+use crate::commands::merge::operation_abort;
+use crate::commands::rebase::revert_commit;
 use crate::commands::rebase::{cherry_pick, rebase_apply, rebase_plan, rebase_start, squash_commits};
 use crate::commands::status::read_status;
 use crate::commands::tags::{tag_create, tag_push};

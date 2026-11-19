@@ -36,7 +36,8 @@ use crate::undo::{self, Pending, UndoAction, UndoRecord};
 use crate::util;
 
 /// Merge, rebase, cherry-pick, revert and their completion can change everything.
-const ALL_CHANGES: [RepoChange; 5] = [RepoChange::Worktree, RepoChange::Index, RepoChange::Refs, RepoChange::Head, RepoChange::Operation];
+pub(crate) const ALL_CHANGES: [RepoChange; 5] =
+    [RepoChange::Worktree, RepoChange::Index, RepoChange::Refs, RepoChange::Head, RepoChange::Operation];
 const UTF8_BOM: &[u8] = b"\xEF\xBB\xBF";
 
 mod conflict;
@@ -223,112 +224,6 @@ async fn resolve_source(core: &Core, repo_id: &str, source: &str) -> CoreResult<
 }
 
 // ---------------------------------------------------------------------------
-// revert_commit
-// ---------------------------------------------------------------------------
-
-/// `git revert --no-edit`. For a merge commit the revert is against the first parent
-/// (`-m 1`): the branch that was merged into stays, the incoming changes disappear. If
-/// there is nothing to revert, `up_to_date` comes back.
-pub async fn revert_commit(core: &Core, repo_id: String, sha: String) -> CoreResult<OpResult> {
-    auto::follow(core, &repo_id, core.with_write_lock(&repo_id, &ALL_CHANGES, revert_locked(core, &repo_id, &sha))).await
-}
-
-async fn revert_locked(core: &Core, repo_id: &str, sha: &str) -> CoreResult<OpResult> {
-    ensure_no_operation(core, repo_id).await?;
-    ensure_no_unmerged(core, repo_id).await?;
-    let head = read_head(core, repo_id).await?;
-    let Some(old) = head.sha().map(str::to_string) else {
-        return Err(CoreError::not_allowed("There’s nothing to revert in a repository without commits."));
-    };
-    let target = rev::resolve_commit(core, repo_id, sha).await?;
-    if !status::identity_set(core, repo_id).await? {
-        return Err(identity_missing());
-    }
-    let meta = commit_meta(core, repo_id, &target).await?;
-
-    let hooks = Hooks::start(core, repo_id).await;
-    let mut cmd = hooks.wrap(core.git_for(repo_id)?).args(["revert", "--no-edit"]);
-    if meta.parents > 1 {
-        cmd = cmd.args(["-m", "1"]);
-    }
-    let out = cmd.arg(&target).run_raw().await;
-    let ran = hooks.finish(core, repo_id);
-    let out = out?;
-    if !out.success() {
-        let unmerged = ls_unmerged(core, repo_id).await?;
-        if !unmerged.is_empty() {
-            return conflict_result(core, repo_id, &unmerged).await;
-        }
-        // A hook refused the revert commit. Git then leaves the reverted change staged without a
-        // running operation (it only writes REVERT_HEAD on a conflict) – that could not be
-        // continued. Hence back to the state before: `reset --merge` only takes what the revert
-        // touched; other local changes stay.
-        if hook_failure(&ran, &rebase::REWRITE_ABORTING_HOOKS, &out, "the revert").is_some()
-            && read_operation(core, repo_id).await?.is_none()
-        {
-            core.git_for(repo_id)?.args(["update-index", "-q", "--refresh"]).no_log().run_raw().await?;
-            let reset = core.git_for(repo_id)?.args(["reset", "--merge", "-q", "HEAD"]).run_raw().await?;
-            if !reset.success() {
-                log::warn!("Refused revert not rolled back: {}", reset.stderr_text());
-            }
-        }
-        let failed: CoreResult<OpResult> = Err(classify("revert", out.code, &out.stdout, &out.stderr));
-        if let Err(error) = rebase::prefer_hook_failure(core, repo_id, failed, &ran, &out, "the revert").await {
-            if error.is(ErrorCode::HookFailed) {
-                return Err(error);
-            }
-        }
-        let error = classify("revert", out.code, &out.stdout, &out.stderr);
-        if error.is(ErrorCode::NothingToCommit) {
-            // The change is already gone. Git then stops with an empty result and leaves
-            // REVERT_HEAD in place; that is cleaned up.
-            let pending = matches!(read_operation(core, repo_id).await?, Some(op) if op.kind == OperationKind::Revert);
-            if pending {
-                // As in `operation_abort`: `--abort` refuses stale timestamps in the index.
-                core.git_for(repo_id)?.args(["update-index", "-q", "--refresh"]).no_log().run_raw().await?;
-                core.git_for(repo_id)?.args(["revert", "--abort"]).run().await?;
-            }
-            return Ok(OpResult::UpToDate);
-        }
-        return Err(error);
-    }
-
-    let new = current_sha(core, repo_id).await?;
-    if new == old {
-        return Ok(OpResult::UpToDate);
-    }
-    let pending = Pending::new(repo_id);
-    let id = pending.id().to_string();
-    pending
-        .record(
-            core,
-            UndoRecord {
-                id,
-                repo_id: repo_id.to_string(),
-                worktree_path: String::new(),
-                action: UndoAction::Revert,
-                label: format!("Undo revert of ‘{}’", meta.subject),
-                ref_name: branch_ref(&head),
-                ref_before: Some(old.clone()),
-                ref_after: Some(new.clone()),
-                head_before: head_value(&head, &old),
-                head_after: Some(head_value(&head, &new)),
-                payload: json!({
-                    "branch": head.branch(),
-                    "source": rev::short(&target),
-                    "summary": meta.subject,
-                }),
-            },
-        )
-        .await;
-    Ok(OpResult::Done {
-        sha: Some(new),
-        fast_forward: false,
-        summary: format!("Reverted commit {} with a new commit", rev::short(&target)),
-    })
-}
-
-// ---------------------------------------------------------------------------
 // reset_branch
 // ---------------------------------------------------------------------------
 
@@ -425,12 +320,12 @@ fn path_cmd(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
 }
 
 /// The checked-out branch as full ref name.
-fn branch_ref(head: &Head) -> Option<String> {
+pub(crate) fn branch_ref(head: &Head) -> Option<String> {
     head.branch().map(|b| format!("refs/heads/{b}"))
 }
 
 /// HEAD for an undo entry: the ref name if HEAD is on a branch, otherwise `sha`.
-fn head_value(head: &Head, sha: &str) -> String {
+pub(crate) fn head_value(head: &Head, sha: &str) -> String {
     branch_ref(head).unwrap_or_else(|| sha.to_string())
 }
 
@@ -438,7 +333,7 @@ fn commit_not_found(rev: &str) -> CoreError {
     CoreError::not_found(format!("Commit or branch “{rev}” wasn’t found."))
 }
 
-fn identity_missing() -> CoreError {
+pub(crate) fn identity_missing() -> CoreError {
     CoreError::new(ErrorCode::IdentityMissing, "Name and email for commits aren’t set.")
 }
 
@@ -452,7 +347,7 @@ async fn no_operation(core: &Core, repo_id: &str) -> CoreError {
     CoreError::new(ErrorCode::NoOperation, "No operation is in progress that could be continued or aborted.")
 }
 
-async fn current_sha(core: &Core, repo_id: &str) -> CoreResult<String> {
+pub(crate) async fn current_sha(core: &Core, repo_id: &str) -> CoreResult<String> {
     rev::resolve_commit(core, repo_id, "HEAD").await
 }
 
@@ -462,13 +357,13 @@ async fn index_matches_head(core: &Core, repo_id: &str) -> CoreResult<bool> {
     Ok(out.success())
 }
 
-struct CommitMeta {
-    parents: usize,
-    subject: String,
+pub(crate) struct CommitMeta {
+    pub(crate) parents: usize,
+    pub(crate) subject: String,
 }
 
 /// Number of parents and first line of the message, from the raw commit object.
-async fn commit_meta(core: &Core, repo_id: &str, sha: &str) -> CoreResult<CommitMeta> {
+pub(crate) async fn commit_meta(core: &Core, repo_id: &str, sha: &str) -> CoreResult<CommitMeta> {
     let out = core.git_for(repo_id)?.read().args(["cat-file", "commit", sha]).run().await?;
     let text = util::decode_lossy(&out.stdout);
     let (headers, message) = text.split_once("\n\n").unwrap_or((text.as_str(), ""));
@@ -478,13 +373,13 @@ async fn commit_meta(core: &Core, repo_id: &str, sha: &str) -> CoreResult<Commit
     })
 }
 
-async fn ensure_no_operation(core: &Core, repo_id: &str) -> CoreResult<()> {
+pub(crate) async fn ensure_no_operation(core: &Core, repo_id: &str) -> CoreResult<()> {
     let Some(op) = read_operation(core, repo_id).await? else { return Ok(()) };
     Err(CoreError::operation_in_progress(Some(op.kind), "Finish or abort it first."))
 }
 
 /// Conflicts without a running operation (after squash merge or stash) would otherwise be reported as a new conflict.
-async fn ensure_no_unmerged(core: &Core, repo_id: &str) -> CoreResult<()> {
+pub(crate) async fn ensure_no_unmerged(core: &Core, repo_id: &str) -> CoreResult<()> {
     if ls_unmerged(core, repo_id).await?.is_empty() {
         return Ok(());
     }
@@ -502,7 +397,7 @@ async fn ensure_index_unlocked(core: &Core, repo_id: &str) -> CoreResult<()> {
     Ok(())
 }
 
-async fn conflict_result(core: &Core, repo_id: &str, unmerged: &[Unmerged]) -> CoreResult<OpResult> {
+pub(crate) async fn conflict_result(core: &Core, repo_id: &str, unmerged: &[Unmerged]) -> CoreResult<OpResult> {
     Ok(OpResult::Conflict { files: display_paths(unmerged), operation: read_operation(core, repo_id).await?, note: None })
 }
 

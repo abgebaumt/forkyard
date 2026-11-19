@@ -1,7 +1,7 @@
 // Checks the contract: methods of CoreCommands in src/core/api.ts against
 //   1. the #[tauri::command] functions in src-tauri/src/commands.rs (names and parameters),
 //   2. the list in tauri::generate_handler![…] in src-tauri/src/lib.rs,
-//   3. the functions in crates/core/src/commands/*.rs (names).
+//   3. the functions in crates/core/src/commands/**/*.rs (names).
 // Usage: node scripts/check-commands.mjs   (exit code 1 on mismatches)
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -135,7 +135,8 @@ function parseHandlerList() {
 function parseCore() {
   const dir = join(root, "crates", "core", "src", "commands");
   const names = new Map();
-  for (const file of readdirSync(dir)) {
+  // Commands may live in a module's sub-files (e.g. commands/rebase/cherry_pick.rs).
+  for (const file of readdirSync(dir, { recursive: true })) {
     if (!file.endsWith(".rs") || file === "mod.rs") continue;
     const source = readFileSync(join(dir, file), "utf8").replace(/\r\n/g, "\n");
     for (const match of source.matchAll(/^pub async fn (\w+)\(\s*core: &Core/gm)) names.set(match[1], file);
