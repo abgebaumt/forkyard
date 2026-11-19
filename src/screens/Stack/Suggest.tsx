@@ -61,17 +61,16 @@ export function useStackSuggest({ repoId, branch, base, commitCount, parts, onIn
   const start = async () => {
     if (!checkProvider(status.data)) return;
     if (!input || job.busy() || commitCount === 0) return;
-    job.reset();
     setOffer(null);
     setOnePart(false);
-    try {
-      if (!(await askAi(repoId, FEATURE, input))) return;
-    } catch (error) {
-      job.fail(error);
-      return;
-    }
-    const atStart = latest.current;
-    const answer = await job.start((jobId) => core.aiStackSplit({ repoId, jobId, branch, base: input.base, locale: locale() }));
+    let atStart = latest.current;
+    const answer = await job.start(
+      (jobId) => {
+        atStart = latest.current;
+        return core.aiStackSplit({ repoId, jobId, branch, base: input.base, locale: locale() });
+      },
+      () => askAi(repoId, FEATURE, input),
+    );
     if (answer) {
       const next = fromSuggestion(answer);
       setOnePart(next.length === 1);

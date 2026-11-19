@@ -106,16 +106,13 @@ export function usePrAiWriter({ repoId, source, target, ahead, sameBranch, field
   const start = async () => {
     if (!checkProvider(status.data)) return;
     if (!input || blocked || job.busy()) return;
-    job.reset();
-    try {
-      if (!(await askAi(repoId, FEATURE, input))) return;
-    } catch (error) {
-      job.fail(error);
-      return;
-    }
-    const atStart = { text: latest.current.text, untouchedTemplate: latest.current.untouchedTemplate };
-    const answer = await job.start((jobId) =>
-      core.aiPrDescription({ repoId, jobId, source: input.source, target: input.target, locale: locale() }),
+    let atStart = { text: "", untouchedTemplate: false };
+    const answer = await job.start(
+      (jobId) => {
+        atStart = { text: latest.current.text, untouchedTemplate: latest.current.untouchedTemplate };
+        return core.aiPrDescription({ repoId, jobId, source: input.source, target: input.target, locale: locale() });
+      },
+      () => askAi(repoId, FEATURE, input),
     );
     if (answer) place(answer, atStart);
   };

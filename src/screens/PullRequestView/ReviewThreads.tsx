@@ -98,16 +98,10 @@ function ThreadCard({
       return;
     }
     if (availability !== "ready" || job.busy()) return;
-    job.reset();
     setApplyError(null);
-    try {
-      if (!(await askAi(repoId, REVIEW_FEATURE, input))) return;
-    } catch (error) {
-      job.fail(error);
-      return;
-    }
-    const answer = await job.start((jobId) =>
-      core.aiReviewFix({ repoId, jobId, number: pr.number, threadId: thread.id, locale: locale() }),
+    const answer = await job.start(
+      (jobId) => core.aiReviewFix({ repoId, jobId, number: pr.number, threadId: thread.id, locale: locale() }),
+      () => askAi(repoId, REVIEW_FEATURE, input),
     );
     if (!answer) return;
     setFix(answer);
