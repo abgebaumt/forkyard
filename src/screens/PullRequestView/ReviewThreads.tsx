@@ -6,20 +6,19 @@
  * posts an editable answer – never automatically. After a takeover the section offers to squash the
  * fixups in the interactive rebase (autosquash). AI errors stay inline; a late answer never moves focus.
  */
-import { useEffect, useRef, useState } from "react";
-import { core, type AiPreview, type AiProviderKind, type AiReviewFix, type Id, type ReviewFixApplied, type ReviewThread } from "../../core";
-import { signInInTerminal } from "../../app/ai/cliLogin";
-import { confirmSend } from "../../app/ai/gate";
-import { openAiSettings, openAiSetup } from "../../app/ai/open";
-import { showAiPreview } from "../../app/ai/PreviewDialog";
-import { errorView, loadingView, type AiErrorView } from "../../app/ai/requestState";
+import { useState } from "react";
+import { core, type AiProviderKind, type AiReviewFix, type Id, type ReviewFixApplied, type ReviewThread } from "../../core";
+import { AiErrorNotice } from "../../app/ai/AiErrorNotice";
+import { askAi, showWhatIsSent } from "../../app/ai/gate";
+import { openAiSetup } from "../../app/ai/open";
+import { useAiJob } from "../../app/ai/useAiJob";
 import { aiVisibility, featureVisible } from "../../app/ai/visibility";
 import { describeHostError, hostApi, type HostCapabilities, type PrDetails } from "../../app/actions/hostTypes";
 import { runHostAction } from "../../app/actions/hosts";
 import { checkoutPr, prBusyKeys } from "../../app/actions/pullrequests";
 import { shortSha } from "../../app/format";
 import { qk, queryClient, useAiStatus, usePrReviewThreads, useRepoSettings } from "../../app/queries";
-import { newJobId, runAction } from "../../app/run";
+import { runAction } from "../../app/run";
 import { useAppStore, useBusy } from "../../app/store";
 import { Button } from "../../ui/Button";
 import { Banner, toast } from "../../ui/Feedback";
@@ -28,17 +27,10 @@ import { Avatar } from "../../ui/Git";
 import { Select } from "../../ui/Select";
 import { cn } from "../../ui/cn";
 import { locale, t } from "../../i18n";
-import { isCli } from "../Preferences/ai/model";
 import { SafeMarkdown } from "./Markdown";
 import { BlockTitle, When, userName } from "./parts";
 import { REVIEW_FEATURE, fixAvailability, replyDraft, splitThreads, targetHint, threadLines } from "./reviewModel";
 
-type FailedView = Exclude<AiErrorView, { kind: "cancelled" }>;
-type Run =
-  | { kind: "idle" }
-  | { kind: "running"; startedAt: number }
-  | { kind: "failed"; view: FailedView }
-  | { kind: "error"; text: string };
 type Ai = { visible: boolean; opensSetup: boolean; local: boolean; provider: AiProviderKind | null };
 
 /** The hunk of a suggestion; the sign and a hidden word say what a line is, not only the colour. */
@@ -69,76 +61,6 @@ function DiffLines({ fix }: { fix: AiReviewFix }) {
   );
 }
 
-/**
- * The inline error of a thread with its actions. An invalid or too large request can be sent again or
- * looked at; over the limit, "Send this time" sends this one request again; a signed-out command-line
- * tool gets "Sign in in the terminal", and without an open repository tab the line says how to sign in
- * instead.
- */
-export function FailedNote({
-  view,
-  provider,
-  onAgain,
-  onLook,
-}: {
-  view: FailedView;
-  provider: AiProviderKind | null;
-  onAgain: () => void;
-  onLook: () => void;
-}) {
-  const [noTerminal, setNoTerminal] = useState(false);
-  return (
-    <div role="alert" data-review-error={view.kind} className="flex flex-col gap-2 px-3 pb-2">
-      <div className="flex flex-wrap items-center gap-2 text-sm text-text">
-        <span className="min-w-0 flex-1">{view.text}</span>
-        {view.kind === "invalid" || view.kind === "tooLarge" ? (
-          <>
-            <Button size="sm" onClick={onAgain}>
-              {t("pullRequest.view.reviewThreads.again")}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={onLook}>
-              {t("pullRequest.view.reviewThreads.lookSent")}
-            </Button>
-          </>
-        ) : null}
-        {view.kind === "unavailable" ? (
-          <Button size="sm" onClick={onAgain}>
-            {t("pullRequest.view.reviewThreads.retry")}
-          </Button>
-        ) : null}
-        {view.kind === "setup" ? (
-          <Button size="sm" onClick={() => void openAiSetup()}>
-            {t("ai.state.setup")}
-          </Button>
-        ) : null}
-        {view.kind === "limit" ? (
-          <>
-            <Button size="sm" data-review-limit-send="" onClick={onAgain}>
-              {t("ai.state.limitSend")}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={openAiSettings}>
-              {t("ai.state.limitChange")}
-            </Button>
-          </>
-        ) : null}
-        {view.kind === "notLoggedIn" ? (
-          <>
-            {provider && isCli(provider) ? (
-              <Button size="sm" data-review-sign-in="" onClick={() => setNoTerminal(!signInInTerminal(provider))}>
-                {t("ai.setup.cli.signIn")}
-              </Button>
-            ) : null}
-            <Button size="sm" onClick={onAgain}>
-              {t("pullRequest.view.reviewThreads.again")}
-            </Button>
-          </>
-        ) : null}
-      </div>
-      {noTerminal ? <p className="text-sm break-words text-text-muted">{t("ai.settings.signInNoRepo")}</p> : null}
-    </div>
-  );
-}
-
 function ThreadCard({
   repoId,
   pr,
@@ -156,91 +78,46 @@ function ThreadCard({
   hostName: string;
   onApplied: (applied: ReviewFixApplied) => void;
 }) {
-  const [run, setRun] = useState<Run>({ kind: "idle" });
-  const [clock, setClock] = useState(() => Date.now());
+  const job = useAiJob(ai.local, t("pullRequest.view.reviewThreads.writing"));
+  const { run, running, loading } = job;
+  /** Applying the fix failed (the AI part went fine). */
+  const [applyError, setApplyError] = useState<string | null>(null);
   const [fix, setFix] = useState<AiReviewFix | null>(null);
   const [target, setTarget] = useState("");
-  const [lastPreview, setLastPreview] = useState<AiPreview | null>(null);
   const [replyOpen, setReplyOpen] = useState(false);
   const [reply, setReply] = useState("");
   const [applying, setApplying] = useState(false);
-  /** Job of the running request; null = none (the late answer of a cancelled one is dropped). */
-  const active = useRef<string | null>(null);
   const posting = useBusy(prBusyKeys.write(repoId, pr.number));
   const availability = fixAvailability(thread, { visible: ai.visible && pr.state === "open", opensSetup: ai.opensSetup });
-  const running = run.kind === "running";
   const lines = threadLines(thread);
   const input = { kind: "review_fix" as const, number: pr.number, threadId: thread.id };
-
-  useEffect(() => {
-    if (!running) return;
-    const timer = window.setInterval(() => setClock(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [running]);
-
-  // Leaving the view cancels a running request; its answer is dropped.
-  useEffect(
-    () => () => {
-      const jobId = active.current;
-      active.current = null;
-      if (jobId) void core.jobCancel({ jobId }).catch(() => undefined);
-    },
-    [],
-  );
-
-  const fail = (error: unknown) => {
-    const view = errorView(error);
-    setRun(view.kind === "cancelled" ? { kind: "idle" } : { kind: "failed", view });
-  };
 
   const suggest = async () => {
     if (availability === "setup") {
       void openAiSetup();
       return;
     }
-    if (availability !== "ready" || active.current) return;
-    setRun({ kind: "idle" });
-    let preview: AiPreview;
+    if (availability !== "ready" || job.busy()) return;
+    job.reset();
+    setApplyError(null);
     try {
-      preview = await core.aiPreview({ repoId, feature: REVIEW_FEATURE, input, locale: locale() });
+      if (!(await askAi(repoId, REVIEW_FEATURE, input))) return;
     } catch (error) {
-      fail(error);
+      job.fail(error);
       return;
     }
-    setLastPreview(preview);
-    if (!(await confirmSend(repoId, REVIEW_FEATURE, preview))) return;
-    const jobId = newJobId();
-    active.current = jobId;
-    setClock(Date.now());
-    setRun({ kind: "running", startedAt: Date.now() });
-    try {
-      const answer = await core.aiReviewFix({ repoId, jobId, number: pr.number, threadId: thread.id, locale: locale() });
-      if (active.current !== jobId) return;
-      setFix(answer);
-      setTarget(answer.target?.sha ?? "");
-      setReply(replyDraft(answer.why, null));
-      setRun({ kind: "idle" });
-    } catch (error) {
-      if (active.current === jobId) fail(error);
-    } finally {
-      if (active.current === jobId) active.current = null;
-    }
+    const answer = await job.start((jobId) =>
+      core.aiReviewFix({ repoId, jobId, number: pr.number, threadId: thread.id, locale: locale() }),
+    );
+    if (!answer) return;
+    setFix(answer);
+    setTarget(answer.target?.sha ?? "");
+    setReply(replyDraft(answer.why, null));
   };
 
-  const cancel = () => {
-    const jobId = active.current;
-    active.current = null;
-    setRun({ kind: "idle" });
-    if (jobId) void core.jobCancel({ jobId }).catch(() => undefined);
-  };
+  const cancel = job.cancel;
 
-  const whatIsSent = async () => {
-    try {
-      await showAiPreview(lastPreview ?? (await core.aiPreview({ repoId, feature: REVIEW_FEATURE, input, locale: locale() })), "look");
-    } catch (error) {
-      fail(error);
-    }
-  };
+  const whatIsSent = () => showWhatIsSent(repoId, REVIEW_FEATURE, input, job.fail);
 
   const checkout = async () => {
     if (fix && (await checkoutPr(repoId, pr))) setFix({ ...fix, onBranch: true });
@@ -273,11 +150,11 @@ function ThreadCard({
     );
     setApplying(false);
     if (!result.ok) {
-      setRun({ kind: "error", text: result.error.message });
+      setApplyError(result.error.message);
       return;
     }
     setFix(null);
-    setRun({ kind: "idle" });
+    setApplyError(null);
     setReply(replyDraft(fix.why, result.value.commit));
     onApplied(result.value);
     toast({
@@ -302,7 +179,6 @@ function ThreadCard({
     void queryClient.invalidateQueries({ queryKey: qk.prReviewThreads(repoId, pr.number) });
   };
 
-  const loading = run.kind === "running" ? loadingView(clock - run.startedAt, ai.local, t("pullRequest.view.reviewThreads.writing")) : null;
   const options = [
     ...(target ? [] : [{ value: "none", label: t("pullRequest.view.reviewThreads.chooseTarget"), disabled: true }]),
     ...(fix?.candidates ?? []).map((candidate) => ({ value: candidate.sha, label: `${shortSha(candidate.sha)} ${candidate.summary}` })),
@@ -366,11 +242,17 @@ function ThreadCard({
         {loading ? `${loading.text}${loading.slow ? ` ${loading.slow}` : ""}` : ""}
       </p>
       {run.kind === "failed" ? (
-        <FailedNote view={run.view} provider={ai.provider} onAgain={() => void suggest()} onLook={() => void whatIsSent()} />
+        <AiErrorNotice
+          name="review-error"
+          view={run.view}
+          provider={ai.provider}
+          onAgain={() => void suggest()}
+          onShowSent={() => void whatIsSent()}
+        />
       ) : null}
-      {run.kind === "error" ? (
+      {applyError ? (
         <p role="alert" data-review-error="apply" className="px-3 pb-2 text-sm text-text">
-          {run.text}
+          {applyError}
         </p>
       ) : null}
       {fix ? (
