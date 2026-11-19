@@ -460,6 +460,9 @@ pub struct Settings {
     /// Conflict tool: show the common ancestor between both sides (global).
     #[serde(default)]
     pub conflict_show_base: bool,
+    /// Branch cleaner: a branch without a commit for longer than this many days is stale (1 to 3650).
+    #[serde(default = "default_branch_cleanup_stale_days")]
+    pub branch_cleanup_stale_days: u32,
     /// The user's own coding-agent templates (Settings › Coding agents). Global; the built-in
     /// templates (Claude Code, Codex, opencode) are not stored.
     #[serde(default)]
@@ -524,6 +527,10 @@ fn yes() -> bool {
     true
 }
 
+fn default_branch_cleanup_stale_days() -> u32 {
+    90
+}
+
 impl Default for Settings {
     fn default() -> Self {
         Settings {
@@ -555,6 +562,7 @@ impl Default for Settings {
             notify_on_error: true,
             check_for_updates: true,
             conflict_show_base: false,
+            branch_cleanup_stale_days: default_branch_cleanup_stale_days(),
             agent_templates: Vec::new(),
             ssh_use_agent: true,
             proxy_url: None,
@@ -622,6 +630,10 @@ pub struct RepoSettings {
     /// characters; stored in the app (`repo_settings`), never in .git/config.
     #[serde(default)]
     pub ai_commit_instruction: Option<String>,
+    /// Branch cleaner: own patterns of protected branches, on top of the defaults (only `*` is a
+    /// wildcard and also crosses `/`). Trimmed, without empty entries and duplicates.
+    #[serde(default)]
+    pub protected_branch_patterns: Vec<String>,
 }
 
 impl Default for RepoSettings {
@@ -643,6 +655,7 @@ impl Default for RepoSettings {
             test_command: None,
             ai_off: false,
             ai_commit_instruction: None,
+            protected_branch_patterns: Vec::new(),
         }
     }
 }

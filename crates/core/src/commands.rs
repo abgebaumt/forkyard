@@ -11,6 +11,7 @@ pub mod archaeology;
 pub mod auth;
 pub mod avatars;
 pub mod bisect;
+pub mod branch_cleanup;
 pub mod branches;
 pub mod cleanup;
 pub mod cli;

@@ -533,6 +533,11 @@ export type RepoSettings = {
    * characters; stored in the app (`repo_settings`), never in .git/config.
    */
   aiCommitInstruction: string | null;
+  /**
+   * Branch cleaner: own patterns of protected branches, on top of the defaults (only `*` is a
+   * wildcard and also crosses `/`). Trimmed, without empty entries and duplicates.
+   */
+  protectedBranchPatterns: Array<string>;
 };
 
 /**
@@ -582,6 +587,10 @@ export type Settings = {
    * Conflict tool: show the common ancestor between both sides (global).
    */
   conflictShowBase: boolean;
+  /**
+   * Branch cleaner: a branch without a commit for longer than this many days is stale (1 to 3650).
+   */
+  branchCleanupStaleDays: number;
   /**
    * The user's own coding-agent templates (Settings › Coding agents). Global; the built-in
    * templates (Claude Code, Codex, opencode) are not stored.

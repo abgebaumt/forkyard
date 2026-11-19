@@ -533,6 +533,8 @@ mod tests {
         assert!(v["externalEditor"].is_null());
         assert_eq!(v["conflictShowBase"], false);
         assert!(crate::db::app_settings::is_global("conflictShowBase"));
+        assert_eq!(v["branchCleanupStaleDays"], 90);
+        assert!(!crate::db::app_settings::is_global("branchCleanupStaleDays"), "per profile");
         assert_eq!(serde_json::to_value(TabKind::Management).unwrap(), "management");
         assert_eq!(serde_json::to_value(ExternalTarget::FileManager).unwrap(), "file_manager");
         assert_eq!(serde_json::to_value(ExternalTarget::DiffTool).unwrap(), "diff_tool");
