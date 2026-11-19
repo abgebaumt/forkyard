@@ -367,7 +367,11 @@ pub fn known_path(core: &Core, settings: &Settings, kind: AiProviderKind) -> Opt
 
 /// Searches the tool: only in the search folder if one is set, else PATH → install folders → login shell.
 pub async fn locate_cli(core: &Core, kind: AiProviderKind, configured: Option<&Path>) -> Option<locate::ToolInfo> {
-    let name = kind.tool_name()?;
+    locate_program(core, kind.tool_name()?, configured).await
+}
+
+/// `locate_cli` for any program name (agent templates): the search folder, when set, is the only place.
+pub async fn locate_program(core: &Core, name: &str, configured: Option<&Path>) -> Option<locate::ToolInfo> {
     match search_dir(core) {
         Some(dir) => {
             let spec = locate::SearchSpec {

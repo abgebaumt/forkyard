@@ -17,6 +17,7 @@ mod tests;
 
 use std::path::{Path, PathBuf};
 
+use crate::ai::cli::locate_program;
 use crate::app::Core;
 use crate::commands::{trust, worktree};
 use crate::db;
@@ -24,7 +25,7 @@ use crate::db::agents::{AgentRow, EndReason};
 use crate::error::{CoreError, CoreResult};
 use crate::git::rev;
 use crate::model::{Agent, AgentStatus, AgentStatusSource, AgentSuggestion, AgentTemplateInfo, AgentTemplateKind};
-use crate::tools::locate::{locate, ToolInfo};
+use crate::tools::locate::ToolInfo;
 use crate::util;
 use registry::AgentRegistry;
 use templates::TemplateDef;
@@ -158,15 +159,16 @@ pub const MAX_TASK_BYTES: usize = 64 * 1024;
 /// Where the template's program is, through program search: a path (with a separator) is
 /// the configured location, a name is searched on PATH, at the usual places and in the login shell's
 /// PATH. The terminal needs an absolute file; a configured path that is no file is not found (no
-/// search for a program of the same name).
+/// search for a program of the same name). With a search folder set (tests, E2E) only that folder
+/// is searched, like for the AI tools: an isolated app must never find and start a real agent.
 pub(crate) async fn resolve_program(core: &Core, def: &TemplateDef) -> Option<ToolInfo> {
     let given = Path::new(&def.program);
     if given.is_absolute() || given.components().count() > 1 {
         let path = std::path::absolute(given).ok().filter(|path| path.is_file())?;
         let name = path.file_name()?.to_string_lossy().into_owned();
-        return locate(core, &name, Some(&path)).await;
+        return locate_program(core, &name, Some(&path)).await;
     }
-    locate(core, &def.program, None).await
+    locate_program(core, &def.program, None).await
 }
 
 /// How long the start dialog waits for a tool's answer on its sign-in.

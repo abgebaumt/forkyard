@@ -32,7 +32,7 @@ const numbered = (side) =>
 
 /**
  * The app must never find a real coding agent (it would start it and send the task to a real
- * service): a throw-away HOME, SHELL=/bin/sh and a PATH without any folder that holds one of them
+ * service): an empty search folder, a throw-away HOME, SHELL=/bin/sh and a PATH without any folder that holds one of them
  * (same isolation as agents.mjs).
  */
 function isolatedEnv() {
@@ -43,7 +43,11 @@ function isolatedEnv() {
     .split(path.delimiter)
     .filter((dir) => dir && !holdsAgent(dir))
     .join(path.delimiter);
-  return { HOME: home, SHELL: "/bin/sh", PATH };
+  // The only folder the app searches agent programs in (debug builds): the login shell's profile
+  // (/etc/profile) would add folders like /snap/bin no environment variable keeps out.
+  const FORKYARD_AI_CLI_DIR = path.join(home, "no-agents");
+  fs.mkdirSync(FORKYARD_AI_CLI_DIR);
+  return { HOME: home, SHELL: "/bin/sh", PATH, FORKYARD_AI_CLI_DIR };
 }
 
 async function setUp(t, lang) {
