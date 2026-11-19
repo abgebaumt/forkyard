@@ -55,6 +55,7 @@ import {
 } from "./model";
 import { t } from "../../i18n";
 import { writeClipboard } from "../../app/actions/clipboard";
+import { readRowHeight } from "../../components/VirtualList";
 
 export type PatchTarget = { kind: "selection" } | { kind: "hunk"; hunkOrd: number };
 
@@ -96,13 +97,6 @@ const signLabels = { context: "", add: t("diff.line.added"), remove: t("diff.lin
 const lineTone = { context: "", add: "bg-diff-added", remove: "bg-diff-removed" } as const;
 const gutterTone = { context: "bg-surface-sunken", add: "bg-diff-added", remove: "bg-diff-removed" } as const;
 const markTone = { context: "", add: "bg-diff-added-strong", remove: "bg-diff-removed-strong" } as const;
-
-/** Reads a size from the tokens (`--gc-size-*`) in pixels. */
-function tokenPx(name: string, fallback: number): number {
-  if (typeof document === "undefined") return fallback;
-  const value = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
-  return Number.isFinite(value) && value > 0 ? value : fallback;
-}
 
 const isFocusable = (row: Row | undefined) => row?.type === "line" || row?.type === "fold";
 
@@ -356,7 +350,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
   const caps = lineCaps(patchMode, canPatch);
   const allowSelect = caps.select;
 
-  const sizes = useMemo(() => ({ hunk: tokenPx("--gc-size-control-lg", 32), row: tokenPx("--gc-size-row", 24), gap: 8 }), []);
+  const sizes = useMemo(() => ({ hunk: readRowHeight("--gc-size-control-lg", 32), row: readRowHeight("--gc-size-row", 24), gap: 8 }), []);
   // The cursor is always on a focusable row – also after the content has changed.
   const cursorIndex = useMemo(() => {
     const start = Math.min(Math.max(cursor, 0), Math.max(rows.length - 1, 0));

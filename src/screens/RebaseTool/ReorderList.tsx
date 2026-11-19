@@ -24,13 +24,7 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { GripVertical } from "lucide-react";
 import { cn } from "../../ui/cn";
-
-/** Row height from the token `size.graph-row` – rebase rows carry a select and need a bit more room. */
-function readRowHeight(): number {
-  if (typeof document === "undefined") return 28;
-  const value = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gc-size-graph-row"));
-  return Number.isFinite(value) && value > 0 ? value : 28;
-}
+import { readRowHeight } from "../../components/VirtualList";
 
 /** Movement from which a click becomes a drag (in CSS pixels). */
 const DRAG_THRESHOLD = 4;
@@ -95,7 +89,8 @@ export function ReorderList(props: ReorderListProps) {
   const ownRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = listRef ?? ownRef;
   const baseId = useId();
-  const rowHeight = useMemo(readRowHeight, []);
+  // Rebase rows carry a select and need a bit more room: the graph row height.
+  const rowHeight = useMemo(() => readRowHeight("--gc-size-graph-row", 28), []);
   const virtualizer = useVirtualizer({
     count,
     getScrollElement: () => scrollRef.current,

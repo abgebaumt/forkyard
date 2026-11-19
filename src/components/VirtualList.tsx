@@ -9,11 +9,11 @@ import { useEffect, useId, useMemo, useRef, type KeyboardEvent, type ReactNode }
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "../ui/cn";
 
-/** Row height from the token `size.row`. */
-function readRowHeight(): number {
-  if (typeof document === "undefined") return 24;
-  const value = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gc-size-row"));
-  return Number.isFinite(value) && value > 0 ? value : 24;
+/** A size token (`--gc-size-*`) in pixels; default: the row height `size.row`. */
+export function readRowHeight(token = "--gc-size-row", fallback = 24): number {
+  if (typeof document === "undefined") return fallback;
+  const value = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue(token));
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 export interface VirtualListProps {
@@ -47,7 +47,7 @@ export function VirtualList({
 }: VirtualListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const baseId = useId();
-  const rowHeight = useMemo(readRowHeight, []);
+  const rowHeight = useMemo(() => readRowHeight(), []);
   const virtualizer = useVirtualizer({
     count,
     getScrollElement: () => scrollRef.current,
