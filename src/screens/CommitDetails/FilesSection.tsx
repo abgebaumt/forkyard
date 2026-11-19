@@ -12,10 +12,10 @@ import { FileLayoutSwitch, FileList, nextFileSelection, type FileLock, type File
 import { fileLock, useLockIndex } from "../Lfs/locks";
 import { Button, IconButton, Spinner } from "../../ui/Button";
 import { cn } from "../../ui/cn";
-import { EmptyState, toast } from "../../ui/Feedback";
+import { EmptyState, toast, SkeletonRows } from "../../ui/Feedback";
 import { SegmentedControl } from "../../ui/Field";
 import type { MenuEntry } from "../../ui/Menu";
-import { errorParts, LineCounts, PanelError, SectionLabel, SkeletonRows } from "./parts";
+import { errorParts, LineCounts, PanelError, SectionLabel } from "./parts";
 import { writeClipboard } from "../../app/actions/clipboard";
 import { VirtualList } from "./VirtualList";
 import { locale, t } from "../../i18n";

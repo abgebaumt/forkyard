@@ -20,6 +20,7 @@ import { cn } from "../ui/cn";
 import { SegmentedControl } from "../ui/Field";
 import { locale, t } from "../i18n";
 import { baseName, splitPath } from "../app/paths";
+import { SkeletonRows } from "../ui/Feedback";
 
 /** Switch between flat list and folder tree, the same in every file panel. */
 export function FileLayoutSwitch({ value, onChange }: { value: FileListView; onChange: (view: FileListView) => void }) {
@@ -207,21 +208,6 @@ const fromOutside = (event: { currentTarget: EventTarget; target: EventTarget })
 /** Indentation per level: three units of the spacing grid (12 px), as in the ref list. */
 const indent = (depth: number): CSSProperties | undefined =>
   depth > 0 ? { paddingLeft: `calc(var(--spacing) * ${2 + depth * 3})` } : undefined;
-
-const SKELETON_WIDTHS = ["w-2/5", "w-3/5", "w-1/3", "w-1/2", "w-2/3", "w-1/4"];
-
-function SkeletonRows({ label }: { label: string }) {
-  return (
-    <div role="status" aria-label={t("graph.fileList.loading", { label })} className="animate-pulse">
-      {SKELETON_WIDTHS.map((width, index) => (
-        <div key={index} aria-hidden className="flex h-row items-center gap-2 px-2">
-          <span className="size-3 shrink-0 rounded-sm bg-surface-raised" />
-          <span className={cn("h-2 rounded-sm bg-surface-raised", width)} />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function nearestScrollParent(element: HTMLElement | null): HTMLElement | null {
   let node = element?.parentElement ?? null;
@@ -479,7 +465,7 @@ export function FileList({
     if (next !== index || row.kind === "file") moveTo(next, event);
   };
 
-  if (loading) return <SkeletonRows label={ariaLabel} />;
+  if (loading) return <SkeletonRows label={t("graph.fileList.loading", { label: ariaLabel })} />;
   if (files.length === 0) return <div className="px-2 py-1 text-sm text-text-muted">{empty}</div>;
 
   const menuTargets = (file: FileChange) =>

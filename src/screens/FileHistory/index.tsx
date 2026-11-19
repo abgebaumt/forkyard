@@ -47,7 +47,7 @@ import { useFileHistory, useStatus } from "../../app/queries";
 import { useAppStore, useBusy } from "../../app/store";
 import { Button } from "../../ui/Button";
 import { cn } from "../../ui/cn";
-import { Banner, EmptyState } from "../../ui/Feedback";
+import { Banner, EmptyState, Centered } from "../../ui/Feedback";
 import { Avatar, StatusBadge } from "../../ui/Git";
 import type { MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
@@ -340,14 +340,6 @@ export function FileHistory({ repoId, tabId, path }: FileHistoryProps) {
       ) : null}
       {content}
     </section>
-  );
-}
-
-function Centered({ children, ...rest }: { children: ReactNode } & Record<`data-${string}`, string>) {
-  return (
-    <div className="flex min-h-0 flex-1 items-center justify-center bg-surface-sunken" {...rest}>
-      {children}
-    </div>
   );
 }
 

@@ -131,7 +131,6 @@
     "listLabel": "Files in this stash",
     "empty": "This stash contains no files."
   },
-  "loading": "Loading",
   "retry": "Try again",
   "copied": "Copied",
   "date": {

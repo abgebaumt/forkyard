@@ -3,12 +3,12 @@
  * text field with immediate saving, badges, skeleton and error box.
  */
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { Check, RefreshCw, TriangleAlert } from "lucide-react";
+import { Check } from "lucide-react";
 import { Button } from "../../ui/Button";
 import { TextField } from "../../ui/Field";
 import { cn } from "../../ui/cn";
-import { describeError } from "../../app/errors";
 import { t } from "../../i18n";
+import { LoadError as BaseLoadError } from "../../ui/Feedback";
 
 // ---------------------------------------------------------------------------
 // Section
@@ -321,21 +321,9 @@ export function SettingsSkeleton({ rows = 5 }: { rows?: number }) {
 }
 
 /** A section could not be loaded: reason and "Try again". `title` is the whole sentence ("… could not be loaded"). */
-export function LoadError({ title, error, onRetry }: { title: string; error: unknown; onRetry: () => void }) {
-  const { text, hint } = describeError(error);
-  return (
-    <div role="alert" className="flex items-start gap-3 rounded-md border border-border bg-danger-surface p-3">
-      <TriangleAlert className="mt-0.5 size-icon shrink-0 text-danger" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className="font-medium text-text">{title}</p>
-        <p className="selectable text-sm break-words text-text-muted">{hint ? `${text} ${hint}` : text}</p>
-      </div>
-      <Button size="sm" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={onRetry}>
-        {t("preferences.row.retry")}
-      </Button>
-    </div>
-  );
-}
+export const LoadError = (props: { title: string; error: unknown; onRetry: () => void }) => (
+  <BaseLoadError className="rounded-md border border-border bg-danger-surface p-3" {...props} />
+);
 
 /** Value to read and select, e.g. a path or fingerprint. Truncates and shows the full text in the tooltip. */
 export function Mono({ children, className, wrap }: { children: string; className?: string; wrap?: boolean }) {

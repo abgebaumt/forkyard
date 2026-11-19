@@ -44,11 +44,10 @@ import { useAppStore, useBusy } from "../../app/store";
 import { CodeEditor } from "../../components/code";
 import { Button, IconButton } from "../../ui/Button";
 import { cn } from "../../ui/cn";
-import { Banner, toast } from "../../ui/Feedback";
+import { Banner, toast, Notice } from "../../ui/Feedback";
 import { SegmentedControl } from "../../ui/Field";
 import { DropdownMenu, type MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
-import { Notice } from "../DiffView/OtherKinds";
 import { locale, t } from "../../i18n";
 import {
   EMPTY_TREE,

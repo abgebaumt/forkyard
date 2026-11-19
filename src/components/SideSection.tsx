@@ -20,10 +20,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
-import { RefreshCw, TriangleAlert } from "lucide-react";
 import { hasOpenDialog } from "../app/dialogs";
-import { describeError } from "../app/errors";
-import { Button } from "../ui/Button";
 import { cn } from "../ui/cn";
 import { PanelSection } from "../ui/Git";
 import { ContextMenu, type MenuAction, type MenuEntry } from "../ui/Menu";
@@ -443,25 +440,6 @@ export function SideEmpty({ children, action }: { children: ReactNode; action?: 
     <div className="flex min-h-row items-center gap-2 py-1 pr-1 pl-4.5 text-sm text-text-muted" data-empty>
       <span className="min-w-0 flex-1">{children}</span>
       {action}
-    </div>
-  );
-}
-
-export function SideLoadError({ title, error, onRetry }: { title: string; error: unknown; onRetry: () => void }) {
-  const { text, hint } = describeError(error);
-  return (
-    <div role="alert" className="flex flex-col items-start gap-2 px-2 py-2 text-sm" data-load-error>
-      <p className="flex items-start gap-1.5 font-medium text-text">
-        <TriangleAlert className="mt-px size-3.5 shrink-0 text-danger" aria-hidden />
-        {title}
-      </p>
-      <p className="selectable break-words text-text-muted">
-        {text}
-        {hint ? ` ${hint}` : ""}
-      </p>
-      <Button size="sm" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={onRetry}>
-        {t("graph.sideSection.retry")}
-      </Button>
     </div>
   );
 }

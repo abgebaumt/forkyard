@@ -8,8 +8,7 @@
     "layoutTree": "Tree"
   },
   "sideSection": {
-    "noActions": "No actions available",
-    "retry": "Try again"
+    "noActions": "No actions available"
   },
   "code": {
     "controlCharacter": "Control character",

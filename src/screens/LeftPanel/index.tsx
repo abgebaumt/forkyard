@@ -20,11 +20,9 @@ import {
   ListFilter,
   Minimize2,
   Plus,
-  RefreshCw,
   Search,
   SearchX,
   Tag,
-  TriangleAlert,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -40,7 +38,6 @@ import { runAction } from "../../app/run";
 import { useAppStore } from "../../app/store";
 import { useBranchHover } from "../../components/graph/useBranchHover";
 import { Button, IconButton } from "../../ui/Button";
-import { cn } from "../../ui/cn";
 import { PanelSection } from "../../ui/Git";
 import { ariaShortcut, formatShortcut } from "../../ui/shortcut";
 import { ContextMenu, type MenuEntry } from "../../ui/Menu";
@@ -74,6 +71,7 @@ import {
 } from "./viewState";
 import { ExtraSections, extraSectionEntries } from "./ExtraSections";
 import { t } from "../../i18n";
+import { LoadError, SkeletonRows } from "../../ui/Feedback";
 
 export interface LeftPanelProps {
   repoId: Id;
@@ -114,44 +112,11 @@ export function LeftPanel({ repoId, tabId }: LeftPanelProps) {
   return <Panel key={`${repoId}:${tabId}`} repoId={repoId} tabId={tabId} />;
 }
 
-function SkeletonRows({ count }: { count: number }) {
-  const widths = ["w-28", "w-36", "w-20", "w-32"];
-  return (
-    <div aria-hidden data-skeleton>
-      {Array.from({ length: count }, (_, index) => (
-        <div key={index} className="flex h-row items-center gap-1.5 px-2">
-          <span className="size-3.5 shrink-0 animate-pulse rounded-sm bg-surface-raised" />
-          <span className={cn("h-2.5 animate-pulse rounded-sm bg-surface-raised", widths[index % widths.length])} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function EmptyLine({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex min-h-row items-center gap-2 pr-1 pl-2 text-sm text-text-muted" data-empty>
       <span className="min-w-0 flex-1 truncate">{children}</span>
       {action}
-    </div>
-  );
-}
-
-function LoadError({ title, error, onRetry }: { title: string; error: unknown; onRetry: () => void }) {
-  const { text, hint } = describeError(error);
-  return (
-    <div role="alert" className="flex flex-col items-start gap-2 border-b border-border px-2 py-3 text-sm" data-load-error>
-      <p className="flex items-start gap-1.5 font-medium text-text">
-        <TriangleAlert className="mt-px size-3.5 shrink-0 text-danger" aria-hidden />
-        {title}
-      </p>
-      <p className="selectable break-words text-text-muted">
-        {text}
-        {hint ? ` ${hint}` : ""}
-      </p>
-      <Button size="sm" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={onRetry}>
-        {t("sidebar.retry")}
-      </Button>
     </div>
   );
 }
@@ -804,7 +769,14 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
     if (key === "stashes") {
       if (stashesQuery.isPending) return <SkeletonRows count={1} />;
       if (stashesQuery.isError && !stashesQuery.data) {
-        return <LoadError title={t("sidebar.stashesFailed")} error={stashesQuery.error} onRetry={() => void stashesQuery.refetch()} />;
+        return (
+          <LoadError
+            className="border-b border-border py-3"
+            title={t("sidebar.stashesFailed")}
+            error={stashesQuery.error}
+            onRetry={() => void stashesQuery.refetch()}
+          />
+        );
       }
     } else if (refsLoading) {
       return <SkeletonRows count={key === "local" ? 4 : 2} />;
@@ -984,7 +956,12 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
             {...branchHover}
           >
             {refsFailed ? (
-              <LoadError title={t("sidebar.refsFailed")} error={refsQuery.error} onRetry={() => void refsQuery.refetch()} />
+              <LoadError
+                className="border-b border-border py-3"
+                title={t("sidebar.refsFailed")}
+                error={refsQuery.error}
+                onRetry={() => void refsQuery.refetch()}
+              />
             ) : null}
 
             {nothingFound ? (

@@ -108,7 +108,6 @@
     "reset": "Reset",
     "saved": "Saved",
     "loading": "Loading settings",
-    "retry": "Try again",
     "browse": "Browse"
   },
   "inherit": {
