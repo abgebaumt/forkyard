@@ -375,12 +375,9 @@ pub async fn agent_start(
         return Err(CoreError::name_exists(format!("A branch “{branch}” already exists.")));
     }
     let base_sha = rev::resolve_commit(core, &repo_id, &base).await?;
-    let main = worktree::main_worktree_path(core, &repo_id).await?;
-    let dir = names::agents_dir(&main)?;
+    let dir = worktree::scratch_dir(core, &repo_id).await?;
     let rows_now = core.db.with(|c| db::agents::list_for_repo(c, &repo_id))?;
     let short_name = names::free_name(&dir, &names::short_name_for_branch(&branch), &|name| rows_now.iter().any(|r| r.short_name == name))?;
-    std::fs::create_dir_all(&dir)
-        .map_err(|e| CoreError::io(format!("The folder {} could not be created: {e}", util::display_path(&dir))))?;
     let folder = dir.join(&short_name);
     worktree::worktree_add(core, repo_id.clone(), folder.to_string_lossy().into_owned(), branch.clone(), true, Some(base_sha.clone()))
         .await?;

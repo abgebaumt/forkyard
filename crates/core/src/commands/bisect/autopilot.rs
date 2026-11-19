@@ -19,7 +19,6 @@ use parking_lot::Mutex;
 
 use crate::ai::features::bisect::{check_range, normalize_script, script_problem};
 use crate::app::Core;
-use crate::commands::agents::names;
 use crate::commands::bisect::read_bisect_at;
 use crate::commands::worktree::{self, main_worktree_path};
 use crate::error::{CoreError, CoreResult, ErrorCode};
@@ -128,7 +127,7 @@ fn inside(path: &Path, root: &Path) -> bool {
 }
 
 fn free_folder(dir: &Path) -> CoreResult<PathBuf> {
-    (1..=MAX_FOLDERS).map(|n| dir.join(format!("bisect-{n}"))).find(|path| !path.exists()).ok_or_else(|| {
+    worktree::free_folder(dir, (1..=MAX_FOLDERS).map(|n| format!("bisect-{n}"))).ok_or_else(|| {
         CoreError::name_exists(format!(
             "There are already {MAX_FOLDERS} bisect worktrees in “{}”. Remove some first.",
             util::display_path(dir)
@@ -256,8 +255,7 @@ async fn drive(
 ) -> CoreResult<BisectAutopilot> {
     remove_leftovers(core, repo_id).await;
     let main = main_worktree_path(core, repo_id).await?;
-    let dir = names::agents_dir(&main)?;
-    std::fs::create_dir_all(&dir).map_err(|e| CoreError::io(format!("Couldn’t create “{}”: {e}", util::display_path(&dir))))?;
+    let dir = worktree::scratch_dir(core, repo_id).await?;
     let wt = free_folder(&dir)?;
     let script_dir = core.data_dir().join("bisect").join(util::new_id());
     if inside(&script_dir, &main) || inside(&script_dir, &wt) {

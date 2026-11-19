@@ -126,6 +126,20 @@ pub async fn worktree_list(core: &Core, repo_id: String) -> CoreResult<Vec<Workt
     list(core, &repo_id).await
 }
 
+/// `<parent>/<repo>.agents` next to the main worktree, created if missing: the home of the scratch
+/// worktrees of coding agents, stack checks and the bisect autopilot.
+pub(crate) async fn scratch_dir(core: &Core, repo_id: &str) -> CoreResult<PathBuf> {
+    let dir = crate::commands::agents::names::agents_dir(&main_worktree_path(core, repo_id).await?)?;
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| CoreError::io(format!("The folder “{}” couldn't be created: {e}", util::display_path(&dir))))?;
+    Ok(dir)
+}
+
+/// The first of `names` that names nothing in `dir` yet – no file, folder or (dangling) link.
+pub(crate) fn free_folder(dir: &Path, names: impl IntoIterator<Item = String>) -> Option<PathBuf> {
+    names.into_iter().map(|name| dir.join(name)).find(|path| std::fs::symlink_metadata(path).is_err())
+}
+
 /// Folder of the main worktree (the first entry of `git worktree list`), also when `repo_id` is a
 /// linked worktree.
 pub(crate) async fn main_worktree_path(core: &Core, repo_id: &str) -> CoreResult<PathBuf> {
