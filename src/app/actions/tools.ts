@@ -11,6 +11,7 @@ import { runAction } from "../run";
 import { useAppStore } from "../store";
 import { clip } from "./context";
 import { baseName } from "../paths";
+import { busyKeys } from "./keys";
 
 function explain(title: string, error: unknown) {
   toast({
@@ -30,7 +31,7 @@ export async function openDiffTool(repoId: Id, path: string, source: DiffSource)
     t("actions.files.external.diffTool"),
     () => core.openExternal({ repoId, target: "diff_tool", path, source }),
     {
-      busyKey: `${repoId}:open:diff_tool:${path}`,
+      busyKey: busyKeys.write(repoId, `open:diff_tool:${path}`),
       quiet: ["not_found"],
     },
   );
@@ -47,7 +48,7 @@ export async function openDiffTool(repoId: Id, path: string, source: DiffSource)
 /** Opens a conflicted file in the external merge tool. What the tool writes then shows up in the app. */
 export async function openMergeTool(repoId: Id, path: string) {
   const result = await runAction(t("actions.files.external.mergeTool"), () => core.openExternal({ repoId, target: "merge_tool", path }), {
-    busyKey: `${repoId}:open:merge_tool:${path}`,
+    busyKey: busyKeys.write(repoId, `open:merge_tool:${path}`),
     quiet: ["not_found"],
   });
   if (result.ok)

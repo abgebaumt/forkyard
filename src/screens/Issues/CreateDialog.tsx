@@ -17,8 +17,9 @@ import { t } from "../../i18n";
 import { issueApi, type IssueSummary } from "./api";
 import { refreshIssues } from "./actions";
 import { checkIssueTitle } from "./model";
+import { busyKeys } from "../../app/actions/keys";
 
-const busyKey = (repoId: Id) => `${repoId}:issue:create`;
+const busyKey = (repoId: Id) => busyKeys.write(repoId, "issue:create");
 
 function CreateDialog({ repoId, where, onDone }: { repoId: Id; where: string; onDone: (created: IssueSummary | null) => void }) {
   const [title, setTitle] = useState("");

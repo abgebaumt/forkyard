@@ -7,6 +7,7 @@ import { guardSecrets, type ShowFindings } from "../../app/actions/pushCheck";
 import { newJobId, runAction } from "../../app/run";
 import { t } from "../../i18n";
 import { showSecretFindings } from "../PushCheck/SecretDialog";
+import { busyKeys } from "../../app/actions/keys";
 
 export function pushStack(
   repoId: Id,
@@ -24,7 +25,7 @@ export function pushStack(
         t("pullRequest.stack.pushAction"),
         () => core.stackPush({ repoId, jobId, branches, remote, force, expected, acceptedSecrets }),
         {
-          busyKey: `${repoId}:push`,
+          busyKey: busyKeys.push(repoId),
           job: { id: jobId, title: t("pullRequest.stack.pushAction"), repoId },
         },
       );

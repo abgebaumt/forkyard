@@ -69,6 +69,7 @@ import { MarkdownPreview } from "./MarkdownPreview";
 import { goBack } from "./nav";
 import { BackButton, CodeSkeleton, Divider, FileTitle, Tag, isPlainEscape } from "./parts";
 import { baseName } from "../../app/paths";
+import { busyKeys } from "../../app/actions/keys";
 
 export interface FileViewProps {
   repoId: Id;
@@ -88,7 +89,7 @@ const readWrap = () => {
   }
 };
 
-const busyKey = (repoId: Id, path: string) => `${repoId}:file-write:${path}`;
+const busyKey = (repoId: Id, path: string) => busyKeys.write(repoId, `file-write:${path}`);
 /** Characters outside ASCII: only then is “valid UTF-8” a reliable statement about the encoding. */
 const NON_ASCII = /[^\u0000-\u007f]/;
 

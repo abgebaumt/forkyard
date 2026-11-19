@@ -10,9 +10,10 @@ import { qk, queryClient } from "../queries";
 import { newJobId, runAction } from "../run";
 import { withFreshStatus } from "../statusCache";
 import { showWip } from "./merge";
+import { busyKeys } from "./keys";
 
 export const cachedGitflow = (repoId: Id) => queryClient.getQueryData<GitflowStatus>(qk.gitflow(repoId));
-export const gitflowBusyKey = (repoId: Id) => `${repoId}:gitflow`;
+export const gitflowBusyKey = (repoId: Id) => busyKeys.write(repoId, "gitflow");
 
 export const kindLabels: Record<GitflowKind, string> = {
   feature: t("actions.gitflow.kind.feature"),

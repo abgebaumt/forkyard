@@ -20,8 +20,9 @@ import { qk, queryClient } from "../queries";
 import { newJobId, runAction, type ActionResult } from "../run";
 import { useAppStore } from "../store";
 import { clip } from "./context";
+import { busyKeys } from "./keys";
 
-export const lfsBusyKey = (repoId: Id, what: "track" | "pull" | "prune" | "locks") => `${repoId}:lfs:${what}`;
+export const lfsBusyKey = (repoId: Id, what: "track" | "pull" | "prune" | "locks") => busyKeys.write(repoId, `lfs:${what}`);
 
 function afterChange(repoId: Id, status: LfsStatus) {
   queryClient.setQueryData(qk.lfs(repoId), status);

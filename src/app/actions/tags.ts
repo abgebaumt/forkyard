@@ -11,6 +11,7 @@ import { refNameValidator } from "./branches";
 import { cachedSettings, clip, loadRemotes } from "./context";
 import { shortSha } from "../format";
 import { addRemote } from "./sync";
+import { busyKeys } from "./keys";
 
 /**
  * Creates a tag. A dialog asks for the name and – optionally – the annotation: with text an
@@ -95,7 +96,7 @@ export async function deleteTag(repoId: Id, name: string, remote: string | true 
   });
   if (!ok) return null;
   const result = await runAction(t("actions.tags.delete.action"), () => core.tagDelete({ repoId, name, remote: target }), {
-    busyKey: `${repoId}:tag:${name}`,
+    busyKey: busyKeys.write(repoId, `tag:${name}`),
     success: target
       ? t("actions.tags.delete.doneRemote", { name: clip(name), remote: target })
       : t("actions.tags.delete.done", { name: clip(name) }),
@@ -113,7 +114,7 @@ export async function pushTag(repoId: Id, name: string, remote?: string | null) 
   const result = await guardSecrets(repoId, (acceptedSecrets) => {
     const jobId = newJobId();
     return runAction(t("actions.tags.push.label"), () => core.tagPush({ repoId, jobId, name, remote: target, acceptedSecrets }), {
-      busyKey: `${repoId}:tag:${name}`,
+      busyKey: busyKeys.write(repoId, `tag:${name}`),
       job: { id: jobId, title: t("actions.tags.push.job", { name: clip(name, 32) }), repoId },
     });
   });

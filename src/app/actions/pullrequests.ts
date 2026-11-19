@@ -63,8 +63,8 @@ export function hostLink(repoId: Id): HostLink {
 }
 
 export const prBusyKeys = {
-  create: (repoId: Id) => `${repoId}:pr:create`,
-  write: (repoId: Id, number: number) => `${repoId}:pr:${number}`,
+  create: (repoId: Id) => busyKeys.write(repoId, "pr:create"),
+  write: (repoId: Id, number: number) => busyKeys.write(repoId, `pr:${number}`),
 };
 
 /** Word for the pull request as this repository's host calls it (for hints). */

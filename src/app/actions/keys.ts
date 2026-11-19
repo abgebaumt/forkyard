@@ -14,6 +14,8 @@ export const busyKeys = {
    * cherry-pick, squash): at most one of them at a time, a second click fizzles out.
    */
   history: (repoId: Id) => `${repoId}:history`,
+  /** Continue/abort of a running merge, rebase or cherry-pick. */
+  operation: (repoId: Id) => `${repoId}:operation`,
   /** All other write actions of a repo. */
   write: (repoId: Id, name: string) => `${repoId}:${name}`,
   openRepo: "app:openRepo",

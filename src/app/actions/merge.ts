@@ -162,7 +162,7 @@ export async function continueOperation(repoId: Id, message: string | null = nul
     t("actions.merge.continue"),
     withFreshStatus(repoId, () => core.operationContinue({ repoId, message, skipHooks })),
     {
-      busyKey: busyKeys.write(repoId, "operation"),
+      busyKey: busyKeys.operation(repoId),
     },
   );
   if (result.ok) reportOpResult(t("actions.merge.continue"), result.value, tabId, { reveal: true });
@@ -182,7 +182,7 @@ export async function abortOperation(repoId: Id, kind: OperationKind) {
     t("actions.merge.abort.action", { operation: name }),
     withStatus(repoId, () => core.operationAbort({ repoId })),
     {
-      busyKey: busyKeys.write(repoId, "operation"),
+      busyKey: busyKeys.operation(repoId),
       success: t("actions.merge.abort.done", { operation: name }),
     },
   );

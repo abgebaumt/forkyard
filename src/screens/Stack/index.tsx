@@ -55,6 +55,7 @@ import {
 import { pushStack } from "./push";
 import { useStackSuggest } from "./Suggest";
 import { shortSha } from "../../app/format";
+import { busyKeys } from "../../app/actions/keys";
 
 /** Titles typed before "Create", for the pull requests of that stack (in memory, per repository). */
 const rememberedTitles = new Map<Id, Record<string, string>>();
@@ -254,7 +255,10 @@ function Planner({ repoId, tabId, branch }: StackViewProps) {
     const result = await runAction(
       t("pullRequest.stack.createAction"),
       () => core.stackCreate({ repoId, branch, base, cuts, expectedBase: data.baseSha, expectedTip: data.tip }),
-      { busyKey: `${repoId}:stack:create`, success: (status) => t("pullRequest.stack.created", { count: status.parts.length }) },
+      {
+        busyKey: busyKeys.write(repoId, "stack:create"),
+        success: (status) => t("pullRequest.stack.created", { count: status.parts.length }),
+      },
     );
     if (!result.ok) {
       if (result.error.code === "stale_state") void plan.refetch();
@@ -529,7 +533,7 @@ function Existing({ repoId, status }: { repoId: Id; tabId: Id; status: StackStat
       t("pullRequest.stack.prsAction"),
       () => core.stackPrsCreate({ repoId, target: status.baseName, parts, from, remote }),
       {
-        busyKey: `${repoId}:stack:prs`,
+        busyKey: busyKeys.write(repoId, "stack:prs"),
       },
     );
     refreshPullRequests(repoId);
@@ -546,7 +550,7 @@ function Existing({ repoId, status }: { repoId: Id; tabId: Id; status: StackStat
       t("pullRequest.stack.restackAction"),
       () => core.stackRestack({ repoId, branch: status.parts[0]!.branch, expectedTop: step.topTip }),
       {
-        busyKey: `${repoId}:stack:restack`,
+        busyKey: busyKeys.write(repoId, "stack:restack"),
       },
     );
   };

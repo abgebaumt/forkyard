@@ -11,6 +11,7 @@ import { cachedStatus, clip, clipMiddle, loadStatus } from "./context";
 import { abortOperation, operationNames } from "./merge";
 import { stashChanges } from "./stash";
 import { baseName } from "../paths";
+import { busyKeys } from "./keys";
 
 /**
  * If the centre shows the diff of a file from "Unstaged" or "Staged" that no longer exists there
@@ -91,7 +92,7 @@ export async function discardPaths(repoId: Id, paths: string[] | null, options: 
     t("actions.files.discard.action"),
     withStatus(repoId, () => core.discardPaths({ repoId, paths })),
     {
-      busyKey: `${repoId}:discard`,
+      busyKey: busyKeys.write(repoId, "discard"),
       quiet: ["operation_in_progress"],
       success: all
         ? t("actions.files.discard.doneAll")
@@ -145,7 +146,7 @@ const externalLabels: Record<ExternalTarget, string> = {
 /** Open repo or file in editor, terminal or file manager. `path` relative to the repo; null = the repository itself. */
 export function openExternal(repoId: Id, target: ExternalTarget, path: string | null = null) {
   return runAction(externalLabels[target], () => core.openExternal({ repoId, target, path }), {
-    busyKey: `${repoId}:open:${target}:${path ?? ""}`,
+    busyKey: busyKeys.write(repoId, `open:${target}:${path ?? ""}`),
   });
 }
 

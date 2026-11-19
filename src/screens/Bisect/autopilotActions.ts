@@ -12,8 +12,9 @@ import { t } from "../../i18n";
 import { chooseRange } from "./actions";
 import { showAutopilotDialog, type AutopilotPlan, type AutopilotRange } from "./AutopilotDialog";
 import { autopilotAccess, isRunning, rangeFromBisect, type AutopilotAccess } from "./autopilotModel";
+import { busyKeys } from "../../app/actions/keys";
 
-export const autopilotBusyKey = (repoId: Id) => `${repoId}:bisect-autopilot`;
+export const autopilotBusyKey = (repoId: Id) => busyKeys.write(repoId, "bisect-autopilot");
 export const cachedAutopilot = (repoId: Id) => queryClient.getQueryData<BisectAutopilot | null>(qk.bisectAutopilot(repoId)) ?? null;
 export const autopilotRunning = (repoId: Id | null) => Boolean(repoId && isRunning(cachedAutopilot(repoId)));
 
