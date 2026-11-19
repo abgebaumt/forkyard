@@ -187,9 +187,7 @@ function UntrustedRepo({ tab, repoId }: { tab: Tab; repoId: Id }) {
     const result = await runAction(t("shell.trust.action"), () => core.repoTrustSet({ repoId, trusted: true }));
     setBusy(false);
     if (!result.ok) return;
-    // Everything that failed on the locked repository now reloads.
-    void queryClient.invalidateQueries({ queryKey: qk.repos });
-    void queryClient.invalidateQueries({ queryKey: qk.tabs });
+    // Everything that failed on the locked repository now reloads (repo list and tabs: the core's app:changed).
     void queryClient.invalidateQueries({ queryKey: qk.repo(repoId) });
   };
 

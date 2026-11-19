@@ -47,10 +47,6 @@ export async function openRepositoryAt(path: string, options: { quiet?: ErrorCod
     if (!answered) return result;
     result = answered;
   }
-  if (result.ok) {
-    void queryClient.invalidateQueries({ queryKey: qk.tabs });
-    void queryClient.invalidateQueries({ queryKey: qk.repos });
-  }
   return result;
 }
 
@@ -64,10 +60,7 @@ export async function newTab() {
 /** Opens the repository in a tab (or activates the existing one). */
 export async function openRepoTab(repoId: Id) {
   const result = await runAction(t("actions.repos.openTab"), () => core.tabOpen({ repoId }));
-  if (result.ok) {
-    setTabs(result.value);
-    void queryClient.invalidateQueries({ queryKey: qk.repos });
-  }
+  if (result.ok) setTabs(result.value);
   return result;
 }
 
@@ -182,12 +175,7 @@ export async function forgetRepo(repo: Pick<Repo, "id" | "name" | "alias" | "pat
     confirmLabel: t("actions.repos.forget.action"),
   });
   if (!ok) return null;
-  const result = await runAction(t("actions.repos.forget.label"), () => core.repoForget({ repoId: repo.id }));
-  if (result.ok) {
-    void queryClient.invalidateQueries({ queryKey: qk.repos });
-    void queryClient.invalidateQueries({ queryKey: qk.tabs });
-  }
-  return result;
+  return runAction(t("actions.repos.forget.label"), () => core.repoForget({ repoId: repo.id }));
 }
 
 export const ZOOM_MIN = 0.8;

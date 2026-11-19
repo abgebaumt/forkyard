@@ -3,7 +3,7 @@ import { FolderOpen, RefreshCw } from "lucide-react";
 import { core, type CoreError, type ErrorCode } from "../../core";
 import { showOutput } from "../../app/dialogs";
 import { errorInfo } from "../../app/errors";
-import { qk, queryClient, useInitTemplates, useRepos, useSettings } from "../../app/queries";
+import { useInitTemplates, useRepos, useSettings } from "../../app/queries";
 import { runAction } from "../../app/run";
 import { useBusy } from "../../app/store";
 import { Button } from "../../ui/Button";
@@ -155,8 +155,6 @@ export function InitDialog({ onClose }: InitDialogProps) {
             : undefined,
         });
       }
-      void queryClient.invalidateQueries({ queryKey: qk.tabs });
-      void queryClient.invalidateQueries({ queryKey: qk.repos });
       onClose();
       return;
     }
