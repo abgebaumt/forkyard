@@ -31,7 +31,8 @@
   "remote": {
     "option": "Auch auf {{remotes}} löschen",
     "warning": "Wirkt nach außen und ist nicht umkehrbar.",
-    "confirmTitle": "{{count}} Remote-Branches löschen?",
+    "confirmTitle_one": "Den Remote-Branch löschen?",
+    "confirmTitle_other": "{{count}} Remote-Branches löschen?",
     "confirmBody": "Diese Branches werden auf dem Remote gelöscht. Rückgängig holt sie nicht zurück.",
     "confirmAction": "{{count}} auf dem Remote löschen",
     "done_one": "{{count}} Remote-Branch gelöscht",

@@ -79,7 +79,7 @@ describe("deleteSelected", () => {
       ],
     });
     expect(calls).toEqual(["local", "remote:origin/fertig"]);
-    expect(confirmSpy.mock.calls[0]![0]).toMatchObject({ danger: true, details: ["origin/fertig"] });
+    expect(confirmSpy.mock.calls[0]![0]).toMatchObject({ title: "Delete the remote branch?", danger: true, details: ["origin/fertig"] });
     expect(queryClient.getQueryData(qk.refs(REPO))).toBe(snapshot);
     const local = toastSpy.mock.calls.find(([options]) => options.title === "2 branches deleted")?.[0];
     expect(local?.action?.label).toBe("Undo");
@@ -109,6 +109,22 @@ describe("deleteSelected", () => {
     await deleteSelected(REPO, list, new Set(["fertig"]), false);
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(calls).toEqual(["local"]);
+  });
+
+  it("a stale local deletion reloads the list and touches no remote", async () => {
+    queryClient.setQueryData(qk.branchCleanup(REPO), { candidates: list });
+    branchCleanupDelete.mockRejectedValue(new CoreError({ code: "stale_state", message: "moved", gitOutput: null }));
+    await deleteSelected(REPO, list, new Set(["fertig"]), true);
+    expect(queryClient.getQueryState(qk.branchCleanup(REPO))?.isInvalidated).toBe(true);
+    expect(branchDeleteRemote).not.toHaveBeenCalled();
+  });
+
+  it("reloads the refs after the remote deletions", async () => {
+    queryClient.setQueryData(qk.refs(REPO), snapshot);
+    const spy = vi.spyOn(queryClient, "invalidateQueries");
+    await deleteSelected(REPO, list, new Set(["fertig"]), true);
+    expect(spy).toHaveBeenCalledWith({ queryKey: qk.refs(REPO) });
+    spy.mockRestore();
   });
 
   it("a failed local deletion touches no remote", async () => {

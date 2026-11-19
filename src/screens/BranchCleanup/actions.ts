@@ -2,6 +2,7 @@
 import { core, type BranchCleanupCandidate, type Id } from "../../core";
 import { t } from "../../i18n";
 import { toast } from "../../ui/Feedback";
+import { clip } from "../../app/actions/context";
 import { busyKeys } from "../../app/actions/keys";
 import { afterNetwork } from "../../app/actions/sync";
 import { undo } from "../../app/actions/undo";
@@ -46,7 +47,12 @@ export async function deleteSelected(
   const local = await runAction(t("cleanupBranches.deleting"), () => core.branchCleanupDelete({ repoId, targets }), {
     busyKey: busyKeys.branch(repoId),
   });
-  if (!local.ok) return;
+  if (!local.ok) {
+    // Nothing was deleted; the list no longer matches the repository: load it again so the next try sends fresh SHAs.
+    if (["stale_state", "not_found", "not_allowed"].includes(local.error.code))
+      void queryClient.invalidateQueries({ queryKey: qk.branchCleanup(repoId) });
+    return;
+  }
   queryClient.setQueryData(qk.refs(repoId), local.value);
   void queryClient.invalidateQueries({ queryKey: qk.undo(repoId) });
   toast({
@@ -62,10 +68,14 @@ export async function deleteSelected(
     const result = await runAction(
       t("actions.sync.deleteRemote.label"),
       () => core.branchDeleteRemote({ repoId, jobId, remote, name: branch }),
-      { busyKey: busyKeys.push(repoId), job: { id: jobId, title: t("actions.sync.deleteRemote.job", { target: label }), repoId } },
+      {
+        busyKey: busyKeys.push(repoId),
+        job: { id: jobId, title: t("actions.sync.deleteRemote.job", { target: clip(label, 32) }), repoId },
+      },
     );
     if (result.ok) succeeded++;
   }
   afterNetwork(repoId);
+  void queryClient.invalidateQueries({ queryKey: qk.refs(repoId) });
   if (succeeded > 0) toast({ tone: "success", title: t("cleanupBranches.remote.done", { count: succeeded }) });
 }

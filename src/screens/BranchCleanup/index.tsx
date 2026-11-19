@@ -43,12 +43,22 @@ export function BranchCleanupView({ repoId, tabId }: BranchCleanupViewProps) {
   const candidates = useMemo(() => query.data?.candidates ?? [], [query.data]);
   const [filter, setFilter] = useState("");
   const [alsoRemote, setAlsoRemote] = useState(false);
-  // The marks belong to one list: when names or SHAs change, the safe ones are marked again.
-  const listKey = candidates.map((candidate) => `${candidate.name}\0${candidate.sha}`).join("\n");
+  // The marks belong to one list: when names, SHAs or classes change, the safe ones are marked again.
+  const listKey = candidates.map((candidate) => `${candidate.name}\0${candidate.sha}\0${candidate.class}`).join("\n");
   const [marked, setMarked] = useState<{ key: string; selection: Set<string> } | null>(null);
   const selection = marked?.key === listKey ? marked.selection : initialSelection(candidates);
   const toggle = (candidate: BranchCleanupCandidate) => setMarked({ key: listKey, selection: toggleSelection(selection, candidate) });
-  const busy = useBusy(busyKeys.branch(repoId));
+  // `running` also covers the remote deletions after the local one.
+  const [running, setRunning] = useState(false);
+  const busy = useBusy(busyKeys.branch(repoId)) || running;
+  const runDelete = async () => {
+    setRunning(true);
+    try {
+      await deleteSelected(repoId, candidates, selection, alsoRemote);
+    } finally {
+      setRunning(false);
+    }
+  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -117,13 +127,7 @@ export function BranchCleanupView({ repoId, tabId }: BranchCleanupViewProps) {
           <p role="status" aria-live="polite" data-cleanup-counter="" className="text-sm text-text-muted">
             {t("cleanupBranches.counter", { selected, total })}
           </p>
-          <Button
-            variant="danger"
-            data-cleanup-delete=""
-            disabled={selected === 0}
-            loading={busy}
-            onClick={() => void deleteSelected(repoId, candidates, selection, alsoRemote)}
-          >
+          <Button variant="danger" data-cleanup-delete="" disabled={selected === 0} loading={busy} onClick={() => void runDelete()}>
             {t("cleanupBranches.delete", { count: selected })}
           </Button>
         </footer>

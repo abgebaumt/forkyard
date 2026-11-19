@@ -31,7 +31,8 @@
   "remote": {
     "option": "Also delete on {{remotes}}",
     "warning": "Affects everyone using the remote and can’t be undone.",
-    "confirmTitle": "Delete {{count}} remote branches?",
+    "confirmTitle_one": "Delete the remote branch?",
+    "confirmTitle_other": "Delete {{count}} remote branches?",
     "confirmBody": "These branches are deleted on the remote. Undo does not bring them back.",
     "confirmAction": "Delete {{count}} on the remote",
     "done_one": "{{count}} remote branch deleted",
