@@ -44,6 +44,7 @@ pub(crate) async fn compose_at(core: &Core, repo_id: &str, seen: &SeenRow) -> Co
     // out: they would make `git log` fail.
     let peeled = peel(core, repo_id, seen.refs.values()).await?;
     // Everything reachable from any seen tip was seen, also when it reaches this ref by a merge or rebase.
+    // shortcut: the exclusion set grows with seen tags (one stdin per changed ref); measure on a repo with 10k+ tags before optimizing
     let all_seen: Vec<String> = peeled.values().cloned().collect::<BTreeSet<_>>().into_iter().collect();
 
     let mut digest_refs = Vec::new();

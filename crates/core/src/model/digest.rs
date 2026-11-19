@@ -38,7 +38,7 @@ pub struct DigestRef {
     /// For a tag the commit it points to.
     pub new_sha: Option<Sha>,
     /// Foreign commits not reachable from any seen ref. At most 500 commits are read per ref, own
-    /// ones are dropped afterwards. 0 for a ref when the seen state had no ref at all.
+    /// ones are dropped afterwards. 0 for a ref when the seen state had no ref still present in the repository.
     pub new_commits: u32,
     /// First 20, newest first.
     pub commits: Vec<DigestCommit>,
