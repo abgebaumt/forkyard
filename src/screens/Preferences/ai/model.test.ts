@@ -4,7 +4,6 @@ import {
   cliPathField,
   FEATURES,
   featureToggle,
-  isCli,
   isLocal,
   needsKey,
   parsePatterns,
@@ -17,6 +16,7 @@ import {
   withCliPath,
   withOwnPrice,
 } from "./model";
+import { isCli } from "../../../app/ai/providers";
 
 describe("AI settings model", () => {
   it("knows which providers need a key, an address or run locally", () => {

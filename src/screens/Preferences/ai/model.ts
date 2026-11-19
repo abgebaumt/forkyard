@@ -1,5 +1,6 @@
 /** Pure helpers of Settings › AI (provider kinds, patterns, amounts, own prices). */
 import type { AiCliPaths, AiFeature, AiPriceOverride, AiProviderKind } from "../../../core";
+import type { CliProvider } from "../../../app/ai/providers";
 
 /** In the order of the provider menu: the tools with the user's own sign-in first. */
 export const PROVIDERS: AiProviderKind[] = [
@@ -13,11 +14,6 @@ export const PROVIDERS: AiProviderKind[] = [
   "ollama",
   "lmstudio",
 ];
-
-export type CliProvider = "claude_code" | "codex" | "opencode";
-export const CLI_PROVIDERS: CliProvider[] = ["claude_code", "codex", "opencode"];
-export const isCli = (provider: AiProviderKind): provider is CliProvider =>
-  provider === "claude_code" || provider === "codex" || provider === "opencode";
 
 const CLI_PATH_FIELD: Record<CliProvider, keyof AiCliPaths> = { claude_code: "claudeCode", codex: "codex", opencode: "opencode" };
 export const cliPathField = (provider: CliProvider): keyof AiCliPaths => CLI_PATH_FIELD[provider];

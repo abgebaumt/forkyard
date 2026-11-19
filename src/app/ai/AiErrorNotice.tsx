@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import type { AiProviderKind } from "../../core";
 import { t } from "../../i18n";
 import { Button } from "../../ui/Button";
-import { isCli } from "../../screens/Preferences/ai/model";
+import { isCli } from "./providers";
 import { signInInTerminal } from "./cliLogin";
 import { openAiSettings, openAiSetup } from "./open";
 import type { AiFailure } from "./useAiJob";

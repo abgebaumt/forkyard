@@ -16,7 +16,7 @@ import { openAiSetup } from "../../app/ai/open";
 import { checkProvider } from "../../app/ai/checkProvider";
 import { showDialog } from "../../app/dialogs";
 import { useAiStatus, useReleaseNotesRange } from "../../app/queries";
-import { isCli } from "../Preferences/ai/model";
+import { isCli } from "../../app/ai/providers";
 import { applyReleaseTargets } from "./apply";
 import { availableTargets, rangeLine, type ReleaseTarget } from "./model";
 import { ReleaseTargets } from "./Targets";

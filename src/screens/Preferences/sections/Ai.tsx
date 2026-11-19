@@ -20,11 +20,9 @@ import { CommitText, SectionHeader, SettingRow, SettingsCard } from "../parts";
 import { applySettings, fieldError } from "../settings";
 import {
   acceptsKey,
-  CLI_PROVIDERS,
   cliPathField,
   FEATURES,
   featureToggle,
-  isCli,
   isLocal,
   parsePatterns,
   parsePricePair,
@@ -36,6 +34,7 @@ import {
   withCliPath,
   withOwnPrice,
 } from "../ai/model";
+import { CLI_PROVIDERS, isCli } from "../../../app/ai/providers";
 import { AiSearchCard } from "./AiSearch";
 import { locale, t } from "../../../i18n";
 
