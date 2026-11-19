@@ -27,7 +27,7 @@ import { Avatar } from "../../ui/Git";
 import { Select } from "../../ui/Select";
 import { cn } from "../../ui/cn";
 import { locale, t } from "../../i18n";
-import { SafeMarkdown } from "./Markdown";
+import { SafeMarkdown } from "../../components/markdown/SafeMarkdown";
 import { BlockTitle, When, userName } from "./parts";
 import { REVIEW_FEATURE, fixAvailability, replyDraft, splitThreads, targetHint, threadLines } from "./reviewModel";
 

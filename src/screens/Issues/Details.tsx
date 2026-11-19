@@ -12,7 +12,7 @@ import { useBusy } from "../../app/store";
 import { Button, IconButton } from "../../ui/Button";
 import { Tip } from "../../ui/Tooltip";
 import { t } from "../../i18n";
-import { SafeMarkdown } from "../PullRequestView/Markdown";
+import { SafeMarkdown } from "../../components/markdown/SafeMarkdown";
 import type { IssueSummary } from "./api";
 import { copyIssueLink, createIssueBranch, openIssueInBrowser } from "./actions";
 import { HostProblem, Labels, Person, StateBadge } from "./parts";

@@ -57,7 +57,7 @@ import { t } from "../../i18n";
 import { isPlainEscape } from "../../components/ViewParts";
 import { openConnectDialog } from "../Hosts";
 import { PrFiles } from "./Files";
-import { SafeMarkdown } from "./Markdown";
+import { SafeMarkdown } from "../../components/markdown/SafeMarkdown";
 import { openMergeDialog } from "./MergeDialog";
 import { ReviewThreads } from "./ReviewThreads";
 import {

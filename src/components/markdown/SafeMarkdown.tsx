@@ -8,8 +8,8 @@ import { ImageOff } from "lucide-react";
 import { useMemo } from "react";
 import { t } from "../../i18n";
 import { cn } from "../../ui/cn";
-import { MarkdownHtml, proseCompact } from "../../components/markdown/Markdown";
-import { renderReadme } from "../../components/markdown/render";
+import { MarkdownHtml, proseCompact } from "./Markdown";
+import { renderReadme } from "./render";
 
 export interface SafeMarkdownProps {
   source: string;
