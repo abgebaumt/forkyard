@@ -298,7 +298,7 @@ pub async fn repo_trust_set(core: &Core, repo_id: String, trusted: bool) -> Core
             .db
             .with(|c| {
                 let profile_id = db::profiles::active_id(c)?;
-                Ok(db::tabs::find_by_repo(c, &profile_id, &repo_id)?.is_some())
+                Ok(db::tabs::find_by_repo_any(c, &profile_id, &repo_id)?.is_some())
             })
             .unwrap_or(false);
         if has_tab {

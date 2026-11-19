@@ -113,6 +113,10 @@ create table tabs (
   is_active     integer not null default 0 check (is_active in (0, 1)),
   created_at    text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   updated_at    text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+-- Since version 14: begin
+  -- Label of the window the tab belongs to (`profile_windows.label`).
+  window_id     text not null default 'main',
+-- Since version 14: end
   constraint tab_kind_matches_repo check (
     (kind = 'repo' and repository_id is not null) or
     (kind = 'repo_management' and repository_id is null)
@@ -120,8 +124,23 @@ create table tabs (
 ) strict;
 create index tabs_profile_position on tabs (profile_id, position);
 create index tabs_repository on tabs (repository_id);
--- Exactly one active tab per profile.
-create unique index tabs_one_active on tabs (profile_id) where is_active = 1;
+-- Since version 14: begin
+-- Exactly one active tab per window.
+create unique index tabs_one_active_per_window on tabs (profile_id, window_id) where is_active = 1;
+create index tabs_window_position on tabs (profile_id, window_id, position);
+
+-- App windows per profile. `main` always exists and has the lowest position; further windows
+-- are called `w-…`. Geometry in logical pixels (outer position, inner size), null until placed.
+create table profile_windows (
+  profile_id text not null references profiles (id) on delete cascade,
+  label      text not null check (label = 'main' or label glob 'w-*'),
+  position   integer not null check (position >= 0),
+  x real, y real, width real, height real,
+  maximized  integer not null default 0 check (maximized in (0, 1)),
+  focused_at text,
+  primary key (profile_id, label)
+) strict;
+-- Since version 14: end
 
 -- View state per repository: presentation only, changes nothing in the repo.
 create table repo_view_state (

@@ -168,9 +168,12 @@ pub struct Tab {
     pub kind: TabKind,
     pub repo_id: Option<Id>,
     pub position: u32,
+    /// Active within its window: every window has exactly one active tab.
     pub is_active: bool,
     pub title: String,
     pub path: Option<String>,
+    /// Label of the window the tab belongs to (`main` or `w-…`).
+    pub window: String,
 }
 
 /// A profile, only for naming it (e.g. "belongs to …").
