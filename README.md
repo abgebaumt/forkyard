@@ -64,6 +64,15 @@ actually happens, and makes the risky parts safe:
 - Stash single lines and hunks
 - Built-in editor with Markdown preview
 
+**AI (optional, off by default)**
+- Commit messages, pull request descriptions and release notes
+- Review before push, the intent of both sides of a conflict, suggested fixes for review comments
+- Group your local changes into several commits, cut a branch into stacked pull requests
+- "Why is this so?" for a line from its history, search commits by meaning, bisect autopilot
+- Plans from plain language, run step by step; coding agents in their own worktrees
+- Anthropic, OpenAI, Gemini, OpenAI-compatible servers, Ollama, or a local AI command-line tool (Claude Code, Codex, opencode)
+- "What is sent?" shows the exact request; keys stay in the OS keychain
+
 </td>
 <td width="50%" valign="top">
 
@@ -85,7 +94,6 @@ actually happens, and makes the risky parts safe:
 - Statistics per repository: activity, authors, hotspots, bus factor, code age
 - Command palette, keyboard shortcuts, embedded terminal, light and dark theme
 - A `forkyard` command line, and local crash reports that never leave your machine
-- AI (optional, off by default): commit messages, pull request descriptions, push review, conflict intent, release notes, history explanation, search by meaning, plans, bisect autopilot and coding agents – with Anthropic, OpenAI, Gemini, OpenAI-compatible servers, Ollama or a local AI command-line tool; "What is sent?" shows the exact request
 - Optional daily update check against the GitHub releases: a quiet hint when a new version is out
 
 </td>
@@ -159,7 +167,12 @@ React UI ──invoke──▶ Tauri binding ──▶ Rust core (gitcore) ─�
 - **One write at a time per repository.** Reads run in parallel, background reads never take Git's lock.
 - **The UI never runs Git.** Every operation is a typed command in the Rust core, tested against real temporary repositories.
 
-More in [CONTRIBUTING.md](CONTRIBUTING.md).
+More in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Development
+
+[CONTRIBUTING.md](CONTRIBUTING.md) has the setup, the checks and how a change is made.
+[docs/CONVENTIONS.md](docs/CONVENTIONS.md) says where code goes.
 
 ## Contributing
 
