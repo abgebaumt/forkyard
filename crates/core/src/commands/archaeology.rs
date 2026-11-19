@@ -159,7 +159,7 @@ async fn blame_origin(core: &Core, repo_id: &str, rel: &str, line: u32) -> CoreR
         }
     }
     let unknown = || CoreError::unknown("Git blame gave an answer Forkyard does not understand.");
-    let (sha, origin_line, filename) = first.ok_or_else(unknown)?;
+    let Some((sha, origin_line, filename)) = first else { return Err(not_committed()) };
     if sha.bytes().all(|byte| byte == b'0') {
         return Err(not_committed());
     }

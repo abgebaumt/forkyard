@@ -68,7 +68,7 @@ pub(crate) async fn run(
 async fn execute(core: &Core, repo_id: &str, job: &Job, title: &str, planned: &Planned, cwd: &Path) -> CoreResult<CustomCommandResult> {
     let started_at = util::now_iso();
     let start = Instant::now();
-    let mut proc = Proc::new(&planned.program).args(&planned.args).cwd(cwd);
+    let mut proc = Proc::new(&planned.program).args(&planned.args).cwd(cwd).std_batch_quoting();
     for (key, value) in &planned.env {
         proc = proc.env(key, value);
     }

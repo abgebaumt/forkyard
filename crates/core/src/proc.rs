@@ -88,6 +88,8 @@ pub struct Proc {
     max_stdout: usize,
     max_stderr: usize,
     search_path: Option<OsString>,
+    /// `.cmd`/`.bat` with std's own argument escaping instead of `batch_command_line`.
+    std_batch_quoting: bool,
     log: Option<LogTo>,
 }
 
@@ -119,6 +121,7 @@ impl Proc {
             max_stdout: MAX_STDOUT,
             max_stderr: MAX_STDERR,
             search_path: None,
+            std_batch_quoting: false,
             log: None,
         }
     }
@@ -184,6 +187,14 @@ impl Proc {
         self
     }
 
+    /// Only for commands the user wrote (custom commands): a `.cmd`/`.bat` gets its arguments through
+    /// std, which escapes them for cmd.exe or refuses the start (Rust ≥ 1.77.2), instead of
+    /// `batch_command_line`, which refuses `&`, `%`, `!` and the like that paths and inputs may contain.
+    pub fn std_batch_quoting(mut self) -> Self {
+        self.std_batch_quoting = true;
+        self
+    }
+
     /// Writes one entry into the activity log (app log with `repo_id: None`).
     pub fn logged(mut self, core: &Core, repo_id: Option<&str>, description: impl Into<String>) -> Self {
         self.log = Some(LogTo { core: core.clone(), repo_id: repo_id.map(str::to_string), description: description.into() });
@@ -236,7 +247,7 @@ impl Proc {
     }
 
     fn command(&self, program: &Path) -> CoreResult<tokio::process::Command> {
-        if is_batch(program) {
+        if is_batch(program) && !self.std_batch_quoting {
             return batch_command(&batch_command_line(program, &self.args)?);
         }
         let mut cmd = tokio::process::Command::new(program);

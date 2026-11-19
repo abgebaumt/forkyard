@@ -329,3 +329,15 @@ async fn a_program_file_still_open_for_writing_is_started_once_it_is_closed() {
     release.join().unwrap();
     assert_eq!(out.stdout, b"fy-tool 4.2.0\n");
 }
+
+#[test]
+fn only_the_opt_in_hands_batch_arguments_to_std() {
+    let args = ["C:\\Users\\Tom & Jerry\\x", "50%.md", "fix!"];
+    let program = Path::new("C:/tools/npm.cmd");
+    let strict = Proc::new(program).args(args).command(program);
+    assert_eq!(strict.err().map(|e| e.code), Some(ErrorCode::NotAllowed), "the default refuses cmd metacharacters");
+    let custom = Proc::new(program).args(args).std_batch_quoting().command(program).expect("std escapes them itself");
+    let given: Vec<&std::ffi::OsStr> = custom.as_std().get_args().collect();
+    assert_eq!(given, args.map(std::ffi::OsStr::new), "arguments unchanged, the program itself is started");
+    assert_eq!(custom.as_std().get_program(), program.as_os_str());
+}
