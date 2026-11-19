@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use serde_json::{json, Map, Value};
 
-use super::{create_backup_ref, delete_backup_refs, record_result, snapshot, UndoAction, UndoRecord, SNAPSHOT_IDENTITY};
+use super::{commit_tree, create_backup_ref, delete_backup_refs, record_result, snapshot, UndoAction, UndoRecord};
 use crate::app::Core;
 use crate::db::{self, undo::UndoEntry, undo::UndoEntryState};
 use crate::error::{CoreError, CoreResult, ErrorCode};
@@ -208,11 +208,7 @@ pub async fn snapshot_for_group(core: &Core, repo_id: &str, entry_id: &str) -> C
     create_backup_ref(core, repo_id, entry_id, "worktree", &snap.commit).await?;
     if let Some(tree) = &snap.index_tree {
         // A commit of its own keeps the index tree alive as long as the entry exists.
-        let mut cmd = core.git_for(repo_id)?.args(["commit-tree", "--no-gpg-sign", tree, "-m", "forkyard: backup (index)"]).no_log();
-        for (key, value) in SNAPSHOT_IDENTITY {
-            cmd = cmd.env(key, value);
-        }
-        let commit = cmd.run_text().await?;
+        let commit = commit_tree(core, repo_id, tree, &[], "forkyard: backup (index)").await?;
         create_backup_ref(core, repo_id, entry_id, "index", &commit).await?;
     }
     Ok(GroupSnapshot { worktree: snap.commit, index_tree: snap.index_tree })
@@ -306,4 +302,14 @@ pub async fn apply_ref_moves(core: &Core, repo_id: &str, moves: &[RefMove], mess
         return Err(CoreError::stale_state().with_git_output(out.stderr_text()));
     }
     Err(errors::classify("update-ref", out.code, &out.stdout, &out.stderr))
+}
+
+/// Deletes an entry along with its backup refs. Call within the write lock.
+pub(crate) async fn discard_entry(core: &Core, repo_id: &str, entry_id: &str) {
+    if let Err(e) = core.db.with(|c| db::undo::delete(c, entry_id)) {
+        log::warn!("undo entry {entry_id} not deleted: {}", e.message);
+    }
+    if let Err(e) = delete_backup_refs(core, repo_id, entry_id).await {
+        log::warn!("backup refs of {entry_id} not removed: {}", e.message);
+    }
 }

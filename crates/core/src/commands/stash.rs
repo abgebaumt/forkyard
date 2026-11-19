@@ -853,7 +853,7 @@ pub async fn stash_apply_paths(
 
         let head = crate::git::repo::read_head(core, repo_id).await?;
         let raw: Vec<Vec<u8>> = wanted.iter().map(|rel| rel.as_bytes().to_vec()).collect();
-        let backup = crate::commands::stage::Backup::create(core, repo_id, &head, Some(&raw)).await?;
+        let backup = crate::undo::Pending::back_up(core, repo_id, Some(&raw)).await?;
         let written: CoreResult<()> = async {
             if !patch.is_empty() {
                 core.git_for(repo_id)?
@@ -878,14 +878,14 @@ pub async fn stash_apply_paths(
         }
         .await;
         if let Err(e) = written {
-            backup.forget(core, repo_id).await;
+            backup.forget(core).await;
             return Err(e);
         }
         let label = match wanted.as_slice() {
             [one] => format!("Undo applying ‘{one}’ from the stash"),
             many => format!("Undo applying {} files from the stash", many.len()),
         };
-        backup.record(core, repo_id, &head, label, Some(wanted.clone())).await?;
+        backup.record_discard(core, &head, label, Some(wanted.clone()), serde_json::Value::Null).await;
         crate::commands::status::read_status(core, repo_id).await
     })
     .await
@@ -924,7 +924,7 @@ pub async fn stash_drop(core: &Core, repo_id: String, index: u32, expected_sha: 
             return Err(e);
         }
         if let Err(e) = drop_stash(core, &repo_id, index as usize).await {
-            crate::commands::undo::discard_entry(core, &repo_id, &id).await;
+            crate::undo::discard_entry(core, &repo_id, &id).await;
             return Err(e);
         }
         // "Undo stash" can no longer exist for this stash (only entries of action `stash`).

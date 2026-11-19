@@ -331,7 +331,7 @@ pub async fn worktree_remove(core: &Core, repo_id: String, path: String, force: 
         };
         // Forced, its changes are lost: backed up first (orphaned backup ref, listed by cleanup).
         if force && entry.prunable.is_none() && has_changes(core, repo_id, &target).await {
-            let snapshot = undo::snapshot_at(core, repo_id, &target, None).await?;
+            let snapshot = undo::snapshot_at(core, repo_id, &target).await?;
             let backup = undo::new_id();
             undo::create_backup_ref(core, repo_id, &backup, "worktree", &snapshot.commit).await?;
             log::info!("Changes of the removed worktree “{shown}” backed up as {}", undo::backup_ref_name(&backup, "worktree"));

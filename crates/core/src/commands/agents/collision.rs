@@ -34,28 +34,14 @@ use crate::util;
 
 /// Message of the snapshot commits (never on a ref, never shown).
 pub const SNAPSHOT_MESSAGE: &str = "forkyard: collision check";
-/// Identity of the snapshot commits, so they work without user.name/user.email.
-const SNAPSHOT_IDENTITY: [(&str, &str); 4] = [
-    ("GIT_AUTHOR_NAME", "forkyard"),
-    ("GIT_AUTHOR_EMAIL", "forkyard@localhost"),
-    ("GIT_COMMITTER_NAME", "forkyard"),
-    ("GIT_COMMITTER_EMAIL", "forkyard@localhost"),
-];
-
 /// Snapshot of an agent's worktree: the tree of its files as they are on disk (tracked and
 /// untracked, not ignored; built on a temporary index, the real one stays untouched) and a loose
 /// commit around it whose parent is the worktree's HEAD. Returns `(commit, tree)`.
 pub(crate) async fn snapshot_commit(core: &Core, worktree_repo_id: &str) -> CoreResult<(String, String)> {
     let tree = undo::worktree_tree(core, worktree_repo_id, None).await?;
     let head = rev::rev_parse(core, worktree_repo_id, "HEAD^{commit}").await?;
-    let mut cmd = core.git_for(worktree_repo_id)?.read().args(["commit-tree", "--no-gpg-sign", &tree]);
-    if let Some(head) = &head {
-        cmd = cmd.args(["-p", head]);
-    }
-    for (key, value) in SNAPSHOT_IDENTITY {
-        cmd = cmd.env(key, value);
-    }
-    let commit = cmd.args(["-m", SNAPSHOT_MESSAGE]).run_text().await?;
+    let parents: Vec<&str> = head.iter().map(String::as_str).collect();
+    let commit = undo::commit_tree(core, worktree_repo_id, &tree, &parents, SNAPSHOT_MESSAGE).await?;
     Ok((commit, tree))
 }
 

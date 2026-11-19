@@ -27,14 +27,6 @@ pub(crate) const MERGE_BASE_OPTION: (u32, u32, u32) = (2, 40, 0);
 pub(crate) const MAX_RANGE_BLOB: u64 = 8 * 1024 * 1024;
 /// At most this many conflicted files of one merge get line ranges.
 pub(crate) const MAX_RANGE_FILES: usize = 50;
-/// Identity of the intermediate commits (never on a ref, never shown).
-const PREVIEW_IDENTITY: [(&str, &str); 4] = [
-    ("GIT_AUTHOR_NAME", "forkyard"),
-    ("GIT_AUTHOR_EMAIL", "forkyard@localhost"),
-    ("GIT_COMMITTER_NAME", "forkyard"),
-    ("GIT_COMMITTER_EMAIL", "forkyard@localhost"),
-];
-
 /// Simulates `op` and says whether it would stop on conflicts. Job under `job_id` (cancellable).
 pub async fn conflict_preview(core: &Core, repo_id: String, job_id: String, op: PreviewOp) -> CoreResult<ConflictPreview> {
     core.repo_path(&repo_id)?;
@@ -307,7 +299,7 @@ async fn only_parent(core: &Core, repo_id: &str, cancel: &CancelToken, commit: &
 /// A loose commit around an intermediate tree, so that the next step has a commit to merge with.
 async fn wrap_tree(core: &Core, repo_id: &str, cancel: &CancelToken, tree: &str) -> CoreResult<String> {
     let mut cmd = core.git_for(repo_id)?.read().check(false).args(["commit-tree", "--no-gpg-sign", tree, "-m", "forkyard: preview"]);
-    for (key, value) in PREVIEW_IDENTITY {
+    for (key, value) in crate::undo::BACKUP_IDENTITY {
         cmd = cmd.env(key, value);
     }
     let out = cmd.run_stream(cancel, &mut |_| {}).await?;
