@@ -1,5 +1,6 @@
 /** Pure parts of the shortcut overview: sections from the registry and the fixed keys, and the filter. */
 import type { AppCommand, CommandGroup } from "../../app/commandTypes";
+import { effectiveKeys } from "../../app/keybindings";
 import { formatShortcut } from "../../ui/shortcut";
 import { fold } from "../CommandPalette/fuzzy";
 import { fixedKeyGroups } from "./fixedKeys";
@@ -32,17 +33,21 @@ export const GROUP_TITLES: Record<CommandGroup, string> = {
   File: t("ui.file"),
 };
 
-export function registrySections(commands: readonly AppCommand[]): Section[] {
-  const withKeys = commands.filter((command) => command.shortcut);
+/** `editing`: every command is a row of its own, also without a key (the editor changes them one by one). */
+export function registrySections(commands: readonly AppCommand[], { editing = false }: { editing?: boolean } = {}): Section[] {
+  const shown = editing ? commands : commands.filter((command) => command.shortcut);
   const sections: Section[] = [];
   for (const group of GROUP_ORDER) {
-    const list = withKeys.filter((command) => command.group === group);
+    const list = shown.filter((command) => command.group === group);
     if (!list.length) continue;
     const entries: Entry[] = [];
-    // Ctrl+1 … Ctrl+8 as one row instead of eight.
+    // Ctrl+1 … Ctrl+8 as one row instead of eight – only while all eight have their default keys.
     const numbered = list.filter((command) => /^tab\.goto\.[1-8]$/.test(command.id));
+    const range =
+      !editing &&
+      numbered.every((command, index) => command.id === `tab.goto.${index + 1}` && effectiveKeys(command).join() === `Mod+${index + 1}`);
     for (const command of list) {
-      if (numbered.includes(command)) {
+      if (range && numbered.includes(command)) {
         if (command === numbered[0]) {
           entries.push({
             key: "tab.goto.range",
@@ -52,7 +57,7 @@ export function registrySections(commands: readonly AppCommand[]): Section[] {
         }
         continue;
       }
-      entries.push({ key: command.id, label: command.title.replace(/ …$/, ""), keys: [[command.shortcut!]] });
+      entries.push({ key: command.id, label: command.title.replace(/ …$/, ""), keys: effectiveKeys(command).map((key) => [key]) });
     }
     sections.push({ id: `group-${group}`, title: GROUP_TITLES[group], entries });
   }

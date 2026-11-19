@@ -4,7 +4,8 @@
  * At the top the shortcuts from the command registry, grouped as in the command palette; below
  * them the fixed keys of the lists and views (graph, files, diff, conflict and rebase tool).
  * A filter field searches description, group and keys. Two columns once wide enough.
- * Kbd shows the keys per platform (see `src/ui/shortcut.ts`).
+ * Kbd shows the keys per platform (see `src/ui/shortcut.ts`). "Edit" turns the registry part into
+ * the keybinding editor; the fixed keys stay read-only.
  */
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Dialog as RadixDialog } from "radix-ui";
@@ -20,6 +21,7 @@ import { isMacShortcuts } from "../../ui/shortcut";
 import { matchesShortcut } from "../../app/commandTypes";
 import { cn } from "../../ui/cn";
 import { filterSections, fixedSections, registrySections, type Section } from "./model";
+import { KeybindingEditor } from "./KeybindingEditor";
 import { t } from "../../i18n";
 
 export interface ShortcutOverlayProps {
@@ -73,10 +75,11 @@ function SectionBlock({ section }: { section: Section }) {
   );
 }
 
-function Part({ title, children, id }: { title: string; children: ReactNode; id: string }) {
+function Part({ title, note, children, id }: { title: string; note?: string; children: ReactNode; id: string }) {
   return (
     <div data-part={id}>
       <h2 className="mb-3 text-md font-semibold text-text">{title}</h2>
+      {note ? <p className="-mt-2 mb-3 text-sm text-text-muted">{note}</p> : null}
       <div className="gap-8 md:columns-2">{children}</div>
     </div>
   );
@@ -86,10 +89,11 @@ function Part({ title, children, id }: { title: string; children: ReactNode; id:
 export function ShortcutOverlay({ onClose }: ShortcutOverlayProps) {
   const commands = useCommands();
   const [query, setQuery] = useState("");
+  const [editing, setEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const focusReturn = useFocusReturn();
-  const general = useMemo(() => registrySections(commands), [commands]);
+  const general = useMemo(() => registrySections(commands, { editing }), [commands, editing]);
   const shownGeneral = filterSections(general, query);
   const fixed = useMemo(() => fixedSections(commands), [commands]);
   const shownFixed = filterSections(fixed, query);
@@ -183,6 +187,15 @@ export function ShortcutOverlay({ onClose }: ShortcutOverlayProps) {
                 ) : null}
               </label>
             </div>
+            <Button
+              size="sm"
+              variant={editing ? "primary" : "secondary"}
+              aria-pressed={editing}
+              data-keys-edit
+              onClick={() => setEditing(!editing)}
+            >
+              {t("ui.edit")}
+            </Button>
             <RadixDialog.Close
               aria-label={t("ui.close")}
               className="inline-flex size-control-sm items-center justify-center rounded-md text-text-muted hover:bg-surface-raised hover:text-text"
@@ -210,14 +223,21 @@ export function ShortcutOverlay({ onClose }: ShortcutOverlayProps) {
               </div>
             ) : null}
             {shownGeneral.length ? (
-              <Part id="commands" title={t("ui.commands")}>
-                {shownGeneral.map((section) => (
-                  <SectionBlock key={section.id} section={section} />
-                ))}
-              </Part>
+              editing ? (
+                <div data-part="commands" className="mb-5 max-w-160">
+                  <h2 className="mb-3 text-md font-semibold text-text">{t("ui.commands")}</h2>
+                  <KeybindingEditor filter={query} />
+                </div>
+              ) : (
+                <Part id="commands" title={t("ui.commands")}>
+                  {shownGeneral.map((section) => (
+                    <SectionBlock key={section.id} section={section} />
+                  ))}
+                </Part>
+              )
             ) : null}
             {shownFixed.length ? (
-              <Part id="fixed" title={t("shortcuts.parts.fixed")}>
+              <Part id="fixed" title={t("shortcuts.parts.fixed")} note={editing ? t("keys.fixedNote") : undefined}>
                 {shownFixed.map((section) => (
                   <SectionBlock key={section.id} section={section} />
                 ))}
