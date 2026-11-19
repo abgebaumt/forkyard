@@ -11,6 +11,7 @@ const entry = (id: string, command: string, exitCode: number | null, output = ""
   command,
   exitCode,
   output,
+  code: null,
 });
 
 describe("activity log", () => {
