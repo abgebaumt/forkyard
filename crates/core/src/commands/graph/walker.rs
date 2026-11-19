@@ -31,6 +31,8 @@ pub(super) struct Walker {
     pub fingerprint: String,
     /// Commits handed out so far (including the `--skip` it started with).
     pub offset: u64,
+    /// Started by a first page and no follow-up page took it yet.
+    unadvanced: bool,
     stream: GitRecordStream,
     records: Records,
     /// A record read past the page end, handed out first next time.
@@ -62,6 +64,7 @@ impl Walker {
             repo_id: repo_id.to_string(),
             fingerprint: fingerprint.to_string(),
             offset: skip,
+            unadvanced: skip == 0,
             stream,
             records: Records::new(HEADER_FIELDS),
             unread: None,
@@ -112,7 +115,9 @@ impl GraphWalkers {
         let mut walkers = self.walkers.lock();
         let index =
             walkers.iter().position(|w| w.id == id && w.repo_id == repo_id && w.fingerprint == fingerprint && w.offset == offset)?;
-        Some(walkers.remove(index))
+        let mut walker = walkers.remove(index);
+        walker.unadvanced = false;
+        Some(walker)
     }
 
     /// Keeps the walker for the next page; ends the least recently used beyond `MAX_WALKERS`.
@@ -133,9 +138,11 @@ impl GraphWalkers {
         });
     }
 
-    /// Ends the walkers of `repo_id` built for another plan: a first page means the old pages are gone.
-    pub(super) fn drop_other_fingerprints(&self, repo_id: &str, fingerprint: &str) {
-        drop(self.remove(|w| w.repo_id == repo_id && w.fingerprint != fingerprint));
+    /// On a first page of `repo_id`: ends its walkers built for another plan (those pages are gone)
+    /// and those of earlier first pages no follow-up page took (a reload or refetch left them). A
+    /// walker a live sequence already advanced stays.
+    pub(super) fn drop_abandoned(&self, repo_id: &str, fingerprint: &str) {
+        drop(self.remove(|w| w.repo_id == repo_id && (w.fingerprint != fingerprint || w.unadvanced)));
     }
 
     /// Ends the walkers no page used for the idle time.

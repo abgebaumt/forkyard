@@ -692,7 +692,7 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
     }
     let walkers = core.state::<GraphWalkers>();
     if first_page {
-        walkers.drop_other_fingerprints(repo_id, &plan.fingerprint);
+        walkers.drop_abandoned(repo_id, &plan.fingerprint);
     }
     let mut builder = PageBuilder { plan: &plan, state, rows: Vec::new(), max_lane: 0, commits: 0, hidden, sync };
 

@@ -190,6 +190,22 @@ async fn a_walker_is_never_used_after_the_graph_changed() {
 }
 
 #[tokio::test]
+async fn a_new_first_page_ends_the_walker_of_an_abandoned_first_page_only() {
+    let tc = TestCore::new().await;
+    let repo = linear_repo(20);
+    let id = tc.open(&repo).await.repo.id;
+    let live = graph_page(&tc, id.clone(), None, 2).await.unwrap().next_cursor;
+    let advanced = graph_page(&tc, id.clone(), live, 2).await.unwrap().next_cursor;
+    graph_page(&tc, id.clone(), None, 2).await.unwrap();
+    graph_page(&tc, id.clone(), None, 2).await.unwrap();
+    assert_eq!(graph_walker_count(&tc, Some(&id)), 2, "the advanced walker and the newest first page's");
+
+    log_spawns(&tc);
+    graph_page(&tc, id.clone(), advanced, 2).await.unwrap();
+    assert_eq!(log_spawns(&tc), Vec::<Vec<String>>::new(), "the advanced sequence reads on from its walker");
+}
+
+#[tokio::test]
 async fn the_same_cursor_twice_gives_the_same_page() {
     let tc = TestCore::new().await;
     let repo = linear_repo(10);
