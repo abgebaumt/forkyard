@@ -194,6 +194,19 @@ mod tests {
     }
 
     #[test]
+    fn whether_a_branch_is_listed_does_not_depend_on_the_unmerged_count() {
+        // The list command counts unmerged commits only for listed branches (two passes).
+        for f in
+            [facts("aktiv"), BranchFacts { upstream_gone: true, ..facts("verwaist") }, BranchFacts { protected: true, ..facts("develop") }]
+        {
+            assert_eq!(
+                classify(&BranchFacts { unmerged: 0, ..f.clone() }, NOW, 90).is_some(),
+                classify(&BranchFacts { unmerged: 7, ..f }, NOW, 90).is_some()
+            );
+        }
+    }
+
+    #[test]
     fn without_pr_data_there_is_neither_pr_merged_nor_no_pr() {
         let unknown = BranchFacts { merged: true, unmerged: 0, pr: PrFact::Unknown, ..facts("fertig") };
         assert_eq!(classify(&unknown, NOW, 90).unwrap().1, vec![BranchCleanupReason::Merged]);

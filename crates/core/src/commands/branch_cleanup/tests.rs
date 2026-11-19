@@ -174,3 +174,116 @@ async fn a_merge_only_in_the_upstream_of_the_default_branch_counts_as_merged() {
     let list = candidates_at(&tc, &id, NOW).await.unwrap();
     assert_eq!(classes(&list), vec![("auf-dem-server", Safe, vec![Merged])]);
 }
+
+// ---------------------------------------------------------------------------
+// Deleting
+// ---------------------------------------------------------------------------
+
+use crate::commands::undo::{undo, undo_peek};
+use crate::error::ErrorCode;
+use crate::model::BranchCleanupTarget;
+
+/// Name and current SHA of each branch.
+fn targets_of(repo: &TestRepo, names: &[&str]) -> Vec<BranchCleanupTarget> {
+    names.iter().map(|name| BranchCleanupTarget { name: name.to_string(), sha: repo.git(&["rev-parse", name]) }).collect()
+}
+
+fn branch_exists(repo: &TestRepo, name: &str) -> bool {
+    repo.git_output(&["rev-parse", "--verify", "-q", &format!("refs/heads/{name}")]).status.success()
+}
+
+#[tokio::test]
+async fn deleting_several_branches_is_one_undo_entry_and_undo_brings_all_back() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    merged_branch(&repo, "fertig");
+    repo.checkout_new("feature/thema-20");
+    repo.commit_file("t1.txt", "1\n", "Eins");
+    repo.commit_file("t2.txt", "2\n", "Zwei");
+    repo.checkout("main");
+    branch_with_commit(&repo, "alt");
+    let id = tc.open(&repo).await.repo.id;
+    let names = ["fertig", "feature/thema-20", "alt"];
+    let before: Vec<(String, String)> = names.iter().map(|n| (n.to_string(), repo.git(&["rev-parse", n]))).collect();
+    let undo_before_delete = undo_peek(&tc, id.clone()).await.unwrap().undo.map(|step| step.label);
+
+    branch_cleanup_delete(&tc, id.clone(), targets_of(&repo, &names)).await.unwrap();
+    for name in names {
+        assert!(!branch_exists(&repo, name), "{name} is gone");
+    }
+    let peek = undo_peek(&tc, id.clone()).await.unwrap();
+    assert_eq!(peek.undo.unwrap().label, "Undo deletion of 3 branches");
+
+    undo(&tc, id.clone()).await.unwrap();
+    for (name, sha) in &before {
+        assert_eq!(&repo.git(&["rev-parse", name]), sha, "{name} is back at the same commit");
+    }
+    // One step brought all three back: the undo stack is where it was before the delete.
+    assert_eq!(undo_peek(&tc, id).await.unwrap().undo.map(|step| step.label), undo_before_delete);
+}
+
+#[tokio::test]
+async fn a_moved_branch_is_not_deleted() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    merged_branch(&repo, "fertig");
+    branch_with_commit(&repo, "alt");
+    let id = tc.open(&repo).await.repo.id;
+    let targets = targets_of(&repo, &["alt", "fertig"]);
+    repo.checkout("fertig");
+    repo.commit_file("neu.txt", "neu\n", "Neu");
+    repo.checkout("main");
+
+    let err = branch_cleanup_delete(&tc, id, targets).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::StaleState);
+    assert!(branch_exists(&repo, "fertig") && branch_exists(&repo, "alt"), "nothing is deleted");
+}
+
+#[tokio::test]
+async fn checked_out_default_and_protected_branches_are_refused() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    merged_branch(&repo, "fertig");
+    merged_branch(&repo, "release/2026.1");
+    merged_branch(&repo, "team/übung");
+    merged_branch(&repo, "in-arbeit");
+    let linked = repo.temp_dir().join("in-arbeit-wt");
+    repo.git(&["worktree", "add", "-q", linked.to_str().unwrap(), "in-arbeit"]);
+    repo.checkout_new("aktiv");
+    let id = tc.open(&repo).await.repo.id;
+    repo_settings_set(&tc, id.clone(), serde_json::json!({ "protectedBranchPatterns": ["team/*"] })).await.unwrap();
+
+    let missing = BranchCleanupTarget { name: "weg".into(), sha: repo.git(&["rev-parse", "main"]) };
+    let cases = [
+        ("aktiv", ErrorCode::NotAllowed),
+        ("main", ErrorCode::NotAllowed),
+        ("release/2026.1", ErrorCode::NotAllowed),
+        ("team/übung", ErrorCode::NotAllowed),
+        ("in-arbeit", ErrorCode::NotAllowed),
+        ("weg", ErrorCode::NotFound),
+    ];
+    for (name, code) in cases {
+        let target = if name == "weg" { missing.clone() } else { targets_of(&repo, &[name]).remove(0) };
+        let targets = vec![targets_of(&repo, &["fertig"]).remove(0), target];
+        let err = branch_cleanup_delete(&tc, id.clone(), targets).await.unwrap_err();
+        assert_eq!(err.code, code, "{name}: {}", err.message);
+        assert!(err.message.contains(&format!("‘{name}’")), "{name}: the message names the branch: {}", err.message);
+        assert!(branch_exists(&repo, "fertig"), "{name}: the other target stays");
+        if name != "weg" {
+            assert!(branch_exists(&repo, name), "{name} stays");
+        }
+    }
+}
+
+#[tokio::test]
+async fn an_empty_selection_changes_nothing() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    merged_branch(&repo, "fertig");
+    let id = tc.open(&repo).await.repo.id;
+    let before = undo_peek(&tc, id.clone()).await.unwrap().undo.map(|step| step.label);
+
+    let refs = branch_cleanup_delete(&tc, id.clone(), Vec::new()).await.unwrap();
+    assert!(refs.locals.iter().any(|r| r.name == "fertig"));
+    assert_eq!(undo_peek(&tc, id).await.unwrap().undo.map(|step| step.label), before);
+}

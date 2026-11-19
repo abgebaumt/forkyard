@@ -30,6 +30,7 @@ import type {
   AiUsageSummary,
   ArchaeologyAnswer,
   BranchCleanupList,
+  BranchCleanupTarget,
   Agent,
   AgentCleanupPreview,
   AgentSuggestion,
@@ -396,6 +397,11 @@ export interface CoreCommands {
   branchDelete(input: R & { names: string[]; force: boolean }): Promise<RefsSnapshot>;
   /** Branch cleaner: local branches that can go, with class and reasons (without the current and the default branch). */
   branchCleanupCandidates(input: R): Promise<BranchCleanupList>;
+  /**
+   * Branch cleaner: deletes the targets as one undo step. `stale_state` if one no longer points to its `sha`;
+   * `not_allowed` for the current, the default or a protected branch; `not_found` if one is gone. Nothing is deleted then.
+   */
+  branchCleanupDelete(input: R & { targets: BranchCleanupTarget[] }): Promise<RefsSnapshot>;
   /**
    * Deletes the branch `name` on the remote (`git push <remote> --delete <name>`); `name` without
    * the remote prefix (`origin/x` works too). `done`: deleted; `up_to_date`: did not exist there
