@@ -1,15 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ConflictIntent, ConflictIntentBlock } from "../../core";
-import {
-  blockNote,
-  canApply,
-  clampIntentWidth,
-  conflictRanges,
-  hasChange,
-  intentReducer,
-  suggestionDiff,
-  type IntentState,
-} from "./intent";
+import type { ConflictIntentBlock } from "../../core";
+import { blockNote, canApply, clampIntentWidth, conflictRanges, hasChange, suggestionDiff } from "./intent";
 import { buildModel, chunkText, emptyChoice, isResolved, manualOf, shiftBounds } from "./model";
 
 const labels = { ours: "main", theirs: "feature" };
@@ -118,43 +109,6 @@ describe("blocks that may be applied", () => {
       "redacted",
       "leftOut",
     ]);
-  });
-});
-
-describe("the request state", () => {
-  const intent: ConflictIntent = { path: "a.txt", blocks: [{ block: 0, sent: "full", oursWhy: "a", theirsWhy: "b", text: "x\n" }] };
-  const idle: IntentState = { kind: "idle" };
-
-  it("goes preparing → loading → ready and drops answers of cancelled or older jobs", () => {
-    const preparing = intentReducer(idle, { type: "start", at: 1000 });
-    expect(preparing).toEqual({ kind: "preparing", startedAt: 1000 });
-    const loading = intentReducer(preparing, { type: "sending", jobId: "j1" });
-    expect(loading).toEqual({ kind: "loading", startedAt: 1000, jobId: "j1" });
-    expect(intentReducer(loading, { type: "answer", jobId: "j0", intent })).toBe(loading);
-    const ready = intentReducer(loading, { type: "answer", jobId: "j1", intent });
-    expect(ready).toEqual({ kind: "ready", intent, decisions: {} });
-    const cancelled = intentReducer(loading, { type: "cancel" });
-    expect(cancelled).toEqual(idle);
-    expect(intentReducer(cancelled, { type: "answer", jobId: "j1", intent }), "no half results after cancel").toBe(cancelled);
-  });
-
-  it("shows errors, but a cancelled request just goes back", () => {
-    const loading = intentReducer(intentReducer(idle, { type: "start", at: 0 }), { type: "sending", jobId: "j1" });
-    expect(intentReducer(loading, { type: "failed", jobId: "j1", view: { kind: "invalid", text: "Answer unusable" } })).toEqual({
-      kind: "error",
-      view: { kind: "invalid", text: "Answer unusable" },
-    });
-    expect(intentReducer(loading, { type: "failed", jobId: "j1", view: { kind: "cancelled" } })).toEqual(idle);
-    expect(intentReducer(loading, { type: "failed", jobId: "j9", view: { kind: "other", text: "x" } })).toBe(loading);
-    const preparing = intentReducer(idle, { type: "start", at: 0 });
-    expect(intentReducer(preparing, { type: "failed", jobId: null, view: { kind: "other", text: "x" } }).kind).toBe("error");
-  });
-
-  it("remembers Apply and Discard per block", () => {
-    const ready: IntentState = { kind: "ready", intent, decisions: {} };
-    const taken = intentReducer(ready, { type: "decide", block: 0, decision: "taken" });
-    expect(taken).toEqual({ kind: "ready", intent, decisions: { 0: "taken" } });
-    expect(intentReducer(idle, { type: "decide", block: 0, decision: "taken" })).toBe(idle);
   });
 });
 

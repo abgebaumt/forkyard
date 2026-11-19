@@ -7,27 +7,16 @@
  * then counts as edited by hand); saving stays the user's Mod+S. An answer that arrives never moves
  * the focus; when another conflict becomes current (Alt+↑/↓, F7) its card scrolls into view.
  */
-import { useEffect, useReducer, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { core, type AiPreview, type AiProviderKind, type ConflictBlockRange, type ConflictIntentBlock, type Id } from "../../core";
-import { signInInTerminal } from "../../app/ai/cliLogin";
-import { confirmSend } from "../../app/ai/gate";
-import { openAiSettings, openAiSetup } from "../../app/ai/open";
-import { showAiPreview } from "../../app/ai/PreviewDialog";
-import { errorView, loadingView, type AiErrorView } from "../../app/ai/requestState";
-import { newJobId, runAction } from "../../app/run";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { core, type AiProviderKind, type ConflictBlockRange, type ConflictIntentBlock, type Id } from "../../core";
+import { AiErrorNotice } from "../../app/ai/AiErrorNotice";
+import { askAi, showWhatIsSent } from "../../app/ai/gate";
+import { openAiSetup } from "../../app/ai/open";
+import { useAiJob } from "../../app/ai/useAiJob";
 import { locale, t } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { cn } from "../../ui/cn";
-import {
-  blockNote,
-  canApply,
-  hasChange,
-  intentReducer,
-  suggestionDiff,
-  type DiffRow,
-  type IntentDecision,
-  type IntentState,
-} from "./intent";
+import { blockNote, canApply, hasChange, suggestionDiff, type DiffRow, type IntentDecision, type IntentResult } from "./intent";
 import type { SideTitles } from "./titles";
 
 export interface IntentColumnProps {
@@ -54,7 +43,6 @@ export interface IntentColumnProps {
 }
 
 const SIGN: Record<DiffRow["kind"], string> = { same: " ", add: "+", del: "−" };
-const IDLE: IntentState = { kind: "idle" };
 
 export function IntentColumn({
   repoId,
@@ -71,161 +59,47 @@ export function IntentColumn({
   onHide,
   style,
 }: IntentColumnProps) {
-  const [state, dispatch] = useReducer(intentReducer, IDLE);
-  const [now, setNow] = useState(() => Date.now());
-  /** Increases with every start and cancel: a late step of an older run does nothing. */
-  const run = useRef(0);
-  const job = useRef<string | null>(null);
+  const job = useAiJob(local, t("conflict.intent.loading"));
+  const [result, setResult] = useState<IntentResult | null>(null);
   const cards = useRef(new Map<number, HTMLElement>());
-  const busy = state.kind === "preparing" || state.kind === "loading";
+  const kind = job.running ? "loading" : job.run.kind === "failed" ? "error" : result ? "ready" : "idle";
 
   useEffect(() => {
-    if (!busy) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [busy]);
-
-  // Leaving the tool cancels a running request.
-  useEffect(
-    () => () => {
-      run.current++;
-      if (job.current) void core.jobCancel({ jobId: job.current }).catch(() => undefined);
-    },
-    [],
-  );
-
-  useEffect(() => {
-    if (state.kind === "ready" && !hidden) cards.current.get(current)?.scrollIntoView({ block: "nearest" });
-  }, [current, state.kind, hidden]);
+    if (kind === "ready" && !hidden) cards.current.get(current)?.scrollIntoView({ block: "nearest" });
+  }, [current, kind, hidden]);
 
   const input = { kind: "conflict_intent" as const, path, blocks: ranges };
 
+  // Leaving the tool cancels a running request (useAiJob).
   const explain = async () => {
     if (openSetup) {
       void openAiSetup();
       return;
     }
-    const mine = ++run.current;
-    const startedAt = Date.now();
-    setNow(startedAt);
-    dispatch({ type: "start", at: startedAt });
-    let preview: AiPreview;
-    try {
-      preview = await core.aiPreview({ repoId, feature: "conflict_intent", input, locale: locale() });
-    } catch (error) {
-      if (run.current === mine) dispatch({ type: "failed", jobId: null, view: errorView(error) });
-      return;
-    }
-    if (run.current !== mine) return;
-    const send = await confirmSend(repoId, "conflict_intent", preview);
-    if (run.current !== mine) return;
-    if (!send) {
-      dispatch({ type: "cancel" });
-      return;
-    }
-    const jobId = newJobId();
-    job.current = jobId;
-    dispatch({ type: "sending", jobId });
-    try {
-      const intent = await core.aiConflictIntent({ repoId, jobId, path, blocks: ranges, locale: locale() });
-      dispatch({ type: "answer", jobId, intent });
-    } catch (error) {
-      dispatch({ type: "failed", jobId, view: errorView(error) });
-    } finally {
-      if (job.current === jobId) job.current = null;
-    }
-  };
-
-  const cancel = () => {
-    run.current++;
-    if (job.current) void core.jobCancel({ jobId: job.current }).catch(() => undefined);
-    job.current = null;
-    dispatch({ type: "cancel" });
-  };
-
-  const whatIsSent = async () => {
-    const result = await runAction(t("ai.preview.loading"), () =>
-      core.aiPreview({ repoId, feature: "conflict_intent", input, locale: locale() }),
+    const intent = await job.start(
+      (jobId) => {
+        setResult(null);
+        return core.aiConflictIntent({ repoId, jobId, path, blocks: ranges, locale: locale() });
+      },
+      () => askAi(repoId, "conflict_intent", input),
     );
-    if (result.ok) await showAiPreview(result.value, "look");
+    if (intent) setResult({ intent, decisions: {} });
   };
+
+  const cancel = job.cancel;
+
+  const whatIsSent = () => showWhatIsSent(repoId, "conflict_intent", input);
 
   const decide = (block: ConflictIntentBlock, decision: IntentDecision) => {
     if (decision === "taken" && block.text !== null) onApply(block.block, block.text);
-    dispatch({ type: "decide", block: block.block, decision });
+    setResult((r) => r && { ...r, decisions: { ...r.decisions, [block.block]: decision } });
     cards.current.get(block.block)?.focus();
-  };
-
-  const errorActions = (view: AiErrorView): ReactNode => {
-    switch (view.kind) {
-      case "setup":
-        return (
-          <Button size="sm" onClick={() => void openAiSetup()}>
-            {t("ai.state.setup")}
-          </Button>
-        );
-      case "unavailable":
-        return (
-          <Button size="sm" onClick={() => void explain()}>
-            {t("ai.state.retry")}
-          </Button>
-        );
-      case "notLoggedIn":
-        return provider ? (
-          <Button size="sm" data-intent-sign-in="" onClick={() => signInInTerminal(provider)}>
-            {t("ai.setup.cli.signIn")}
-          </Button>
-        ) : null;
-      case "limit":
-        return (
-          <>
-            <Button size="sm" onClick={() => void explain()}>
-              {t("ai.state.limitSend")}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={openAiSettings}>
-              {t("ai.state.limitChange")}
-            </Button>
-          </>
-        );
-      case "tooLarge":
-        return (
-          <Button size="sm" variant="ghost" onClick={() => void whatIsSent()}>
-            {t("conflict.intent.whatIsSent")}
-          </Button>
-        );
-      case "invalid":
-        return (
-          <>
-            <Button size="sm" onClick={() => void explain()}>
-              {t("ai.state.again")}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => void whatIsSent()}>
-              {t("ai.state.showSent")}
-            </Button>
-          </>
-        );
-      default:
-        return (
-          <Button size="sm" onClick={() => void explain()}>
-            {t("ai.state.again")}
-          </Button>
-        );
-    }
   };
 
   let content: ReactNode;
   let announcement = "";
-  if (state.kind === "idle") {
-    content = (
-      <div className="flex flex-col items-start gap-2 px-3 py-3">
-        <p className="m-0 text-sm text-text-muted">{t("conflict.intent.intro")}</p>
-        <Button size="sm" variant="primary" data-intent-explain="" disabled={ranges.length === 0} onClick={() => void explain()}>
-          {t("conflict.intent.explain")}
-        </Button>
-      </div>
-    );
-  } else if (state.kind === "preparing" || state.kind === "loading") {
-    const view = loadingView(now - state.startedAt, local, t("conflict.intent.loading"));
+  if (job.loading) {
+    const view = job.loading;
     announcement = t("conflict.intent.loading");
     content = (
       <div className="flex flex-col items-start gap-2 px-3 py-3">
@@ -238,17 +112,29 @@ export function IntentColumn({
         </Button>
       </div>
     );
-  } else if (state.kind === "error") {
+  } else if (job.run.kind === "failed") {
+    content = (
+      <div className="flex flex-col gap-2 px-3 py-3" data-intent-status="error">
+        <AiErrorNotice
+          name="intent-error"
+          view={job.run.view}
+          provider={provider}
+          onAgain={() => void explain()}
+          onShowSent={() => void whatIsSent()}
+        />
+      </div>
+    );
+  } else if (!result) {
     content = (
       <div className="flex flex-col items-start gap-2 px-3 py-3">
-        <p role="alert" className="m-0 text-sm text-text" data-intent-status="error" data-intent-error={state.view.kind}>
-          {"text" in state.view ? state.view.text : null}
-        </p>
-        <div className="flex flex-wrap gap-1">{errorActions(state.view)}</div>
+        <p className="m-0 text-sm text-text-muted">{t("conflict.intent.intro")}</p>
+        <Button size="sm" variant="primary" data-intent-explain="" disabled={ranges.length === 0} onClick={() => void explain()}>
+          {t("conflict.intent.explain")}
+        </Button>
       </div>
     );
   } else {
-    announcement = t("conflict.intent.ready", { count: state.intent.blocks.length });
+    announcement = t("conflict.intent.ready", { count: result.intent.blocks.length });
     content = (
       <>
         <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
@@ -259,11 +145,11 @@ export function IntentColumn({
             {t("conflict.intent.again")}
           </Button>
         </div>
-        {state.intent.blocks.map((block) => (
+        {result.intent.blocks.map((block) => (
           <IntentCard
             key={block.block}
             block={block}
-            decision={state.decisions[block.block]}
+            decision={result.decisions[block.block]}
             isCurrent={block.block === current}
             currentText={blockText(block.block)}
             titles={titles}
@@ -282,7 +168,7 @@ export function IntentColumn({
     <aside
       aria-label={t("conflict.intent.region")}
       data-intent-column=""
-      data-intent-state={state.kind}
+      data-intent-state={kind}
       style={style}
       className={cn(hidden ? "hidden" : "flex", "min-h-0 min-w-48 flex-col bg-surface")}
     >
