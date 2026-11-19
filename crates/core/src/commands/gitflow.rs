@@ -648,6 +648,7 @@ async fn create_tag(
         None => format!("{} {name}\n", kind_label(kind)),
     };
     core.git_for(repo_id)?.args(["tag", "-a", "--cleanup=whitespace", "-F", "-", tag, &tip]).stdin(message).run().await?;
+    crate::commands::digest::seen::absorb(core, repo_id, std::slice::from_ref(&full)).await;
     rev::rev_parse(core, repo_id, &full).await
 }
 

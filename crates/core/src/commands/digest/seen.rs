@@ -34,20 +34,29 @@ pub(crate) async fn ensure(core: &Core, repo_id: &str) -> CoreResult<SeenRow> {
     if let Some(row) = core.db.with(|c| repo_seen::get(c, &profile_id, repo_id))? {
         return Ok(row);
     }
-    let row = SeenRow { seen_at: util::now_iso(), refs: current_refs(core, repo_id).await?, pr_max_number: None };
+    let mut row = SeenRow { seen_at: util::now_iso(), refs: current_refs(core, repo_id).await?, pr_max_number: None };
     // Checked again in the same access: a concurrent `ensure` may have been faster.
-    core.db.with(|c| match repo_seen::get(c, &profile_id, repo_id)? {
-        Some(existing) => Ok(existing),
-        None => {
-            repo_seen::put(c, &profile_id, repo_id, &row)?;
-            Ok(row)
+    let existing = core.db.with(|c| match repo_seen::get(c, &profile_id, repo_id)? {
+        Some(existing) => Ok(Some(existing)),
+        None => repo_seen::put(c, &profile_id, repo_id, &row).map(|_| None),
+    })?;
+    if let Some(existing) = existing {
+        return Ok(existing);
+    }
+    // An own push absorbed before the row existed did nothing, and the first snapshot may predate
+    // it: take the refs once more now that the row is there.
+    let refs = current_refs(core, repo_id).await?;
+    core.db.with(|c| {
+        if let Some(mut stored) = repo_seen::get(c, &profile_id, repo_id)? {
+            stored.refs = refs;
+            repo_seen::put(c, &profile_id, repo_id, &stored)?;
+            row = stored;
         }
+        Ok(row)
     })
 }
 
 /// The user has seen everything up to now. `pr_max_number: None` keeps the stored number.
-// shortcut: no command calls it yet; drop the allow once the digest commands use it.
-#[allow(dead_code)]
 pub(crate) async fn mark(core: &Core, repo_id: &str, pr_max_number: Option<u64>) -> CoreResult<()> {
     let profile_id = core.active_profile_id()?;
     let refs = current_refs(core, repo_id).await?;

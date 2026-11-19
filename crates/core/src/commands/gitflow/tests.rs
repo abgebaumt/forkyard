@@ -214,6 +214,7 @@ async fn release_finish_merges_tags_and_merges_back() {
     gitflow_start(&tc, id.clone(), GitflowKind::Release, "1.2.0".into(), None).await.unwrap();
     let release = repo.commit_file("version.txt", "1.2.0\n", "Version 1.2.0");
     let (main_before, develop_before) = (repo.git(&["rev-parse", "main"]), repo.git(&["rev-parse", "develop"]));
+    crate::commands::digest::seen::ensure(&tc, &id).await.unwrap();
 
     let finish =
         GitflowFinishOptions {
@@ -228,6 +229,9 @@ async fn release_finish_merges_tags_and_merges_back() {
     assert_eq!(parents(&repo, "develop"), vec![develop_before.clone(), release.clone()]);
     assert_eq!(repo.git(&["cat-file", "-t", "refs/tags/v1.2.0"]), "tag", "annotated tag");
     assert_eq!(repo.git(&["rev-parse", "v1.2.0^{commit}"]), main_after);
+    let profile = tc.active_profile_id().unwrap();
+    let seen = tc.db.with(|c| crate::db::repo_seen::get(c, &profile, &id)).unwrap().unwrap();
+    assert_eq!(seen.refs.get("refs/tags/v1.2.0"), Some(&repo.git(&["rev-parse", "refs/tags/v1.2.0"])), "the own tag is not news");
     assert_eq!(repo.git(&["tag", "-l", "--format=%(contents)", "v1.2.0"]).trim(), "Erste öffentliche Fassung");
     assert!(exists(&repo, "refs/heads/release/1.2.0"), "deleteBranch: false leaves the branch in place");
 
