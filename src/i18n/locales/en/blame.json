@@ -2,6 +2,7 @@
   "ariaLabel": "Blame of {{path}}",
   "loading": "Loading blame of {{name}}",
   "uncommitted": "Not committed yet",
+  "progressLabel": "Assigning lines",
   "progress": "Assigning lines … {{percent}} %",
   "pending": "Not assigned yet",
   "line": "Line {{line}}",
