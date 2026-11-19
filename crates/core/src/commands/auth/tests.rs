@@ -472,6 +472,42 @@ async fn helper_gone_or_session_dropped_closes_the_request() {
     assert_eq!(fx.closed().len(), 2, "exactly one event per orphaned prompt");
 }
 
+const W: &str = "w-0123456789abcdef0123456789abcdef";
+
+fn add_window(tc: &TestCore, label: &str) {
+    tc.db.tx(|tx| db::windows::insert(tx, &db::profiles::active_id(tx)?, label, None)).unwrap();
+}
+
+#[tokio::test]
+async fn a_prompt_goes_only_to_the_window_the_action_came_from() {
+    let fx = Fixture::new().await;
+    add_window(&fx.tc, W);
+    crate::commands::window::note_focus(&fx.tc, "main");
+    let session = crate::windowing::scoped(W.into(), fx.broker().begin(SessionMode::Interactive)).await;
+    let asking = helper(&session, "Password for 'https://anna@git.example.com': ");
+    let request = fx.request(1).await;
+    assert_eq!(fx.tc.events.targeted(names::CREDENTIAL_REQUEST), vec![(W.to_string(), request.clone())]);
+    credential_answer(&fx.tc, id_of(&request), Some("x".into()), false).await.unwrap();
+    assert_eq!(asking.await.unwrap().as_deref(), Some("x"));
+}
+
+#[tokio::test]
+async fn a_prompt_of_a_closed_window_goes_to_the_last_focused_one() {
+    let fx = Fixture::new().await;
+    let x = "w-ffffffffffffffffffffffffffffffff";
+    add_window(&fx.tc, W);
+    add_window(&fx.tc, x);
+    let session = crate::windowing::scoped(W.into(), fx.broker().begin(SessionMode::Interactive)).await;
+    crate::commands::window::window_closed(&fx.tc, W);
+    crate::commands::window::note_focus(&fx.tc, "main");
+    crate::commands::window::note_focus(&fx.tc, x);
+    let asking = helper(&session, "Password for 'https://anna@git.example.com': ");
+    let request = fx.request(1).await;
+    assert_eq!(fx.tc.events.targeted(names::CREDENTIAL_REQUEST), vec![(x.to_string(), request.clone())]);
+    credential_answer(&fx.tc, id_of(&request), None, false).await.unwrap();
+    assert_eq!(asking.await.unwrap(), None);
+}
+
 #[tokio::test]
 async fn git_questions_are_asked_once_per_session_ssh_questions_every_time() {
     let fx = Fixture::new().await;

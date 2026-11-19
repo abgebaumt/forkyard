@@ -95,6 +95,8 @@ struct SessionState {
     mode: Mode,
     scripted: Option<String>,
     profile_id: String,
+    /// Window the call came from; its prompts go there while it is open.
+    origin: Option<String>,
     /// Open prompts to the UI.
     waiting: u32,
     cancelled: bool,
@@ -271,6 +273,7 @@ impl Broker {
                 mode,
                 scripted,
                 profile_id,
+                origin: crate::windowing::caller(),
                 waiting: 0,
                 cancelled: false,
                 timed_out: false,
@@ -388,7 +391,7 @@ impl Broker {
 
     /// Answers a question: fixed value, keychain or UI. `None` = no answer.
     async fn ask<R: AsyncRead + Unpin>(&self, token: &str, prompt: &str, conn: &mut R) -> Option<String> {
-        let (mode, scripted, profile_id) = {
+        let (mode, scripted, profile_id, origin) = {
             let mut state = self.state.lock();
             let session = state.sessions.get_mut(token)?;
             session.questions = session.questions.saturating_add(1);
@@ -397,7 +400,7 @@ impl Broker {
                 session.unanswered = true;
                 return None;
             }
-            (session.mode, session.scripted.clone(), session.profile_id.clone())
+            (session.mode, session.scripted.clone(), session.profile_id.clone(), session.origin.clone())
         };
         if mode == Mode::Scripted {
             return scripted;
@@ -431,7 +434,10 @@ impl Broker {
             can_remember,
         };
         match serde_json::to_value(&request) {
-            Ok(payload) => self.events.emit(names::CREDENTIAL_REQUEST, payload),
+            Ok(payload) => match self.db.with(|c| db::windows::prompt_target(c, &profile_id, origin.as_deref())) {
+                Ok(Some(window)) => self.events.emit_to(&window, names::CREDENTIAL_REQUEST, payload),
+                _ => self.events.emit(names::CREDENTIAL_REQUEST, payload),
+            },
             Err(e) => log::warn!("credential:request not serializable: {e}"),
         }
 

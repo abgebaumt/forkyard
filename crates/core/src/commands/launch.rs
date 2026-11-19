@@ -21,6 +21,8 @@ use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 
 use crate::app::Core;
+use crate::commands::window;
+use crate::db;
 use crate::error::CoreResult;
 use crate::events::names;
 use crate::git::rev;
@@ -232,16 +234,22 @@ pub fn set_initial(core: &Core, request: Option<LaunchRequest>) {
 }
 
 /// The request the app was launched with (or that has since come from a second instance) –
-/// once; `None` afterwards. Later requests arrive as the event `app:open_request`.
+/// once, and only to the most recently focused window (any window while none was ever focused);
+/// `None` otherwise. Later requests arrive as the event `app:open_request`.
 pub async fn app_launch_request(core: &Core) -> CoreResult<Option<LaunchRequest>> {
+    let caller = window::calling_window(core);
+    let takes = core.db.with(|c| {
+        let profile_id = db::profiles::active_id(c)?;
+        Ok(!db::windows::ever_focused(c, &profile_id)? || db::windows::fallback(c, &profile_id)? == caller)
+    })?;
     let state = core.state::<LaunchState>();
     let mut inner = state.inner.lock();
     inner.attached = true;
-    Ok(inner.pending.take())
+    Ok(if takes { inner.pending.take() } else { None })
 }
 
-/// Hands a request to the UI: as an event once it has picked up the launch request; before
-/// that it waits (the most recent one wins) for `app_launch_request`.
+/// Hands a request to the UI: as an event to the most recently focused window once the UI has
+/// picked up the launch request; before that it waits (the most recent one wins) for `app_launch_request`.
 pub fn deliver(core: &Core, request: LaunchRequest) {
     let state = core.state::<LaunchState>();
     {
@@ -251,7 +259,7 @@ pub fn deliver(core: &Core, request: LaunchRequest) {
             return;
         }
     }
-    core.emit(names::APP_OPEN_REQUEST, &request);
+    core.emit_to(&window::last_focused(core), names::APP_OPEN_REQUEST, &request);
 }
 
 // ---------------------------------------------------------------------------
@@ -298,7 +306,7 @@ fn accept(core: &Core, token: &str, line: &str) -> bool {
         return false;
     }
     if message.focus {
-        core.events.emit(names::APP_FOCUS_REQUEST, serde_json::Value::Null);
+        core.emit_to(&window::last_focused(core), names::APP_FOCUS_REQUEST, &serde_json::Value::Null);
         return true;
     }
     // Check again: the message comes from outside this process. A request from a link stays a
@@ -536,6 +544,29 @@ mod tests {
         assert_eq!(app_launch_request(&tc).await.unwrap(), None, "delivered as an event, not twice");
     }
 
+    const W: &str = "w-0123456789abcdef0123456789abcdef";
+
+    fn add_focused_window(tc: &TestCore) {
+        tc.db.tx(|tx| crate::db::windows::insert(tx, &crate::db::profiles::active_id(tx)?, W, None)).unwrap();
+        crate::commands::window::note_focus(tc, W);
+    }
+
+    #[tokio::test]
+    async fn external_requests_go_to_the_last_focused_window() {
+        let tc = TestCore::new().await;
+        add_focused_window(&tc);
+        let dir = tempfile::tempdir().unwrap();
+        let first = validated(&dir.path().to_string_lossy(), None, None).unwrap();
+        crate::windowing::scoped(W.into(), app_launch_request(&tc)).await.unwrap();
+        deliver(&tc, first.clone());
+        assert_eq!(tc.events.targeted(names::APP_OPEN_REQUEST), vec![(W.to_string(), serde_json::to_value(&first).unwrap())]);
+
+        let second = validated(&dir.path().to_string_lossy(), Some("abcd1234"), None).unwrap();
+        set_initial(&tc, Some(second.clone()));
+        assert_eq!(crate::windowing::scoped("main".into(), app_launch_request(&tc)).await.unwrap(), None, "not the focused window");
+        assert_eq!(crate::windowing::scoped(W.into(), app_launch_request(&tc)).await.unwrap(), Some(second));
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn second_instance_forwards_over_the_local_channel() {
         let tc = TestCore::new().await;
@@ -604,6 +635,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn a_focus_request_with_the_token_is_accepted_and_emitted() {
         let tc = TestCore::new().await;
+        add_focused_window(&tc);
         let data_dir = tc.data_dir().to_path_buf();
         let server = tokio::spawn(listen(tc.core.clone()));
         let file = data_dir.join(INSTANCE_FILE);
@@ -620,7 +652,7 @@ mod tests {
 
         let dir_a = data_dir.clone();
         assert!(tokio::task::spawn_blocking(move || forward_focus(&dir_a)).await.unwrap());
-        assert_eq!(tc.events.named(names::APP_FOCUS_REQUEST).len(), 1);
+        assert_eq!(tc.events.targeted(names::APP_FOCUS_REQUEST), vec![(W.to_string(), serde_json::Value::Null)]);
 
         info.token = "falsch".into();
         std::fs::write(&file, serde_json::to_string(&info).unwrap()).unwrap();

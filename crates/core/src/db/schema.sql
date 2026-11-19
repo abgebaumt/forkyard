@@ -129,8 +129,9 @@ create index tabs_repository on tabs (repository_id);
 create unique index tabs_one_active_per_window on tabs (profile_id, window_id) where is_active = 1;
 create index tabs_window_position on tabs (profile_id, window_id, position);
 
--- App windows per profile. `main` always exists and has the lowest position; further windows
--- are called `w-…`. Geometry in logical pixels (outer position, inner size), null until placed.
+-- App windows per profile. A profile always has at least one window; `main` can be closed during a
+-- session and is restored to the first window on start or profile switch. Further windows are
+-- called `w-…`. Geometry in logical pixels (outer position, inner size), null until placed.
 create table profile_windows (
   profile_id text not null references profiles (id) on delete cascade,
   label      text not null check (label = 'main' or label glob 'w-*'),

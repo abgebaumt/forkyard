@@ -76,7 +76,7 @@ impl JobRegistry {
     pub fn new() -> Self {
         Self::default()
     }
-    /// Registers a job started from window `origin` (`None`: main). A jobId that is already running yields `duplicate`.
+    /// Registers a job started from window `origin` (`None`: in the background, no window). A jobId that is already running yields `duplicate`.
     pub fn register(&self, job_id: &str, origin: Option<&str>) -> CoreResult<CancelToken> {
         let mut jobs = self.jobs.lock();
         if jobs.contains_key(job_id) {
@@ -142,7 +142,7 @@ impl JobRegistry {
 }
 
 fn started_in(origin: &Option<String>, window: &str) -> bool {
-    origin.as_deref().unwrap_or(crate::windowing::MAIN) == window
+    origin.as_deref() == Some(window)
 }
 
 /// A running job. Created via `Core::start_job`. Call `finish` at the end;
@@ -301,15 +301,15 @@ mod tests {
         let b = crate::windowing::scoped(w.into(), async { Job::new("b", None, reg.clone(), events.clone()) }).await.unwrap();
         let unscoped = Job::new("c", None, reg.clone(), events.clone()).unwrap();
         assert_eq!(reg.running_from(w), 1);
-        assert_eq!(reg.running_from("main"), 2, "a job without an origin counts as main's");
+        assert_eq!(reg.running_from("main"), 1, "a job without an origin belongs to no window");
         assert_eq!(reg.cancel_from(w), 1);
         assert!(b.token().is_cancelled());
         assert!(!a.token().is_cancelled() && !unscoped.token().is_cancelled());
-        assert_eq!(reg.running_from("main"), 2);
+        assert_eq!(reg.running_from("main"), 1);
         b.finish::<()>(&Err(CoreError::cancelled()));
         assert_eq!(reg.running_from(w), 0);
-        assert_eq!(reg.cancel_from("main"), 2);
-        assert!(a.token().is_cancelled() && unscoped.token().is_cancelled());
+        assert_eq!(reg.cancel_from("main"), 1);
+        assert!(a.token().is_cancelled() && !unscoped.token().is_cancelled());
     }
 
     #[test]
