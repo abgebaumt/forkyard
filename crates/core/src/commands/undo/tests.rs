@@ -1353,3 +1353,42 @@ async fn snapshot_takes_content_of_racily_clean_files() {
     let (snapshot, _) = u::snapshot_worktree(&fx.tc, &fx.id, Some(&["f.txt".to_string()])).await.unwrap();
     assert_eq!(fx.repo.git(&["show", &format!("{snapshot}:f.txt")]), "A\nB");
 }
+
+/// Cleanup must not forget an entry whose backup refs are still there: the refs would stay
+/// without a row, and the next cleanup would never look at them again.
+#[tokio::test]
+async fn cleanup_keeps_entries_whose_backup_refs_could_not_be_removed() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    let entry = u::new_id();
+    u::create_backup_ref(&tc, &id, &entry, "before", &repo.head()).await.unwrap();
+    let record = UndoRecord {
+        id: entry.clone(),
+        repo_id: id.clone(),
+        worktree_path: String::new(),
+        action: UndoAction::Commit,
+        label: "Undo commit".into(),
+        ref_name: None,
+        ref_before: None,
+        ref_after: None,
+        head_before: MAIN.into(),
+        head_after: Some(MAIN.into()),
+        payload: json!({}),
+    };
+    u::record(&tc, record).await.unwrap();
+    tc.db.with(|c| Ok(c.execute("update undo_entries set created_at = '2000-01-01T00:00:00Z'", [])?)).unwrap();
+    let rows = |tc: &TestCore| tc.db.with(|c| crate::db::undo::list_done(c, &id, "")).unwrap().len();
+    let backup = format!("refs/forkyard/undo/{entry}/before");
+
+    // A foreign lock on the ref: Git cannot delete it.
+    let lock = repo.path().join(".git").join(format!("{backup}.lock"));
+    std::fs::write(&lock, "").unwrap();
+    u::cleanup_older_than(&tc, 14).await.unwrap();
+    assert_eq!(rows(&tc), 1, "the row went although its backup ref stayed");
+
+    std::fs::remove_file(&lock).unwrap();
+    u::cleanup_older_than(&tc, 14).await.unwrap();
+    assert_eq!(rows(&tc), 0);
+    assert!(!repo.git_output(&["rev-parse", "--verify", "-q", &backup]).status.success());
+}
