@@ -15,21 +15,19 @@ import {
   Play,
   RotateCcw,
 } from "lucide-react";
-import { core, type Id, type PreviewOp, type RebaseAction, type RebasePlan, type RebasePlanRow } from "../../core";
+import type { Id, PreviewOp, RebaseAction, RebasePlanRow } from "../../core";
 import { askMessage } from "../../app/actionDialogs";
 import { useConflictPreview } from "../../app/conflictPreview";
 import { ConflictPreviewNote } from "../../components/ConflictPreviewNote";
 import { Checkbox } from "../../ui/Field";
-import { confirm } from "../../app/dialogs";
 import { toCoreError } from "../../app/errors";
 import { busyKeys } from "../../app/actions/keys";
-import { rebaseOnto, reportOpResult } from "../../app/actions/merge";
+import { applyRebasePlan, planSignature, refusalTitle } from "../../app/rebasePlan/apply";
+import { rebaseOnto } from "../../app/actions/merge";
 import { stashChanges } from "../../app/actions/stash";
 import { shortSha } from "../../app/format";
 import { openMenuAtElement } from "../../app/menus";
 import { useRebasePlan, useSettings } from "../../app/queries";
-import { runAction } from "../../app/run";
-import { withFreshStatus } from "../../app/statusCache";
 import { useBusy } from "../../app/store";
 import { Button } from "../../ui/Button";
 import { cn } from "../../ui/cn";
@@ -45,14 +43,14 @@ import {
   isShaLike,
   joinMessage,
   moveItem,
-  payloadRows,
   planChanged,
   planSummary,
   resultCount,
   rowRoles,
   shownSummary,
   splitMessage,
-} from "./model";
+} from "../../app/rebasePlan/model";
+import { startRows } from "./model";
 import {
   ColumnBar,
   CommitCells,
@@ -65,7 +63,7 @@ import {
   ToolHeader,
   type StartRef,
 } from "./parts";
-import { ReorderList } from "./ReorderList";
+import { ReorderList } from "../../components/ReorderList";
 import { t } from "../../i18n";
 
 const pillTone: Record<RebaseAction, string> = {
@@ -76,51 +74,10 @@ const pillTone: Record<RebaseAction, string> = {
   drop: "border-danger bg-danger-surface text-danger",
 };
 
-type Refusal = Extract<RebasePlan, { status: "refused" }>;
-
-const refusalTitle: Record<Refusal["reason"], string> = {
-  merge_commits: t("rebase.refused.mergeCommits"),
-  no_common_ancestor: t("rebase.refused.noCommonAncestor"),
-  nothing_to_rebase: t("rebase.refused.nothingToRebase"),
-  dirty_worktree: t("rebase.refused.dirtyWorktree"),
-  detached: t("rebase.refused.detached"),
-  operation_in_progress: t("rebase.refused.operationInProgress"),
-};
-
 interface Notice {
   tone: "info" | "warning";
   title: string;
   text: string;
-}
-
-const signature = (plan: Extract<RebasePlan, { status: "ok" }>) => `${plan.base}:${plan.rows.map((row) => row.sha).join(",")}`;
-
-/**
- * Prompt before starting if the plan costs something: commits fall out of the branch, or commits
- * that are already on a remote get rewritten. A plan that only reorders, rewords or squashes
- * local commits starts without a prompt.
- */
-async function confirmRewrite(plan: Extract<RebasePlan, { status: "ok" }>, rows: RebasePlanRow[]): Promise<boolean> {
-  const dropped = rows.filter((row) => row.action === "drop");
-  if (!plan.rewritesPushed && dropped.length === 0) return true;
-  const sentences: string[] = [];
-  if (dropped.length) {
-    sentences.push(t("rebase.confirm.dropped", { count: dropped.length, branch: plan.branch }));
-  }
-  if (plan.rewritesPushed) {
-    sentences.push(t("rebase.confirm.pushed"));
-  }
-  sentences.push(t("rebase.confirm.undo"));
-  return confirm({
-    title: dropped.length
-      ? t("rebase.confirm.dropTitle", { count: dropped.length })
-      : t("rebase.confirm.pushedTitle", { branch: plan.branch }),
-    body: sentences.join(" "),
-    details: dropped.map((row) => `${shortSha(row.sha)}  ${row.summary}`),
-    detailsLabel: dropped.length ? t("rebase.confirm.droppedLabel") : undefined,
-    confirmLabel: t("rebase.interactive.start"),
-    danger: true,
-  });
 }
 
 export function InteractiveRebase({
@@ -128,6 +85,7 @@ export function InteractiveRebase({
   tabId,
   base,
   autosquash = false,
+  initialRows,
   onClose,
   startRef,
 }: {
@@ -135,6 +93,8 @@ export function InteractiveRebase({
   tabId: Id;
   base: string;
   autosquash?: boolean;
+  /** Rows handed over from the graph's edit mode; taken over on the first load only. */
+  initialRows?: RebasePlanRow[];
   onClose: () => void;
   startRef: StartRef;
 }) {
@@ -158,7 +118,7 @@ export function InteractiveRebase({
   // same (e.g. after a fetch), the edits stay.
   useEffect(() => {
     if (!okPlan) return;
-    const next = signature(okPlan);
+    const next = planSignature(okPlan);
     if (loaded.current === next && !forceReset.current) return;
     if (loaded.current !== null && loaded.current !== next && !forceReset.current && rowsRef.current) {
       setNotice({
@@ -167,9 +127,10 @@ export function InteractiveRebase({
         text: t("rebase.interactive.reloadedBody"),
       });
     }
+    const first = loaded.current === null;
     forceReset.current = false;
     loaded.current = next;
-    setRows(okPlan.rows);
+    setRows(first ? startRows(okPlan, initialRows) : okPlan.rows);
     setActive(0);
   }, [okPlan]);
 
@@ -323,40 +284,27 @@ export function InteractiveRebase({
   const start = async () => {
     if (!okPlan || check.blocked) return;
     // After "Cancel" focus returns to where it was (list or start button); the plan stays.
-    if (!(await confirmRewrite(okPlan, current))) return;
-    const result = await runAction(
-      t("rebase.tool.interactive"),
-      withFreshStatus(repoId, () =>
-        core.rebaseApply({
-          repoId,
-          base: okPlan.base,
-          rows: payloadRows(current),
-          updateRefs: okPlan.dependentBranches.length > 0 && updateRefs,
-        }),
-      ),
-      {
-        busyKey: busyKeys.history(repoId),
-        quiet: ["stale_state"],
-      },
-    );
-    if (!result.ok) {
-      if (result.error.code === "stale_state") {
-        setNotice({
-          tone: "warning",
-          title: t("rebase.interactive.staleTitle"),
-          text: t("rebase.interactive.staleBody"),
-        });
-        forceReset.current = true;
-        void planQuery.refetch();
-      }
+    const result = await applyRebasePlan(repoId, tabId, okPlan, current, {
+      updateRefs,
+      askForPushed: true,
+      label: t("rebase.tool.interactive"),
+    });
+    if (result === "stale") {
+      setNotice({
+        tone: "warning",
+        title: t("rebase.interactive.staleTitle"),
+        text: t("rebase.interactive.staleBody"),
+      });
+      forceReset.current = true;
+      void planQuery.refetch();
       return;
     }
-    if (result.value.status === "up_to_date") {
+    if (result === "up_to_date") {
       toast({ tone: "info", title: t("rebase.interactive.upToDateTitle"), description: t("rebase.interactive.upToDateBody") });
       return;
     }
+    if (result !== "done") return;
     onClose();
-    reportOpResult(t("rebase.tool.interactive"), result.value, tabId, { reveal: true });
     // Squashed review fixups of a pushed pull request branch have to replace it on the remote.
     if (autosquash && okPlan.rewritesPushed)
       toast({ tone: "info", title: t("rebase.interactive.forcePushTitle"), description: t("rebase.interactive.forcePushBody") });

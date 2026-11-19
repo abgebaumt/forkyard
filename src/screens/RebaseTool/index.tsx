@@ -6,7 +6,7 @@
  * Esc or "Cancel" close without changing anything.
  */
 import { useCallback, useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import type { Id, Sha } from "../../core";
+import type { Id, RebasePlanRow, Sha } from "../../core";
 import { hasOpenDialog } from "../../app/dialogs";
 import { hasOpenMenu } from "../../app/menus/host";
 import type { RebaseToolMode } from "../../app/store";
@@ -28,10 +28,12 @@ export interface RebaseToolProps {
   shas: Sha[];
   /** Interactive mode: start from Git's autosquash order (fixup commits below their targets). */
   autosquash?: boolean;
+  /** Interactive mode: rows handed over from the graph's edit mode. */
+  rows?: RebasePlanRow[];
 }
 
 /** Reorder, combine, transfer commits. */
-export function RebaseTool({ repoId, tabId, base, mode, shas, autosquash = false }: RebaseToolProps) {
+export function RebaseTool({ repoId, tabId, base, mode, shas, autosquash = false, rows }: RebaseToolProps) {
   const root = useRef<HTMLElement>(null);
   const close = useCallback(() => useAppStore.getState().closeCenter(tabId), [tabId]);
 
@@ -98,6 +100,7 @@ export function RebaseTool({ repoId, tabId, base, mode, shas, autosquash = false
           tabId={tabId}
           base={base}
           autosquash={autosquash}
+          initialRows={rows}
           onClose={close}
           startRef={startRef}
         />

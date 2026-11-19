@@ -16,7 +16,7 @@ import { useAppStore, useBusy } from "../../app/store";
 import { Button } from "../../ui/Button";
 import { Banner } from "../../ui/Feedback";
 import { TextArea, TextField } from "../../ui/Field";
-import { chainOldestFirst, combinedMessage, joinMessage } from "./model";
+import { chainOldestFirst, combinedMessage, joinMessage } from "../../app/rebasePlan/model";
 import {
   ColumnBar,
   CommitCells,
@@ -29,7 +29,7 @@ import {
   ToolHeader,
   type StartRef,
 } from "./parts";
-import { ReorderList } from "./ReorderList";
+import { ReorderList } from "../../components/ReorderList";
 import { useCommitRows } from "./useCommitRows";
 import { t } from "../../i18n";
 
