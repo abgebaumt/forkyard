@@ -36,6 +36,12 @@ All notable changes to Forkyard are listed here. The format follows
   proposal says in one line why it fits.
 - `scripts/bench/large-repo.mjs` measures the graph and blame on a generated repository with 120 000
   commits.
+- Own keyboard shortcuts: in the shortcut overview (Ctrl+/, “Edit”) and in Settings › Keyboard
+  shortcuts, click a command's shortcut and press the new combination – Escape cancels, Backspace
+  removes it. A combination another command already uses can be taken over on purpose; keys of the
+  lists and views, text editing keys and keys the operating system keeps are refused with the reason.
+  Reset per command or all at once. The new shortcut works at once in every window, shows in the
+  palette, menus and tooltips, and stays after a restart.
 
 ### Fixed
 

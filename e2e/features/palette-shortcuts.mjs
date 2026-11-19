@@ -1,7 +1,7 @@
 /**
  * Command palette (Ctrl+P, F1), keyboard shortcuts, focus handling with dialogs and the built-in
- * terminal (all 1.0) in the real app. Every action is checked in the UI and, where it changes
- * something, in Git (branches, HEAD, commits of the temp repository).
+ * terminal (all 1.0), own keyboard shortcuts (1.3) in the real app. Every action is checked in the
+ * UI and, where it changes something, in Git (branches, HEAD, commits of the temp repository).
  *
  *   node e2e/features/palette-shortcuts.mjs
  *   E2E_WD_ONLY="terminal" node e2e/features/palette-shortcuts.mjs
@@ -14,6 +14,8 @@ import os from "node:os";
 import path from "node:path";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 import { makeBranchRepo } from "../fixtures/branches.mjs";
+import { makeDataDir } from "../fixtures/crash.mjs";
+import { makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 
 const LAUNCH = { lang: "en", theme: "light", width: 1440, height: 900 };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -806,6 +808,341 @@ scenario("shortcuts: while a dialog is open or a field has the focus, global key
   } finally {
     repo.cleanup();
   }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Own keyboard shortcuts (1.3)
+// ---------------------------------------------------------------------------------------------
+
+const OVERVIEW = '[data-screen="shortcuts"]';
+const SETTINGS = '[data-screen="settings"]';
+const keyButton = (id) => `[data-keybinding="${id}"]`;
+const overrides = async (app) => (await app.invoke("settings_get", {})).keybindings;
+
+/** Ctrl+/ and "Edit": the overview in edit mode. */
+async function openKeyEditor(app) {
+  await app.press("Control+/");
+  await app.waitFor(OVERVIEW, 5000, { message: "shortcut overview" });
+  await app.click(`${OVERVIEW} [data-keys-edit]`);
+  await app.waitFor(`${OVERVIEW} [data-keys-editor] ${keyButton("app.preferences")}`, 10_000, { message: "keybinding editor" });
+}
+
+async function closeOverview(app) {
+  await app.press("Escape");
+  await app.waitFor(async () => !(await app.$(OVERVIEW)), 5000, { message: "overview closed" });
+}
+
+/** What a command's key button shows: "Ctrl+Alt+K" (alternatives joined by ", "), else its text. */
+const shownKeys = (app, id, within = "") =>
+  app.exec((css) => {
+    const button = document.querySelector(css);
+    if (!button) return null;
+    const caps = [...button.querySelectorAll(":scope > span")]
+      .map((span) => [...span.querySelectorAll("kbd")].map((kbd) => kbd.textContent).join("+"))
+      .filter(Boolean);
+    return caps.length ? caps.join(", ") : button.innerText.trim();
+  }, `${within} ${keyButton(id)}`.trim());
+
+const waitShown = (app, id, expected, within = "") =>
+  app.waitFor(async () => (await shownKeys(app, id, within)) === expected, 10_000, { message: `${id} shows “${expected}”` });
+
+/** Clicks a command's keys and waits for "Press the new combination …". */
+async function startRecording(app, id, within = "") {
+  await app.click(`${within} ${keyButton(id)}`.trim());
+  await app.waitFor(`${within} ${keyButton(id)} [data-keys-recording]`.trim(), 5000, { message: `recording ${id}` });
+}
+
+/** The row text below a command's keys (hint, refusal, conflict). */
+const rowText = (app, id) =>
+  app.exec((css) => document.querySelector(css)?.closest("[data-entry]")?.innerText.replace(/\s+/g, " ").trim() ?? null, keyButton(id));
+
+/** Presses `combo`, then Ctrl+/ as a marker: once the overview is up, `combo` has been handled too. */
+async function pressThenMarker(app, combo) {
+  await app.press(combo, "Control+/");
+  await app.waitFor(OVERVIEW, 5000, { message: `overview after ${combo} (${combo} must not have opened anything)` });
+}
+
+const fetchCount = async (app, repoId) =>
+  (await app.invoke("activity_list", { scope: "repo", repoId, cursor: null, limit: 200 })).entries.filter((entry) =>
+    /^git fetch/.test(entry.command),
+  ).length;
+
+scenario("shortcuts: rebind Preferences to Ctrl+Alt+K – works at once, the old key does nothing, a restart keeps it", "main", async (t) => {
+  const data = makeDataDir();
+  try {
+    const app = await t.launch({ ...LAUNCH, dataDir: data.path });
+    await openKeyEditor(app);
+    await waitShown(app, "app.preferences", "Ctrl+,");
+    await startRecording(app, "app.preferences");
+    await app.press("Control+Alt+k");
+    await waitShown(app, "app.preferences", "Ctrl+Alt+K");
+    assertEqual((await overrides(app))["app.preferences"], ["Mod+Alt+K"], "stored in the settings");
+    await t.shot("keys-rebound-preferences");
+    await closeOverview(app);
+
+    // The old key does nothing, the new one opens the settings.
+    await pressThenMarker(app, "Control+,");
+    assert(!(await app.$(SETTINGS)), "Ctrl+, opened no settings");
+    await closeOverview(app);
+    await app.press("Control+Alt+k");
+    await app.waitFor(SETTINGS, 5000, { message: "Ctrl+Alt+K opens the settings" });
+    await app.press("Escape");
+    await app.waitFor(async () => !(await app.$(SETTINGS)), 5000, { message: "settings closed" });
+
+    // The palette names the new key.
+    await openPalette(app, "F1");
+    const keys = await app.waitFor(
+      () =>
+        app.exec((root) => {
+          const row = document.querySelector(`${root} [role="option"][data-key="command:app.preferences"]`);
+          return row ? [...row.querySelectorAll("kbd")].map((kbd) => kbd.textContent) : null;
+        }, PALETTE),
+      5000,
+      { message: "Settings in the palette" },
+    );
+    assertEqual(keys, ["Ctrl", "Alt", "K"], "palette shows the new key");
+    await app.press("Escape");
+    await paletteClosed(app);
+    await app.close();
+
+    // Restart with the same data directory: the key is still there.
+    const again = await t.launch({ ...LAUNCH, dataDir: data.path });
+    await again.press("Control+Alt+k");
+    await again.waitFor(SETTINGS, 10_000, { message: "Ctrl+Alt+K opens the settings after a restart" });
+    await t.noConsoleErrors(again);
+  } finally {
+    data.cleanup();
+  }
+});
+
+scenario("shortcuts: a taken key asks; Assign anyway takes it from the other command", "edge", async (t) => {
+  const repo = makeBranchRepo();
+  try {
+    const { app } = await start(t, repo);
+    const branches = repo.branches();
+    await openKeyEditor(app);
+    await startRecording(app, "app.preferences");
+    await app.press("Control+b");
+    await app.waitFor(`${OVERVIEW} [data-keys-conflict]`, 5000, { message: "conflict question" });
+    assertMatch(await rowText(app, "app.preferences"), /Used by New branch/, "names the other command");
+    // While recording, Ctrl+B reached neither the global shortcuts nor the dialog.
+    const titles = await app.exec(() => [...document.querySelectorAll('[role="dialog"] h2')].map((h2) => h2.innerText.trim()));
+    assert(!titles.includes("New branch"), `no “New branch” dialog: ${titles.join(", ")}`);
+    await t.shot("keys-conflict");
+    await app.click(`${OVERVIEW} [data-keys-assign-anyway]`);
+    await waitShown(app, "app.preferences", "Ctrl+B");
+    await waitShown(app, "branch.create", "No shortcut");
+    await closeOverview(app);
+
+    await app.press("Control+b");
+    await app.waitFor(SETTINGS, 5000, { message: "Ctrl+B opens the settings" });
+    await app.press("Escape");
+    await app.waitFor(async () => !(await app.$(SETTINGS)), 5000, { message: "settings closed" });
+
+    // The toolbar tooltip of "Branch" shows no key any more.
+    await app.exec(() => {
+      const toolbar = document.querySelector('[data-shell] > [role="toolbar"]');
+      const button = [...toolbar.querySelectorAll("button")].find((el) =>
+        [...el.children].some((span) => span.textContent.trim() === "Branch"),
+      );
+      button.focus();
+      return true;
+    });
+    const tip = await app.waitFor(
+      () =>
+        app.exec(() => {
+          const wrapper = document.querySelector("[data-radix-popper-content-wrapper]");
+          return wrapper ? { text: wrapper.innerText.trim(), keys: wrapper.querySelectorAll("kbd").length } : null;
+        }),
+      5000,
+      { message: "Branch tooltip" },
+    );
+    assertEqual(tip.keys, 0, `Branch tooltip without a key (“${tip.text}”)`);
+    assertEqual(repo.branches(), branches, "no branch created (git)");
+    await t.noConsoleErrors(app);
+  } finally {
+    repo.cleanup();
+  }
+});
+
+scenario("shortcuts: Escape cancels, Backspace removes, reserved keys are refused with the reason", "edge", async (t) => {
+  const repo = makeCleanRepoWithRemote();
+  try {
+    const app = await t.launch(LAUNCH);
+    await app.invoke("settings_set", { patch: { autoFetchMinutes: 0 } });
+    const { repoId } = await app.openRepo(repo.path);
+    await app.settle();
+    const fetches = await fetchCount(app, repoId);
+    await openKeyEditor(app);
+
+    // Escape: the overview stays, the key is unchanged.
+    await startRecording(app, "sync.fetch");
+    await app.press("Escape");
+    await app.waitFor(async () => !(await app.$(`${OVERVIEW} [data-keys-recording]`)), 5000, { message: "recording ended" });
+    assert(await app.$(OVERVIEW), "Escape kept the overview open");
+    await waitShown(app, "sync.fetch", "Ctrl+Shift+L");
+    assertEqual((await overrides(app))["sync.fetch"], undefined, "nothing stored");
+
+    // Backspace removes the key.
+    await startRecording(app, "sync.fetch");
+    await app.press("Backspace");
+    await waitShown(app, "sync.fetch", "No shortcut");
+    await app.waitFor(async () => (await overrides(app))["sync.fetch"] === null, 5000, { message: "removal stored" });
+
+    // Reserved keys are refused with the reason; the next key is recorded again.
+    await startRecording(app, "sync.fetch");
+    await app.press("Control+c");
+    await app.waitFor(`${OVERVIEW} [data-keys-refused]`, 5000, { message: "Ctrl+C refused" });
+    assertIncludes(await rowText(app, "sync.fetch"), "Can't be assigned: needed for editing text", "reason for Ctrl+C");
+    await app.press("j");
+    await app.waitFor(async () => /lists and text fields use this key/.test(await rowText(app, "sync.fetch")), 5000, {
+      message: "J refused",
+    });
+    assertIncludes(await rowText(app, "sync.fetch"), "Can't be assigned: lists and text fields use this key", "reason for J");
+    await t.shot("keys-refused");
+    await app.press("Escape");
+    await app.waitFor(async () => !(await app.$(`${OVERVIEW} [data-keys-refused]`)), 5000, { message: "refusal gone" });
+    assert(await app.$(OVERVIEW), "Escape after a refusal kept the overview open");
+    await waitShown(app, "sync.fetch", "No shortcut");
+    await closeOverview(app);
+
+    // Ctrl+Shift+L fetches nothing now.
+    await pressThenMarker(app, "Control+Shift+l");
+    await app.settle();
+    assertEqual(await fetchCount(app, repoId), fetches, "no fetch in the activity log");
+
+    // Reset brings the default back, and it fetches again.
+    await app.click(`${OVERVIEW} [data-keys-edit]`);
+    await app.click(`${OVERVIEW} [data-keybinding-reset="sync.fetch"]`);
+    await waitShown(app, "sync.fetch", "Ctrl+Shift+L");
+    await closeOverview(app);
+    await app.press("Control+Shift+l");
+    await app.waitFor(async () => (await fetchCount(app, repoId)) === fetches + 1, 20_000, { message: "Ctrl+Shift+L fetches again" });
+    await t.noConsoleErrors(app);
+  } finally {
+    repo.cleanup();
+  }
+});
+
+scenario("shortcuts: Preferences › Keyboard shortcuts edits the same list, Reset all", "edge", async (t) => {
+  const app = await t.launch(LAUNCH);
+  const KEYS = '[data-preferences-section="keys"]';
+  await app.press("Control+,");
+  await app.waitFor(SETTINGS, 5000, { message: "settings open" });
+  const tab = await app.waitFor(
+    () =>
+      app.exec(
+        (css) => [...document.querySelectorAll(`${css} [role="tab"]`)].find((el) => el.innerText.trim() === "Keyboard shortcuts") ?? null,
+        SETTINGS,
+      ),
+    10_000,
+    { message: "section Keyboard shortcuts" },
+  );
+  await app.click(tab);
+  await app.waitFor(`${KEYS} ${keyButton("app.palette")}`, 10_000, { message: "editor in the settings" });
+  await startRecording(app, "app.palette", KEYS);
+  await app.press("Control+Alt+k");
+  await waitShown(app, "app.palette", "Ctrl+Alt+K", KEYS);
+  // Escape while recording leaves the settings open.
+  await startRecording(app, "sync.fetch", KEYS);
+  await app.press("Escape");
+  await app.waitFor(async () => !(await app.$(`${KEYS} [data-keys-recording]`)), 5000, { message: "recording ended" });
+  assert(await app.$(SETTINGS), "Escape kept the settings open");
+  assertEqual(await overrides(app), { "app.palette": ["Mod+Alt+K"] }, "one override stored");
+  await t.shot("keys-preferences");
+
+  await app.click(`${KEYS} [data-keys-reset-all]`);
+  await dialogButton(app, "Reset all");
+  await waitShown(app, "app.palette", "Ctrl+P", KEYS);
+  await app.waitFor(async () => Object.keys(await overrides(app)).length === 0, 5000, { message: "all overrides removed" });
+  assertEqual(await app.$(`${KEYS} [data-keys-reset-all]`), null, "Reset all gone with nothing to reset");
+
+  // The overview reads the same list.
+  await app.press("Escape");
+  await app.waitFor(async () => !(await app.$(SETTINGS)), 5000, { message: "settings closed" });
+  await openKeyEditor(app);
+  await waitShown(app, "app.palette", "Ctrl+P");
+  await t.noConsoleErrors(app);
+});
+
+scenario("shortcuts: a key changed in one window works in the other", "edge", async (t) => {
+  const app = await t.launch(LAUNCH);
+  const label = () => app.exec(() => window.__TAURI_INTERNALS__.metadata.currentWindow.label);
+  const main = (await app.windowHandles())[0];
+  await app.press("Control+Shift+n");
+  const handles = await app.waitFor(
+    async () => {
+      const list = await app.windowHandles();
+      return list.length === 2 ? list : null;
+    },
+    15_000,
+    { message: "second window" },
+  );
+  // Find which handle is which.
+  let second = null;
+  for (const handle of handles) {
+    await app.switchToWindow(handle);
+    if ((await label()) !== "main") second = handle;
+  }
+  assert(second, "second window found");
+  await app.switchToWindow(second);
+  await app.waitForShell(30_000);
+  await app.settle();
+
+  // Rebind in the main window.
+  const mainHandle = handles.find((handle) => handle !== second) ?? main;
+  await app.switchToWindow(mainHandle);
+  await openKeyEditor(app);
+  await startRecording(app, "app.preferences");
+  await app.press("Control+Alt+k");
+  await waitShown(app, "app.preferences", "Ctrl+Alt+K");
+  await closeOverview(app);
+
+  // The other window uses it without a reload.
+  await app.switchToWindow(second);
+  await app.press("Control+Alt+k");
+  await app.waitFor(SETTINGS, 10_000, { message: "Ctrl+Alt+K opens the settings in the second window" });
+  await app.press("Escape");
+  await app.waitFor(async () => !(await app.$(SETTINGS)), 5000, { message: "settings closed" });
+  await openKeyEditor(app);
+  await waitShown(app, "app.preferences", "Ctrl+Alt+K");
+  await t.shot("keys-second-window");
+  await t.noConsoleErrors(app);
+});
+
+scenario("shortcuts: German texts", "edge", async (t) => {
+  const app = await t.launch({ ...LAUNCH, lang: "de" });
+  await app.press("Control+/");
+  await app.waitFor(OVERVIEW, 5000, { message: "Kürzelübersicht" });
+  assertEqual(await app.exec((css) => document.querySelector(`${css} [data-keys-edit]`)?.innerText.trim(), OVERVIEW), "Bearbeiten", "Edit");
+  await app.click(`${OVERVIEW} [data-keys-edit]`);
+  await startRecording(app, "app.preferences");
+  assertIncludes(await rowText(app, "app.preferences"), "Drücke neue Kombination …", "recording text");
+  await app.press("Control+b");
+  await app.waitFor(`${OVERVIEW} [data-keys-conflict]`, 5000, { message: "Rückfrage" });
+  assertIncludes(await rowText(app, "app.preferences"), "Trotzdem zuweisen", "Assign anyway");
+  await t.shot("keys-de-conflict");
+  await app.press("Escape");
+  await app.waitFor(async () => !(await app.$(`${OVERVIEW} [data-keys-conflict]`)), 5000, { message: "Rückfrage weg" });
+  await startRecording(app, "app.preferences");
+  await app.press("Control+Alt+k");
+  await waitShown(app, "app.preferences", "Strg+Alt+K");
+  await closeOverview(app);
+
+  await app.press("Control+Alt+k");
+  await app.waitFor(SETTINGS, 5000, { message: "Einstellungen" });
+  const tab = await app.waitFor(
+    () =>
+      app.exec(
+        (css) => [...document.querySelectorAll(`${css} [role="tab"]`)].find((el) => el.innerText.trim() === "Tastenkürzel") ?? null,
+        SETTINGS,
+      ),
+    10_000,
+    { message: "Abschnitt Tastenkürzel" },
+  );
+  await app.click(tab);
+  await waitShown(app, "app.preferences", "Strg+Alt+K", '[data-preferences-section="keys"]');
+  await t.noConsoleErrors(app);
 });
 
 // ---------------------------------------------------------------------------------------------
