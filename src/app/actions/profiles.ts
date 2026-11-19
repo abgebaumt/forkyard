@@ -9,6 +9,7 @@ import { confirm } from "../dialogs";
 import { qk, queryClient } from "../queries";
 import { runAction } from "../run";
 import { hasDirtyCenter, useAppStore, type AppState } from "../store";
+import { hasDirtyGraphEdit, leaveAllGraphEdits } from "../rebasePlan/graphEdit";
 import { unsavedFiles } from "../../screens/FileView/buffer";
 import { writesSettled } from "../writeQueue";
 import { toast } from "../../ui/Feedback";
@@ -72,7 +73,7 @@ export function switchAuthorNote(profile: Pick<Profile, "authorName" | "syncGitc
 export async function switchProfile(profile: Profile): Promise<boolean> {
   if (profile.isActive) return true;
   const files = unsavedFiles().map((file) => file.path);
-  const warning = switchWarning(switchLosses(useAppStore.getState(), files, hasDirtyCenter()));
+  const warning = switchWarning(switchLosses(useAppStore.getState(), files, hasDirtyCenter() || hasDirtyGraphEdit()));
   if (warning) {
     const ok = await confirm({
       title: t("actions.profiles.switch.title", { name: profile.name }),
@@ -85,6 +86,8 @@ export async function switchProfile(profile: Profile): Promise<boolean> {
   await writesSettled();
   const result = await runAction(t("actions.profiles.switch.action"), () => core.profileActivate({ id: profile.id }));
   if (!result.ok) return false;
+  // The prompt above covered them: unapplied history edits belong to the old profile.
+  leaveAllGraphEdits();
   queryClient.setQueryData(qk.profiles, result.value);
   refreshAfterProfileChange(true);
   toast({
