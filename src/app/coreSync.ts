@@ -51,6 +51,9 @@ function dependsOnWorktree(query: Query): boolean {
     // A working-directory line is traced through blame; `HEAD` moves; a full SHA never changes.
     case "lineArchaeology":
       return !isFixedRev(key[3]);
+    // The graph edit's plan is refused while the working directory is dirty (it offers to stash).
+    case "rebasePlan":
+      return key[3] === "branch" && typeof key[4] === "string";
     // Submodule state and the LFS patterns (.gitattributes) depend on the working directory.
     // `.forkyard/commands.json` (custom commands) as well.
     case "submodules":

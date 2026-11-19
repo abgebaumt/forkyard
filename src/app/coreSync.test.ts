@@ -28,6 +28,15 @@ describe("invalidateRepo", () => {
     await invalidateRepo(client, "r", ["locks"]);
     expect(client.getQueryData<InfiniteData<string>>(qk.graph("r"))?.pages).toHaveLength(3);
   });
+  it("a change in the working directory reloads the graph edit's plan, not the rebase tool's", async () => {
+    const client = new QueryClient();
+    client.setQueryData(qk.rebaseBranchPlan("r", null), "plan");
+    client.setQueryData(qk.rebasePlan("r", "branch"), "plan");
+    await invalidateRepo(client, "r", ["worktree"]);
+    // The graph edit is refused with a dirty working directory and offers to stash.
+    expect(client.getQueryState(qk.rebaseBranchPlan("r", null))?.isInvalidated).toBe(true);
+    expect(client.getQueryState(qk.rebasePlan("r", "branch"))?.isInvalidated).toBe(false);
+  });
 });
 
 describe("jobBelongsHere", () => {
