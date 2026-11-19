@@ -52,7 +52,8 @@ import { Tip } from "../../ui/Tooltip";
 import { goBack, showInGraph } from "../../app/backNav";
 import { BackButton, Divider, FileTitle, Tag, isPlainEscape } from "../../components/ViewParts";
 import { DiffView } from "../DiffView";
-import { restoreBusyKey, restoreVersion, versionOf } from "./actions";
+import { restoreBusyKey, restoreVersion } from "./actions";
+import { formerName, historyKey, olderNamesOf, versionOf } from "./model";
 import { t } from "../../i18n";
 import { splitPath } from "../../app/paths";
 
@@ -69,11 +70,6 @@ const ROW_HEIGHT = 48;
 /** With a third line for the former name (h-16). */
 const ROW_HEIGHT_NAMED = 64;
 
-/** Former name that a row mentions in addition: for the rename itself and for all commits before it. */
-function formerName(entry: FileHistoryEntry, currentPath: string): { kind: "renamed" | "then"; path: string } | null {
-  if (entry.status === "renamed" && entry.oldPath) return { kind: "renamed", path: entry.oldPath };
-  return entry.path !== currentPath ? { kind: "then", path: entry.path } : null;
-}
 /** From this width on, list and diff are side by side, below it stacked. */
 const SIDE_BY_SIDE_MIN = 760;
 
@@ -192,10 +188,7 @@ export function FileHistory({ repoId, tabId, path }: FileHistoryProps) {
   const listed = [...(status?.unstaged ?? []), ...(status?.staged ?? [])].find((file) => file.path === path);
   const isNew = listed?.status === "untracked" || listed?.status === "added";
   const deletedIn = entries[0]?.status === "deleted" ? entries[0] : null;
-  const olderNames = useMemo(
-    () => Array.from(new Set(entries.map((entry) => entry.path).filter((name) => name !== path))),
-    [entries, path],
-  );
+  const olderNames = useMemo(() => olderNamesOf(entries, path), [entries, path]);
 
   let content: ReactNode;
   if (query.isPending) {
@@ -439,25 +432,19 @@ function HistoryList({
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const page = Math.max(1, Math.floor((scroller.current?.clientHeight ?? ROW_HEIGHT * 10) / ROW_HEIGHT) - 1);
-    const move = (index: number) => onSelect(Math.min(entries.length - 1, Math.max(0, index)));
-    const plain = !event.ctrlKey && !event.metaKey && !event.altKey;
-    let handled = true;
-    if (event.key === "ArrowDown" && plain) move(selectedIndex + 1);
-    else if (event.key === "ArrowUp" && plain) move(selectedIndex - 1);
-    else if (event.key === "PageDown" && plain) move(selectedIndex + page);
-    else if (event.key === "PageUp" && plain) move(selectedIndex - page);
-    else if (event.key === "Home" && plain) move(0);
-    else if (event.key === "End" && plain) move(entries.length - 1);
-    else if (event.key === "Enter" && plain) onOpen(selectedIndex);
-    else if ((event.key === "b" || event.key === "B") && plain && !event.shiftKey) onBlame(selectedIndex);
-    else if ((event.key === "g" || event.key === "G") && plain && !event.shiftKey) onReveal(selectedIndex);
-    else if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {
+    const action = historyKey(event, selectedIndex, page, entries.length);
+    if (!action) return;
+    event.preventDefault();
+    if (action.kind === "select") onSelect(action.index);
+    else if (action.kind === "open") onOpen(selectedIndex);
+    else if (action.kind === "blame") onBlame(selectedIndex);
+    else if (action.kind === "reveal") onReveal(selectedIndex);
+    else {
       const row = scroller.current?.querySelector(`[data-index="${selectedIndex}"]`);
       const rect = row?.getBoundingClientRect();
       const entry = entries[selectedIndex];
       if (entry) openMenuAt({ x: (rect?.left ?? 0) + 24, y: rect?.bottom ?? 0 }, menuFor(entry), t("fileHistory.commitActions"));
-    } else handled = false;
-    if (handled) event.preventDefault();
+    }
   };
 
   return (
