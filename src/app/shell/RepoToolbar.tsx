@@ -31,6 +31,7 @@ import { useAgents, useAiStatus, useRemotes, useRepoSettings, useSettings, useSt
 import { nothingToPush, outgoing, statusPublishState } from "../publishState";
 
 import { useAppStore, useBusy, useTabView } from "../store";
+import { useCommandShortcut } from "../registry";
 import { t } from "../../i18n";
 import { shortSha } from "../format";
 
@@ -147,7 +148,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     { type: "separator" },
     {
       label: t("ui.fetchAllRemotes"),
-      shortcut: "Mod+Shift+L",
+      shortcut: useCommandShortcut("sync.fetch"),
       disabled: Boolean(fetchBlocked),
       tooltip: fetchBlocked ?? undefined,
       onSelect: () => void fetchAll(repoId),
@@ -173,7 +174,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label={t("ui.undo")}
         icon={icon(Undo2)}
-        shortcut="Mod+Z"
+        shortcut={useCommandShortcut("repo.undo")}
         compact={compact}
         busy={undoing}
         disabled={Boolean(undoBlocked)}
@@ -183,7 +184,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label={t("ui.redo")}
         icon={icon(Redo2)}
-        shortcut="Mod+Y"
+        shortcut={useCommandShortcut("repo.redo")}
         compact={compact}
         busy={undoing}
         disabled={Boolean(redoBlocked)}
@@ -194,7 +195,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label="Pull"
         icon={icon(ArrowDownToLine)}
-        shortcut="Mod+Shift+D"
+        shortcut={useCommandShortcut("sync.pull")}
         compact={compact}
         busy={pulling}
         disabled={Boolean(pullBlocked)}
@@ -207,7 +208,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label="Push"
         icon={icon(ArrowUpFromLine)}
-        shortcut="Mod+Shift+P"
+        shortcut={useCommandShortcut("sync.push")}
         compact={compact}
         busy={pushing}
         disabled={Boolean(pushBlocked)}
@@ -232,7 +233,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label="Fetch"
         icon={icon(CloudDownload)}
-        shortcut="Mod+Shift+L"
+        shortcut={useCommandShortcut("sync.fetch")}
         compact={compact}
         busy={fetching}
         disabled={Boolean(fetchBlocked)}
@@ -243,7 +244,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label="Branch"
         icon={icon(GitBranchPlus)}
-        shortcut="Mod+B"
+        shortcut={useCommandShortcut("branch.create")}
         compact={compact}
         busy={branching || rewriting}
         disabled={Boolean(branchBlocked)}
@@ -253,7 +254,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label="Stash"
         icon={icon(Archive)}
-        shortcut="Alt+S"
+        shortcut={useCommandShortcut("stash.create")}
         compact={compact}
         busy={stashing}
         disabled={Boolean(stashBlocked)}
@@ -263,7 +264,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label="Pop"
         icon={icon(ArchiveRestore)}
-        shortcut="Alt+P"
+        shortcut={useCommandShortcut("stash.pop")}
         compact={compact}
         busy={popping}
         disabled={Boolean(popBlocked)}
@@ -279,7 +280,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label="Terminal"
         icon={icon(SquareTerminal)}
-        shortcut="Mod+`"
+        shortcut={useCommandShortcut("view.terminal")}
         compact={compact}
         pressed={view.terminalOpen}
         hint={view.terminalOpen ? t("shell.toolbar.terminalHide") : t("shell.toolbar.terminalShow")}
@@ -309,7 +310,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label={t("shell.toolbar.search")}
         icon={icon(Search)}
-        shortcut="Mod+F"
+        shortcut={useCommandShortcut("view.search")}
         compact={compact}
         pressed={view.searchOpen}
         hint={t("shell.toolbar.searchHint")}
@@ -318,7 +319,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label={t("ui.commands")}
         icon={<CommandIcon className="size-icon" aria-hidden />}
-        shortcut="Mod+P"
+        shortcut={useCommandShortcut("app.palette")}
         compact={compact}
         hint={t("ui.commandPalette")}
         onClick={() => openOverlay({ kind: "palette", mode: "all" })}
@@ -326,7 +327,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <ToolbarButton
         label={t("ui.settings")}
         icon={icon(SettingsIcon)}
-        shortcut="Mod+,"
+        shortcut={useCommandShortcut("app.preferences")}
         compact={compact}
         onClick={() => openOverlay({ kind: "preferences", section: "general" })}
       />
@@ -345,7 +346,7 @@ export function ManagementToolbar() {
       <ToolbarButton
         label={t("ui.commands")}
         icon={<CommandIcon className="size-icon" aria-hidden />}
-        shortcut="Mod+P"
+        shortcut={useCommandShortcut("app.palette")}
         compact={compact}
         hint={t("ui.commandPalette")}
         onClick={() => openOverlay({ kind: "palette", mode: "all" })}
@@ -353,7 +354,7 @@ export function ManagementToolbar() {
       <ToolbarButton
         label={t("ui.settings")}
         icon={icon(SettingsIcon)}
-        shortcut="Mod+,"
+        shortcut={useCommandShortcut("app.preferences")}
         compact={compact}
         onClick={() => openOverlay({ kind: "preferences", section: "general" })}
       />

@@ -70,6 +70,7 @@ import { goBack } from "../../app/backNav";
 import { BackButton, CodeSkeleton, Divider, FileTitle, Tag, isPlainEscape } from "../../components/ViewParts";
 import { baseName } from "../../app/paths";
 import { busyKeys } from "../../app/actions/keys";
+import { useCommandShortcut } from "../../app/registry";
 
 export interface FileViewProps {
   repoId: Id;
@@ -280,6 +281,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
   };
 
   // --- Tastatur ----------------------------------------------------------------------------------
+  const historyShortcut = useCommandShortcut("file.history");
   const keys = useRef({ save, close, editing, worktree });
   keys.current = { save, close, editing, worktree };
   useEffect(() => {
@@ -336,7 +338,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
         <IconButton
           size="sm"
           label={t("ui.fileHistory")}
-          shortcut="Mod+Shift+H"
+          shortcut={historyShortcut}
           icon={<History className="size-icon" aria-hidden />}
           onClick={() => store().openHistory(tabId, path)}
         />

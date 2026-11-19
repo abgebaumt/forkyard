@@ -14,6 +14,7 @@ import { openAiSettings, openAiSetup } from "../../app/ai/open";
 import { loadingView, type AiErrorView } from "../../app/ai/requestState";
 import { Button } from "../../ui/Button";
 import { Tip } from "../../ui/Tooltip";
+import { useCommandShortcut } from "../../app/registry";
 import { t } from "../../i18n";
 import { isCli } from "../../app/ai/providers";
 import { writeBlocked, writeLabel, type AiDraftPhase } from "./aiDraft";
@@ -25,11 +26,12 @@ const labelText = (label: "write" | "cancel" | "again") =>
 export function AiWriteButtonView({ phase, staged, onToggle }: { phase: AiDraftPhase["kind"]; staged: number; onToggle: () => void }) {
   const label = writeLabel(phase);
   const blocked = label === "cancel" ? null : writeBlocked(staged);
+  const shortcut = useCommandShortcut("wip.writeMessage");
   return (
     <Tip
       side="top"
       label={blocked ?? (label === "cancel" ? t("ui.cancel") : t("wip.ai.writeTip"))}
-      shortcut={blocked ? undefined : "Mod+Shift+M"}
+      shortcut={blocked ? undefined : shortcut}
     >
       <Button
         size="sm"

@@ -18,6 +18,7 @@ import { appliedZoom } from "../../ui/zoom";
 import { t } from "../../i18n";
 import type { ScreenPoint, StripReport } from "../../core";
 import { indexWithout, leftStrip, visibleRect } from "./tabDrag";
+import { useCommandShortcut } from "../registry";
 
 // ---------------------------------------------------------------------------
 // Tab bar
@@ -575,7 +576,7 @@ export function TabBar({
           </button>
         </DropdownMenu>
       ) : null}
-      <Tip label={t("ui.tabs.new")} shortcut="Mod+T">
+      <Tip label={t("ui.tabs.new")} shortcut={useCommandShortcut("tab.new")}>
         <button
           type="button"
           aria-label={t("ui.tabs.new")}

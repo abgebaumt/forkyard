@@ -59,12 +59,19 @@ export function registrySections(commands: readonly AppCommand[]): Section[] {
   return sections;
 }
 
-export const fixedSections: Section[] = fixedKeyGroups.map((group) => ({
-  id: `fixed-${group.id}`,
-  title: group.title,
-  where: group.where,
-  entries: group.entries.map((entry, index) => ({ key: `${group.id}-${index}`, label: entry.label, keys: entry.keys.map((key) => [key]) })),
-}));
+/** The fixed keys; keys that belong to registry commands show those commands' effective shortcuts. */
+export function fixedSections(commands: readonly AppCommand[]): Section[] {
+  const shortcutOf = (id: string) => commands.find((command) => command.id === id)?.shortcut;
+  return fixedKeyGroups.map((group) => ({
+    id: `fixed-${group.id}`,
+    title: group.title,
+    where: group.where,
+    entries: group.entries.flatMap((entry, index) => {
+      const keys = entry.commands ? entry.commands.map(shortcutOf).filter((key): key is string => Boolean(key)) : entry.keys;
+      return keys.length ? [{ key: `${group.id}-${index}`, label: entry.label, keys: keys.map((key) => [key]) }] : [];
+    }),
+  }));
+}
 
 export function searchText(section: Section, entry: Entry): string {
   const keys = entry.keys.flat().map((key) => `${key} ${formatShortcut(key)}`);

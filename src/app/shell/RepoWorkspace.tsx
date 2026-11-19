@@ -17,6 +17,7 @@ import { core } from "../../core";
 import { qk, queryClient, useRepo, useRepoLocked, useRepoMissing, useRepoTrust } from "../queries";
 import { runAction } from "../run";
 import { PANEL_LIMITS, showsSidePanels, useAppStore, useLeftCollapsed, useTabView, type CenterView, type TabView } from "../store";
+import { useCommandShortcut } from "../registry";
 import { FullPage } from "./FullPage";
 import { Splitter } from "./Splitter";
 import { t } from "../../i18n";
@@ -127,7 +128,7 @@ function Rail({ side, onOpen }: { side: "left" | "right"; onOpen: () => void }) 
       <IconButton
         size="sm"
         label={side === "left" ? t("shell.workspace.showLeft") : t("shell.workspace.showRight")}
-        shortcut={side === "left" ? "Mod+J" : "Mod+K"}
+        shortcut={useCommandShortcut(side === "left" ? "view.toggleLeftPanel" : "view.toggleCommitPanel")}
         icon={side === "left" ? <PanelLeftOpen className="size-icon" aria-hidden /> : <PanelRightOpen className="size-icon" aria-hidden />}
         onClick={onOpen}
       />

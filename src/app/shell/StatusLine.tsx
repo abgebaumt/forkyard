@@ -27,6 +27,7 @@ import { qk, queryClient, useAgents, useAppInfo, useRemotes, useSettings, useSta
 import { CHANGELOG_URL, versionLabel } from "../appVersion";
 import { runAction } from "../run";
 import { useAppStore, type Job } from "../store";
+import { useCommandShortcut } from "../registry";
 import { useUpdateInfo, visibleUpdate } from "../updates";
 import { openInBrowser } from "../actions/hosts";
 import { openCockpit } from "../../screens/Agents/actions";
@@ -276,6 +277,9 @@ export function StatusLine({ repoId }: { repoId: Id | null }) {
   // In a small window less than configured applies (zoom.ts) – that is then shown alongside.
   const applied = useEffectiveZoom(zoom);
   const limited = applied < zoom - 0.001;
+  const zoomOutShortcut = useCommandShortcut("view.zoomOut");
+  const zoomResetShortcut = useCommandShortcut("view.zoomReset");
+  const zoomInShortcut = useCommandShortcut("view.zoomIn");
   const visibleJobs = Object.values(jobs)
     .filter((job) => job.repoId === null || job.repoId === repoId)
     .sort((a, b) => a.startedAt - b.startedAt);
@@ -308,7 +312,7 @@ export function StatusLine({ repoId }: { repoId: Id | null }) {
             <IconButton
               size="xs"
               label={t("ui.zoomOut")}
-              shortcut="Mod+-"
+              shortcut={zoomOutShortcut}
               disabled={zoom <= ZOOM_MIN + 0.001}
               icon={<Minus className="size-3" aria-hidden />}
               onClick={() => void changeZoom(-ZOOM_STEP)}
@@ -319,7 +323,7 @@ export function StatusLine({ repoId }: { repoId: Id | null }) {
                   ? t("shell.status.zoomResetLimited", { applied: Math.round(applied * 100), zoom: Math.round(zoom * 100) })
                   : t("ui.resetZoom")
               }
-              shortcut="Mod+0"
+              shortcut={zoomResetShortcut}
             >
               <button
                 type="button"
@@ -338,7 +342,7 @@ export function StatusLine({ repoId }: { repoId: Id | null }) {
             <IconButton
               size="xs"
               label={t("ui.zoomIn")}
-              shortcut="Mod++"
+              shortcut={zoomInShortcut}
               disabled={zoom >= ZOOM_MAX - 0.001}
               icon={<Plus className="size-3" aria-hidden />}
               onClick={() => void changeZoom(ZOOM_STEP)}

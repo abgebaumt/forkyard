@@ -16,7 +16,7 @@ import { describeError } from "./errors";
 import { useCustomCommandRegistration } from "../screens/CustomCommands/register";
 import { useCoreSync } from "./coreSync";
 import { qk, queryClient, useAppInfo, useRepoLocked, useRepoMissing, useSettings, useTabs } from "./queries";
-import { useGlobalShortcuts } from "./registry";
+import { useGlobalShortcuts, useKeybindings } from "./registry";
 import { NARROW_WINDOW, useAppStore } from "./store";
 import { useEffectiveZoom } from "../ui/zoom";
 import { CredentialHost } from "./shell/CredentialHost";
@@ -154,6 +154,7 @@ function Shell({ info }: { info: AppInfo }) {
   useCoreSync(locked ? null : repoId);
   useCustomCommandRegistration(locked ? null : repoId);
   useGlobalShortcuts(info.platform === "macos");
+  useKeybindings(settings?.keybindings);
   useAppearance(settings);
   useWindowTitle(active);
   const zoom = useEffectiveZoom(settings?.zoom ?? 1);
