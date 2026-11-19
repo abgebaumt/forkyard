@@ -48,7 +48,7 @@ import { Checkbox, SegmentedControl, TextArea, TextField } from "../../ui/Field"
 import { Select } from "../../ui/Select";
 import { cn } from "../../ui/cn";
 import { isPlainEscape } from "../../components/ViewParts";
-import { SafeMarkdown } from "../PullRequestView/Markdown";
+import { SafeMarkdown } from "../../components/markdown/SafeMarkdown";
 import { openConnectDialog } from "../Hosts";
 import { t } from "../../i18n";
 import { usePrAiWriter } from "./AiWrite";
