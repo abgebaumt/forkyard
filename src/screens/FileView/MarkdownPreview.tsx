@@ -11,7 +11,7 @@ import { confirm } from "../../app/dialogs";
 import { runAction } from "../../app/run";
 import { cn } from "../../ui/cn";
 import { EmptyState } from "../../ui/Feedback";
-import { README_PREVIEW_LIMIT, externalTarget, renderReadme } from "../RepoManagement/markdown";
+import { README_PREVIEW_LIMIT, externalTarget, renderReadme } from "../../components/markdown/render";
 import { locale, t } from "../../i18n";
 
 /** Typography – tokens only. */
