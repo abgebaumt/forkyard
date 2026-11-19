@@ -15,6 +15,7 @@ import type {
   StackPrPart,
   StackStatus,
 } from "../../core";
+import { t } from "../../i18n";
 
 export interface DraftPart {
   /** The part ends after commit `end` (1 = the oldest commit). */
@@ -107,6 +108,27 @@ export function prParts(status: StackStatus, titles: Record<string, string>): St
     body: defaultBody(part.subjects),
     draft: false,
   }));
+}
+
+/** The titles of the parts just created, by branch (remembered for their pull requests). */
+export function createdTitles(branches: string[], parts: DraftPart[], commits: StackCommit[]): Record<string, string> {
+  const firsts = ranges(parts);
+  return Object.fromEntries(
+    branches.map((branch, index) => [branch, parts[index] ? titleOf(parts[index]!, commits, firsts[index]!.first) : ""]),
+  );
+}
+
+/** Why the planned stack cannot be created yet, or null. */
+export function createBlocked(parts: DraftPart[], problems: boolean): string | null {
+  if (parts.length < 2) return t("pullRequest.stack.needTwo");
+  return problems ? t("pullRequest.stack.fixNames") : null;
+}
+
+/** Why no pull requests can be opened for the stack, or null. `from`: the first part without one. */
+export function prsBlocked(connected: boolean, pushed: boolean, from: number, count: number): string | null {
+  if (!connected) return t("pullRequest.stack.prsNoHost");
+  if (!pushed) return t("pullRequest.stack.prsNotPushed");
+  return from >= count ? t("pullRequest.stack.prsAllOpen") : null;
 }
 
 /** The target of each part's pull request: the base's name on the host, then the part below. */

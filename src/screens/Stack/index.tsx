@@ -44,7 +44,9 @@ import {
   needsForce,
   prParts,
   prTargets,
-  ranges,
+  createBlocked,
+  createdTitles,
+  prsBlocked,
   rejectedRefs,
   singlePart,
   titleOf,
@@ -265,11 +267,12 @@ function Planner({ repoId, tabId, branch }: StackViewProps) {
       return;
     }
     const created = result.value;
-    const firsts = ranges(parts);
     rememberedTitles.set(
       repoId,
-      Object.fromEntries(
-        created.parts.map((part, index) => [part.branch, parts[index] ? titleOf(parts[index]!, commits, firsts[index]!.first) : ""]),
+      createdTitles(
+        created.parts.map((part) => part.branch),
+        parts,
+        commits,
       ),
     );
     const top = created.parts[created.parts.length - 1]!.branch;
@@ -309,8 +312,10 @@ function Planner({ repoId, tabId, branch }: StackViewProps) {
   }
 
   const current = !plan.isPlaceholderData && data.parts.length === parts.length;
-  const createBlock =
-    parts.length < 2 ? t("pullRequest.stack.needTwo") : data.parts.some((part) => part.problem) ? t("pullRequest.stack.fixNames") : null;
+  const createBlock = createBlocked(
+    parts,
+    data.parts.some((part) => part.problem),
+  );
   const testCommand = repoSettings?.testCommand?.trim() ?? "";
   const cutAtSelection = isCutAfter(parts, selected + 1);
 
@@ -490,14 +495,7 @@ function Existing({ repoId, status }: { repoId: Id; tabId: Id; status: StackStat
   const targets = prTargets(status);
   const from = firstWithoutPr(status, (name) => Boolean(cachedPrForBranch(repoId, name)));
   const restackIndex = status.parts.findIndex((part) => !part.containsParent);
-  const prBlock =
-    link.state !== "connected"
-      ? t("pullRequest.stack.prsNoHost")
-      : !allPushed(status, locals, remote)
-        ? t("pullRequest.stack.prsNotPushed")
-        : from >= status.parts.length
-          ? t("pullRequest.stack.prsAllOpen")
-          : null;
+  const prBlock = prsBlocked(link.state === "connected", allPushed(status, locals, remote), from, status.parts.length);
 
   const push = async () => {
     // Taken before the prompt: the forced push may only overwrite what the user saw.
