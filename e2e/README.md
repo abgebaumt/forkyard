@@ -125,6 +125,7 @@ The returned `app`:
 | `pick(...paths)`                                                                                                          | answers for the next system file/folder dialog (`window.__gcTestPicks`)                                                                                                                                                      |
 | `setTheme(theme)`, `size()` → `{ width, height, scale }`                                                                  |                                                                                                                                                                                                                              |
 | `webdriver(method, route, body)`                                                                                          | raw W3C call relative to the session                                                                                                                                                                                         |
+| `windowHandles()` → string[], `switchToWindow(handle)`                                                                    | the app's windows as WebDriver handles; switching points every further call (including `invoke`) at that window                                                                                                              |
 | `close()`                                                                                                                 | ends the app cleanly (SIGTERM, the app's quit path: no crash report on the next start), then the session; kills tauri-driver and Xvfb, removes the temp folder. For an unexpected exit kill the app yourself (SIGKILL) first |
 | `dataDir`, `logPath`, `gitConfigPath`, `keyringService`, `display`, `port`, `nativePort`, `binary`, `devUrl`, `startupMs` | info                                                                                                                                                                                                                         |
 
@@ -175,3 +176,25 @@ Fixtures: reuse `e2e/fixtures/fixtures.mjs` (`makeRichRepo`, `makeConflictRepo`,
   work; WebKitWebDriver has no CDP-style page hooks, hence the error hook in the Vite server.
 - If a test turns red under load, wait for the concrete condition with `waitFor`; do not just raise
   timeouts.
+
+## Manual checks: several windows
+
+`features/windows.mjs` drives every window through its own WebDriver handle (`app.windowHandles()`,
+`app.switchToWindow(handle)`). WebDriver cannot drag a tab with pointer capture outside a window, so
+these checks stay manual (debug and release build):
+
+- Windows (WebView2), Linux X11 and, if available, macOS:
+  - dragging a tab out opens a window at the drop point, also pulled straight down;
+  - dragging onto another window's strip inserts at the slot; an emptied source window closes;
+  - overlapping windows: the front one receives the tab;
+  - the same at app zoom 100 % and 125 % (the target strip and slot are hit correctly);
+  - a moved tab keeps its running terminal and its unsaved commit message.
+- Linux Wayland: dragging outside opens a new window; the menu moves tabs into other windows.
+- A credential prompt for a push started in window B appears only in B.
+- Closing B with × while its jobs run stops only B's jobs; a push in A continues.
+- Release build: "New window" loads the app (not the dev URL).
+- Restart on several monitors restores each window on its monitor; a window whose monitor was
+  detached comes back on a connected one.
+- A language change in one window reaches the other windows (storage event, WebKitGTK and WebView2).
+- Second instance / `forkyard <path>`: opens in the last focused window.
+- Profile switch: the other profile's windows appear, and switching back restores them.
