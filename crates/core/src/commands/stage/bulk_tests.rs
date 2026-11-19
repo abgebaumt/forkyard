@@ -1,4 +1,4 @@
-//! Tests for fast staging of many new files (bulk.rs) – against real temp repositories.
+//! Tests for fast staging of many new files (git/bulk.rs) – against real temp repositories.
 
 use std::path::Path;
 use std::time::{Duration, Instant};
