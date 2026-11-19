@@ -302,7 +302,19 @@ pub(crate) fn forget_listed(core: &Core, path: &Path) {
 pub async fn worktree_remove(core: &Core, repo_id: String, path: String, force: bool) -> CoreResult<Vec<Worktree>> {
     let repo_id = repo_id.as_str();
     let own = core.repo_path(repo_id)?;
-    core.with_write_lock(repo_id, &[RepoChange::Refs], async {
+    // Opened as a repository of its own, the worktree has its own write lock: nothing may write
+    // there while it goes. Both locks are taken in id order, like `cleanup` does – never AB/BA.
+    let (_, listed) = find(core, repo_id, &path).await?;
+    let listed = util::native_path(&util::bytes_to_path(&listed.path));
+    let mut ids = vec![repo_id.to_string()];
+    ids.extend(core.db.with(|c| db::repos::find_by_path(c, &listed))?.map(|row| row.id));
+    ids.sort();
+    ids.dedup();
+    let mut guards = Vec::with_capacity(ids.len());
+    for id in &ids {
+        guards.push(core.write_lock(id).await);
+    }
+    let result = async {
         let (index, entry) = find(core, repo_id, &path).await?;
         let target = util::native_path(&util::bytes_to_path(&entry.path));
         let shown = util::display_path(&target);
@@ -323,13 +335,9 @@ pub async fn worktree_remove(core: &Core, repo_id: String, path: String, force: 
                 format!("The worktree “{shown}” contains uncommitted changes or untracked files. They would be lost on removal."),
             ));
         }
-        // Opened as a repository of its own, the worktree has its own write lock: nothing may
-        // write there while it goes.
-        let own_row = core.db.with(|c| db::repos::find_by_path(c, &target))?;
-        let _own_lock = match &own_row {
-            Some(row) => Some(core.write_lock(&row.id).await),
-            None => None,
-        };
+        if !same_path(&target, &listed) {
+            return Err(CoreError::stale_state());
+        }
         // Forced, its changes are lost: backed up first (orphaned backup ref, listed by cleanup).
         if force && entry.prunable.is_none() && has_changes(core, repo_id, &target).await {
             let snapshot = undo::snapshot_at(core, repo_id, &target).await?;
@@ -356,8 +364,11 @@ pub async fn worktree_remove(core: &Core, repo_id: String, path: String, force: 
         }
         forget_listed(core, &target);
         list(core, repo_id).await
-    })
-    .await
+    }
+    .await;
+    drop(guards);
+    core.emit_repo_changed(repo_id, &[RepoChange::Refs]);
+    result
 }
 
 /// Locks the worktree against pruning and removal, optionally with a reason. If it is already
