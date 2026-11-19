@@ -597,6 +597,11 @@ export type Settings = {
    * templates (Claude Code, Codex, opencode) are not stored.
    */
   agentTemplates: Array<AgentTemplate>;
+  /**
+   * Own keyboard shortcuts (global): command id → shortcuts in notation "Mod+Shift+P"; `None` = the command has no key.
+   * Missing id = the command's default.
+   */
+  keybindings: { [key in string]: Array<string> | null };
   sshUseAgent: boolean;
   /**
    * Proxy for all HTTP(S) remotes (`http.proxy`); `None` = whatever Git already uses.
