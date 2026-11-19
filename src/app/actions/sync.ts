@@ -64,7 +64,7 @@ function offerAddRemote(label: string): void {
 }
 
 /** After every network action: remembered credentials only now appear in the list, and there is no event for that. */
-function afterNetwork(repoId: Id): void {
+export function afterNetwork(repoId: Id): void {
   markManualSync(repoId);
   void queryClient.invalidateQueries({ queryKey: qk.credentials });
 }

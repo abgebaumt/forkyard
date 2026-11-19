@@ -91,6 +91,7 @@ export const qk = {
   status: (repoId: Id) => ["repo", repoId, "status"] as const,
   graph: (repoId: Id) => ["repo", repoId, "graph"] as const,
   reflog: (repoId: Id, ref: string | null) => ["repo", repoId, "reflog", ref] as const,
+  branchCleanup: (repoId: Id) => ["repo", repoId, "branchCleanup"] as const,
   stackPlan: (repoId: Id, branch: string, base: string, cuts: string) => ["repo", repoId, "stack", "plan", branch, base, cuts] as const,
   stackStatus: (repoId: Id, branch: string) => ["repo", repoId, "stack", "status", branch] as const,
   bisect: (repoId: Id) => ["repo", repoId, "bisect"] as const,

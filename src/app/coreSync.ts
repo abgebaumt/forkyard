@@ -79,6 +79,7 @@ const REFS_PARTS = new Set([
   "bisect",
   "agents",
   "stack",
+  "branchCleanup",
 ]);
 const STASH_PARTS = new Set(["stashes", "graph", "undo"]);
 // "hostRepo": a repository's host follows from its remote URL, and so do its host link rules ("linkRules").

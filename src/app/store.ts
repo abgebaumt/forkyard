@@ -49,7 +49,9 @@ export type CenterView =
   /** Review of one or two coding agents (src/screens/AgentReview); `show` picks the columns when there are two. */
   | { kind: "agent_review"; agentIds: Id[]; show: AgentReviewShow }
   /** Stacked pull requests of a local branch or of the stack it is part of (src/screens/Stack). */
-  | { kind: "stack"; branch: string };
+  | { kind: "stack"; branch: string }
+  /** "Clean up branches": local branches that can go, with the reasons (src/screens/BranchCleanup). */
+  | { kind: "branch_cleanup" };
 
 /** `review_commit`: the commit field of the agent review (only while `center.kind === "agent_review"`). */
 export type RightPanel = "details" | "stash_form" | "archaeology" | "agent" | "review_commit";

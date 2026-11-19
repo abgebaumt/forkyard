@@ -1,0 +1,40 @@
+{
+  "title": "Clean up branches",
+  "open": "Clean up branches …",
+  "group": {
+    "safe": "Safe to delete",
+    "review": "Check first",
+    "blocked": "Can’t be deleted"
+  },
+  "reason": {
+    "merged": "merged",
+    "prMerged": "PR #{{number}} merged",
+    "upstreamGone": "upstream gone",
+    "stale": "stale",
+    "noPr": "no PR",
+    "unmerged": "{{count}} not merged",
+    "unpushed": "{{count}} not pushed",
+    "worktree": "in a worktree",
+    "protected": "protected"
+  },
+  "lost_one": "{{count}} commit will be lost (undo possible)",
+  "lost_other": "{{count}} commits will be lost (undo possible)",
+  "filter": "Filter branches",
+  "counter": "{{selected}} of {{total}} selected",
+  "delete": "Delete {{count}}",
+  "deleting": "Delete branches",
+  "done_one": "{{count}} branch deleted",
+  "done_other": "{{count}} branches deleted",
+  "prMissing": "PR data missing – no connection to {{host}}",
+  "loadError": "Couldn’t load the branches",
+  "empty": "Nothing to clean up.",
+  "remote": {
+    "option": "Also delete on {{remotes}}",
+    "warning": "Affects everyone using the remote and can’t be undone.",
+    "confirmTitle": "Delete {{count}} remote branches?",
+    "confirmBody": "These branches are deleted on the remote. Undo does not bring them back.",
+    "confirmAction": "Delete {{count}} on the remote",
+    "done_one": "{{count}} remote branch deleted",
+    "done_other": "{{count}} remote branches deleted"
+  }
+}

@@ -40,6 +40,7 @@ const IssuesView = lazy(() => import("../../screens/Issues").then((module) => ({
 const StatsView = lazy(() => import("../../screens/Stats").then((module) => ({ default: module.StatsView })));
 const StackView = lazy(() => import("../../screens/Stack").then((module) => ({ default: module.StackView })));
 const RebaseTool = lazy(() => import("../../screens/RebaseTool").then((module) => ({ default: module.RebaseTool })));
+const BranchCleanupView = lazy(() => import("../../screens/BranchCleanup").then((module) => ({ default: module.BranchCleanupView })));
 const ReflogView = lazy(() => import("../../screens/Reflog").then((module) => ({ default: module.ReflogView })));
 
 /** Minimum width of the centre and width of the strip of a collapsed panel. */
@@ -86,6 +87,8 @@ function Center({ repoId, tabId, center }: { repoId: Id; tabId: Id; center: Cent
       // Keyed by branch: switching from one branch's stack view to another's starts with a fresh plan
       // (no cuts, names, base or AI offer of the previous branch).
       return <StackView key={center.branch} {...props} branch={center.branch} />;
+    case "branch_cleanup":
+      return <BranchCleanupView {...props} />;
   }
 }
 
