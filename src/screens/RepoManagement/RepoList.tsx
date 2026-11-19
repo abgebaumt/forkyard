@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useImperativeHandle, useRef, type KeyboardEvent, type Ref } from "react";
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, type KeyboardEvent, type Ref } from "react";
+import { readRowHeight } from "../../components/VirtualList";
 import { defaultRangeExtractor, useVirtualizer, type Range } from "@tanstack/react-virtual";
 import {
   ArrowDownToLine,
@@ -71,9 +72,8 @@ export interface RepoListProps {
   handle?: Ref<RepoListHandle>;
 }
 
-// Row heights for virtualisation; they correspond to the classes h-11 and h-7 below.
+// Row height for virtualisation; it corresponds to the class h-11 below (headers are h-row).
 const ROW_HEIGHT = 44;
-const HEADER_HEIGHT = 28;
 
 function PathText({ path }: { path: string }) {
   const { head, tail } = splitForDisplay(path);
@@ -444,10 +444,11 @@ export function RepoList({ items, selectedId, onSelect, handle, ...props }: Repo
     [tabbableIndex],
   );
 
+  const headerHeight = useMemo(() => readRowHeight(), []);
   const virtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: (index) => (items[index]?.kind === "header" ? HEADER_HEIGHT : ROW_HEIGHT),
+    estimateSize: (index) => (items[index]?.kind === "header" ? headerHeight : ROW_HEIGHT),
     getItemKey: (index) => items[index]?.key ?? index,
     overscan: 8,
     rangeExtractor,
@@ -520,7 +521,7 @@ export function RepoList({ items, selectedId, onSelect, handle, ...props }: Repo
               style={{ transform: `translateY(${virtual.start}px)` }}
             >
               {item.kind === "header" ? (
-                <div role="presentation" className="flex h-7 items-end pr-2">
+                <div role="presentation" className="flex h-row items-end pr-2">
                   <div
                     role="presentation"
                     data-repo-section={item.label}

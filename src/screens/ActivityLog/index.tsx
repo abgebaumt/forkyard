@@ -19,10 +19,9 @@ import { Tip } from "../../ui/Tooltip";
 import { cn } from "../../ui/cn";
 import { locale, t } from "../../i18n";
 import { writeClipboard } from "../../app/actions/clipboard";
+import { readRowHeight } from "../../components/VirtualList";
 import { failed, formatDuration, formatLogTime, visibleEntries } from "./model";
 
-/** Height of a collapsed row in pixels – must match the row's `h-7` class. */
-const ROW_HEIGHT = 28;
 const PAGE_SIZE = 200;
 
 const fullTime = new Intl.DateTimeFormat(locale(), { dateStyle: "full", timeStyle: "medium" });
@@ -171,10 +170,12 @@ function LogList({ scope, repoId }: { scope: ActivityScope; repoId: Id | null })
   const rows = useMemo(() => visibleEntries(entries, onlyErrors, needle), [entries, onlyErrors, needle]);
   const errorCount = useMemo(() => entries.filter(failed).length, [entries]);
 
+  // A collapsed row is `h-row` high.
+  const rowHeight = useMemo(() => readRowHeight(), []);
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: () => rowHeight,
     getItemKey: (index) => rows[index]?.id ?? index,
     overscan: 12,
   });
@@ -189,7 +190,7 @@ function LogList({ scope, repoId }: { scope: ActivityScope; repoId: Id | null })
     const index = rows.findIndex((row) => row.id === held.id);
     if (index > held.index && element.scrollTop > 2) {
       const added = index - held.index;
-      element.scrollTop += added * ROW_HEIGHT;
+      element.scrollTop += added * rowHeight;
       setFresh((count) => count + added);
     }
     if (index >= 0) anchor.current = { id: held.id, index };
@@ -260,7 +261,7 @@ function LogList({ scope, repoId }: { scope: ActivityScope; repoId: Id | null })
   };
 
   const tabStop = rows.some((row) => row.id === activeId) ? activeId : (rows[0]?.id ?? null);
-  const pageRows = Math.max(1, Math.floor((scrollRef.current?.clientHeight ?? 400) / ROW_HEIGHT) - 1);
+  const pageRows = Math.max(1, Math.floor((scrollRef.current?.clientHeight ?? 400) / rowHeight) - 1);
 
   const emptyText = scope === "repo" ? t("activity.empty.repo") : t("activity.empty.app");
 
@@ -363,7 +364,7 @@ function LogList({ scope, repoId }: { scope: ActivityScope; repoId: Id | null })
         {activity.isPending ? (
           <div role="status" aria-label={t("activity.loading")} className="animate-pulse overflow-hidden">
             {Array.from({ length: 14 }, (_, index) => (
-              <div key={index} className={cn(columns, "h-7 border-b border-border")}>
+              <div key={index} className={cn(columns, "h-row border-b border-border")}>
                 <span className="w-4 shrink-0" />
                 <span className="h-3 w-20 shrink-0 rounded-sm bg-surface-raised" />
                 <span className="w-8 shrink-0" />
@@ -553,7 +554,7 @@ function LogRow({ entry, open, tabStop, onToggle, onFocus, onMove, onJump, pageR
           }}
           className={cn(
             columns,
-            "h-7 cursor-default border-b border-border -outline-offset-2 hover:bg-surface-raised",
+            "h-row cursor-default border-b border-border -outline-offset-2 hover:bg-surface-raised",
             isError && "bg-danger-surface/40",
           )}
         >
