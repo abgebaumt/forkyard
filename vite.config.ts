@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import { searchForWorkspaceRoot } from "vite";
 import { defineConfig, type Plugin } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -65,6 +67,8 @@ export default defineConfig({
     hmr: e2ePort ? false : undefined,
     // Rust builds and test artefacts do not trigger a rebuild.
     watch: { ignored: ["**/target/**", "**/src-tauri/**", "**/crates/**"] },
+    // A worktree may symlink node_modules to another checkout: without its real path the fonts are refused.
+    fs: { allow: [searchForWorkspaceRoot(process.cwd()), fs.realpathSync("node_modules")] },
   },
   test: { include: ["src/**/*.test.{ts,tsx}"] },
 });
