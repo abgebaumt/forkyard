@@ -29,14 +29,13 @@ export function getDraft(repoId: Id): CommitDraft {
 
 export const isEmptyDraft = (draft: CommitDraft) => !draft.summary.trim() && !draft.description.trim();
 
-function save(repoId: Id) {
+function save(repoId: Id): Promise<void> {
   const draft = pending.get(repoId);
   const timer = timers.get(repoId);
   if (timer !== undefined) window.clearTimeout(timer);
   timers.delete(repoId);
   pending.delete(repoId);
-  // If saving fails, the text stays in the field; the next keystroke tries again.
-  if (draft) void core.draftSet({ repoId, draft }).catch(() => undefined);
+  return draft ? core.draftSet({ repoId, draft }) : Promise.resolve();
 }
 
 /** Changes the draft and saves it in the core shortly after. */
@@ -48,14 +47,20 @@ export function updateDraft(repoId: Id, patch: Partial<CommitDraft>): CommitDraf
   if (timer !== undefined) window.clearTimeout(timer);
   timers.set(
     repoId,
-    window.setTimeout(() => save(repoId), SAVE_DELAY_MS),
+    window.setTimeout(() => void save(repoId).catch(() => undefined), SAVE_DELAY_MS),
   );
   return next;
 }
 
 /** Saves immediately whatever is pending (tab switch, window loses focus, panel disappears). */
 export function flushDraft(repoId?: Id): void {
-  for (const id of repoId ? [repoId] : [...pending.keys()]) save(id);
+  // If saving fails, the text stays in the field; the next keystroke tries again.
+  for (const id of repoId ? [repoId] : [...pending.keys()]) void save(id).catch(() => undefined);
+}
+
+/** Saves what is pending now and waits for it; rejects if the core did not take it. */
+export function saveDraftNow(repoId: Id): Promise<void> {
+  return save(repoId);
 }
 
 /** After a commit: the core has already cleared the draft, the cache follows here. Pending saves are dropped. */

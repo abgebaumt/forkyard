@@ -5,14 +5,14 @@
 import { core, type Id, type ScreenPoint, type Tab } from "../../core";
 import { t } from "../../i18n";
 import { toast } from "../../ui/Feedback";
-import { discardUnsaved } from "../../screens/FileView/buffer";
-import { flushDraft } from "../../screens/WipPanel/draft";
+import { saveDraftNow } from "../../screens/WipPanel/draft";
 import { qk, queryClient } from "../queries";
 import { runAction } from "../run";
 import { confirmLeaveCenter, useAppStore } from "../store";
 import { dropTarget } from "../windows/dropTarget";
 import { applyHandoff, buildHandoff, parseHandoff, serializeHandoff } from "../windows/handoff";
-import { moveTab, settleUnsaved } from "./repos";
+import { indexWithout } from "../shell/tabDrag";
+import { discardAfterLeaving, moveTab, settleUnsaved } from "./repos";
 
 const tabsHere = () => queryClient.getQueryData<Tab[]>(qk.tabs) ?? [];
 
@@ -29,7 +29,8 @@ async function moveOut(tabId: Id, move: () => Promise<unknown>): Promise<boolean
   const repoId = tabsHere().find((tab) => tab.id === tabId)?.repoId ?? null;
   const settled = await settleUnsaved(repoId);
   if (!settled) return false;
-  if (repoId) flushDraft(repoId);
+  // The target reads the commit message from the core: it must be there before the tab leaves.
+  if (repoId && !(await runAction(t("windows.moveFailed"), () => saveDraftNow(repoId))).ok) return false;
   const handoff = buildHandoff(tabId);
   const result = await runAction(t("windows.moveFailed"), async () => {
     await core.tabHandoffPut({ tabId, handoff: serializeHandoff(handoff) });
@@ -42,7 +43,7 @@ async function moveOut(tabId: Id, move: () => Promise<unknown>): Promise<boolean
     return false;
   }
   useAppStore.getState().dropTabView(tabId);
-  if (repoId && settled.discard) discardUnsaved(repoId);
+  if (repoId && settled.discard) discardAfterLeaving(repoId);
   toast({ tone: "success", title: t("windows.moved") });
   return true;
 }
@@ -81,7 +82,7 @@ export async function dropTab(tabId: Id, point: ScreenPoint, insideSelf: boolean
         .slice()
         .sort((a, b) => a.position - b.position)
         .findIndex((tab) => tab.id === tabId);
-      const to = from >= 0 && target.index > from ? target.index - 1 : target.index;
+      const to = indexWithout(target.index, from);
       if (from >= 0 && to !== from) await moveTab(tabId, to);
       return;
     }
