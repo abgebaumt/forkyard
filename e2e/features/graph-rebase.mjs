@@ -237,13 +237,13 @@ scenario("Drag reorders, drag onto squashes, apply, Undo restores", "main", asyn
   }
 });
 
-scenario("A flicked graph drag ends without a drop once the pointer moves released", "edge", async (t) => {
+scenario("A graph drag released while the plan loads opens the edit without a drag", "edge", async (t) => {
   const { repo, c } = planRepo("graph-edit-flick");
   try {
     const app = await t.launch(LAUNCH);
     await openGraph(app, repo);
-    // A logic test with synthetic events, not a device test: it checks that a handed-over drag whose
-    // button is already up ends on the next move without dropping (ReorderList's early end).
+    // A logic test with synthetic events, not a device test: a drag whose button went up while the plan
+    // loaded is not handed over – no ghost, and a later move with the button down does not resume it.
     // Down, past the threshold and up in one script: the button is up before the edit list mounts.
     // Dispatched in the page because WebDriver actions cannot promise that order.
     await app.exec((selector) => {
@@ -267,19 +267,16 @@ scenario("A flicked graph drag ends without a drop once the pointer moves releas
       window.dispatchEvent(at("pointermove", 40, 1));
       window.dispatchEvent(at("pointerup", 40, 0));
     }, graphRow(c.c4));
-    await app.waitFor(`${EDIT} [data-drag-ghost]`, 15_000, { message: "the handed-over drag is shown" });
-    // The next move has no button down: the drag ends without a drop.
-    await app.exec(() =>
-      window.dispatchEvent(
-        new PointerEvent("pointermove", { clientX: 700, clientY: 400, buttons: 0, pointerId: 1, pointerType: "mouse", isPrimary: true }),
-      ),
-    );
-    await eventually(
-      app,
-      () => app.exec((root) => document.querySelector(`${root} [data-drag-ghost]`) === null, EDIT),
-      true,
-      "no drag left over",
-    );
+    await eventually(app, async () => (await editRows(app)).length, 5, "the edit opened");
+    assertEqual(await app.exec((root) => document.querySelector(`${root} [data-drag-ghost]`) === null, EDIT), true, "no ghost");
+    // A move with a button down again (a second press) and its release elsewhere: a resumed drag would
+    // drop the row there, so the unchanged order below proves nothing resumed.
+    await app.exec(() => {
+      const at = (type, buttons) =>
+        new PointerEvent(type, { clientX: 700, clientY: 400, buttons, pointerId: 1, pointerType: "mouse", isPrimary: true });
+      window.dispatchEvent(at("pointermove", 1));
+      window.dispatchEvent(at("pointerup", 0));
+    });
     assertEqual(
       (await editRows(app)).map((row) => row.sha),
       [c.c5, c.c4, c.c3, c.c2, c.c1],
