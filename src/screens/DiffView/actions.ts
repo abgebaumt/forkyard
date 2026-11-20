@@ -43,8 +43,16 @@ const labels: Record<PatchAction, string> = {
 /**
  * Runs stage, unstage or discard for a selection.
  * `lines`: number of selected lines, or null for a whole hunk (only for the texts).
+ * `onApplied` runs once the core succeeded, before its status reaches the cache (the lasso guard
+ * would otherwise take the change for one from outside).
  */
-export async function applyPatch(action: PatchAction, repoId: Id, selection: PatchSelection, lines: number | null): Promise<PatchOutcome> {
+export async function applyPatch(
+  action: PatchAction,
+  repoId: Id,
+  selection: PatchSelection,
+  lines: number | null,
+  onApplied?: () => void,
+): Promise<PatchOutcome> {
   if (action === "discard") {
     const ok = await confirm({
       title:
@@ -61,7 +69,11 @@ export async function applyPatch(action: PatchAction, repoId: Id, selection: Pat
   const call = action === "stage" ? core.stagePatch : action === "unstage" ? core.unstagePatch : core.discardPatch;
   const outcome = await runAction(
     labels[action],
-    withStatus(repoId, () => call({ repoId, selection })),
+    withStatus(repoId, async () => {
+      const status = await call({ repoId, selection });
+      onApplied?.();
+      return status;
+    }),
     { busyKey: patchBusyKey(repoId), quiet: ["stale_state"] },
   );
 

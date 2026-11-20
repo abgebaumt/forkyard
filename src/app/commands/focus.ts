@@ -258,7 +258,7 @@ const hasRepo = (ctx: CommandContext) => Boolean(ctx.repoId && ctx.tabId);
 /** Summary field in the Commit Panel. */
 const SUMMARY_FIELD = "[data-commit-summary]";
 
-function focusSummarySoon(tries = 30): void {
+export function focusSummarySoon(tries = 30): void {
   const field = document.querySelector<HTMLElement>(SUMMARY_FIELD);
   if (field && visible(field)) {
     field.focus();

@@ -310,6 +310,13 @@
     "count": "{{lines}} in {{files}}",
     "fileDetail_one": "{{count}} ausgewählt",
     "fileDetail_other": "{{count}} ausgewählt",
-    "dropped": "Auswahl in {{file}} verworfen – Datei hat sich geändert"
+    "dropped": "Auswahl in {{file}} verworfen – Datei hat sich geändert",
+    "commitOnly": "Nur das committen",
+    "toBranch": "In neuen Branch …",
+    "branchTitle": "Auswahl in einen neuen Branch auslagern",
+    "branchBody": "{{lines}} verschwinden aus der Arbeitskopie und werden ein Commit auf einem neuen Branch ab HEAD. Du bleibst auf {{current}}.",
+    "branchConfirm": "Branch anlegen",
+    "movedTitle": "In {{branch}} ausgelagert",
+    "switch": "Zum Branch wechseln"
   }
 }

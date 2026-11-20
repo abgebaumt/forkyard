@@ -229,7 +229,7 @@ export function planCommit(status: Status | undefined, draft: CommitDraft, stage
   return { mode: "commit", label: t("wip.plan.commitFiles", { count: staged }), blocked: conflictReason ?? identity, stageAll: false };
 }
 
-function failSummary(tabId: Id, text: string) {
+export function failSummary(tabId: Id, text: string) {
   useWipStore.getState().patch(tabId, { summaryError: { text, nonce: nextErrorNonce() } });
 }
 

@@ -17,6 +17,7 @@ import { toCoreError } from "../../app/errors";
 import { useAiStatus, useCommitDetails, useDiff, useRepoSettings, useSettings, useStatus } from "../../app/queries";
 import { keyBelongsToView } from "../../app/viewFocus";
 import { keysFor, lassoCounts, useLasso, useLassoStore } from "../../app/lasso";
+import { commitLasso, lassoToBranch } from "../../app/actions/lasso";
 import { useAppStore, useBusy } from "../../app/store";
 import { preventedByGuard } from "../../app/webviewGuards";
 import { useLineTokens } from "../../components/code/highlight";
@@ -30,6 +31,7 @@ import "./diff.css";
 import { LineView, type LineViewHandle, type PatchTarget } from "./LineView";
 import { WordDiffCache, buildFileRows, buildHunkRows, hunkToPatch, patchModeOf, selectionToPatch, sourceKey } from "./model";
 import { queueStashSelection } from "../StashForm/selection";
+import { wipBusy } from "../WipPanel/actions";
 import { whyLineEntries } from "./whyLine";
 import { BinaryDiffView, DiffError, DiffSkeleton, LfsDiffView, TooLargeView } from "./OtherKinds";
 import { ImageDiffView } from "./ImageDiff";
@@ -52,8 +54,6 @@ export interface DiffViewProps {
 
 const EMPTY: ReadonlySet<string> = new Set();
 const NO_FOLDS: ReadonlySet<number> = new Set();
-// shortcut: the lasso's commit and branch buttons are not on the bar yet; wire them when they are.
-const noop = () => {};
 
 /** Puts the focus back into the file list of the commit panel (after closing). */
 function focusFileList() {
@@ -103,7 +103,9 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
   const text: TextDiff | null = diff?.kind === "text" ? diff : null;
   const patchMode = patchModeOf(source);
   const canPatch = Boolean(text?.token) && text?.status !== "conflicted";
-  const busy = useBusy(patchBusyKey(repoId));
+  // A lasso commit writes too: no patches meanwhile.
+  const patching = useBusy(patchBusyKey(repoId));
+  const busy = useBusy(wipBusy.commit(repoId)) || patching;
   const { data: aiStatus } = useAiStatus();
   const { data: repoSettings } = useRepoSettings(repoId);
   const aiVisible = featureVisible(aiStatus, "archaeology", repoSettings?.aiOff ?? false);
@@ -128,6 +130,10 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
   const inLasso = patchMode === "unstaged";
   const lasso = useLasso(tabId);
   const lassoTotal = useMemo(() => lassoCounts(lasso), [lasso]);
+  const lassoBar = useMemo(
+    () => ({ ...lassoTotal, onCommit: () => void commitLasso(repoId, tabId), onBranch: () => void lassoToBranch(repoId, tabId) }),
+    [lassoTotal, repoId, tabId],
+  );
   const lassoKeys = useMemo(() => keysFor(lasso, path, text?.token), [lasso, path, text?.token]);
   const selectionId = `${fileKey}|${text?.token ?? ""}`;
   const [selection, setSelection] = useState<{ id: string; keys: ReadonlySet<string> }>({ id: "", keys: EMPTY });
@@ -138,9 +144,13 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
       const patch = text?.token && keys.size > 0 ? selectionToPatch(text, keys) : null;
       useLassoStore
         .getState()
-        .setFile(tabId, path, patch && text?.token ? { token: text.token, keys: [...keys], selection: patch, lines: keys.size } : null);
+        .setFile(
+          tabId,
+          path,
+          patch && text?.token ? { token: text.token, keys: [...keys], selection: patch, lines: keys.size, forced: force } : null,
+        );
     },
-    [inLasso, selectionId, text, tabId, path],
+    [inLasso, selectionId, text, tabId, path, force],
   );
   /** This file's lines are done (staged, discarded, stashed or stale). */
   const forgetSelection = useCallback(() => {
@@ -208,10 +218,9 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
       if (!text) return;
       const patch = target.kind === "selection" ? selectionToPatch(text, selected) : hunkToPatch(text, target.hunkOrd);
       if (!patch) return;
-      const outcome = await applyPatch(action, repoId, patch, target.kind === "selection" ? selected.size : null);
+      const outcome = await applyPatch(action, repoId, patch, target.kind === "selection" ? selected.size : null, forgetSelection);
       if (outcome.result === "stale") forgetSelection();
       if (outcome.result !== "done") return;
-      forgetSelection();
       // Nothing left in this file: to the next one in the list, otherwise back to the graph.
       const list = action === "unstage" ? outcome.status.staged : outcome.status.unstaged;
       if (list.some((file) => file.path === path)) return;
@@ -395,7 +404,7 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
         selected={selected}
         onSelectedChange={setSelected}
         onClearSelection={clearSelection}
-        lasso={inLasso ? { ...lassoTotal, onCommit: noop, onBranch: noop } : null}
+        lasso={inLasso ? lassoBar : null}
         onPatch={(action, target) => void onPatch(action, target)}
         onStash={patchMode !== "none" && canPatch ? onStash : undefined}
         lineMenu={(row) => whyLineEntries(source, diff, row, aiVisible, (target) => store().openArchaeology(tabId, target))}

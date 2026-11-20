@@ -6,23 +6,28 @@
 import { useEffect, useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { create } from "zustand";
-import type { Id, PatchSelection } from "../core";
+import type { FileDiff, Id, PatchSelection } from "../core";
 import { t } from "../i18n";
 import { toast } from "../ui/Feedback";
 import { baseName } from "./paths";
+import { busyKeys } from "./actions/keys";
 import { diffQuery, useStatus } from "./queries";
+import { useAppStore } from "./store";
 
 export interface LassoFile {
   token: string;
   keys: string[];
   selection: PatchSelection;
   lines: number;
+  /** Selected in a force-opened (large) diff: the guard compares against that one. */
+  forced: boolean;
 }
 
 /** Key = path. */
 export type Lasso = Readonly<Record<string, LassoFile>>;
 
 const EMPTY_LASSO: Lasso = {};
+const UNSTAGED = { kind: "unstaged" } as const;
 const NO_KEYS: ReadonlySet<string> = new Set();
 
 /** null or no keys removes the file. */
@@ -58,6 +63,30 @@ export function dropStale(lasso: Lasso, tokens: Readonly<Record<string, string |
   return { lasso: Object.fromEntries(Object.entries(lasso).filter(([path]) => !dropped.includes(path))), dropped };
 }
 
+/**
+ * `tokens` for dropStale. `diffs[i]` belongs to `paths[i]` (the forced diff for forced files).
+ * Nothing while one of our own writes runs: the change it makes is not one from outside.
+ */
+export function currentTokens(
+  paths: readonly string[],
+  unstaged: ReadonlySet<string> | null,
+  diffs: readonly ({ data?: FileDiff; isFetching: boolean } | undefined)[],
+  writing: boolean,
+): Record<string, string | null> {
+  const tokens: Record<string, string | null> = {};
+  if (writing) return tokens;
+  paths.forEach((path, index) => {
+    const diff = diffs[index];
+    if (unstaged && !unstaged.has(path)) tokens[path] = null;
+    else if (diff?.data?.kind === "text" && diff.data.token && !diff.isFetching) tokens[path] = diff.data.token;
+  });
+  return tokens;
+}
+
+/** The unstaged diff per path; for a file selected in a force-opened diff the forced one (only that one has a token). */
+export const guardQueries = (repoId: Id, lasso: Lasso, paths: readonly string[]) =>
+  paths.map((path) => diffQuery(repoId, path, UNSTAGED, { force: lasso[path]?.forced ?? false }));
+
 interface LassoState {
   byTab: Record<Id, Lasso>;
   setFile(tabId: Id, path: string, file: LassoFile | null): void;
@@ -70,34 +99,34 @@ export const useLassoStore = create<LassoState>()((set) => ({
   byTab: {},
   setFile: (tabId, path, file) =>
     set(({ byTab }) => ({ byTab: { ...byTab, [tabId]: setLassoFile(byTab[tabId] ?? EMPTY_LASSO, path, file) } })),
-  clear: (tabId) =>
-    set(({ byTab }) => {
-      const { [tabId]: _, ...rest } = byTab;
-      return { byTab: rest };
-    }),
+  clear: (tabId) => set(({ byTab }) => ({ byTab: { ...byTab, [tabId]: EMPTY_LASSO } })),
   replace: (tabId, lasso) => set(({ byTab }) => ({ byTab: { ...byTab, [tabId]: lasso } })),
 }));
 
-export const useLasso = (tabId: Id): Lasso => useLassoStore((state) => state.byTab[tabId] ?? EMPTY_LASSO);
+// A closed tab takes its lasso along.
+useAppStore.subscribe((state, previous) => {
+  if (state.views === previous.views) return;
+  const { byTab } = useLassoStore.getState();
+  const gone = Object.keys(byTab).filter((tabId) => !(tabId in state.views));
+  if (gone.length > 0)
+    useLassoStore.setState({ byTab: Object.fromEntries(Object.entries(byTab).filter(([tabId]) => !gone.includes(tabId))) });
+});
 
-const UNSTAGED = { kind: "unstaged" } as const;
+export const useLasso = (tabId: Id): Lasso => useLassoStore((state) => state.byTab[tabId] ?? EMPTY_LASSO);
 
 /** Re-reads the unstaged diff of every selected file when the status changes; drops changed files with a notice. */
 export function useLassoGuard(repoId: Id, tabId: Id): void {
   const lasso = useLasso(tabId);
   const { data: status } = useStatus(repoId);
+  // Our own stage, discard and lasso commits: their result is no change from outside (same keys as their runAction).
+  const writing = useAppStore((state) =>
+    Boolean(state.busy[busyKeys.write(repoId, "patch")] || state.busy[busyKeys.write(repoId, "commit")]),
+  );
   const paths = useMemo(() => Object.keys(lasso).sort(), [lasso]);
   // Same cache entries as the diff view: the core's worktree events refetch them once each, an open diff shares the read.
-  const diffs = useQueries({ queries: paths.map((path) => diffQuery(repoId, path, UNSTAGED)) });
-
-  const tokens: Record<string, string | null> = {};
+  const diffs = useQueries({ queries: guardQueries(repoId, lasso, paths) });
   const unstaged = status ? new Set(status.unstaged.map((file) => file.path)) : null;
-  paths.forEach((path, index) => {
-    const diff = diffs[index]?.data;
-    if (unstaged && !unstaged.has(path)) tokens[path] = null;
-    else if (diff?.kind === "text" && diff.token && !diffs[index]?.isFetching) tokens[path] = diff.token;
-  });
-  const signature = JSON.stringify(tokens);
+  const signature = JSON.stringify(currentTokens(paths, unstaged, diffs, writing));
 
   useEffect(() => {
     const current = useLassoStore.getState().byTab[tabId] ?? EMPTY_LASSO;
