@@ -951,7 +951,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
           role="toolbar"
           aria-label={t("diff.selection.toolbar")}
           data-selection-bar=""
-          className="animate-pop absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-border bg-surface-raised py-1.5 pr-1.5 pl-3 text-sm shadow-pop"
+          className="animate-pop absolute inset-x-0 bottom-4 z-10 mx-auto flex w-fit max-w-[calc(100%-2rem)] flex-wrap items-center justify-center gap-2 rounded-lg border border-border bg-surface-raised py-1.5 pr-1.5 pl-3 text-sm shadow-pop"
         >
           {lasso ? (
             <>
