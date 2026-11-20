@@ -301,6 +301,8 @@ async fn the_noreply_address_of_a_connected_github_account_is_own() {
     assert!(own.contains(&"lena@example.com".to_string()), "{own:?}");
     let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
     assert!(digest.refs.is_empty(), "{:?}", digest.refs);
+    // No token in the keychain: the PR part stops before any request, which keeps this test offline.
+    assert_eq!(digest.pr_data_missing, Some(HostKind::Github));
 }
 
 #[tokio::test]
