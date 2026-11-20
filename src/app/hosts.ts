@@ -41,6 +41,13 @@ const ALL_FEATURES: Omit<HostCapabilities, "mergeMethods"> = {
   reviewThreads: true,
   reviewReply: true,
   reviewReplyQuotes: false,
+  reviewComment: false,
+  reviewCommentRange: false,
+  reviewResolve: false,
+  reviewSubmitBatch: false,
+  reviewApprove: false,
+  reviewRequestChanges: false,
+  reviewVoteOwnPr: false,
 };
 
 /** GitLab has no "rebase" when merging via the API; GitHub cannot toggle drafts there. */

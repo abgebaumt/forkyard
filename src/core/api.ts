@@ -135,6 +135,9 @@ import type {
   RebasePlan,
   RebasePlanRow,
   ReviewReply,
+  ReviewDraft,
+  PrReviewDrafts,
+  NewReviewComment,
   ReviewFixApplied,
   ReviewFixInput,
   ReviewThread,
@@ -1136,6 +1139,24 @@ export interface CoreCommands {
    * `not_allowed` (invalid thread ID), `host_not_found` (thread gone), host errors.
    */
   prReviewReply(input: R & { number: number; threadId: string; body: string; remote?: string | null }): Promise<ReviewReply>;
+  /**
+   * Drafts of the own review: the host's own ones first (GitHub pending review, GitLab draft notes;
+   * `origin: "host"`, read only), then the local ones, oldest first. Needs no account; without one only
+   * local drafts. `hostUnreadable` when the host's drafts could not be read. Errors: `host_unsupported`
+   * (no remote on a supported host), `not_found` (remote missing).
+   */
+  prReviewDrafts(input: R & { number: number; remote?: string | null }): Promise<PrReviewDrafts>;
+  /**
+   * Stores a local review draft (`draftId` null) or replaces one, clearing its error. Nothing is sent.
+   * Errors: `empty_message`, `not_allowed` (body over 65 536 bytes, path outside the repository, line 0,
+   * `startLine` not before `line`, a range where the host takes single lines only, `commit` not a full
+   * ID), `not_found` (draft gone or of another pull request), `host_unsupported`.
+   */
+  prReviewDraftSave(
+    input: R & { number: number; comment: NewReviewComment; draftId?: string | null; remote?: string | null },
+  ): Promise<ReviewDraft>;
+  /** Discards a local review draft. Errors: `not_found` (draft gone or of another pull request), `host_unsupported`. */
+  prReviewDraftDelete(input: R & { number: number; draftId: string; remote?: string | null }): Promise<void>;
   /**
    * 8.2: commits a suggested fix as `fixup! <subject of target>` on the checked-out pull request branch
    * through the normal commit path (hooks, signing). Needs the branch checked out and containing the pull

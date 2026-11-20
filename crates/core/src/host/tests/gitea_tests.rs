@@ -375,6 +375,7 @@ fn a_quote_keeps_three_lines_of_the_first_comment() {
         side: ReviewSide::New,
         commit: None,
         resolved: false,
+        resolve_id: None,
         outdated: false,
         comments: vec![comment("mira", "eins\nzwei\ndrei\nvier"), comment("jonas", "Antwort")],
     };

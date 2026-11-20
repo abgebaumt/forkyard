@@ -133,6 +133,35 @@ export type HostCapabilities = {
    * Releases can be created for a tag (GitHub, GitLab, Gitea/Forgejo).
    */
   releases: boolean;
+  /**
+   * New review comments can be written on a line of the diff.
+   */
+  reviewComment: boolean;
+  /**
+   * A review comment can span several lines (`start_line`).
+   */
+  reviewCommentRange: boolean;
+  /**
+   * Review threads can be marked as resolved and reopened.
+   */
+  reviewResolve: boolean;
+  /**
+   * A review goes out in one request together with its comments; without it each draft is sent on
+   * its own before the vote.
+   */
+  reviewSubmitBatch: boolean;
+  /**
+   * A review can approve the pull request.
+   */
+  reviewApprove: boolean;
+  /**
+   * A review can request changes.
+   */
+  reviewRequestChanges: boolean;
+  /**
+   * Approve and request changes are allowed on the user's own pull request.
+   */
+  reviewVoteOwnPr: boolean;
 };
 
 export type HostComment = {
@@ -287,6 +316,28 @@ export type IssueSummary = {
   webUrl: string;
 };
 
+/**
+ * A new review comment on a line (or range of lines) of the diff, as the UI hands it in.
+ */
+export type NewReviewComment = {
+  /**
+   * Head commit the line numbers refer to (the pull request's head when written).
+   */
+  commit: string;
+  path: string;
+  line: number;
+  /**
+   * First line of a range; `None` = one line.
+   */
+  startLine: number | null;
+  side: ReviewSide;
+  /**
+   * Only for an unchanged line on the new side: its number in the old version (GitLab needs both).
+   */
+  oldLine?: number | null;
+  body: string;
+};
+
 export type PrCheck = { name: string; state: CheckRunState; url: string | null };
 
 export type PrCommit = { sha: string; summary: string; authorName: string; authoredAt: string };
@@ -341,6 +392,17 @@ export type PrPage = {
   nextPage: number | null;
 };
 
+/**
+ * The drafts of the own review of a pull request: the host's first, then the local ones, oldest first.
+ */
+export type PrReviewDrafts = {
+  drafts: Array<ReviewDraft>;
+  /**
+   * The host's own drafts could not be read (offline, rejected); only local ones are listed.
+   */
+  hostUnreadable: boolean;
+};
+
 export type PrReviewState = "approved" | "changes_requested" | "review_required" | "commented";
 
 export type PrReviewer = {
@@ -371,6 +433,36 @@ export type PrSummary = {
    */
   isFork: boolean;
 };
+
+/**
+ * A comment of the own review that has not been sent yet.
+ */
+export type ReviewDraft = {
+  /**
+   * Local: the decimal row ID; host: the host's ID.
+   */
+  id: string;
+  origin: ReviewDraftOrigin;
+  path: string;
+  /**
+   * `None` = a host draft whose line is gone.
+   */
+  line: number | null;
+  startLine: number | null;
+  side: ReviewSide;
+  oldLine: number | null;
+  commit: string | null;
+  body: string;
+  /**
+   * Why the last send failed (local drafts only).
+   */
+  error: string | null;
+};
+
+/**
+ * Where a review draft is kept.
+ */
+export type ReviewDraftOrigin = "local" | "host";
 
 /**
  * What `review_fix_apply` committed.
@@ -445,6 +537,24 @@ export type ReviewReply = {
 export type ReviewSide = "new" | "old";
 
 /**
+ * What submitting a review did.
+ */
+export type ReviewSubmitResult = {
+  /**
+   * The review (vote and body) reached the host; `false` while drafts failed.
+   */
+  submitted: boolean;
+  /**
+   * Local drafts that reached the host (and are gone locally).
+   */
+  sent: number;
+  /**
+   * Local drafts that stay, with their error.
+   */
+  failed: Array<ReviewDraft>;
+};
+
+/**
  * A review thread: comments on lines of the diff with their answers (8.2).
  */
 export type ReviewThread = {
@@ -469,6 +579,10 @@ export type ReviewThread = {
   commit: string | null;
   resolved: boolean;
   /**
+   * What `pr_review_thread_resolve` takes; `None` = cannot be resolved in Forkyard.
+   */
+  resolveId: string | null;
+  /**
    * The host marks the thread as outdated (the code changed since).
    */
   outdated: boolean;
@@ -477,3 +591,8 @@ export type ReviewThread = {
    */
   comments: Array<HostComment>;
 };
+
+/**
+ * What a submitted review says about the pull request.
+ */
+export type ReviewVote = "comment" | "approve" | "request_changes";

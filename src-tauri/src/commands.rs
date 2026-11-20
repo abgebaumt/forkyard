@@ -281,6 +281,9 @@ commands! {
     pr_template => host::pr_template(repo_id: String) -> Option<String>;
     pr_review_threads => host::pr_review_threads(repo_id: String, number: u64, remote: Option<String>) -> Vec<ReviewThread>;
     pr_review_reply => host::pr_review_reply(repo_id: String, number: u64, thread_id: String, body: String, remote: Option<String>) -> ReviewReply;
+    pr_review_drafts => pr_review::pr_review_drafts(repo_id: String, number: u64, remote: Option<String>) -> PrReviewDrafts;
+    pr_review_draft_save => pr_review::pr_review_draft_save(repo_id: String, number: u64, comment: NewReviewComment, draft_id: Option<String>, remote: Option<String>) -> ReviewDraft;
+    pr_review_draft_delete => pr_review::pr_review_draft_delete(repo_id: String, number: u64, draft_id: String, remote: Option<String>) -> ();
     issue_list => host::issue_list(repo_id: String, state: IssueListState, query: Option<String>, page: Option<u32>, per_page: Option<u32>, remote: Option<String>) -> IssuePage;
     issue_get => host::issue_get(repo_id: String, number: u64, remote: Option<String>) -> IssueDetails;
     issue_create => host::issue_create(repo_id: String, title: String, body: String, remote: Option<String>) -> IssueSummary;

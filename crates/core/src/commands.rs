@@ -33,6 +33,7 @@ pub mod links;
 pub mod merge;
 pub mod patch;
 pub mod plan;
+pub mod pr_review;
 pub mod preview;
 pub mod profiles;
 pub mod rebase;

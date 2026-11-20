@@ -32,8 +32,8 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{self, Method, Request, Response};
 use crate::model::{
     AppChange, CheckRunState, ChecksState, HostCapabilities, HostComment, HostKind, HostRelease, HostRepoRef, HostUser, HosterAccount,
-    IssueDetails, IssueListState, IssuePage, IssueSummary, PrCheck, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState,
-    PrReviewer, PrSummary, ReviewReply, ReviewThread,
+    IssueDetails, IssueListState, IssuePage, IssueSummary, NewReviewComment, PrCheck, PrDetails, PrListState, PrMergeMethod, PrPage,
+    PrReviewState, PrReviewer, PrSummary, ReviewDraft, ReviewReply, ReviewThread, ReviewVote,
 };
 use crate::secrets;
 use crate::util;
@@ -159,6 +159,26 @@ pub struct NewRelease<'a> {
     pub name: &'a str,
     pub body: &'a str,
     pub prerelease: bool,
+}
+
+/// A review to submit, the same for every host.
+pub struct ReviewSubmission<'a> {
+    pub vote: ReviewVote,
+    pub body: &'a str,
+    /// Head commit the review refers to.
+    pub commit: &'a str,
+    /// Local drafts – only for hosts with `review_submit_batch`; empty otherwise.
+    pub drafts: &'a [ReviewDraft],
+}
+
+/// What `review_submit` did.
+#[derive(Debug, Default)]
+pub struct ReviewSubmitOutcome {
+    pub submitted: bool,
+    /// IDs of local drafts that reached the host.
+    pub sent: Vec<String>,
+    /// (local draft ID, error message) – stays local.
+    pub failed: Vec<(String, String)>,
 }
 
 /// A call this host cannot make: `host_unsupported`, before anything is sent.
@@ -325,6 +345,50 @@ pub trait Host: Sync {
         _body: &'a str,
     ) -> HostFuture<'a, ReviewReply> {
         unsupported(self.label(), "answers to review comments")
+    }
+    /// A new review comment on a line (or range) of the diff, sent on its own.
+    fn review_comment_create<'a>(
+        &'a self,
+        _core: &'a Core,
+        _api: &'a Api,
+        _repo: &'a RepoPath,
+        _number: u64,
+        _comment: &'a NewReviewComment,
+    ) -> HostFuture<'a, ()> {
+        unsupported(self.label(), "comments on lines")
+    }
+    /// Marks a review thread as resolved or reopens it (`resolve_id` as `ReviewThread.resolve_id`).
+    fn review_thread_set_resolved<'a>(
+        &'a self,
+        _core: &'a Core,
+        _api: &'a Api,
+        _repo: &'a RepoPath,
+        _number: u64,
+        _resolve_id: &'a str,
+        _resolved: bool,
+    ) -> HostFuture<'a, ()> {
+        unsupported(self.label(), "resolving review threads")
+    }
+    /// Submits the own review: vote, body and (batch hosts) the local drafts.
+    fn review_submit<'a>(
+        &'a self,
+        _core: &'a Core,
+        _api: &'a Api,
+        _repo: &'a RepoPath,
+        _number: u64,
+        _submission: ReviewSubmission<'a>,
+    ) -> HostFuture<'a, ReviewSubmitOutcome> {
+        unsupported(self.label(), "reviews")
+    }
+    /// The user's own drafts kept at the host (GitHub pending review, GitLab draft notes); empty where there are none.
+    fn review_host_drafts<'a>(
+        &'a self,
+        _core: &'a Core,
+        _api: &'a Api,
+        _repo: &'a RepoPath,
+        _number: u64,
+    ) -> HostFuture<'a, Vec<ReviewDraft>> {
+        Box::pin(async { Ok(Vec::new()) })
     }
 }
 
