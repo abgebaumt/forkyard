@@ -11,7 +11,7 @@ import { useAppStore } from "../../app/store";
 import { Button, IconButton } from "../../ui/Button";
 import { t } from "../../i18n";
 import { markDigestSeen } from "./actions";
-import { digestNumbers, digestRows, ROW_LIMIT, type DigestRow } from "./model";
+import { digestNumbers, digestRows, ROW_LIMIT, type DigestNumbers, type DigestRow } from "./model";
 
 function openRow(repoId: Id, tabId: Id, row: DigestRow, base: string | null): void {
   switch (row.kind) {
@@ -35,20 +35,40 @@ function openRow(repoId: Id, tabId: Id, row: DigestRow, base: string | null): vo
   }
 }
 
+/** The numbers, announced politely; after a reload one line asks to check before marking again. */
+export function DigestSummary({ numbers, reloaded }: { numbers: DigestNumbers; reloaded: boolean }) {
+  return (
+    <p className="text-text-muted" aria-live="polite">
+      <span data-digest-number="commits">{t("digest.numbers.commits", { count: numbers.commits })}</span>
+      {" · "}
+      <span data-digest-number="prs">{t("digest.numbers.prs", { count: numbers.prs })}</span>
+      {" · "}
+      <span data-digest-number="files">{t("digest.numbers.files", { count: numbers.files })}</span>
+      {reloaded ? (
+        <span data-digest-reloaded="" className="block">
+          {t("digest.reloaded")}
+        </span>
+      ) : null}
+    </p>
+  );
+}
+
 export function DigestCard({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const open = useAppStore((state) => Boolean(state.digestOpen[repoId]));
   const { data: digest, isError } = useDigest(repoId, open);
   const [showAll, setShowAll] = useState(false);
+  const [reloaded, setReloaded] = useState(false);
   const empty = digest === null || digest?.isEmpty === true || isError;
   useEffect(() => {
     if (open && empty) useAppStore.getState().closeDigest(repoId);
+    if (!open) setReloaded(false);
   }, [open, empty, repoId]);
   if (!open || !digest || empty) return null;
 
   const numbers = digestNumbers(digest);
   const rows = digestRows(digest);
   const shown = showAll ? rows : rows.slice(0, ROW_LIMIT);
-  const seen = () => void markDigestSeen(repoId, digest.prMaxNumber);
+  const seen = () => void markDigestSeen(repoId, digest.prMaxNumber).then((done) => done === "reloaded" && setReloaded(true));
   return (
     <section
       data-screen="digest-card"
@@ -62,13 +82,7 @@ export function DigestCard({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         </Button>
         <IconButton size="sm" label={t("ui.close")} icon={<X className="size-icon" aria-hidden />} data-digest-close onClick={seen} />
       </div>
-      <p className="text-text-muted" aria-live="polite">
-        <span data-digest-number="commits">{t("digest.numbers.commits", { count: numbers.commits })}</span>
-        {" · "}
-        <span data-digest-number="prs">{t("digest.numbers.prs", { count: numbers.prs })}</span>
-        {" · "}
-        <span data-digest-number="files">{t("digest.numbers.files", { count: numbers.files })}</span>
-      </p>
+      <DigestSummary numbers={numbers} reloaded={reloaded} />
       {digest.prDataMissing ? (
         <p data-digest-pr-missing className="text-text-muted">
           {t("digest.prMissing", { host: hostKindLabels[digest.prDataMissing] })}

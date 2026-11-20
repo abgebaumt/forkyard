@@ -111,7 +111,7 @@ describe("markDigestSeen", () => {
     digestGet.mockResolvedValue(sample);
     digestMarkSeen.mockResolvedValue(undefined);
     await checkDigestAfterFetch("r1");
-    await markDigestSeen("r1", 7);
+    expect(await markDigestSeen("r1", 7)).toBe("marked");
     expect(digestMarkSeen).toHaveBeenCalledWith({ repoId: "r1", prMaxNumber: 7 });
     expect(useAppStore.getState().digestOpen.r1).toBe(false);
   });
@@ -132,11 +132,30 @@ describe("markDigestSeen", () => {
     digestFetchedWhileOpen("r1");
     await checkDigestAfterFetch("r1");
     expect(digestGet).not.toHaveBeenCalled();
-    await markDigestSeen("r1", 7);
+    expect(await markDigestSeen("r1", 7)).toBe("reloaded");
     expect(digestMarkSeen).not.toHaveBeenCalled();
     expect(digestGet).toHaveBeenCalledTimes(1);
     expect(digestGet).toHaveBeenCalledWith({ repoId: "r1" });
     expect(useAppStore.getState().digestOpen.r1).toBe(true);
+    expect(queryClient.getQueryState(qk.digest("r1"))?.isInvalidated).toBe(false);
+  });
+
+  it("a second fetch during the reload keeps the card stale, so the next click reloads again", async () => {
+    withTab();
+    queryClient.setQueryData(qk.digest("r1"), sample);
+    useAppStore.getState().openDigest("r1");
+    let answer: (value: Digest | null) => void = () => undefined;
+    digestGet.mockImplementation(() => new Promise((resolve) => (answer = resolve)));
+    digestFetchedWhileOpen("r1");
+    const reload = markDigestSeen("r1", 7);
+    await vi.waitFor(() => expect(digestGet).toHaveBeenCalledTimes(1));
+    digestFetchedWhileOpen("r1");
+    answer(sample);
+    expect(await reload).toBe("reloaded");
+    expect(queryClient.getQueryState(qk.digest("r1"))?.isInvalidated).toBe(true);
+    digestGet.mockResolvedValue(sample);
+    expect(await markDigestSeen("r1", 7)).toBe("reloaded");
+    expect(digestMarkSeen).not.toHaveBeenCalled();
     expect(queryClient.getQueryState(qk.digest("r1"))?.isInvalidated).toBe(false);
   });
 });
