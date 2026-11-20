@@ -48,6 +48,12 @@ All notable changes to Forkyard are listed here. The format follows
   editing, the graph shows only the branch's commits in the planned order; a bar shows the number of
   changes, the conflict preview and whether a force push will be needed. "Apply" rewrites the branch in
   one step that one Undo takes back; "Open in rebase tool" carries the plan over.
+- What's new since …: after a fetch, when the last look is more than 8 hours old, a card at the top of
+  the commit graph shows what happened since – new, updated, force-pushed and deleted remote branches
+  and tags with their new commits, which of your files they touch, how far your branch is behind the
+  default branch and, with a connected host, opened, merged and closed pull requests and new comments
+  on yours. Your own commits and pushes never count. Every row jumps to the commit, pull request or
+  file. Also from the command palette at any time; with AI turned on, a one-paragraph summary on request.
 
 ### Fixed
 
