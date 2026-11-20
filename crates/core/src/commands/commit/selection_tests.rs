@@ -279,3 +279,175 @@ async fn the_undo_entry_records_head_like_a_normal_commit() {
     let entry = top_undo(&tc, &id).unwrap();
     assert_eq!((entry.head_before.as_str(), entry.head_after.as_deref()), (detached.as_str(), Some(result.sha.as_str())));
 }
+
+// ---------------------------------------------------------------------------
+// selection_to_branch
+// ---------------------------------------------------------------------------
+
+async fn to_branch(tc: &TestCore, id: &str, selections: Vec<PatchSelection>, branch: &str, head: &str) -> CoreResult<CommitResult> {
+    selection_to_branch(
+        tc,
+        id.to_string(),
+        crate::util::new_id(),
+        selections,
+        branch.to_string(),
+        "Ausgelagert".into(),
+        "".into(),
+        false,
+        head.to_string(),
+    )
+    .await
+}
+
+fn branches(repo: &TestRepo) -> String {
+    git(repo, &["for-each-ref", "refs/heads"])
+}
+
+/// unstaged: a.txt "drei"→"DREI", "vier"→"VIER"; b ä.txt + "gamma", "delta"; selected: the DREI
+/// pair and "+gamma".
+async fn two_files(tc: &TestCore, repo: &TestRepo, id: &str) -> Vec<PatchSelection> {
+    repo.write_file("a.txt", "eins\nzwei\nDREI\nVIER\n");
+    repo.write_file("b ä.txt", "alpha\nbeta\ngamma\ndelta\n");
+    vec![
+        pick(&diff(tc, id, "a.txt", false).await, &[("-", "drei"), ("+", "DREI")]),
+        pick(&diff(tc, id, "b ä.txt", false).await, &[("+", "gamma")]),
+    ]
+}
+
+#[tokio::test]
+async fn moves_the_selection_to_a_new_branch_and_undo_brings_it_back() {
+    let (tc, repo, id, head) = setup().await;
+    let selections = two_files(&tc, &repo, &id).await;
+    let before_a = repo.read_file("a.txt");
+    let before_b = repo.read_file("b ä.txt");
+
+    let result = selection_to_branch(
+        &tc,
+        id.clone(),
+        "op2".into(),
+        selections,
+        "auslagerung/ä".into(),
+        "Ausgelagert".into(),
+        "".into(),
+        false,
+        head.clone(),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(repo.head(), head);
+    assert_eq!(repo.current_branch(), "main");
+    assert_eq!(repo.git(&["rev-parse", "auslagerung/ä"]), result.sha);
+    assert_eq!(repo.git(&["rev-parse", "auslagerung/ä~1"]), head);
+    assert_eq!(git(&repo, &["show", "auslagerung/ä:a.txt"]), "eins\nzwei\nDREI\nvier");
+    assert_eq!(git(&repo, &["show", "auslagerung/ä:b ä.txt"]), "alpha\nbeta\ngamma");
+    assert_eq!(repo.read_file("a.txt"), b"eins\nzwei\ndrei\nVIER\n");
+    assert_eq!(repo.read_file("b ä.txt"), b"alpha\nbeta\ndelta\n");
+    assert!(repo.git(&["diff", "--cached", "--name-only"]).is_empty());
+    let entry = top_undo(&tc, &id).expect("undo entry missing");
+    assert_eq!((entry.action.as_str(), entry.label.as_str()), ("plan", "Undo moving the selection to ‘auslagerung/ä’"));
+    assert_eq!((entry.head_before.as_str(), entry.head_after.as_deref()), ("refs/heads/main", Some("refs/heads/main")));
+
+    crate::commands::undo::undo(&tc, id.clone()).await.unwrap();
+
+    assert!(!repo.git_output(&["rev-parse", "--verify", "-q", "refs/heads/auslagerung/ä"]).status.success());
+    assert_eq!(repo.read_file("a.txt"), before_a);
+    assert_eq!(repo.read_file("b ä.txt"), before_b);
+    assert_eq!(repo.head(), head);
+    assert_eq!(repo.current_branch(), "main");
+}
+
+#[tokio::test]
+async fn crlf_missing_newline_and_latin1_move_to_the_branch_as_bytes() {
+    let (tc, repo, id, head) = setup().await;
+    repo.write_file("crlf.txt", "eins\r\nZWEI\r\ndrei\r\n");
+    repo.write_file("ohne-ende.txt", "eins\nzwei\ndrei");
+    repo.write_file("latin1.txt", b"Gr\xfc\xdfe\n\xc4rger\n");
+    let selections = vec![
+        pick(&diff(&tc, &id, "crlf.txt", false).await, &[("+", "drei")]),
+        all(&diff(&tc, &id, "ohne-ende.txt", false).await),
+        pick(&diff(&tc, &id, "latin1.txt", false).await, &[("+", "Ärger")]),
+    ];
+
+    to_branch(&tc, &id, selections, "bytes", &head).await.unwrap();
+
+    assert_eq!(blob(&repo, "bytes:crlf.txt"), b"eins\r\nzwei\r\ndrei\r\n");
+    assert_eq!(blob(&repo, "bytes:ohne-ende.txt"), b"eins\nzwei\ndrei");
+    assert_eq!(blob(&repo, "bytes:latin1.txt"), b"Gr\xfc\xdfe\n\xc4rger\n");
+    assert_eq!(repo.read_file("crlf.txt"), b"eins\r\nZWEI\r\n");
+    assert_eq!(repo.read_file("ohne-ende.txt"), b"eins\nzwei");
+    assert_eq!(repo.read_file("latin1.txt"), b"Gr\xfc\xdfe\n");
+    assert_eq!(repo.head(), head);
+}
+
+#[tokio::test]
+async fn a_detached_head_stays_where_it_was() {
+    let (tc, repo, id, head) = setup().await;
+    repo.git(&["checkout", "-q", "--detach"]);
+    let selections = two_files(&tc, &repo, &id).await;
+
+    let result = to_branch(&tc, &id, selections, "losgelöst", &head).await.unwrap();
+
+    assert_eq!(repo.git(&["rev-parse", "--symbolic-full-name", "HEAD"]), "HEAD", "still detached");
+    assert_eq!(repo.head(), head);
+    assert_eq!(repo.git(&["rev-parse", "losgelöst~1"]), head);
+    assert_eq!(repo.git(&["rev-parse", "losgelöst"]), result.sha);
+    assert_eq!(repo.read_file("a.txt"), b"eins\nzwei\ndrei\nVIER\n");
+}
+
+#[tokio::test]
+async fn an_existing_or_invalid_branch_name_changes_nothing() {
+    let (tc, repo, id, head) = setup().await;
+    repo.branch("vorhanden");
+    let selections = two_files(&tc, &repo, &id).await;
+    let before = (state(&tc, &repo, &id), branches(&repo));
+
+    let err = to_branch(&tc, &id, selections.clone(), "vorhanden", &head).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::NameExists, "{}", err.message);
+    assert_eq!((state(&tc, &repo, &id), branches(&repo)), before);
+
+    let err = to_branch(&tc, &id, selections, "a..b", &head).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::InvalidName, "{}", err.message);
+    assert_eq!((state(&tc, &repo, &id), branches(&repo)), before);
+}
+
+#[tokio::test]
+async fn a_hook_rejecting_the_commit_changes_nothing() {
+    let (tc, repo, id, head) = setup().await;
+    write_hook(&repo, "pre-commit", "echo nein >&2\nexit 1");
+    let selections = two_files(&tc, &repo, &id).await;
+    let before = (state(&tc, &repo, &id), branches(&repo));
+
+    let err = to_branch(&tc, &id, selections, "abgelehnt", &head).await.unwrap_err();
+
+    assert_eq!(err.code, ErrorCode::HookFailed, "{}", err.message);
+    assert_eq!((state(&tc, &repo, &id), branches(&repo)), before);
+}
+
+#[tokio::test]
+async fn stale_files_change_nothing() {
+    let (tc, repo, id, head) = setup().await;
+    let selections = two_files(&tc, &repo, &id).await;
+    repo.write_file("b ä.txt", "alpha\nbeta\ngamma\ndelta\nepsilon\n");
+    let before = (state(&tc, &repo, &id), branches(&repo));
+
+    let err = to_branch(&tc, &id, selections, "veraltet", &head).await.unwrap_err();
+
+    assert_eq!(err.code, ErrorCode::StaleState, "{}", err.message);
+    assert_eq!((state(&tc, &repo, &id), branches(&repo)), before);
+}
+
+#[tokio::test]
+async fn a_failure_while_taking_the_lines_out_restores_everything() {
+    let (tc, repo, id, head) = setup().await;
+    let selections = two_files(&tc, &repo, &id).await;
+    let before = (state(&tc, &repo, &id), branches(&repo));
+    // a.txt is taken out first, then the injected failure hits before b ä.txt.
+    tc.state::<FailTakeOut>().0.store(true, std::sync::atomic::Ordering::SeqCst);
+
+    let err = to_branch(&tc, &id, selections, "halb", &head).await.unwrap_err();
+
+    assert_eq!(err.code, ErrorCode::Io, "{err:?}");
+    assert!(err.message.contains("couldn't be taken out"), "{}", err.message);
+    assert_eq!((state(&tc, &repo, &id), branches(&repo)), before);
+}

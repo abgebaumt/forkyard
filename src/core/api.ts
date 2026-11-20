@@ -362,6 +362,21 @@ export interface CoreCommands {
     input: R & { opId: string; selections: PatchSelection[]; summary: string; description: string; skipHooks: boolean; expectHead: Sha },
   ): Promise<CommitResult>;
   /**
+   * Commits exactly these lines of the unstaged diffs on a new branch `branch` from HEAD; HEAD stays; the
+   * lines leave the working directory. One undo entry. Errors as `commitSelection`, plus `name_exists`, `invalid_name`.
+   */
+  selectionToBranch(
+    input: R & {
+      opId: string;
+      selections: PatchSelection[];
+      branch: string;
+      summary: string;
+      description: string;
+      skipHooks: boolean;
+      expectHead: Sha;
+    },
+  ): Promise<CommitResult>;
+  /**
    * Change the message of the last commit without touching the index. `sha`: the commit whose
    * message was edited – if HEAD has become a different one in the meantime, `stale_state` comes back.
    */
