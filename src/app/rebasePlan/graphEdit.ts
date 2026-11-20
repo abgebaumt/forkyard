@@ -20,6 +20,8 @@ export interface PendingDrag {
   pointerId: number;
   clientX: number;
   clientY: number;
+  /** The pointer went up (or was cancelled) before the edit view took the drag over. */
+  released?: boolean;
 }
 
 export interface GraphEdit {
@@ -47,9 +49,36 @@ export type EntryDecision =
   | { kind: "refused"; title: string; message: string; stash: boolean }
   | { kind: "notInRange" };
 
+type Refusal = Extract<RebasePlan, { status: "refused" }>;
+
+/** The refusal in the UI language; the core's English text only for a reason this UI does not know. */
+function refusalDescription(plan: Refusal): string {
+  switch (plan.reason) {
+    case "merge_commits":
+      return t("commitGraph.edit.refused.mergeCommits");
+    case "no_common_ancestor":
+      return t("commitGraph.edit.refused.noCommonAncestor");
+    case "nothing_to_rebase":
+      return t("commitGraph.edit.refused.nothingToRebase", { here: t("menus.commit.editHistoryHere") });
+    case "dirty_worktree":
+      return t("commitGraph.edit.refused.dirtyWorktree");
+    case "detached":
+      return t("commitGraph.edit.refused.detached");
+    case "operation_in_progress":
+      return t("commitGraph.edit.refused.operationInProgress");
+    default:
+      return plan.message;
+  }
+}
+
 export function entryDecision(plan: RebasePlan, sha: Sha | null): EntryDecision {
   if (plan.status === "refused") {
-    return { kind: "refused", title: refusalTitle[plan.reason], message: plan.message, stash: plan.reason === "dirty_worktree" };
+    return {
+      kind: "refused",
+      title: refusalTitle[plan.reason] ?? t("menus.commit.editHistory"),
+      message: refusalDescription(plan),
+      stash: plan.reason === "dirty_worktree",
+    };
   }
   return sha === null || plan.rows.some((row) => row.sha === sha) ? { kind: "enter" } : { kind: "notInRange" };
 }
@@ -59,6 +88,17 @@ export function staleAfter(edit: GraphEdit, fresh: RebasePlan | undefined): bool
   if (!fresh) return false;
   if (fresh.status === "refused") return fresh.reason !== "dirty_worktree";
   return planSignature(fresh) !== planSignature(edit.plan);
+}
+
+/**
+ * The edit's plan with what a fresh plan of the same commits says now about pushed commits and dependent
+ * branches (a push or a new branch during the edit); null when nothing changed or the plan no longer fits.
+ */
+export function refreshedPlan(edit: GraphEdit, fresh: RebasePlan | undefined): OkPlan | null {
+  if (fresh?.status !== "ok" || planSignature(fresh) !== planSignature(edit.plan)) return null;
+  const { rewritesPushed, dependentBranches } = fresh;
+  if (rewritesPushed === edit.plan.rewritesPushed && dependentBranches.join("\n") === edit.plan.dependentBranches.join("\n")) return null;
+  return { ...edit.plan, rewritesPushed, dependentBranches };
 }
 
 const guards = new Map<Id, CenterGuard>();

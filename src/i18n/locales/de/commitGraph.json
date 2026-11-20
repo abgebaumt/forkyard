@@ -91,6 +91,14 @@
     "apply": "Anwenden",
     "openTool": "Im Rebase-Werkzeug öffnen",
     "editMessage": "Nachricht bearbeiten …",
+    "refused": {
+      "mergeCommits": "Unter den eigenen Commits des Branches ist ein Merge-Commit. Beim Bearbeiten würde er verloren gehen.",
+      "noCommonAncestor": "Der Branch hat keinen gemeinsamen Verlauf mit dem Standard-Branch.",
+      "nothingToRebase": "Der Branch hat keine eigenen Commits zum Bearbeiten. Nutze „{{here}}“ auf einem älteren Commit.",
+      "dirtyWorktree": "Es gibt nicht committete Änderungen. Committe oder stashe sie zuerst.",
+      "detached": "Checke zuerst einen Branch aus.",
+      "operationInProgress": "Schließe zuerst den laufenden Merge, Rebase, Cherry-Pick oder Revert ab oder brich ihn ab."
+    },
     "chip": {
       "squash": "squash",
       "fixup": "fixup",

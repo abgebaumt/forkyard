@@ -22,6 +22,7 @@ import {
   leaveAllGraphEdits,
   leaveGraphEdit,
   openGraphEditInTool,
+  refreshedPlan,
   registerEditGuard,
   staleAfter,
   updateGraphEdit,
@@ -84,6 +85,26 @@ describe("graph edit", () => {
     expect(staleAfter(edit, okPlan(["a", "b"], "other-base"))).toBe(true);
     expect(staleAfter(edit, refused("dirty_worktree"))).toBe(false);
     expect(staleAfter(edit, refused("operation_in_progress"))).toBe(true);
+  });
+  it("a fresh plan of the same commits brings a push and dependent branches made during the edit", () => {
+    const edit = editOf(okPlan(["a", "b"]));
+    expect(refreshedPlan(edit, okPlan(["a", "b"]))).toBeNull();
+    expect(refreshedPlan(edit, undefined)).toBeNull();
+    expect(refreshedPlan(edit, refused("dirty_worktree"))).toBeNull();
+    expect(refreshedPlan(edit, okPlan(["a", "b", "c"]))).toBeNull();
+    const pushed = { ...okPlan(["a", "b"]), rewritesPushed: true, dependentBranches: ["thema/ü"] };
+    expect(refreshedPlan(edit, pushed)).toEqual({ ...edit.plan, rewritesPushed: true, dependentBranches: ["thema/ü"] });
+  });
+  it("a refusal on entry is described in the UI language, the core's text only for an unknown reason", async () => {
+    next.plan = refused("operation_in_progress");
+    expect(entryDecision(next.plan as RebasePlan, null)).toMatchObject({
+      message: t("commitGraph.edit.refused.operationInProgress"),
+    });
+    expect(entryDecision(refused("nothing_to_rebase"), null)).toMatchObject({
+      message: t("commitGraph.edit.refused.nothingToRebase", { here: t("menus.commit.editHistoryHere") }),
+    });
+    const unknown = { ...refused("detached"), reason: "something_new" } as unknown as RebasePlan;
+    expect(entryDecision(unknown, null)).toMatchObject({ message: "Abgelehnt: detached" });
   });
   it("entering asks the core again, so a tree dirtied after the cached plan blocks", async () => {
     queryClient.setQueryData(qk.rebaseBranchPlan("r", null), okPlan(["a"]));

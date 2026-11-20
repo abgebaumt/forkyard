@@ -31,6 +31,7 @@ import {
   graphEditOf,
   leaveGraphEdit,
   openGraphEditInTool,
+  refreshedPlan,
   staleAfter,
   updateGraphEdit,
 } from "../../app/rebasePlan/graphEdit";
@@ -55,7 +56,7 @@ import { cn, laneColor } from "../../ui/cn";
 import { Checkbox } from "../../ui/Field";
 import type { MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
-import { editMessage, hasOwnMessage, hiddenCount, previewStep } from "./editModel";
+import { editMessage, hasOwnMessage, hiddenCount, previewStep, takenOverDrag } from "./editModel";
 import type { FlatGraph } from "./model";
 
 const chipLabel: Record<RowChip, string> = {
@@ -123,13 +124,7 @@ export function EditHistory({ repoId, tabId, edit, flat }: { repoId: Id; tabId: 
   const [rewording, setRewording] = useState<Sha | null>(null);
 
   // A drag on a graph row that opened the mode continues here; taken over once, then cleared.
-  const [initialDrag] = useState(() => {
-    const drag = edit.drag;
-    const index = drag ? rows.findIndex((row) => row.sha === drag.sha) : -1;
-    return drag && index >= 0
-      ? { index: flipIndex(rows.length, index), pointerId: drag.pointerId, clientX: drag.clientX, clientY: drag.clientY }
-      : null;
-  });
+  const [initialDrag] = useState(() => takenOverDrag(edit.drag, rows));
   const [active, setActive] = useState(
     () =>
       initialDrag?.index ??
@@ -145,8 +140,15 @@ export function EditHistory({ repoId, tabId, edit, flat }: { repoId: Id; tabId: 
 
   // The branch moved under the edit (not by our own apply): end it, nothing was applied.
   const fresh = useRebaseBranchPlan(repoId, edit.from).data;
+  // Same commits: a push or a dependent branch made meanwhile still reaches the note and the apply.
   useEffect(() => {
-    if (!applying && staleAfter(edit, fresh)) leaveGraphEdit(tabId, "stale");
+    if (applying) return;
+    if (staleAfter(edit, fresh)) {
+      leaveGraphEdit(tabId, "stale");
+      return;
+    }
+    const plan = refreshedPlan(edit, fresh);
+    if (plan) updateGraphEdit(tabId, (current) => ({ ...current, plan }));
   }, [applying, edit, fresh, tabId]);
   const dirtyWorktree = fresh?.status === "refused" && fresh.reason === "dirty_worktree";
 

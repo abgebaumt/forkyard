@@ -29,7 +29,9 @@ export function useRowDrag(options: { canStart: (index: number) => Sha | null; o
     const onMove = (move: PointerEvent) => {
       if (move.pointerId !== pointerId || Math.hypot(move.clientX - startX, move.clientY - startY) < DRAG_THRESHOLD) return;
       end();
-      latest.current.onStart(sha, { sha, pointerId, clientX: move.clientX, clientY: move.clientY });
+      const drag: PendingDrag = { sha, pointerId, clientX: move.clientX, clientY: move.clientY };
+      watchRelease(drag);
+      latest.current.onStart(sha, drag);
     };
     const end = () => {
       window.removeEventListener("pointermove", onMove);
@@ -46,4 +48,19 @@ export function useRowDrag(options: { canStart: (index: number) => Sha | null; o
   }, []);
 
   return { onPointerDown };
+}
+
+/**
+ * Marks the drag `released` when its pointer goes up while the plan loads, so the edit view does not take
+ * a dead drag over. One-shot: after the take-over the flag is no longer read.
+ */
+export function watchRelease(drag: PendingDrag, target: EventTarget = window): void {
+  const onUp = (event: Event) => {
+    if ((event as PointerEvent).pointerId !== drag.pointerId) return;
+    drag.released = true;
+    target.removeEventListener("pointerup", onUp);
+    target.removeEventListener("pointercancel", onUp);
+  };
+  target.addEventListener("pointerup", onUp);
+  target.addEventListener("pointercancel", onUp);
 }
