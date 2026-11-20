@@ -150,10 +150,13 @@ pub async fn selection_to_branch(
             if !take_back(core, &repo_id, &prepared, &sha, MOVED_TO_BRANCH_MESSAGE).await {
                 // Someone else moved HEAD: the commit stays on both, the files stay untouched.
                 drop_backup().await;
-                return Err(CoreError::stale_state().with_git_output(format!(
-                    "The commit is on ‘{branch}’, but HEAD couldn't be moved back to {}; the working directory is unchanged.",
-                    prepared.head_sha
-                )));
+                return Err(CoreError::new(
+                    ErrorCode::StaleState,
+                    format!(
+                        "HEAD was moved by someone else meanwhile: the commit is on ‘{branch}’, but HEAD couldn't be moved back to {}. The working directory is unchanged; check the history and reload.",
+                        rev::short(&prepared.head_sha)
+                    ),
+                ));
             }
             if let Err(e) = take_out(core, &repo_id, &prepared.parts).await {
                 let restored = undo::restore_worktree(core, &repo_id, &snapshot.worktree, Some(&prepared.paths)).await;
@@ -161,13 +164,23 @@ pub async fn selection_to_branch(
                 if let Err(e) = &removed {
                     log::error!("Branch {branch_ref} not removed after the failure: {}", e.message);
                 }
-                match restored {
-                    Ok(()) => drop_backup().await,
-                    Err(e) => log::error!("Selection not restored after the failure (backup {}): {}", snapshot.worktree, e.message),
-                }
+                let files = match &restored {
+                    Ok(()) => {
+                        drop_backup().await;
+                        "the files are as before."
+                    }
+                    Err(e) => {
+                        log::error!("Selection not restored after the failure (backup {}): {}", snapshot.worktree, e.message);
+                        "the files couldn't all be restored; the backup under refs/forkyard/undo/ keeps them."
+                    }
+                };
+                let branch_state =
+                    if removed.is_ok() { "No branch was created".to_string() } else { format!("The branch ‘{branch}’ stays on the commit") };
                 let mut error = CoreError::new(
                     e.code,
-                    "The selection couldn't be taken out of the working directory – later changes probably overlap it. No branch was created; the files are as before.",
+                    format!(
+                        "The selection couldn't be taken out of the working directory – later changes probably overlap it. {branch_state}; {files}"
+                    ),
                 );
                 error.git_output = e.git_output.or(Some(e.message));
                 return Err(error);
@@ -176,6 +189,8 @@ pub async fn selection_to_branch(
             let mut extra = Map::new();
             extra.insert("branch".into(), json!(branch));
             extra.insert("paths".into(), json!(prepared.paths));
+            // The token names only the branch: the commit pins undo to the state right after.
+            extra.insert("headSha".into(), json!(prepared.head_sha));
             undo::record_group(
                 core,
                 GroupRecord {
