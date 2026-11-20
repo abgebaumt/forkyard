@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { RebasePlan, RebasePlanRow } from "../../core";
+
+// Entering fetches the plan fresh from the core.
+const next = vi.hoisted(() => ({ plan: null as unknown }));
+vi.mock("../../core", async (original) => ({
+  ...(await original<typeof import("../../core")>()),
+  core: { rebaseBranchPlan: () => Promise.resolve(next.plan), on: () => () => undefined },
+}));
 import { t } from "../../i18n";
 import type { OkPlan } from "./apply";
 import { qk, queryClient } from "../queries";
@@ -78,8 +85,14 @@ describe("graph edit", () => {
     expect(staleAfter(edit, refused("dirty_worktree"))).toBe(false);
     expect(staleAfter(edit, refused("operation_in_progress"))).toBe(true);
   });
+  it("entering asks the core again, so a tree dirtied after the cached plan blocks", async () => {
+    queryClient.setQueryData(qk.rebaseBranchPlan("r", null), okPlan(["a"]));
+    next.plan = refused("dirty_worktree");
+    await expect(enterGraphEdit("r", "t6", { sha: "a" })).resolves.toBe(false);
+    expect(graphEditOf("t6")).toBeNull();
+  });
   it("remembers the commit the edit was entered on", async () => {
-    queryClient.setQueryData(qk.rebaseBranchPlan("r", null), okPlan(["a", "b", "c"]));
+    next.plan = okPlan(["a", "b", "c"]);
     await enterGraphEdit("r", "t5", { sha: "b" });
     expect(graphEditOf("t5")?.entry).toBe("b");
     leaveGraphEdit("t5");
@@ -90,7 +103,7 @@ describe("graph edit", () => {
     expect(graphEditOf("t1")).toBeNull();
   });
   it("the graph puts the edit's guard back after another view used the centre", async () => {
-    queryClient.setQueryData(qk.rebaseBranchPlan("r", null), okPlan(["a", "b"]));
+    next.plan = okPlan(["a", "b"]);
     await expect(enterGraphEdit("r", "t2", { sha: "a" })).resolves.toBe(true);
     updateGraphEdit("t2", (edit) => ({ ...edit, state: toggleDrop(edit.state, "a") }));
     const unmount = registerEditGuard("t2");
@@ -108,7 +121,7 @@ describe("graph edit", () => {
     expect(hasDirtyCenter()).toBe(false);
   });
   it("quit and profile switch still see a dirty edit whose graph is not mounted", async () => {
-    queryClient.setQueryData(qk.rebaseBranchPlan("r", null), okPlan(["a", "b"]));
+    next.plan = okPlan(["a", "b"]);
     await enterGraphEdit("r", "t3", { sha: "a" });
     const unmount = registerEditGuard("t3");
     expect(hasDirtyGraphEdit()).toBe(false);
@@ -122,7 +135,7 @@ describe("graph edit", () => {
     expect(graphEditOf("t3")).toBeNull();
   });
   it("hands a dirty edit to the rebase tool without the discard question", async () => {
-    queryClient.setQueryData(qk.rebaseBranchPlan("r", null), okPlan(["a", "b"]));
+    next.plan = okPlan(["a", "b"]);
     await enterGraphEdit("r", "t4", { sha: "a" });
     updateGraphEdit("t4", (edit) => ({ ...edit, state: toggleDrop(edit.state, "a"), updateRefs: true }));
     registerEditGuard("t4");

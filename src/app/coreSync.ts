@@ -26,6 +26,7 @@ import { createIndexScheduler } from "./ai/indexScheduler";
 import { featureVisible } from "./ai/visibility";
 import { agentOwner, isLive, keepFirstPage, qk, queryClient } from "./queries";
 import { busyKeys } from "./actions/keys";
+import { useGraphEdit } from "./rebasePlan/graphEdit";
 
 // ---------------------------------------------------------------------------
 // Invalidation
@@ -51,9 +52,14 @@ function dependsOnWorktree(query: Query): boolean {
     // A working-directory line is traced through blame; `HEAD` moves; a full SHA never changes.
     case "lineArchaeology":
       return !isFixedRev(key[3]);
-    // The graph edit's plan is refused while the working directory is dirty (it offers to stash).
+    // An open graph edit's plan is refused while the working directory is dirty (it offers to stash). Without
+    // an open edit it is not reloaded on every change: entering fetches it fresh.
     case "rebasePlan":
-      return key[3] === "branch" && typeof key[4] === "string";
+      return (
+        key[3] === "branch" &&
+        typeof key[4] === "string" &&
+        Object.values(useGraphEdit.getState().byTab).some((edit) => edit.repoId === key[1])
+      );
     // Submodule state and the LFS patterns (.gitattributes) depend on the working directory.
     // `.forkyard/commands.json` (custom commands) as well.
     case "submodules":
