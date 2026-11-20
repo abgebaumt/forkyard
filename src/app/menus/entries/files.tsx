@@ -48,6 +48,7 @@ import { lockIndex, lockMenuState } from "../../../screens/Lfs/locks";
 import { openDiffTool, openMergeTool } from "../../actions/tools";
 import { t } from "../../../i18n";
 import { useAppStore } from "../../store";
+import { forgetLassoPaths } from "../../lasso";
 import { customCommandEntries } from "../custom";
 import { type MenuBase, SEPARATOR, item, tidy } from "./shared";
 
@@ -144,10 +145,15 @@ export function fileMenu(ctx: MenuBase & { files: FileChange[]; source: DiffSour
   } else if (source.kind === "unstaged") {
     const ignore = ignoreMenu(repoId, files);
     primary.push(
-      item(single ? t("ui.stage") : t("menus.file.stageMany", { n: count }), Plus, () => void stagePaths(repoId, paths), {
-        shortcut: "S",
-        blocked: someConflicts,
-      }),
+      item(
+        single ? t("ui.stage") : t("menus.file.stageMany", { n: count }),
+        Plus,
+        () => void stagePaths(repoId, paths, () => forgetLassoPaths(tabId, paths)),
+        {
+          shortcut: "S",
+          blocked: someConflicts,
+        },
+      ),
       item(
         single ? t("menus.file.stashOnly") : t("menus.file.stashOnlyMany", { n: count }),
         Archive,
@@ -155,10 +161,15 @@ export function fileMenu(ctx: MenuBase & { files: FileChange[]; source: DiffSour
         { blocked: someConflicts },
       ),
       item(t("ui.ignore"), EyeOff, () => undefined, ignore.length ? { children: ignore } : { blocked: t("menus.file.ignoreNone") }),
-      item(single ? t("ui.discardChanges") : t("menus.file.discardMany", { n: count }), Trash2, () => void discardPaths(repoId, paths), {
-        danger: true,
-        blocked: someConflicts,
-      }),
+      item(
+        single ? t("ui.discardChanges") : t("menus.file.discardMany", { n: count }),
+        Trash2,
+        () => void discardPaths(repoId, paths, { onApplied: () => forgetLassoPaths(tabId, paths) }),
+        {
+          danger: true,
+          blocked: someConflicts,
+        },
+      ),
     );
   } else if (source.kind === "staged") {
     primary.push(

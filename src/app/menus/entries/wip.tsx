@@ -8,6 +8,7 @@ import { stashChanges } from "../../actions/stash";
 import { t } from "../../../i18n";
 import { commandShortcut } from "../../registry";
 import { useAppStore } from "../../store";
+import { forgetLassoPaths } from "../../lasso";
 import { type MenuBase, SEPARATOR, item, tidy } from "./shared";
 
 export function wipMenu(ctx: MenuBase): MenuEntry[] {
@@ -21,7 +22,7 @@ export function wipMenu(ctx: MenuBase): MenuEntry[] {
   const stashBlock =
     status?.head.kind === "unborn" ? t("menus.wip.needsCommit") : conflicted ? t("menus.wip.resolveConflictsFirst") : noChanges;
   return tidy([
-    item(t("ui.stageAll"), Plus, () => void stagePaths(repoId, null), {
+    item(t("ui.stageAll"), Plus, () => void stagePaths(repoId, null, () => forgetLassoPaths(tabId, null)), {
       shortcut: commandShortcut("wip.stageAll"),
       blocked: status && unstaged === 0 ? t("menus.wip.nothingToStage") : null,
     }),
@@ -41,6 +42,9 @@ export function wipMenu(ctx: MenuBase): MenuEntry[] {
       blocked: conflicted ? t("menus.wip.resolveConflictsFirst") : null,
     }),
     SEPARATOR,
-    item(t("menus.wip.discardAll"), Trash2, () => void discardPaths(repoId, null), { danger: true, blocked: noChanges }),
+    item(t("menus.wip.discardAll"), Trash2, () => void discardPaths(repoId, null, { onApplied: () => forgetLassoPaths(tabId, null) }), {
+      danger: true,
+      blocked: noChanges,
+    }),
   ]);
 }

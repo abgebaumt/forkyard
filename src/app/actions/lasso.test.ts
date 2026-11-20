@@ -4,6 +4,7 @@ import { CoreError, type CommitResult, type ErrorCode, type Status } from "../..
 const commitSelection = vi.fn<(input: Record<string, unknown>) => Promise<CommitResult>>();
 const selectionToBranch = vi.fn<(input: Record<string, unknown>) => Promise<CommitResult>>();
 const stagePaths = vi.fn<(input: Record<string, unknown>) => Promise<Status>>();
+const discardPaths = vi.fn<(input: Record<string, unknown>) => Promise<Status>>();
 
 vi.mock("../../core", async (original) => ({
   ...(await original<typeof import("../../core")>()),
@@ -11,11 +12,13 @@ vi.mock("../../core", async (original) => ({
     commitSelection: (input: Record<string, unknown>) => commitSelection(input),
     selectionToBranch: (input: Record<string, unknown>) => selectionToBranch(input),
     stagePaths: (input: Record<string, unknown>) => stagePaths(input),
+    discardPaths: (input: Record<string, unknown>) => discardPaths(input),
     on: () => () => undefined,
   },
 }));
 vi.mock("../actionDialogs", () => ({ askSelectionBranch: vi.fn() }));
 vi.mock("./branches", () => ({ checkout: vi.fn() }));
+vi.mock("../dialogs", async (original) => ({ ...(await original<typeof import("../dialogs")>()), confirm: vi.fn(async () => true) }));
 vi.mock("../commands/focus", () => ({ focusSummarySoon: vi.fn() }));
 vi.mock("../../ui/Feedback", async (original) => ({ ...(await original<typeof import("../../ui/Feedback")>()), toast: vi.fn() }));
 
@@ -29,7 +32,7 @@ const { useWipStore } = await import("../../screens/WipPanel/state");
 const { commitLasso, lassoToBranch } = await import("./lasso");
 const { focusSummarySoon } = await import("../commands/focus");
 const { getTabView, useAppStore } = await import("../store");
-const { stageFiles } = await import("../../screens/WipPanel/actions");
+const { discardFiles, stageFiles } = await import("../../screens/WipPanel/actions");
 
 const coreError = (code: ErrorCode) => new CoreError({ code, message: code, gitOutput: null });
 const lastToast = () => vi.mocked(toast).mock.calls.at(-1)?.[0];
@@ -142,22 +145,31 @@ describe("move to a new branch", () => {
   });
 });
 
-describe("staging whole files", () => {
-  it("forgets their lasso before the new status reaches the cache, so no “file has changed” notice", async () => {
+describe("staging or discarding whole files", () => {
+  /** The lasso at the first status cache event after the core answered (the status is applied or reloaded there). */
+  async function lassoWhenStatusArrives(mock: typeof stagePaths, run: () => Promise<unknown>) {
     const after = { head: { kind: "branch", branch: "main", sha: "h1" }, unstaged: [], staged: [] } as unknown as Status;
     let answered = false;
     let lassoAtStatus: unknown = "unset";
-    stagePaths.mockImplementation(async () => {
+    mock.mockImplementation(async () => {
       answered = true;
       return after;
     });
-    // The first status cache event after the core answered: the status is applied (or reloaded) here.
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       if (answered && lassoAtStatus === "unset" && event.query.queryHash === JSON.stringify(qk.status("r1")))
         lassoAtStatus = useLassoStore.getState().byTab.t1;
     });
-    await stageFiles("r1", "t1", ["src/sitzung.ts"]);
+    await run();
     unsubscribe();
-    expect(lassoAtStatus).toEqual({});
+    return lassoAtStatus;
+  }
+
+  it("staging forgets their lasso before the new status reaches the cache, so no “file has changed” notice", async () => {
+    expect(await lassoWhenStatusArrives(stagePaths, () => stageFiles("r1", "t1", ["src/sitzung.ts"]))).toEqual({});
+  });
+
+  it("discarding forgets their lasso the same way", async () => {
+    expect(await lassoWhenStatusArrives(discardPaths, () => discardFiles("r1", "t1", ["src/sitzung.ts"]))).toEqual({});
+    expect(discardPaths).toHaveBeenCalledWith({ repoId: "r1", paths: ["src/sitzung.ts"] });
   });
 });
