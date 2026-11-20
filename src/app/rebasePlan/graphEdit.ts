@@ -92,11 +92,11 @@ export async function enterGraphEdit(
   const from = options.from ?? null;
   let plan: RebasePlan;
   try {
-    // Invalidated plans count as stale, so a changed branch is loaded again.
+    // Always fresh: the cached plan is not reloaded on working-directory changes while no edit is open.
     plan = await queryClient.fetchQuery({
       queryKey: qk.rebaseBranchPlan(repoId, from),
       queryFn: () => core.rebaseBranchPlan({ repoId, from }),
-      staleTime: Number.POSITIVE_INFINITY,
+      staleTime: 0,
     });
   } catch (error) {
     showError(t("menus.commit.editHistory"), error);

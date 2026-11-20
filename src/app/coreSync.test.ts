@@ -1,6 +1,7 @@
 import { QueryClient, type InfiniteData } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import { invalidateRepo, jobBelongsHere, ownsJob } from "./coreSync";
+import { type GraphEdit, useGraphEdit } from "./rebasePlan/graphEdit";
 import { useAppStore } from "./store";
 import { keepFirstPage, qk, queryClient } from "./queries";
 
@@ -28,14 +29,20 @@ describe("invalidateRepo", () => {
     await invalidateRepo(client, "r", ["locks"]);
     expect(client.getQueryData<InfiniteData<string>>(qk.graph("r"))?.pages).toHaveLength(3);
   });
-  it("a change in the working directory reloads the graph edit's plan, not the rebase tool's", async () => {
+  it("a change in the working directory reloads the plan of an open graph edit only", async () => {
     const client = new QueryClient();
     client.setQueryData(qk.rebaseBranchPlan("r", null), "plan");
     client.setQueryData(qk.rebasePlan("r", "branch"), "plan");
+    // No edit open: nothing reloads (entering fetches the plan fresh).
     await invalidateRepo(client, "r", ["worktree"]);
-    // The graph edit is refused with a dirty working directory and offers to stash.
+    expect(client.getQueryState(qk.rebaseBranchPlan("r", null))?.isInvalidated).toBe(false);
+    // An open edit in this repository: its plan is refused while dirty (it offers to stash).
+    useGraphEdit.setState({ byTab: { t1: { repoId: "r" } as GraphEdit } });
+    await invalidateRepo(client, "r", ["worktree"]);
     expect(client.getQueryState(qk.rebaseBranchPlan("r", null))?.isInvalidated).toBe(true);
+    // The rebase tool's own plan is left alone.
     expect(client.getQueryState(qk.rebasePlan("r", "branch"))?.isInvalidated).toBe(false);
+    useGraphEdit.setState({ byTab: {} });
   });
 });
 
