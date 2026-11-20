@@ -47,6 +47,18 @@ async fn new_comments_on_your_pull_request() {
 }
 
 #[tokio::test]
+async fn a_failing_pull_request_detail_drops_the_whole_pr_part() {
+    let fx = Fixture::new(HostKind::Github).await;
+    fx.state.lock().pr_authors = vec![(1, "lena-hartmann".into())];
+    fx.state.lock().pr_details_fail = true;
+    seen_at(&fx, "2026-09-02T00:00:00Z", Some(45)).await;
+    let d = digest_get(&fx.tc, fx.repo_id.clone(), None).await.unwrap().unwrap();
+    assert_eq!(d.prs, None);
+    assert_eq!(d.pr_data_missing, Some(HostKind::Github));
+    assert_eq!(fx.sent("GET", "/pulls/1").len(), 1, "the list worked, the details failed");
+}
+
+#[tokio::test]
 async fn without_the_host_the_digest_has_the_hint() {
     let fx = Fixture::new(HostKind::Github).await;
     seen_at(&fx, "2026-09-27T00:00:00Z", Some(40)).await;
@@ -64,9 +76,14 @@ async fn without_the_host_the_digest_has_the_hint() {
 #[tokio::test]
 async fn a_first_digest_counts_nothing_as_opened() {
     let fx = Fixture::new(HostKind::Github).await;
+    fx.state.lock().merged = vec![26];
+    fx.state.lock().closed = vec![27];
     seen_at(&fx, "2026-09-27T00:00:00Z", None).await;
     let d = digest_get(&fx.tc, fx.repo_id.clone(), None).await.unwrap().unwrap();
     let prs = d.prs.unwrap();
     assert!(prs.changed.iter().all(|p| p.change != Opened), "{:?}", prs.changed);
+    // Merged and closed ones since the seen time are still listed without a stored number.
+    let changed: Vec<_> = prs.changed.iter().map(|p| (p.number, p.change)).collect();
+    assert_eq!(changed, vec![(27, Closed), (26, Merged)]);
     assert_eq!(d.pr_max_number, Some(45));
 }
