@@ -63,9 +63,9 @@ export async function unstagePaths(repoId: Id, paths: string[] | null) {
 
 /**
  * Discards changes after a prompt. `paths: null` = everything, including untracked files.
- * The prompt names the files; undo right afterwards brings them back.
+ * The prompt names the files; undo right afterwards brings them back. `onApplied` as in `stagePaths`.
  */
-export async function discardPaths(repoId: Id, paths: string[] | null, options: { follow?: boolean } = {}) {
+export async function discardPaths(repoId: Id, paths: string[] | null, options: { follow?: boolean; onApplied?: () => void } = {}) {
   const all = paths === null;
   const status = cachedStatus(repoId);
   const affected = all ? [...new Set([...(status?.staged ?? []), ...(status?.unstaged ?? [])].map((file) => file.path))] : paths;
@@ -94,7 +94,11 @@ export async function discardPaths(repoId: Id, paths: string[] | null, options: 
   if (!ok) return null;
   const result = await runAction(
     t("ui.discard"),
-    withStatus(repoId, () => core.discardPaths({ repoId, paths })),
+    withStatus(repoId, async () => {
+      const after = await core.discardPaths({ repoId, paths });
+      options.onApplied?.();
+      return after;
+    }),
     {
       busyKey: busyKeys.write(repoId, "discard"),
       quiet: ["operation_in_progress"],

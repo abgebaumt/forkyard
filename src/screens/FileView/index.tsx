@@ -41,6 +41,7 @@ import { qk, queryClient, useDiff, useFileContent } from "../../app/queries";
 import { runAction } from "../../app/run";
 import { enqueueWrite } from "../../app/writeQueue";
 import { useAppStore, useBusy } from "../../app/store";
+import { forgetLassoPaths } from "../../app/lasso";
 import { CodeEditor } from "../../components/code";
 import { Button, IconButton } from "../../ui/Button";
 import { cn } from "../../ui/cn";
@@ -223,7 +224,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
         old ? { ...old, text: withEol(text, eol), encoding, eol, size: old.size } : old,
       );
       if (andStage) {
-        const staged = await stagePaths(repoId, [path]);
+        const staged = await stagePaths(repoId, [path], () => forgetLassoPaths(tabId, [path]));
         if (!staged.ok) return false;
         toast({ tone: "success", title: t("fileView.savedStaged", { name }) });
       } else {
@@ -231,7 +232,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
       }
       return true;
     },
-    [key, path, repoId, worktree],
+    [key, path, repoId, tabId, worktree],
   );
 
   const discardChanges = useCallback(() => {

@@ -31,6 +31,7 @@ import { commitMenu, openMenuAtElement, stashMenu, wipMenu } from "../menus";
 import { qk } from "../queries";
 import { runAction } from "../run";
 import { useAppStore } from "../store";
+import { forgetLassoPaths } from "../lasso";
 
 const hasRepo = (ctx: CommandContext) => Boolean(ctx.repoId && ctx.tabId);
 const refs = (ctx: CommandContext) => (ctx.repoId ? ctx.queryClient.getQueryData<RefsSnapshot>(qk.refs(ctx.repoId)) : undefined);
@@ -450,7 +451,7 @@ export const commands: AppCommand[] = [
     group: "Commit",
     keywords: kw("commands.changes.discardAll.keywords"),
     when: (ctx) => hasRepo(ctx) && Boolean(ctx.status && ctx.status.unstaged.length + ctx.status.staged.length > 0),
-    run: (ctx) => discardPaths(ctx.repoId!, null),
+    run: (ctx) => discardPaths(ctx.repoId!, null, { onApplied: () => forgetLassoPaths(ctx.tabId!, null) }),
   },
 
   // --- Stash ----------------------------------------------------------------------------------

@@ -108,7 +108,7 @@ export async function unstageEverything(repoId: Id, tabId: Id) {
 export async function discardFiles(repoId: Id, tabId: Id, paths: string[]) {
   if (paths.length === 0) return;
   const before = getStatus(repoId)?.unstaged ?? [];
-  const result = await discardPaths(repoId, paths, { follow: false });
+  const result = await discardPaths(repoId, paths, { follow: false, onApplied: () => forgetLassoPaths(tabId, paths) });
   if (result?.ok) {
     // First move on to the next file (mark and open diff), then clean up what would otherwise remain.
     advanceSelection(tabId, "unstaged", before, paths);
@@ -119,7 +119,7 @@ export async function discardFiles(repoId: Id, tabId: Id, paths: string[]) {
 
 /** Trash can in the header: discard everything, including staged and untracked files. */
 export async function discardEverything(repoId: Id, tabId: Id) {
-  const result = await discardPaths(repoId, null);
+  const result = await discardPaths(repoId, null, { onApplied: () => forgetLassoPaths(tabId, null) });
   if (result?.ok) {
     useWipStore.getState().clearSelection(tabId);
     void queryClient.invalidateQueries({ queryKey: qk.undo(repoId) });
