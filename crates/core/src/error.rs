@@ -86,11 +86,13 @@ pub enum ErrorCode {
     AiTooLarge,
     /// A command-line provider lacks a required safety switch.
     AiUnsupportedVersion,
+    /// The selected lines don't apply onto HEAD because of staged changes in the same place (`commit_selection`).
+    SelectionConflictsWithIndex,
 }
 
 impl ErrorCode {
     /// All codes, for tests and cross-checks.
-    pub const ALL: [ErrorCode; 54] = [
+    pub const ALL: [ErrorCode; 55] = [
         ErrorCode::NotARepo,
         ErrorCode::PathNotFound,
         ErrorCode::PathExists,
@@ -145,6 +147,7 @@ impl ErrorCode {
         ErrorCode::AiLimitReached,
         ErrorCode::AiTooLarge,
         ErrorCode::AiUnsupportedVersion,
+        ErrorCode::SelectionConflictsWithIndex,
     ];
 
     /// The code as text, as it appears in the JSON (`"not_a_repo"`).
@@ -204,6 +207,7 @@ impl ErrorCode {
             ErrorCode::AiLimitReached => "ai_limit_reached",
             ErrorCode::AiTooLarge => "ai_too_large",
             ErrorCode::AiUnsupportedVersion => "ai_unsupported_version",
+            ErrorCode::SelectionConflictsWithIndex => "selection_conflicts_with_index",
         }
     }
 }

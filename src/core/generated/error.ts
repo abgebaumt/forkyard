@@ -72,4 +72,5 @@ export type ErrorCode =
   | "ai_refused"
   | "ai_limit_reached"
   | "ai_too_large"
-  | "ai_unsupported_version";
+  | "ai_unsupported_version"
+  | "selection_conflicts_with_index";

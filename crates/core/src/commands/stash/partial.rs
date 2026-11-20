@@ -34,12 +34,14 @@ const KEEP_EOL_MAX_BYTES: u64 = 64 * 1024 * 1024;
 pub(crate) struct FailRemoval(pub(crate) std::sync::atomic::AtomicBool);
 
 /// The selected part of one file, as a patch in both directions.
-struct Part {
-    path: Vec<u8>,
+pub(crate) struct Part {
+    pub(crate) path: Vec<u8>,
     /// Applies onto the old side (HEAD for staged parts, the index for unstaged ones).
-    forward: Vec<u8>,
+    pub(crate) forward: Vec<u8>,
     /// Takes the selection out of the new side with `git apply -R`.
-    reverse: Vec<u8>,
+    pub(crate) reverse: Vec<u8>,
+    /// Blob ID of the old side (`index a..b` of the diff), if Git named one.
+    pub(crate) old_id: Option<String>,
 }
 
 /// Stashes the selection and takes exactly it out of index and working directory. Call within the
@@ -151,7 +153,7 @@ pub(crate) async fn stash_selection(
 }
 
 /// Reads the diffs again, checks the tokens and builds the patches of the selection.
-async fn parts(core: &Core, repo_id: &str, list: &[PatchSelection], staged: bool) -> CoreResult<Vec<Part>> {
+pub(crate) async fn parts(core: &Core, repo_id: &str, list: &[PatchSelection], staged: bool) -> CoreResult<Vec<Part>> {
     let mut out: Vec<Part> = Vec::new();
     for selection in list {
         let basis = patch_basis(core, repo_id, &selection.path, staged).await?;
@@ -168,7 +170,7 @@ async fn parts(core: &Core, repo_id: &str, list: &[PatchSelection], staged: bool
             if out.iter().any(|part| part.path == basis.path) {
                 return Err(CoreError::not_allowed(format!("“{}” is selected twice.", selection.path)));
             }
-            out.push(Part { path: basis.path.clone(), forward, reverse });
+            out.push(Part { path: basis.path.clone(), forward, reverse, old_id: file.old_id.clone() });
         }
     }
     Ok(out)
@@ -242,7 +244,7 @@ async fn remove_selection(core: &Core, repo_id: &str, staged: &[Part], unstaged:
 
 /// Reverse patch in the working directory; with `core.autocrlf` the untouched lines keep their
 /// line endings (as when discarding lines).
-async fn reverse_in_worktree(core: &Core, repo_id: &str, part: &Part) -> CoreResult<()> {
+pub(crate) async fn reverse_in_worktree(core: &Core, repo_id: &str, part: &Part) -> CoreResult<()> {
     let file = util::join_from_git(&core.repo_path(repo_id)?, &part.path);
     let before = std::fs::metadata(&file)
         .ok()

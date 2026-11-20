@@ -214,5 +214,9 @@
   "ai_unsupported_version": {
     "text": "This version of the AI tool lacks a required safety switch.",
     "hint": "Update the tool and try again."
+  },
+  "selection_conflicts_with_index": {
+    "text": "The selected lines of a file build on staged changes.",
+    "hint": "Commit or unstage the staged changes of that file first, then try again."
   }
 }
