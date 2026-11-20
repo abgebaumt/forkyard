@@ -17,7 +17,6 @@ const GRAPH = '[data-screen="commit-graph"]';
 const EDIT = '[data-screen="graph-edit"]';
 const REBASE = '[data-screen="rebase"]';
 const LAUNCH = { width: 1440, height: 900, theme: "light", lang: "en" };
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const pointer = (actions) => ({ actions: [{ type: "pointer", id: "mouse", parameters: { pointerType: "mouse" }, actions }] });
 
@@ -243,6 +242,8 @@ scenario("A flicked graph drag ends without a drop once the pointer moves releas
   try {
     const app = await t.launch(LAUNCH);
     await openGraph(app, repo);
+    // A logic test with synthetic events, not a device test: it checks that a handed-over drag whose
+    // button is already up ends on the next move without dropping (ReorderList's early end).
     // Down, past the threshold and up in one script: the button is up before the edit list mounts.
     // Dispatched in the page because WebDriver actions cannot promise that order.
     await app.exec((selector) => {
@@ -386,17 +387,11 @@ scenario("Blocked with reason: dirty worktree, foreign commit, root commit, bloc
   const { repo, base, c } = planRepo("graph-edit-blocked");
   try {
     const app = await t.launch(LAUNCH);
-    const { repoId } = await openGraph(app, repo);
+    await openGraph(app, repo);
 
-    // A dirty file: the drag stops with a toast that offers to stash.
-    // A tracked file: untracked ones do not block a rebase.
+    // A dirty tracked file (untracked ones do not block a rebase): the drag stops with a toast that
+    // offers to stash. Entering asks the core afresh, so no app-side refresh needs to be awaited.
     repo.write("README.md", "# Messnetz\n\nEntwurf.\n");
-    await eventually(
-      app,
-      () => app.exec((id) => window.__gc.queryClient.getQueryData(["repo", id, "rebasePlan", "branch", ""])?.reason ?? null, repoId),
-      "dirty_worktree",
-      "the app has seen the change",
-    );
     await pressAndPull(app, await pointOf(app, graphRow(c.c4), { fx: 0.6 }));
     await release(app);
     await waitToast(app, /Stash changes/);
@@ -423,15 +418,17 @@ scenario("Blocked with reason: dirty worktree, foreign commit, root commit, bloc
     }, apply);
     assertEqual([state.aria, state.disabled], ["true", false], "aria-disabled, never natively disabled");
     assertIncludes(state.why ?? "", "topmost", "the reason is described");
+    // Ctrl+Enter from the list, then ArrowUp through the same key queue: once the active row moved,
+    // Ctrl+Enter has been handled – and opened nothing.
+    await app.press("Control+Enter", "ArrowUp");
+    await eventually(app, () => activeSha(app), c.c2, "ArrowUp after Ctrl+Enter handled");
+    assertEqual(await dialogCount(app), 0, "Ctrl+Enter: no confirmation for a blocked plan");
+    // A click on the blocked Apply, then Escape on the button: the only dialog is the leave question.
     await app.click(apply);
-    await app.press("Control+Enter");
-    await sleep(500);
-    assertEqual(await dialogCount(app), 0, "no confirmation for a blocked plan");
-    assert(await app.$(EDIT), "still editing");
-    assertEqual(repo.tip("thema/plan"), c.c5, "git: nothing rewritten");
-    // Apply took the focus; Escape belongs to the list.
-    await app.exec((root) => document.querySelector(`${root} [role="listbox"]`)?.focus(), EDIT);
     await app.press("Escape");
+    await eventually(app, () => dialogTitle(app), "Discard your history edits?", "Escape on the bar asks; the click opened nothing");
+    assertEqual(await dialogCount(app), 1, "no confirmation from the click");
+    assertEqual(repo.tip("thema/plan"), c.c5, "git: nothing rewritten");
     await app.click(await dialogButton(app, "Discard"));
     await eventually(app, () => leftEdit(app), true, "left the mode");
 
@@ -538,6 +535,7 @@ scenario("Other branches are hidden; Open in rebase tool carries the plan and th
 
     await app.click(`${EDIT} [data-edit-open-tool]`);
     await app.waitFor(`${REBASE} [role="listbox"]`, 30_000);
+    // The tool only mounts once the centre changed; a discard question would have held that up, so it is checked now.
     assertEqual(await dialogCount(app), 0, "no discard question");
     assertEqual(await app.exec((id) => window.__gc.store.getState().views[id]?.center?.kind, tabId), "rebase", "the tool is open");
     await eventually(
