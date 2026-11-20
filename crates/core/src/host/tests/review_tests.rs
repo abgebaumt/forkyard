@@ -1,10 +1,13 @@
 //! PR review: local drafts of the own review, kept per pull request until they are sent.
 
 use super::Fixture;
-use crate::commands::pr_review::{pr_review_draft_delete, pr_review_draft_save, pr_review_drafts};
+use crate::commands::pr_review::{
+    self as cmd_review, pr_review_comment_create, pr_review_draft_delete, pr_review_draft_save, pr_review_drafts, pr_review_submit,
+    pr_review_thread_resolve,
+};
 use crate::db;
 use crate::error::ErrorCode;
-use crate::model::{HostKind, NewReviewComment, ReviewDraft, ReviewDraftOrigin, ReviewSide};
+use crate::model::{HostKind, NewReviewComment, ReviewDraft, ReviewDraftOrigin, ReviewSide, ReviewVote};
 
 fn comment(path: &str, line: u32) -> NewReviewComment {
     NewReviewComment {
@@ -102,6 +105,9 @@ async fn pull_request_zero_is_refused() {
         pr_review_drafts(&fx.tc, fx.id(), 0, None).await.unwrap_err(),
         pr_review_draft_save(&fx.tc, fx.id(), 0, comment("a.rs", 3), None, None).await.unwrap_err(),
         pr_review_draft_delete(&fx.tc, fx.id(), 0, "1".into(), None).await.unwrap_err(),
+        pr_review_comment_create(&fx.tc, fx.id(), 0, comment("a.rs", 3), None).await.unwrap_err(),
+        pr_review_thread_resolve(&fx.tc, fx.id(), 0, "PRRT_kwDOAbc".into(), true, None).await.unwrap_err(),
+        pr_review_submit(&fx.tc, fx.id(), 0, ReviewVote::Approve, String::new(), "a".repeat(40), None).await.unwrap_err(),
     ] {
         assert_eq!(err.code, ErrorCode::NotAllowed);
     }
@@ -109,3 +115,26 @@ async fn pull_request_zero_is_refused() {
     assert_eq!(left, 0);
     assert!(fx.server.requests().is_empty());
 }
+
+#[tokio::test]
+async fn without_the_capability_nothing_is_sent() {
+    let fx = Fixture::new(HostKind::Github).await;
+    for err in [
+        pr_review_comment_create(&fx.tc, fx.id(), 9, comment("a.rs", 3), None).await.unwrap_err(),
+        pr_review_thread_resolve(&fx.tc, fx.id(), 9, "PRRT_kwDOAbc".into(), true, None).await.unwrap_err(),
+        pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, String::new(), "a".repeat(40), None).await.unwrap_err(),
+    ] {
+        assert_eq!(err.code, ErrorCode::HostUnsupported);
+    }
+    assert!(fx.server.requests().is_empty());
+}
+
+#[test]
+fn a_review_needs_text_or_drafts_and_request_changes_needs_text() {
+    use cmd_review::check_submission;
+    assert_eq!(check_submission(ReviewVote::Comment, "", 0).unwrap_err().code, ErrorCode::EmptyMessage);
+    assert!(check_submission(ReviewVote::Comment, "", 1).is_ok());
+    assert_eq!(check_submission(ReviewVote::RequestChanges, " ", 2).unwrap_err().code, ErrorCode::EmptyMessage);
+    assert!(check_submission(ReviewVote::Approve, "", 0).is_ok());
+}
+// The invalid-ID case (`"../x"` → `not_allowed`, no request) is asserted in Task 3 once GitHub resolves.

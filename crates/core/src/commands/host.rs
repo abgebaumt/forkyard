@@ -204,7 +204,7 @@ pub async fn pr_comment(core: &Core, repo_id: String, number: u64, body: String,
 
 /// A review thread ID as the hosts hand them out (numbers, GitLab's hex discussion IDs): it goes into
 /// an API path, so only letters, digits, `_` and `-` (not first), at most 128 characters.
-fn check_thread_id(thread_id: &str) -> CoreResult<&str> {
+pub(crate) fn check_thread_id(thread_id: &str) -> CoreResult<&str> {
     let id = thread_id.trim();
     let valid = !id.is_empty()
         && id.len() <= 128
