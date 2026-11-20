@@ -291,6 +291,12 @@ export function EditHistory({ repoId, tabId, edit, flat }: { repoId: Id; tabId: 
       aria-label={t("commitGraph.edit.title")}
       className="flex min-h-0 flex-1 flex-col"
       onKeyDown={(event) => {
+        // Escape leaves from anywhere in the view (the bar's buttons too); the list handles its own first.
+        if (event.key === "Escape" && !event.defaultPrevented && keyBelongsToView(event.nativeEvent)) {
+          event.preventDefault();
+          void confirmLeaveGraphEdit(tabId);
+          return;
+        }
         // Ctrl+Enter applies from anywhere in the view; consumed so "Commit" behind it does not fire.
         if (event.key !== "Enter" || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.defaultPrevented) return;
         event.preventDefault();
