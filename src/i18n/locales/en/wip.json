@@ -317,6 +317,7 @@
     "branchBody": "{{lines}} leave your working copy and become one commit on a new branch from HEAD. You stay on {{current}}.",
     "branchConfirm": "Create branch",
     "movedTitle": "Moved to {{branch}}",
-    "switch": "Switch to branch"
+    "switch": "Switch to branch",
+    "amendOn": "Uncheck “Amend” first – Commit only this makes a new commit"
   }
 }

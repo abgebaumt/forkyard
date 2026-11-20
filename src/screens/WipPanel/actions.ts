@@ -6,6 +6,7 @@
 import { core, type CommitDraft, type FileChange, type Id, type Operation, type Remote, type Settings, type Status } from "../../core";
 import { discardPaths, followVanishedDiff, stagePaths, unstagePaths } from "../../app/actions/files";
 import { busyKeys } from "../../app/actions/keys";
+import { forgetLassoPaths } from "../../app/lasso";
 import { continueOperation, operationNames } from "../../app/actions/merge";
 import { push } from "../../app/actions/sync";
 import { showOutput } from "../../app/dialogs";
@@ -61,7 +62,7 @@ function advanceSelection(tabId: Id, area: WipArea, before: FileChange[], moved:
 export async function stageFiles(repoId: Id, tabId: Id, paths: string[]) {
   if (paths.length === 0) return;
   const before = getStatus(repoId)?.unstaged ?? [];
-  const result = await stagePaths(repoId, paths);
+  const result = await stagePaths(repoId, paths, () => forgetLassoPaths(tabId, paths));
   if (result.ok) advanceSelection(tabId, "unstaged", before, paths);
   else reloadIfStale(repoId, result.error.code);
 }
@@ -87,7 +88,7 @@ async function withBusy<T>(key: string, run: () => Promise<T>): Promise<T | null
 
 export async function stageEverything(repoId: Id, tabId: Id) {
   if (!getStatus(repoId)?.unstaged.length) return;
-  const result = await withBusy(wipBusy.stageAll(repoId), () => stagePaths(repoId, null));
+  const result = await withBusy(wipBusy.stageAll(repoId), () => stagePaths(repoId, null, () => forgetLassoPaths(tabId, null)));
   if (result?.ok) {
     useWipStore.getState().setSelected(tabId, "unstaged", []);
     followVanishedDiff(repoId, result.value);

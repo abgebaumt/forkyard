@@ -112,6 +112,13 @@ useAppStore.subscribe((state, previous) => {
     useLassoStore.setState({ byTab: Object.fromEntries(Object.entries(byTab).filter(([tabId]) => !gone.includes(tabId))) });
 });
 
+/** Our own write took these files' lines (null = all): no "file has changed" notice for them. */
+export function forgetLassoPaths(tabId: Id, paths: readonly string[] | null): void {
+  const store = useLassoStore.getState();
+  if (!paths) return store.clear(tabId);
+  for (const path of paths) store.setFile(tabId, path, null);
+}
+
 export const useLasso = (tabId: Id): Lasso => useLassoStore((state) => state.byTab[tabId] ?? EMPTY_LASSO);
 
 /** Re-reads the unstaged diff of every selected file when the status changes; drops changed files with a notice. */

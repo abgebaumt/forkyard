@@ -946,7 +946,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
         />
       ) : null}
 
-      {(selectionCount > 0 || lassoLines > 0) && caps.patchActions ? (
+      {(selectionCount > 0 && caps.patchActions) || lassoLines > 0 ? (
         <div
           role="toolbar"
           aria-label={t("diff.selection.toolbar")}
@@ -967,6 +967,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
                 shortcut="Escape"
                 icon={<X className="size-icon" aria-hidden />}
                 data-action="lasso-clear"
+                disabled={busy}
                 onClick={clearSelection}
               />
               <Button
@@ -994,7 +995,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
               {t("diff.selection.selected", { count: selectionCount })}
             </span>
           )}
-          {selectionCount === 0 ? null : patchMode === "unstaged" ? (
+          {selectionCount === 0 || !caps.patchActions ? null : patchMode === "unstaged" ? (
             <>
               <Button
                 size="sm"
@@ -1025,7 +1026,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
               {t("diff.selection.unstage", { count: selectionCount })}
             </Button>
           )}
-          {onStash && selectionCount > 0 ? (
+          {onStash && selectionCount > 0 && caps.patchActions ? (
             <Button
               size="sm"
               disabled={busy}
