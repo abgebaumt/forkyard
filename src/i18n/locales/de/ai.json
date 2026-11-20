@@ -22,7 +22,8 @@
     "bisect_script": "Bisect-Autopilot",
     "semantic_search": "Suche nach Bedeutung",
     "review_fix": "Review-Kommentare abarbeiten",
-    "stack_split": "In gestapelte PRs zerlegen"
+    "stack_split": "In gestapelte PRs zerlegen",
+    "digest": "Zusammenfassung „Was ist neu“"
   },
   "featureHints": {
     "commit_message": "Schreibt einen Entwurf aus den gestagten Änderungen.",
@@ -36,7 +37,8 @@
     "bisect_script": "Schreibt ein Testskript für Bisect.",
     "semantic_search": "Findet Commits nach ihrem Inhalt.",
     "review_fix": "Schlägt Korrekturen für offene Review-Kommentare vor.",
-    "stack_split": "Schlägt vor, wo ein Branch in aufeinander aufbauende Pull Requests geteilt wird."
+    "stack_split": "Schlägt vor, wo ein Branch in aufeinander aufbauende Pull Requests geteilt wird.",
+    "digest": "Fasst in einem Absatz zusammen, was sich seit deinem letzten Blick geändert hat."
   },
   "settings": {
     "intro": "Commit-Nachrichten, Pull-Request-Texte und mehr mit einem Anbieter deiner Wahl. Aus, bis du sie einschaltest; ein Anbieter und ein Schlüssel für alle Profile.",

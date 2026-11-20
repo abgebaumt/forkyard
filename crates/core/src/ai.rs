@@ -188,7 +188,7 @@ impl AiProviderKind {
 }
 
 impl AiFeature {
-    pub const ALL: [AiFeature; 12] = [
+    pub const ALL: [AiFeature; 13] = [
         AiFeature::CommitMessage,
         AiFeature::PrDescription,
         AiFeature::Compose,
@@ -201,6 +201,7 @@ impl AiFeature {
         AiFeature::SemanticSearch,
         AiFeature::ReviewFix,
         AiFeature::StackSplit,
+        AiFeature::Digest,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -217,6 +218,7 @@ impl AiFeature {
             AiFeature::SemanticSearch => "semantic_search",
             AiFeature::ReviewFix => "review_fix",
             AiFeature::StackSplit => "stack_split",
+            AiFeature::Digest => "digest",
         }
     }
 
@@ -235,6 +237,7 @@ impl AiFeature {
             AiFeature::SemanticSearch => "semantic-search",
             AiFeature::ReviewFix => "review-fix",
             AiFeature::StackSplit => "stack-split",
+            AiFeature::Digest => "digest",
         }
     }
 
@@ -262,12 +265,13 @@ impl AiFeature {
             AiFeature::SemanticSearch => 16_000,
             AiFeature::ReviewFix => 24_000,
             AiFeature::StackSplit => 24_000,
+            AiFeature::Digest => 8_000,
         }
     }
 
     pub fn max_output_tokens(self) -> u32 {
         match self {
-            AiFeature::CommitMessage | AiFeature::Plan => 1_024,
+            AiFeature::CommitMessage | AiFeature::Plan | AiFeature::Digest => 1_024,
             AiFeature::Compose => 8_192,
             _ => 4_096,
         }
@@ -275,7 +279,7 @@ impl AiFeature {
 
     /// Small, quick tasks: Anthropic gets `effort: "low"`.
     pub fn small_task(self) -> bool {
-        matches!(self, AiFeature::CommitMessage | AiFeature::Plan | AiFeature::SemanticSearch)
+        matches!(self, AiFeature::CommitMessage | AiFeature::Plan | AiFeature::SemanticSearch | AiFeature::Digest)
     }
 }
 
@@ -331,7 +335,7 @@ mod tests {
             assert_eq!(serde_json::to_value(feature).unwrap(), feature.as_str());
             assert_eq!(feature.log_name(), feature.as_str().replace('_', "-"));
         }
-        assert_eq!(AiFeature::ALL.len(), 12);
+        assert_eq!(AiFeature::ALL.len(), 13);
     }
 
     #[test]
@@ -344,7 +348,17 @@ mod tests {
         assert_eq!(AiFeature::StackSplit.budget_tokens(), 24_000);
         assert_eq!(AiFeature::StackSplit.max_output_tokens(), 4_096);
         assert!(!AiFeature::StackSplit.small_task());
-        assert_eq!(AiFeature::ALL.last(), Some(&AiFeature::StackSplit));
+    }
+
+    #[test]
+    fn the_digest_function_has_its_name_budget_and_limits() {
+        assert_eq!(serde_json::to_value(AiFeature::Digest).unwrap(), serde_json::json!("digest"));
+        assert_eq!(AiFeature::Digest.log_name(), "digest");
+        assert_eq!(AiFeature::Digest.timeout(), Duration::from_secs(120));
+        assert_eq!(AiFeature::Digest.budget_tokens(), 8_000);
+        assert_eq!(AiFeature::Digest.max_output_tokens(), 1_024);
+        assert!(AiFeature::Digest.small_task());
+        assert_eq!(AiFeature::ALL.last(), Some(&AiFeature::Digest));
     }
 
     #[test]

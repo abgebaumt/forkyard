@@ -9,6 +9,11 @@ import type { BisectScriptRequest } from "./status";
 export type AiAskTrigger = "first_use" | "large" | "cost" | "repo_first" | "limit";
 
 /**
+ * `aiDigest`: one paragraph about the digest, shown as plain text.
+ */
+export type AiDigest = { paragraph: string };
+
+/**
  * An AI function; each one can be switched off (`Settings.ai_features_off`).
  */
 export type AiFeature =
@@ -23,7 +28,8 @@ export type AiFeature =
   | "bisect_script"
   | "semantic_search"
   | "review_fix"
-  | "stack_split";
+  | "stack_split"
+  | "digest";
 
 /**
  * What `ai_preview` builds the text from. Later packages add their own variants.
@@ -41,7 +47,8 @@ export type AiInput =
   | { kind: "archaeology"; path: string; line: number; sha: string | null }
   | { kind: "stack_split"; branch: string; base: string }
   | { kind: "review_fix"; number: number; threadId: string }
-  | { kind: "semantic_search"; query: string };
+  | { kind: "semantic_search"; query: string }
+  | { kind: "digest" };
 
 /**
  * A model of the provider (`ai_models`).

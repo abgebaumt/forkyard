@@ -28,7 +28,7 @@ describe("AI settings model", () => {
     expect(PROVIDERS.filter(usesBaseUrl)).toEqual(["openai_compatible", "ollama", "lmstudio"]);
     expect(PROVIDERS.filter(isLocal)).toEqual(["ollama", "lmstudio"]);
     expect(acceptsKey("ollama")).toBe(false);
-    expect(FEATURES).toHaveLength(12);
+    expect(FEATURES).toHaveLength(13);
   });
 
   it("reads exclusion patterns line by line, without blanks and doubles", () => {
@@ -77,8 +77,8 @@ describe("AI settings model", () => {
 });
 
 describe("stacked pull requests", () => {
-  it("lists the function last, with its texts in both languages", async () => {
-    expect(FEATURES[FEATURES.length - 1]).toBe("stack_split");
+  it("lists the function, with its texts in both languages", async () => {
+    expect(FEATURES).toContain("stack_split");
     const en = (await import("../../../i18n/locales/en/ai.json")).default as {
       features: Record<string, string>;
       featureHints: Record<string, string>;
@@ -91,5 +91,15 @@ describe("stacked pull requests", () => {
     expect(de.features.stack_split).toBe("In gestapelte PRs zerlegen");
     expect(en.featureHints.stack_split).toBeTruthy();
     expect(de.featureHints.stack_split).toBeTruthy();
+  });
+});
+
+describe("what's new", () => {
+  it("lists the digest paragraph last, with its label in both languages", async () => {
+    const { i18n, t } = await import("../../../i18n");
+    expect(FEATURES[FEATURES.length - 1]).toBe("digest");
+    expect(t("ai.features.digest")).toBe("Summary of what's new");
+    expect(i18n.getFixedT("de")("ai.features.digest")).toBe("Zusammenfassung „Was ist neu“");
+    expect(t("ai.featureHints.digest")).not.toBe("ai.featureHints.digest");
   });
 });

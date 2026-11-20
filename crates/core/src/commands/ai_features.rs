@@ -94,6 +94,15 @@ pub async fn ai_stack_split(
     Ok(ai::features::stack::finish(&answer.value))
 }
 
+/// "Summarise" on the "What's new" card: one paragraph about the current digest – a text only, the
+/// seen state stays. The prompt is the one `ai_preview` shows for `AiInput::Digest`.
+pub async fn ai_digest(core: &Core, repo_id: String, job_id: String, locale: String) -> CoreResult<crate::model::AiDigest> {
+    let frame = run::ask(core, &repo_id, AiFeature::Digest).await?;
+    let built = ai::features::digest::build(core, &repo_id, &frame.settings, frame.budget, &locale, &frame.secrets).await?;
+    let answer = frame.send(core, &job_id, &built.prompt, &ai::features::digest::schema()).await?;
+    Ok(ai::features::digest::finish(&answer.value))
+}
+
 /// "Write" in the commit form: a commit message for the staged changes – a draft, the
 /// core commits nothing. Built exactly as `ai_preview` with `AiInput::CommitMessage` shows it, so a
 /// confirmation given there holds here; `complete_json` refuses everything unconfirmed.

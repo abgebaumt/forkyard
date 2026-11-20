@@ -4,7 +4,7 @@ mod compose;
 mod prs;
 pub(crate) mod seen;
 
-use compose::compose_at;
+pub(crate) use compose::compose_at;
 
 use crate::app::Core;
 use crate::db::repo_seen;
