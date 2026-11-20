@@ -5,18 +5,18 @@
  * Keys (apply while the diff is open and the focus is not in a text field):
  *   F7 / Shift+F7  or  Alt+↓ / Alt+↑     next / previous change (puts the focus into the diff)
  *   Alt+→ / Alt+←                        next / previous file of the same list
- *   Esc                                  clear the selection, otherwise close the diff
+ *   Esc                                  clear the selection (unstaged: the lasso of all files), otherwise close the diff
  * The keys in the line grid are in LineView.tsx.
  */
 import { FileCheck, FileSymlink, FileX, Space } from "lucide-react";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { DiffMode, DiffSource, FileChange, FileDiff, Id, TextDiff } from "../../core";
 import { openDiffTool } from "../../app/actions/tools";
-import { hasOpenDialog } from "../../app/dialogs";
 import { featureVisible } from "../../app/ai/visibility";
 import { toCoreError } from "../../app/errors";
 import { useAiStatus, useCommitDetails, useDiff, useRepoSettings, useSettings, useStatus } from "../../app/queries";
-import { isTextField } from "../../app/viewFocus";
+import { keyBelongsToView } from "../../app/viewFocus";
+import { keysFor, lassoCounts, useLasso, useLassoStore } from "../../app/lasso";
 import { useAppStore, useBusy } from "../../app/store";
 import { preventedByGuard } from "../../app/webviewGuards";
 import { useLineTokens } from "../../components/code/highlight";
@@ -52,6 +52,8 @@ export interface DiffViewProps {
 
 const EMPTY: ReadonlySet<string> = new Set();
 const NO_FOLDS: ReadonlySet<number> = new Set();
+// shortcut: the lasso's commit and branch buttons are not on the bar yet; wire them when they are.
+const noop = () => {};
 
 /** Puts the focus back into the file list of the commit panel (after closing). */
 function focusFileList() {
@@ -122,10 +124,33 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
   const listed = fileIndex >= 0 ? files[fileIndex] : undefined;
 
   // --- State of the view -------------------------------------------------------
+  // Unstaged lines go into the tab's lasso (kept across files); other sources keep a selection per file.
+  const inLasso = patchMode === "unstaged";
+  const lasso = useLasso(tabId);
+  const lassoTotal = useMemo(() => lassoCounts(lasso), [lasso]);
+  const lassoKeys = useMemo(() => keysFor(lasso, path, text?.token), [lasso, path, text?.token]);
   const selectionId = `${fileKey}|${text?.token ?? ""}`;
   const [selection, setSelection] = useState<{ id: string; keys: ReadonlySet<string> }>({ id: "", keys: EMPTY });
-  const selected = selection.id === selectionId ? selection.keys : EMPTY;
-  const setSelected = useCallback((keys: Set<string>) => setSelection({ id: selectionId, keys }), [selectionId]);
+  const selected = inLasso ? lassoKeys : selection.id === selectionId ? selection.keys : EMPTY;
+  const setSelected = useCallback(
+    (keys: Set<string>) => {
+      if (!inLasso) return setSelection({ id: selectionId, keys });
+      const patch = text?.token && keys.size > 0 ? selectionToPatch(text, keys) : null;
+      useLassoStore
+        .getState()
+        .setFile(tabId, path, patch && text?.token ? { token: text.token, keys: [...keys], selection: patch, lines: keys.size } : null);
+    },
+    [inLasso, selectionId, text, tabId, path],
+  );
+  /** This file's lines are done (staged, discarded, stashed or stale). */
+  const forgetSelection = useCallback(() => {
+    if (inLasso) useLassoStore.getState().setFile(tabId, path, null);
+    else setSelection({ id: "", keys: EMPTY });
+  }, [inLasso, tabId, path]);
+  const clearSelection = useCallback(() => {
+    if (inLasso) useLassoStore.getState().clear(tabId);
+    else setSelection({ id: "", keys: EMPTY });
+  }, [inLasso, tabId]);
 
   const [folds, setFolds] = useState<{ id: string; collapsed: ReadonlySet<number> }>({ id: "", collapsed: NO_FOLDS });
   const collapsed = folds.id === fileKey ? folds.collapsed : NO_FOLDS;
@@ -184,9 +209,9 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
       const patch = target.kind === "selection" ? selectionToPatch(text, selected) : hunkToPatch(text, target.hunkOrd);
       if (!patch) return;
       const outcome = await applyPatch(action, repoId, patch, target.kind === "selection" ? selected.size : null);
-      if (outcome.result === "stale") setSelection({ id: "", keys: EMPTY });
+      if (outcome.result === "stale") forgetSelection();
       if (outcome.result !== "done") return;
-      setSelection({ id: "", keys: EMPTY });
+      forgetSelection();
       // Nothing left in this file: to the next one in the list, otherwise back to the graph.
       const list = action === "unstage" ? outcome.status.staged : outcome.status.unstaged;
       if (list.some((file) => file.path === path)) return;
@@ -194,14 +219,14 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
       if (next) store().openDiff(tabId, next.path, source);
       else close();
     },
-    [text, selected, repoId, path, store, tabId, source, close],
+    [text, selected, repoId, path, store, tabId, source, close, forgetSelection],
   );
 
   const onStash = useCallback(() => {
     const patch = text ? selectionToPatch(text, selected) : null;
     if (!patch || (patchMode !== "unstaged" && patchMode !== "staged")) return;
-    if (queueStashSelection(repoId, tabId, patchMode, patch, selected.size)) setSelection({ id: "", keys: EMPTY });
-  }, [text, selected, patchMode, repoId, tabId]);
+    if (queueStashSelection(repoId, tabId, patchMode, patch, selected.size)) forgetSelection();
+  }, [text, selected, patchMode, repoId, tabId, forgetSelection]);
 
   const toggleFold = useCallback(
     (id: number) => {
@@ -222,32 +247,25 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
     goToChange,
     goToFile,
     close,
-    hasSelection: selected.size > 0,
-    clear: () => setSelection({ id: "", keys: EMPTY }),
+    hasSelection: inLasso ? lassoTotal.lines > 0 : selected.size > 0,
+    clear: clearSelection,
     embedded,
   });
   keys.current = {
     goToChange,
     goToFile,
     close,
-    hasSelection: selected.size > 0,
-    clear: () => setSelection({ id: "", keys: EMPTY }),
+    hasSelection: inLasso ? lassoTotal.lines > 0 : selected.size > 0,
+    clear: clearSelection,
     embedded,
   };
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       // The guard against browser shortcuts (F7, Alt+arrow) calls preventDefault – that does not count as “already handled”.
       // Likewise an Esc that only closed the tooltip of the focused button: it closes the diff too.
-      if (
-        (event.defaultPrevented && !preventedByGuard(event) && !closedOnlyTooltip(event)) ||
-        hasOpenDialog() ||
-        useAppStore.getState().overlay
-      )
-        return;
+      if ((event.defaultPrevented && !preventedByGuard(event) && !closedOnlyTooltip(event)) || !keyBelongsToView(event)) return;
       const target = event.target instanceof Element ? event.target : null;
-      if (isTextField(target)) return;
-      // Menus, dialogs and foreign editors keep their keys.
-      if (target?.closest('[role="menu"], [role="dialog"]')) return;
+      // Foreign editors keep their keys.
       const inside = Boolean(target && root.current?.contains(target));
       if (!inside && target instanceof HTMLElement && target.isContentEditable) return;
       const plain = !event.ctrlKey && !event.metaKey;
@@ -376,6 +394,8 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
         words={words}
         selected={selected}
         onSelectedChange={setSelected}
+        onClearSelection={clearSelection}
+        lasso={inLasso ? { ...lassoTotal, onCommit: noop, onBranch: noop } : null}
         onPatch={(action, target) => void onPatch(action, target)}
         onStash={patchMode !== "none" && canPatch ? onStash : undefined}
         lineMenu={(row) => whyLineEntries(source, diff, row, aiVisible, (target) => store().openArchaeology(tabId, target))}

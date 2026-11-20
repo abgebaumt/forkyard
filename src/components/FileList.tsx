@@ -88,6 +88,8 @@ export interface FileListProps {
   actionAlways?: boolean;
   /** Short extra text on the right of the row, e.g. the kind of a conflict. */
   detail?: (file: FileChange) => string | null | undefined;
+  /** Data attribute on the detail text, a hook for tests (e.g. `data-lasso-detail`). */
+  detailAttr?: `data-${string}`;
   /** LFS lock of a file: lock symbol with the owner as tooltip. */
   lockFor?: (path: string) => FileLock | undefined;
   /** Tree only: every folder starts closed instead of open. */
@@ -239,6 +241,7 @@ export function FileList({
   loading = false,
   actionAlways = false,
   detail,
+  detailAttr,
   lockFor,
   folderAction,
   onFolderKey,
@@ -570,7 +573,11 @@ export function FileList({
           <span className={cn(file.status === "deleted" && "line-through")}>{name}</span>
           {dir ? <span className="ml-2 text-sm text-text-muted">{dir}</span> : null}
         </span>
-        {extra ? <span className="max-w-2/5 shrink-0 truncate text-sm text-text-muted">{extra}</span> : null}
+        {extra ? (
+          <span className="max-w-2/5 shrink-0 truncate text-sm text-text-muted" {...(detailAttr ? { [detailAttr]: "" } : {})}>
+            {extra}
+          </span>
+        ) : null}
         {file.isLfs ? (
           <span className="shrink-0 rounded-sm border border-border-input px-1 text-xs font-medium text-text-muted">LFS</span>
         ) : null}

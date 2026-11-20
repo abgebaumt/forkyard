@@ -301,5 +301,15 @@
       "body": "Die Zuordnung der Änderungen geht verloren. Committet wurde noch nichts.",
       "confirm": "Verlassen"
     }
+  },
+  "lasso": {
+    "lines_one": "{{count}} Zeile",
+    "lines_other": "{{count}} Zeilen",
+    "files_one": "{{count}} Datei",
+    "files_other": "{{count}} Dateien",
+    "count": "{{lines}} in {{files}}",
+    "fileDetail_one": "{{count}} ausgewählt",
+    "fileDetail_other": "{{count}} ausgewählt",
+    "dropped": "Auswahl in {{file}} verworfen – Datei hat sich geändert"
   }
 }

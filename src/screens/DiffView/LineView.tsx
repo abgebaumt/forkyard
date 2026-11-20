@@ -8,7 +8,7 @@
  *   Space                       select/deselect line    Ctrl+A       all changed lines
  *   Enter (or S / U)            stage or unstage the selection; without a selection the hunk
  *   Del                         discard the selection or hunk (with a prompt)
- *   Esc                         clear the selection
+ *   Esc                         clear the selection (unstaged: the whole lasso)
  * In "pick" mode (agent review) only the selection keys apply.
  */
 import { defaultRangeExtractor, useVirtualizer, type Range as VirtualRange } from "@tanstack/react-virtual";
@@ -55,6 +55,7 @@ import {
 } from "./model";
 import { t } from "../../i18n";
 import { writeClipboard } from "../../app/actions/clipboard";
+import { keyBelongsToView } from "../../app/viewFocus";
 import { readRowHeight } from "../../components/VirtualList";
 
 export type PatchTarget = { kind: "selection" } | { kind: "hunk"; hunkOrd: number };
@@ -81,6 +82,10 @@ export interface LineViewProps {
   words: WordDiffCache;
   selected: ReadonlySet<string>;
   onSelectedChange: (next: Set<string>) => void;
+  /** Esc and "×"; missing = `onSelectedChange(new Set())`. */
+  onClearSelection?: () => void;
+  /** The tab's lasso (unstaged only): the bar shows while it has lines, also when this file has none. */
+  lasso?: { files: number; lines: number; onCommit: () => void; onBranch: () => void } | null;
   onPatch: (action: PatchAction, target: PatchTarget) => void;
   /** Put the selected lines aside for a partial stash; missing = not offered. */
   onStash?: () => void;
@@ -326,6 +331,8 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
     words,
     selected,
     onSelectedChange,
+    onClearSelection,
+    lasso = null,
     onPatch,
     onStash,
     lineMenu,
@@ -348,6 +355,8 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
   const caps = lineCaps(patchMode, canPatch);
+  const clearSelection = onClearSelection ?? (() => onSelectedChange(new Set()));
+  const lassoLines = lasso?.lines ?? 0;
   const allowSelect = caps.select;
 
   const sizes = useMemo(() => ({ hunk: readRowHeight("--gc-size-control-lg", 32), row: readRowHeight("--gc-size-row", 24), gap: 8 }), []);
@@ -649,11 +658,11 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
         }
         return;
       case "Escape":
-        if (selected.size > 0) {
+        if ((selected.size > 0 || lassoLines > 0) && keyBelongsToView(event.nativeEvent)) {
           event.preventDefault();
           event.stopPropagation();
           anchor.current = null;
-          onSelectedChange(new Set());
+          clearSelection();
         }
         return;
       default: {
@@ -726,7 +735,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
           label: t("ui.clearSelection"),
           icon: <X className="size-icon" />,
           shortcut: "Escape",
-          onSelect: () => onSelectedChange(new Set()),
+          onSelect: clearSelection,
         });
         entries.push({ type: "separator" });
       }
@@ -937,17 +946,26 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
         />
       ) : null}
 
-      {selectionCount > 0 && caps.patchActions ? (
+      {(selectionCount > 0 || lassoLines > 0) && caps.patchActions ? (
         <div
           role="toolbar"
           aria-label={t("diff.selection.toolbar")}
           data-selection-bar=""
           className="animate-pop absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-border bg-surface-raised py-1.5 pr-1.5 pl-3 text-sm shadow-pop"
         >
-          <span className="font-medium whitespace-nowrap text-text" aria-live="polite">
-            {t("diff.selection.selected", { count: selectionCount })}
-          </span>
-          {patchMode === "unstaged" ? (
+          {lasso ? (
+            <span className="font-medium whitespace-nowrap text-text" aria-live="polite" data-lasso-count="">
+              {t("wip.lasso.count", {
+                lines: t("wip.lasso.lines", { count: lasso.lines }),
+                files: t("wip.lasso.files", { count: lasso.files }),
+              })}
+            </span>
+          ) : (
+            <span className="font-medium whitespace-nowrap text-text" aria-live="polite">
+              {t("diff.selection.selected", { count: selectionCount })}
+            </span>
+          )}
+          {selectionCount === 0 ? null : patchMode === "unstaged" ? (
             <>
               <Button
                 size="sm"
@@ -978,7 +996,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
               {t("diff.selection.unstage", { count: selectionCount })}
             </Button>
           )}
-          {onStash ? (
+          {onStash && selectionCount > 0 ? (
             <Button
               size="sm"
               disabled={busy}
@@ -994,7 +1012,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
             label={t("ui.clearSelection")}
             shortcut="Escape"
             icon={<X className="size-icon" aria-hidden />}
-            onClick={() => onSelectedChange(new Set())}
+            onClick={clearSelection}
           />
         </div>
       ) : null}
