@@ -51,6 +51,8 @@ pub enum AiFeature {
     ReviewFix,
     /// Where to cut a branch into stacked pull requests.
     StackSplit,
+    /// One paragraph about what's new since the user last looked.
+    Digest,
 }
 
 /// From `Settings.ai_enabled`: `None` = `Unset` (never set up, never turned off), `Some(false)` =
@@ -237,6 +239,17 @@ pub enum AiInput {
     ReviewFix { number: u64, thread_id: String },
     /// The search by meaning (9.2): the question and – with embeddings – the new index entries.
     SemanticSearch { query: String },
+    /// "What's new since …": the current digest of the repository – ref names, commit subjects and
+    /// author names, file names and pull request titles.
+    Digest,
+}
+
+/// `aiDigest`: one paragraph about the digest, shown as plain text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "ai.ts"))]
+#[serde(rename_all = "camelCase")]
+pub struct AiDigest {
+    pub paragraph: String,
 }
 
 /// Kind of a hint of the review before a push. Keys are never a kind: they come from

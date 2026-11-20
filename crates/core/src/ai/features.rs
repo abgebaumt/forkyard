@@ -4,6 +4,7 @@ pub mod archaeology;
 pub mod bisect;
 pub mod commit_message;
 pub mod conflict;
+pub mod digest;
 pub mod plan;
 pub mod plan_check;
 pub mod plan_commands;

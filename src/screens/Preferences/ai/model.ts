@@ -36,6 +36,7 @@ export const FEATURES: AiFeature[] = [
   "semantic_search",
   "review_fix",
   "stack_split",
+  "digest",
 ];
 
 export const needsKey = (provider: AiProviderKind) => provider === "anthropic" || provider === "openai" || provider === "gemini";

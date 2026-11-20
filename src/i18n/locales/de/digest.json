@@ -32,6 +32,7 @@
   "showAll": "Alle zeigen",
   "prMissing": "Pull Requests fehlen – keine Verbindung zu {{host}}",
   "reloaded": "Neue Änderungen eingetroffen – prüfen, dann als gesehen markieren",
+  "summarise": "Zusammenfassen",
   "markSeen": "Als gesehen markieren",
   "nothingNew": "Nichts Neues seit {{time}}",
   "rows": "Änderungen seit deinem letzten Blick"

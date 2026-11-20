@@ -315,6 +315,7 @@ commands! {
     stack_prs_create => stack::stack_prs_create(repo_id: String, target: String, parts: Vec<StackPrPart>, from: u32, remote: Option<String>) -> StackPrOutcome;
     stack_check => stack::stack_check(repo_id: String, job_id: String, branch: String, base: String, cuts: Vec<StackCut>) -> Vec<StackCheckResult>;
     ai_stack_split => ai_features::ai_stack_split(repo_id: String, job_id: String, branch: String, base: String, locale: String) -> AiStackSplit;
+    ai_digest => ai_features::ai_digest(repo_id: String, job_id: String, locale: String) -> AiDigest;
     ai_review_fix => ai_features::ai_review_fix(repo_id: String, job_id: String, number: u64, thread_id: String, locale: String) -> AiReviewFix;
     review_fix_apply => review_fix::review_fix_apply(repo_id: String, number: u64, fix: ReviewFixInput, target: String) -> ReviewFixApplied;
     // --- Search by meaning ---------------------------------------------------
