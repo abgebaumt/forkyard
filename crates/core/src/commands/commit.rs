@@ -22,6 +22,11 @@ use crate::model::{
 use crate::undo::{self, UndoAction, UndoRecord};
 use crate::util;
 
+mod selection;
+pub use selection::*;
+#[cfg(test)]
+mod selection_tests;
+
 /// What a commit can change (`Operation`: a running merge is concluded).
 const COMMIT_CHANGES: [RepoChange; 4] = [RepoChange::Index, RepoChange::Refs, RepoChange::Head, RepoChange::Operation];
 /// Hooks whose failure prevents the commit.

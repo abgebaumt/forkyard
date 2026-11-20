@@ -352,6 +352,14 @@ export interface CoreCommands {
     },
   ): Promise<CommitResult>;
   /**
+   * Commits exactly these lines of the unstaged diffs (`selections[].expect` = `TextDiff.token`) on HEAD;
+   * the working directory stays, staged changes stay staged. Errors: `stale_state`, `selection_conflicts_with_index`
+   * (names the file), `nothing_to_commit`, `empty_message`, `hook_failed`, `signing_failed`, `conflict`, `not_allowed`.
+   */
+  commitSelection(
+    input: R & { opId: string; selections: PatchSelection[]; summary: string; description: string; skipHooks: boolean; expectHead: Sha },
+  ): Promise<CommitResult>;
+  /**
    * Change the message of the last commit without touching the index. `sha`: the commit whose
    * message was edited – if HEAD has become a different one in the meantime, `stale_state` comes back.
    */

@@ -214,5 +214,9 @@
   "ai_unsupported_version": {
     "text": "Dieser Version des KI-Programms fehlt ein nötiger Sicherheitsschalter.",
     "hint": "Aktualisiere das Programm und versuche es erneut."
+  },
+  "selection_conflicts_with_index": {
+    "text": "Die ausgewählten Zeilen einer Datei bauen auf gestagten Änderungen auf.",
+    "hint": "Erst die gestagten Änderungen dieser Datei committen oder unstagen, dann erneut versuchen."
   }
 }

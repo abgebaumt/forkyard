@@ -16,7 +16,7 @@ use crate::model::{Head, OpResult, RepoChange, Stash, StashSelection, Status};
 use crate::undo::{self, UndoAction, UndoRecord};
 use crate::util;
 
-mod partial;
+pub(crate) mod partial;
 
 /// SHA, parents, commit time, reflog text – four NUL-separated fields per stash.
 const LIST_FORMAT: &str = "--format=%H%x00%P%x00%ct%x00%gs";

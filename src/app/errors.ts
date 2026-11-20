@@ -66,6 +66,7 @@ const CODES: Record<ErrorCode, true> = {
   ai_limit_reached: true,
   ai_too_large: true,
   ai_unsupported_version: true,
+  selection_conflicts_with_index: true,
 };
 
 /** Error code → understandable sentence with a suggested action. Covers every ErrorCode. */
