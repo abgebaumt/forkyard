@@ -138,6 +138,8 @@ import type {
   ReviewDraft,
   PrReviewDrafts,
   NewReviewComment,
+  ReviewSubmitResult,
+  ReviewVote,
   ReviewFixApplied,
   ReviewFixInput,
   ReviewThread,
@@ -1160,6 +1162,28 @@ export interface CoreCommands {
    * (number 0), `host_unsupported`.
    */
   prReviewDraftDelete(input: R & { number: number; draftId: string; remote?: string | null }): Promise<void>;
+  /**
+   * Sends one comment on a line (or range) at once, without a draft. Errors: `host_unsupported` (no
+   * `capabilities.reviewComment`), `empty_message`, `not_allowed` (as `prReviewDraftSave`), host errors.
+   */
+  prReviewCommentCreate(input: R & { number: number; comment: NewReviewComment; remote?: string | null }): Promise<void>;
+  /**
+   * Marks a review thread as resolved (`resolved: true`) or reopens it; `resolveId` as
+   * `ReviewThread.resolveId`. Errors: `host_unsupported` (no `capabilities.reviewResolve`), `not_allowed`
+   * (number 0, invalid ID), `host_not_found` (thread gone), host errors.
+   */
+  prReviewThreadResolve(input: R & { number: number; resolveId: string; resolved: boolean; remote?: string | null }): Promise<void>;
+  /**
+   * Submits the own review: vote, `body` (as typed) and every draft. Drafts that reached the host are
+   * deleted locally (`sent`); failing ones stay with their error (`failed`), and then the vote is not sent
+   * (`submitted: false`). Errors (nothing sent, drafts untouched – except a failing vote after all drafts
+   * went out on hosts without `reviewSubmitBatch`: those drafts are gone): `host_unsupported` (vote not
+   * offered), `empty_message` (comment without text or drafts, request changes without text),
+   * `not_allowed` (number 0, text over 65 536 bytes, `commit` not a full ID), host errors.
+   */
+  prReviewSubmit(
+    input: R & { number: number; vote: ReviewVote; body: string; commit: Sha; remote?: string | null },
+  ): Promise<ReviewSubmitResult>;
   /**
    * 8.2: commits a suggested fix as `fixup! <subject of target>` on the checked-out pull request branch
    * through the normal commit path (hooks, signing). Needs the branch checked out and containing the pull
