@@ -43,6 +43,7 @@ import {
   type RepoViewState,
   type Sha,
 } from "../../core";
+import { graphIndex, isAncestor } from "../../app/actions/ancestry";
 import { checkout, createBranch } from "../../app/actions/branches";
 import { setMergeCollapsed } from "../../app/actions/collapse";
 import { setSmartVisibility, smartBlock, syncSmartVisibility } from "../../app/actions/graphView";
@@ -56,7 +57,6 @@ import {
   queryClient,
   useBisectStatus,
   useGraph,
-  useRebaseBranchPlan,
   useRefs,
   useSettings,
   useStashes,
@@ -365,8 +365,8 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
   const { data: refs } = useRefs(repoId);
   const { data: stashes } = useStashes(repoId);
   const { data: status } = useStatus(repoId);
-  // Loaded ahead so that E, the menu and dragging a row open the edit mode without waiting.
-  useRebaseBranchPlan(repoId, null, status?.head.kind === "branch");
+  const statusRef = useRef(status);
+  statusRef.current = status;
   const scrollerRef = useRef<HTMLDivElement>(null);
   const metrics = useMemo(() => readMetrics(), []);
   const rowHeight = metrics.rowHeight;
@@ -772,9 +772,13 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
 
   // Dragging a commit row opens the history editing; the edit view takes the drag over.
   const rowDrag = useRowDrag({
+    // As the menu's "Edit history": on a branch, and not for commits known to be outside it (a wobbly click elsewhere fetches nothing).
     canStart: (index) => {
       const row = rowsRef.current[index];
-      return isCommitRow(row) ? row.sha : null;
+      const head = statusRef.current?.head;
+      if (!isCommitRow(row) || head?.kind !== "branch") return null;
+      const graph = graphIndex(repoId);
+      return graph && isAncestor(graph, row.sha, head.sha) === false ? null : row.sha;
     },
     onStart: (sha, pending) => void enterGraphEdit(repoId, tabId, { sha, drag: pending }),
   });
