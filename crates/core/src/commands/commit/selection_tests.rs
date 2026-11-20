@@ -451,3 +451,20 @@ async fn a_failure_while_taking_the_lines_out_restores_everything() {
     assert!(err.message.contains("couldn't be taken out"), "{}", err.message);
     assert_eq!((state(&tc, &repo, &id), branches(&repo)), before);
 }
+
+#[tokio::test]
+async fn undo_is_refused_after_a_new_commit_on_the_branch() {
+    let (tc, repo, id, head) = setup().await;
+    let selections = two_files(&tc, &repo, &id).await;
+    to_branch(&tc, &id, selections, "weg", &head).await.unwrap();
+    repo.write_file("c.txt", "y\n");
+    repo.git(&["add", "c.txt"]);
+    repo.git(&["commit", "-q", "-m", "Danach"]);
+    let after = (repo.head(), repo.git(&["diff", "--cached"]), FILES.map(|f| repo.read_file(f)), branches(&repo));
+
+    let err = crate::commands::undo::undo(&tc, id.clone()).await.unwrap_err();
+
+    // An entry whose HEAD no longer fits is skipped, so nothing is left to undo.
+    assert_eq!(err.code, ErrorCode::NothingToUndo, "{err:?}");
+    assert_eq!((repo.head(), repo.git(&["diff", "--cached"]), FILES.map(|f| repo.read_file(f)), branches(&repo)), after);
+}
