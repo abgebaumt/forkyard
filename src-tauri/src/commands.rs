@@ -103,6 +103,7 @@ commands! {
     discard_paths => stage::discard_paths(repo_id: String, paths: Option<Vec<String>>) -> Status;
     commit_create => commit::commit_create(repo_id: String, op_id: String, summary: String, description: String, amend: bool, skip_hooks: bool, push_after: bool, stage_all: bool, expected_head: Option<String>) -> CommitResult;
     commit_selection => commit::commit_selection(repo_id: String, op_id: String, selections: Vec<PatchSelection>, summary: String, description: String, skip_hooks: bool, expect_head: String) -> CommitResult;
+    selection_to_branch => commit::selection_to_branch(repo_id: String, op_id: String, selections: Vec<PatchSelection>, branch: String, summary: String, description: String, skip_hooks: bool, expect_head: String) -> CommitResult;
     commit_reword => commit::commit_reword(repo_id: String, summary: String, description: String, sha: Option<String>) -> CommitResult;
     compose_units => compose::compose_units(repo_id: String) -> ComposeState;
     compose_proposal => compose::compose_proposal(repo_id: String, job_id: String, locale: String, instruction: Option<String>, keep: Vec<ComposeKeep>) -> ComposeProposal;
