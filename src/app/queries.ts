@@ -336,6 +336,13 @@ export const useCommitDetails = (repoId: Id | null | undefined, source: DiffSour
     staleTime: source && !isLive(source) && source.kind !== "stash" ? Infinity : undefined,
   });
 
+/** One file's diff; shared by `useDiff` and the lasso guard so both read the same cache entry. */
+export const diffQuery = (repoId: Id, path: string, source: DiffSource, options: DiffOptions = {}) => ({
+  queryKey: qk.diff(repoId, path, source, options),
+  queryFn: () => core.diffFile({ repoId, path, source, force: options.force, ignoreWhitespace: options.ignoreWhitespace }),
+  staleTime: !isLive(source) && source.kind !== "stash" ? Infinity : undefined,
+});
+
 export const useDiff = (
   repoId: Id | null | undefined,
   path: string | null | undefined,
@@ -343,11 +350,8 @@ export const useDiff = (
   options: DiffOptions = {},
 ) =>
   useQuery({
-    queryKey: qk.diff(repoId ?? "", path ?? "", source ?? { kind: "unstaged" }, options),
-    queryFn: () =>
-      core.diffFile({ repoId: repoId!, path: path!, source: source!, force: options.force, ignoreWhitespace: options.ignoreWhitespace }),
+    ...diffQuery(repoId ?? "", path ?? "", source ?? { kind: "unstaged" }, options),
     enabled: enabledFor(repoId) && Boolean(path) && Boolean(source),
-    staleTime: source && !isLive(source) && source.kind !== "stash" ? Infinity : undefined,
   });
 
 /** Search across the whole history; `code:`, `path:`, `since:`, `until:` in the text narrow it. An empty search does not ask the core. */
