@@ -61,12 +61,13 @@ export function digestFetchedWhileOpen(repoId: Id): void {
 
 /**
  * "Mark as seen" and ×: the seen state moves to now and the card closes – unless it is behind a fetch, then it
- * reloads ("reloaded") and the user marks again.
+ * reloads ("reloaded") and the user marks again. A failed reload is "failed": the error toast says it all.
  */
-export async function markDigestSeen(repoId: Id, prMaxNumber: number | null): Promise<"reloaded" | "marked"> {
+export async function markDigestSeen(repoId: Id, prMaxNumber: number | null): Promise<"reloaded" | "marked" | "failed"> {
   if (queryClient.getQueryState(qk.digest(repoId))?.isInvalidated) {
     const before = fetchesWhileOpen.get(repoId);
-    await runAction(t("commands.repo.digest.title"), () => freshDigest(repoId));
+    const result = await runAction(t("commands.repo.digest.title"), () => freshDigest(repoId));
+    if (!result.ok) return "failed";
     // A fetch during the reload: its answer may predate it, so the card stays stale.
     if (fetchesWhileOpen.get(repoId) !== before) {
       await queryClient.invalidateQueries({ queryKey: qk.digest(repoId), refetchType: "none" });

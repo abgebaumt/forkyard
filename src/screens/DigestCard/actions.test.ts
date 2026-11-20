@@ -158,4 +158,14 @@ describe("markDigestSeen", () => {
     expect(digestMarkSeen).not.toHaveBeenCalled();
     expect(queryClient.getQueryState(qk.digest("r1"))?.isInvalidated).toBe(false);
   });
+
+  it("a failed reload is no reload: no hint next to the error", async () => {
+    queryClient.setQueryData(qk.digest("r1"), sample);
+    useAppStore.getState().openDigest("r1");
+    digestFetchedWhileOpen("r1");
+    digestGet.mockRejectedValue(new Error("network down"));
+    expect(await markDigestSeen("r1", 7)).toBe("failed");
+    expect(digestMarkSeen).not.toHaveBeenCalled();
+    expect(useAppStore.getState().digestOpen.r1).toBe(true);
+  });
 });

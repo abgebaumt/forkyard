@@ -239,8 +239,8 @@ pub enum AiInput {
     ReviewFix { number: u64, thread_id: String },
     /// The search by meaning (9.2): the question and – with embeddings – the new index entries.
     SemanticSearch { query: String },
-    /// "What's new since …": the current digest of the repository – ref names, commit subjects and
-    /// author names, file names and pull request titles.
+    /// "What's new since …": the current digest of the repository – ref names, commit subjects, file
+    /// names and pull request titles with their counts; never authors.
     Digest,
 }
 

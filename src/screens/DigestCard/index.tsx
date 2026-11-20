@@ -9,7 +9,7 @@ import { AiErrorNotice } from "../../app/ai/AiErrorNotice";
 import { checkProvider } from "../../app/ai/checkProvider";
 import { askAi, showWhatIsSent } from "../../app/ai/gate";
 import { useAiJob } from "../../app/ai/useAiJob";
-import { featureVisible } from "../../app/ai/visibility";
+import { aiVisibility, featureVisible } from "../../app/ai/visibility";
 import { showInGraph } from "../../app/backNav";
 import { openPr } from "../../app/actions/pullrequests";
 import { formatRelative } from "../../app/format";
@@ -89,11 +89,13 @@ function OpenCard({ repoId, tabId, digest }: { repoId: Id; tabId: Id; digest: Di
   const shown = showAll ? rows : rows.slice(0, ROW_LIMIT);
   const reload = () => {
     setReloaded(true);
+    job.cancel();
     // The paragraph described what the card showed before.
     setParagraph(null);
   };
   const seen = () => void markDigestSeen(repoId, digest.prMaxNumber).then((done) => done === "reloaded" && reload());
   const aiVisible = featureVisible(status.data, AI_FEATURE, repoSettings.data?.aiOff ?? false);
+  const opensSetup = aiVisibility(status.data).elementsOpenSetup;
   const summarise = async () => {
     if (!checkProvider(status.data) || job.busy()) return;
     const answer = await job.start(
@@ -111,6 +113,11 @@ function OpenCard({ repoId, tabId, digest }: { repoId: Id; tabId: Id; digest: Di
     >
       <div className="flex items-center gap-2">
         <h2 className="min-w-0 flex-1 truncate font-medium">{t("digest.title", { time: formatRelative(digest.seenAt) })}</h2>
+        {aiVisible && !opensSetup ? (
+          <Button size="sm" variant="ghost" data-digest-what-is-sent onClick={showSent} disabled={job.running}>
+            {t("ui.whatIsSent")}
+          </Button>
+        ) : null}
         {aiVisible && job.running ? (
           <>
             <Spinner label={job.loading?.text} />
