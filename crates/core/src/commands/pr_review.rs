@@ -29,17 +29,25 @@ fn repo_path(found: &host::RepoHost) -> RepoPath {
     RepoPath { owner: found.detected.owner.clone(), name: found.detected.name.clone() }
 }
 
+/// Pull request numbers start at 1 on every host.
+fn check_number(number: u64) -> CoreResult<()> {
+    if number == 0 {
+        return Err(CoreError::not_allowed("Pull request numbers start at 1. Reload the pull request."));
+    }
+    Ok(())
+}
+
 /// A local draft ID is the decimal row ID; anything else cannot be one of ours.
 fn draft_rowid(draft_id: &str) -> CoreResult<i64> {
     draft_id.trim().parse().map_err(|_| CoreError::not_found("This review draft does not exist. Reload the pull request."))
 }
 
-/// Checks a comment at the trust boundary and returns the normalised copy: body trimmed, not empty and
-/// at most 64 KiB; path inside the repository; `line ≥ 1`; a range (`start_line < line`) only where the
+/// Checks a comment at the trust boundary and returns the normalised copy: body kept as typed (Markdown
+/// indentation matters), not blank and at most 64 KiB; path inside the repository; `line ≥ 1`; a range (`start_line < line`) only where the
 /// host takes one; `commit` a full object ID.
 pub(crate) fn check_comment(kind: HostKind, comment: &NewReviewComment) -> CoreResult<NewReviewComment> {
-    let body = comment.body.trim();
-    if body.is_empty() {
+    let body = &comment.body;
+    if body.trim().is_empty() {
         return Err(CoreError::new(ErrorCode::EmptyMessage, "The comment must not be empty. Write something or discard the draft."));
     }
     if body.len() > MAX_BODY_BYTES {
@@ -61,12 +69,13 @@ pub(crate) fn check_comment(kind: HostKind, comment: &NewReviewComment) -> CoreR
     if !is_sha(&comment.commit) {
         return Err(CoreError::not_allowed("The comment must name the full ID of the commit it refers to."));
     }
-    Ok(NewReviewComment { path, body: body.to_string(), ..comment.clone() })
+    Ok(NewReviewComment { path, ..comment.clone() })
 }
 
 /// The drafts of the own review: the host's (started in the browser) first, then the local ones, oldest
 /// first. Without an account only the local ones; if the host's cannot be read, `hostUnreadable`.
 pub async fn pr_review_drafts(core: &Core, repo_id: String, number: u64, remote: Option<String>) -> CoreResult<PrReviewDrafts> {
+    check_number(number)?;
     let found = host_repo(core, &repo_id, remote.as_deref()).await?;
     let repo = repo_path(&found);
     let local = core.db.with(|c| db::review_drafts::list(c, &repo_id, &repo.full(), number))?;
@@ -97,6 +106,7 @@ pub async fn pr_review_draft_save(
     draft_id: Option<String>,
     remote: Option<String>,
 ) -> CoreResult<ReviewDraft> {
+    check_number(number)?;
     let found = host_repo(core, &repo_id, remote.as_deref()).await?;
     let comment = check_comment(found.detected.kind, &comment)?;
     let id = draft_id.as_deref().map(draft_rowid).transpose()?;
@@ -109,6 +119,7 @@ pub async fn pr_review_draft_save(
 
 /// Discards a local draft; `not_found` if this pull request has no such draft.
 pub async fn pr_review_draft_delete(core: &Core, repo_id: String, number: u64, draft_id: String, remote: Option<String>) -> CoreResult<()> {
+    check_number(number)?;
     let id = draft_rowid(&draft_id)?;
     let found = host_repo(core, &repo_id, remote.as_deref()).await?;
     let full = repo_path(&found).full();
