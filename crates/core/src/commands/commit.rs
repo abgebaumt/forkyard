@@ -408,6 +408,23 @@ pub(crate) fn hook_failure(hooks: &[HookOutput], aborting: &[&str], out: &crate:
     )
 }
 
+/// `hook_failed` with `sentence` for a hook that changed HEAD, the index or files while a commit was
+/// being created; the output of every hook that printed something goes along.
+pub(crate) fn hook_changed_error(hooks: &[HookOutput], sentence: String) -> CoreError {
+    let output = hooks
+        .iter()
+        .filter(|hook| !hook.output.is_empty())
+        .map(|hook| format!("{}:\n{}", hook.hook, hook.output))
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    let error = CoreError::new(ErrorCode::HookFailed, sentence);
+    if output.is_empty() {
+        error
+    } else {
+        error.with_git_output(output)
+    }
+}
+
 /// Captures the hook output for a Git call (commit, merge, continue, push): `start`, then
 /// build the call with `wrap` (before the subcommand!), then `finish`. If the repository has
 /// no hooks or the folder cannot be created, `wrap` has no effect and `finish` returns

@@ -3,14 +3,15 @@
 //! Inside the write lock HEAD and every file token are checked, then a temporary index
 //! (`GIT_INDEX_FILE`) is built: HEAD plus the selected lines. The patches of the unstaged diffs
 //! apply onto the index, so where staged changes sit in their context they go in with a 3-way
-//! merge (`git apply -3`); a real overlap refuses the whole commit (`selection_conflicts_with_index`).
+//! merge (`git apply -3`); selected lines next to or on staged changes refuse the whole commit
+//! (`selection_conflicts_with_index`).
 //! `git commit` then runs on that index, so hooks and signing behave as in the terminal. Afterwards
 //! the real index takes the same patches: old index + selection = new HEAD + what was staged. The
 //! working directory is never written. Bytes stay bytes: everything goes through `git apply`.
 
 use serde_json::json;
 
-use super::{build_message, check_committable, operation_error, quoted, run_commit_on};
+use super::{build_message, check_committable, hook_changed_error, operation_error, quoted, run_commit_on};
 use crate::app::Core;
 use crate::commands::stash::partial::{parts, Part};
 use crate::commands::status::read_status;
@@ -51,8 +52,9 @@ pub async fn commit_selection(
             }
             let (sha, hooks) = commit_on_temp(core, &repo_id, &prepared, &message, skip_hooks).await?;
             if let Err(e) = apply_cached(core.git_for(&repo_id)?, &forward, &[]).await {
-                take_back(core, &repo_id, &prepared, &sha).await;
-                return Err(e);
+                let back = take_back(core, &repo_id, &prepared, &sha).await;
+                return Err(CoreError::new(e.code, format!("The index couldn't take the committed lines. {}", after_take_back(back)))
+                    .with_git_output(e.git_output.unwrap_or(e.message)));
             }
             if let Err(e) = core.db.with(|c| db::drafts::set(c, &repo_id, "", &CommitDraft::default())) {
                 log::warn!("Commit draft not cleared: {}", e.message);
@@ -130,7 +132,7 @@ pub(super) async fn prepare(core: &Core, repo_id: &str, selections: &[PatchSelec
             let file = util::decode_lossy(&part.path);
             return Err(CoreError::new(
                 ErrorCode::SelectionConflictsWithIndex,
-                format!("The selected lines of ‘{file}’ build on staged changes. Commit or unstage the staged changes of ‘{file}’ first."),
+                format!("The selected lines of ‘{file}’ sit next to or on staged changes. Commit or unstage the staged changes of ‘{file}’ first."),
             )
             .with_git_output(e.git_output.unwrap_or(e.message)));
         }
@@ -154,7 +156,10 @@ pub(super) async fn commit_on_temp(
     }
     let hooks = run_commit_on(core, repo_id, &args, message, Some(prepared.index.path())).await?;
     let Some(sha) = rev::rev_parse(core, repo_id, "HEAD").await? else {
-        return Err(hook_changed(&hooks, "HEAD"));
+        return Err(hook_changed_error(
+            &hooks,
+            "A Git hook changed HEAD while the commit was being created; HEAD no longer points to a commit. Check the history.".into(),
+        ));
     };
     let changed = if rev::rev_parse(core, repo_id, &format!("{sha}^1")).await?.as_deref() != Some(prepared.head_sha.as_str()) {
         Some("the branch")
@@ -166,18 +171,27 @@ pub(super) async fn commit_on_temp(
         None
     };
     if let Some(what) = changed {
-        take_back(core, repo_id, prepared, &sha).await;
-        return Err(hook_changed(&hooks, what));
+        let back = take_back(core, repo_id, prepared, &sha).await;
+        return Err(hook_changed_error(
+            &hooks,
+            format!(
+                "A Git hook changed {what} while the commit was being created. {} Changes the hook made to files stay.",
+                after_take_back(back)
+            ),
+        ));
     }
     Ok((sha, hooks))
 }
 
 /// Moves the branch (or a detached HEAD) from `sha` back to the old HEAD; compare-and-swap, so a
-/// ref someone else moved stays where it is.
-async fn take_back(core: &Core, repo_id: &str, prepared: &Prepared, sha: &str) {
+/// ref someone else moved stays where it is. `false` if it did not move (logged).
+async fn take_back(core: &Core, repo_id: &str, prepared: &Prepared, sha: &str) -> bool {
     let cmd = match core.git_for(repo_id) {
         Ok(cmd) => cmd.args(["update-ref", "-m", TAKE_BACK_MESSAGE]),
-        Err(e) => return log::error!("Commit {sha} not taken back: {}", e.message),
+        Err(e) => {
+            log::error!("Commit {sha} not taken back: {}", e.message);
+            return false;
+        }
     };
     let cmd = match &prepared.branch_ref {
         Some(branch_ref) => cmd.arg(branch_ref),
@@ -185,6 +199,17 @@ async fn take_back(core: &Core, repo_id: &str, prepared: &Prepared, sha: &str) {
     };
     if let Err(e) = cmd.args([prepared.head_sha.as_str(), sha]).run().await {
         log::error!("Commit {sha} not taken back to {}: {}", prepared.head_sha, e.message);
+        return false;
+    }
+    true
+}
+
+/// The sentence after a take-back: whether HEAD is back.
+fn after_take_back(back: bool) -> &'static str {
+    if back {
+        "The commit was taken back; HEAD and the index are as before."
+    } else {
+        "The commit couldn't be taken back: HEAD still points to it, the index is as before. Check the history."
     }
 }
 
@@ -204,25 +229,4 @@ fn with_preimage(part: &Part) -> Vec<u8> {
 async fn apply_cached(cmd: GitCmd, patch: &[u8], extra: &[&str]) -> CoreResult<()> {
     cmd.args(["-c", "rerere.enabled=false"]).args(crate::git::GIT_APPLY).arg("--cached").args(extra).stdin(patch.to_vec()).run().await?;
     Ok(())
-}
-
-/// `hook_failed` for a hook that changed HEAD, the index or files; the hooks' output goes along.
-fn hook_changed(hooks: &[HookOutput], what: &str) -> CoreError {
-    let output = hooks
-        .iter()
-        .filter(|hook| !hook.output.is_empty())
-        .map(|hook| format!("{}:\n{}", hook.hook, hook.output))
-        .collect::<Vec<_>>()
-        .join("\n\n");
-    let error = CoreError::new(
-        ErrorCode::HookFailed,
-        format!(
-            "A Git hook changed {what} while the commit was being created. The commit was taken back; HEAD and the index are as before, changes the hook made to files stay."
-        ),
-    );
-    if output.is_empty() {
-        error
-    } else {
-        error.with_git_output(output)
-    }
 }

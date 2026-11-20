@@ -216,7 +216,7 @@
     "hint": "Aktualisiere das Programm und versuche es erneut."
   },
   "selection_conflicts_with_index": {
-    "text": "Die ausgewählten Zeilen einer Datei bauen auf gestagten Änderungen auf.",
+    "text": "Die ausgewählten Zeilen einer Datei liegen neben oder auf gestagten Änderungen.",
     "hint": "Erst die gestagten Änderungen dieser Datei committen oder unstagen, dann erneut versuchen."
   }
 }

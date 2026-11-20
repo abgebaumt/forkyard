@@ -244,3 +244,38 @@ async fn a_hook_that_changes_files_takes_the_commit_back() {
     assert_eq!(repo.read_file("b ä.txt"), b"alpha\nbeta\nvom Hook\n", "the hook's change stays");
     assert!(top_undo(&tc, &id).is_none(), "no undo entry");
 }
+
+#[tokio::test]
+async fn a_hook_that_stages_more_takes_the_commit_back() {
+    let (tc, repo, id, head) = setup().await;
+    write_hook(&repo, "pre-commit", r#"git add "b ä.txt""#);
+    repo.write_file("c.txt", "y\n");
+    repo.git(&["add", "c.txt"]);
+    repo.write_file("a.txt", "eins\nzwei\nDREI\nvier\n");
+    repo.write_file("b ä.txt", "alpha\nbeta\ngamma\n");
+    let selections = vec![pick(&diff(&tc, &id, "a.txt", false).await, &[("-", "drei"), ("+", "DREI")])];
+    let before = state(&tc, &repo, &id);
+
+    let err = commit(&tc, &id, selections, &head).await.unwrap_err();
+
+    assert_eq!(err.code, ErrorCode::HookFailed, "{}", err.message);
+    assert!(err.message.contains("HEAD and the index are as before"), "{}", err.message);
+    assert_eq!(state(&tc, &repo, &id), before);
+}
+
+#[tokio::test]
+async fn the_undo_entry_records_head_like_a_normal_commit() {
+    let (tc, repo, id, head) = setup().await;
+    repo.write_file("a.txt", "eins\nzwei\nDREI\nvier\n");
+    let selections = vec![pick(&diff(&tc, &id, "a.txt", false).await, &[("+", "DREI")])];
+    commit(&tc, &id, selections, &head).await.unwrap();
+    let entry = top_undo(&tc, &id).unwrap();
+    assert_eq!((entry.head_before.as_str(), entry.head_after.as_deref()), ("refs/heads/main", Some("refs/heads/main")));
+
+    repo.git(&["checkout", "-q", "--detach"]);
+    let detached = repo.head();
+    let selections = vec![pick(&diff(&tc, &id, "a.txt", false).await, &[("-", "drei")])];
+    let result = commit(&tc, &id, selections, &detached).await.unwrap();
+    let entry = top_undo(&tc, &id).unwrap();
+    assert_eq!((entry.head_before.as_str(), entry.head_after.as_deref()), (detached.as_str(), Some(result.sha.as_str())));
+}
