@@ -26,7 +26,9 @@ function openRow(repoId: Id, tabId: Id, row: DigestRow, base: string | null): vo
       useAppStore.getState().openHistory(tabId, row.path);
       return;
     case "behind": {
-      const sha = queryClient.getQueryData<RefsSnapshot>(qk.refs(repoId))?.remotes.find((ref) => ref.name === base)?.sha;
+      // The base is a remote branch, or the local default branch when there is none.
+      const refs = queryClient.getQueryData<RefsSnapshot>(qk.refs(repoId));
+      const sha = [...(refs?.remotes ?? []), ...(refs?.locals ?? [])].find((ref) => ref.name === base)?.sha;
       if (sha) showInGraph(tabId, sha);
       return;
     }
@@ -78,9 +80,10 @@ export function DigestCard({ repoId, tabId }: { repoId: Id; tabId: Id }) {
             <button
               type="button"
               data-digest-row={row.key}
-              disabled={row.kind === "ref" && !row.sha}
+              // A deleted ref has no target but stays reachable by keyboard.
+              aria-disabled={row.kind === "ref" && !row.sha ? true : undefined}
               onClick={() => openRow(repoId, tabId, row, digest.behind?.base ?? null)}
-              className="w-full truncate rounded-sm px-1 py-0.5 text-left hover:bg-surface-raised disabled:pointer-events-none disabled:text-text-muted"
+              className="w-full truncate rounded-sm px-1 py-0.5 text-left hover:bg-surface-raised aria-disabled:text-text-muted aria-disabled:hover:bg-transparent"
             >
               {row.kind === "commit" ? <span className="pl-4">{row.label}</span> : row.label}
             </button>

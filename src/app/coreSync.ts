@@ -20,7 +20,7 @@ import { t } from "../i18n";
 import { reportHookOutput } from "./notifications/hooks";
 import { reportSubmoduleUpdate } from "./notifications/submodules";
 import { isFixedRev } from "../screens/Archaeology/model";
-import { checkDigestAfterFetch } from "../screens/DigestCard/actions";
+import { checkDigestAfterFetch, digestFetchedWhileOpen } from "../screens/DigestCard/actions";
 import { desktopNotify, wasManualSync } from "./notify";
 import { useAppStore } from "./store";
 import { createIndexScheduler } from "./ai/indexScheduler";
@@ -213,7 +213,10 @@ export function useCoreSync(activeRepoId: Id | null) {
           void queryClient.invalidateQueries({ queryKey: qk.agents(owner) });
         }
         semanticIndex.changed(repoId, what);
-        if (what.includes("fetched")) void checkDigestAfterFetch(repoId);
+        if (what.includes("fetched")) {
+          digestFetchedWhileOpen(repoId);
+          void checkDigestAfterFetch(repoId);
+        }
       }),
       core.on("app:changed", ({ what }) => {
         for (const item of what) {

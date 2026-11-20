@@ -26,26 +26,43 @@ export async function checkDigestAfterFetch(repoId: Id): Promise<void> {
     if (!digest || digest.isEmpty) return;
     queryClient.setQueryData<Digest | null>(qk.digest(repoId), digest);
     useAppStore.getState().openDigest(repoId);
-  } catch {
+  } catch (error) {
     // A background check: the user asked for nothing, the palette command still shows errors.
+    console.debug("What's new: check after a fetch failed", error);
   } finally {
     checking.delete(repoId);
   }
 }
 
+const freshDigest = (repoId: Id) =>
+  queryClient.fetchQuery({ queryKey: qk.digest(repoId), queryFn: () => core.digestGet({ repoId }), staleTime: 0 });
+
 /** From the palette: always a fresh answer; nothing new is a toast instead of an empty card. */
 export async function openDigestCard(repoId: Id): Promise<void> {
-  const result = await runAction(t("commands.repo.digest.title"), () =>
-    queryClient.fetchQuery({ queryKey: qk.digest(repoId), queryFn: () => core.digestGet({ repoId }), staleTime: 0 }),
-  );
+  const result = await runAction(t("commands.repo.digest.title"), () => freshDigest(repoId));
   if (!result.ok) return;
   const digest = result.value;
   if (digest && !digest.isEmpty) useAppStore.getState().openDigest(repoId);
   else toast({ tone: "info", title: t("digest.nothingNew", { time: formatRelative(digest?.seenAt ?? Date.now()) }) });
 }
 
-/** "Mark as seen" and ×: the seen state moves to now (its `seen` event reloads the digest), the card closes. */
+/**
+ * While the card is open, a fetch with changed refs only marks the digest stale (`digestFetchedWhileOpen`).
+ * Marking would then swallow news the card never showed: the card reloads instead and the user marks again.
+ */
+export function digestFetchedWhileOpen(repoId: Id): void {
+  if (!useAppStore.getState().digestOpen[repoId]) return;
+  void queryClient.invalidateQueries({ queryKey: qk.digest(repoId), refetchType: "none" });
+}
+
+/** "Mark as seen" and ×: the seen state moves to now and the card closes – unless it is behind a fetch, then it reloads. */
 export async function markDigestSeen(repoId: Id, prMaxNumber: number | null): Promise<void> {
+  if (queryClient.getQueryState(qk.digest(repoId))?.isInvalidated) {
+    await runAction(t("commands.repo.digest.title"), () => freshDigest(repoId));
+    return;
+  }
+  // Closed first: the disabled query then ignores the `seen` event instead of loading a full digest.
+  useAppStore.getState().closeDigest(repoId);
   const result = await runAction(t("digest.markSeen"), () => core.digestMarkSeen({ repoId, prMaxNumber }));
-  if (result.ok) useAppStore.getState().closeDigest(repoId);
+  if (!result.ok) useAppStore.getState().openDigest(repoId);
 }
