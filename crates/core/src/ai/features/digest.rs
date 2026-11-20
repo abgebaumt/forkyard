@@ -40,7 +40,7 @@ pub fn finish(value: &Value) -> AiDigest {
 }
 
 fn render(digest: &Digest, exclusions: &Exclusions, omitted: &mut Vec<AiOmitted>) -> String {
-    let mut out = format!("Last looked: {}\n", digest.seen_at);
+    let mut out = String::new();
     for r in &digest.refs {
         let change = match (r.kind, r.change) {
             (RefKind::Tag, DigestRefChange::New) => "new tag",

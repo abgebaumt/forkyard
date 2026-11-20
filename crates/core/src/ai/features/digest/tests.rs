@@ -90,7 +90,7 @@ async fn the_prompt_holds_only_names_subjects_and_titles() {
     for wanted in ["origin/main", "Login prüfen", "src/login.rs"] {
         assert!(text.contains(wanted), "{wanted}: {text}");
     }
-    for never in [EMAIL, AUTHOR, "Jörg", "Bäumler", "geheimer Text", "fn login", ".env", "TOKEN"] {
+    for never in [EMAIL, AUTHOR, "Jörg", "Bäumler", "geheimer Text", "fn login", ".env", "TOKEN", "Last looked"] {
         assert!(!text.contains(never), "{never} must not be sent: {text}");
     }
     assert_eq!(built.omitted, vec![AiOmitted { path: ".env".into(), reason: AiOmitReason::Secret, size: 0 }]);
