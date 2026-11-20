@@ -58,13 +58,15 @@ function afterWrite(repoId: Id) {
 export async function commitLasso(repoId: Id, tabId: Id): Promise<"done" | "needsMessage" | "failed"> {
   const selections = lassoSelections(lassoOf(tabId));
   if (selections.length === 0) return "failed";
-  const { summary: rawSummary, description } = getDraft(repoId);
+  const { summary: rawSummary, description, amend } = getDraft(repoId);
   const summary = rawSummary.trim();
-  const missing = !summary
-    ? t("wip.commit.summaryMissing")
-    : isUntouchedTemplate(repoId, { summary, description })
-      ? t("wip.commit.untouchedTemplate")
-      : null;
+  const missing = amend
+    ? t("wip.lasso.amendOn")
+    : !summary
+      ? t("wip.commit.summaryMissing")
+      : isUntouchedTemplate(repoId, { summary, description })
+        ? t("wip.commit.untouchedTemplate")
+        : null;
   if (missing) {
     failSummary(tabId, missing);
     if (getTabView(tabId).rightCollapsed) useAppStore.getState().setRightCollapsed(tabId, false);
@@ -86,6 +88,7 @@ export async function commitLasso(repoId: Id, tabId: Id): Promise<"done" | "need
     return "failed";
   }
   forgetDraft(repoId);
+  useWipStore.getState().patch(tabId, { amendFilled: null, amendSha: null });
   afterWrite(repoId);
   toast({ tone: "success", title: t("wip.commit.created"), description: `${shortSha(result.value.sha)} · ${summary}` });
   return "done";

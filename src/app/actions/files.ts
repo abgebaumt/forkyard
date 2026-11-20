@@ -39,11 +39,15 @@ export function followVanishedDiff(repoId: Id, after?: Status): void {
   }
 }
 
-/** `paths: null` = everything. */
-export async function stagePaths(repoId: Id, paths: string[] | null) {
+/** `paths: null` = everything. `onApplied` runs once the core succeeded, before its status reaches the cache. */
+export async function stagePaths(repoId: Id, paths: string[] | null, onApplied?: () => void) {
   const result = await runAction(
     t("ui.stage"),
-    withStatus(repoId, () => core.stagePaths({ repoId, paths })),
+    withStatus(repoId, async () => {
+      const status = await core.stagePaths({ repoId, paths });
+      onApplied?.();
+      return status;
+    }),
   );
   return result;
 }

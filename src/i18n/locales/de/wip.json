@@ -317,6 +317,7 @@
     "branchBody": "{{lines}} verschwinden aus der Arbeitskopie und werden ein Commit auf einem neuen Branch ab HEAD. Du bleibst auf {{current}}.",
     "branchConfirm": "Branch anlegen",
     "movedTitle": "In {{branch}} ausgelagert",
-    "switch": "Zum Branch wechseln"
+    "switch": "Zum Branch wechseln",
+    "amendOn": "Erst „Amend“ abwählen – „Nur das committen“ erstellt einen neuen Commit"
   }
 }
