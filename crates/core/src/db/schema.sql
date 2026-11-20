@@ -196,6 +196,28 @@ create table commit_drafts (
   primary key (repository_id, worktree_path)
 ) strict, without rowid;
 
+-- Comments of the own pull request review that have not been sent yet (local drafts).
+-- Since version 16: begin
+create table pr_review_drafts (
+  id            integer primary key,
+  repository_id text not null references repositories (id) on delete cascade,
+  -- The repository at the host (`owner/name`), so a renamed remote keeps its drafts.
+  host_repo     text not null,
+  number        integer not null check (number > 0),
+  commit_sha    text not null,
+  path          text not null,
+  line          integer not null check (line > 0),
+  start_line    integer check (start_line > 0 and start_line < line),
+  side          text not null check (side in ('new', 'old')),
+  old_line      integer check (old_line > 0),
+  body          text not null,
+  error         text,
+  created_at    text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at    text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) strict;
+create index pr_review_drafts_pr on pr_review_drafts (repository_id, host_repo, number);
+-- Since version 16: end
+
 -- Results of the statistics (stats_compute) as JSON: derived numbers only, never commits.
 -- cache_key names the tip commit, the period and the version of the computation.
 create table stats_cache (

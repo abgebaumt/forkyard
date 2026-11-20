@@ -12,6 +12,7 @@ mod gitea_tests;
 mod github_tests;
 mod gitlab_tests;
 mod mocks;
+mod review_tests;
 mod stack_tests;
 
 use std::sync::Arc;
@@ -497,6 +498,7 @@ fn review_threads_reach_the_ui_in_camel_case() {
         side: ReviewSide::New,
         commit: None,
         resolved: false,
+        resolve_id: None,
         outdated: true,
         comments: vec![comment.clone()],
     };

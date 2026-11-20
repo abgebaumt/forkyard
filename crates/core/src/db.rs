@@ -25,6 +25,7 @@ pub mod profiles;
 pub mod repo_seen;
 pub mod repo_settings;
 pub mod repos;
+pub mod review_drafts;
 pub mod settings;
 pub mod ssh_keys;
 pub mod stats_cache;
@@ -75,7 +76,30 @@ const UPGRADES: &[&str] = &[
     WINDOWS,
     // v1.3: what the user has seen per repository ("What's new since …").
     REPO_SEEN,
+    // v1.3: drafts of the own pull request review (local, per pull request).
+    PR_REVIEW_DRAFTS,
 ];
+
+const PR_REVIEW_DRAFTS: &str = r#"
+create table pr_review_drafts (
+  id            integer primary key,
+  repository_id text not null references repositories (id) on delete cascade,
+  -- The repository at the host (`owner/name`), so a renamed remote keeps its drafts.
+  host_repo     text not null,
+  number        integer not null check (number > 0),
+  commit_sha    text not null,
+  path          text not null,
+  line          integer not null check (line > 0),
+  start_line    integer check (start_line > 0 and start_line < line),
+  side          text not null check (side in ('new', 'old')),
+  old_line      integer check (old_line > 0),
+  body          text not null,
+  error         text,
+  created_at    text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at    text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) strict;
+create index pr_review_drafts_pr on pr_review_drafts (repository_id, host_repo, number);
+"#;
 
 const REPO_SEEN: &str = r#"
 create table repo_seen (
@@ -1031,7 +1055,8 @@ create index undo_entries_repo_time on undo_entries (repository_id, created_at d
             // Back to version 13: tabs without window_id, one active tab per profile, no windows.
             let conn = Connection::open(&path).unwrap();
             conn.execute_batch(
-                "drop table repo_seen;
+                "drop table pr_review_drafts;
+                 drop table repo_seen;
                  drop table profile_windows;
                  drop index tabs_one_active_per_window;
                  drop index tabs_window_position;
@@ -1074,7 +1099,6 @@ create index undo_entries_repo_time on undo_entries (repository_id, created_at d
     #[test]
     fn the_seen_step_creates_exactly_what_schema_has() {
         assert!(UPGRADES.contains(&REPO_SEEN), "the step is part of UPGRADES");
-        assert_eq!(LATEST_VERSION, 15);
         let shape = |db: &Db, table: &str| -> Vec<(String, String, i64, i64)> {
             db.with(|c| {
                 let mut stmt = c.prepare(&format!("select name, type, \"notnull\", pk from pragma_table_info('{table}') order by cid"))?;
@@ -1088,12 +1112,40 @@ create index undo_entries_repo_time on undo_entries (repository_id, created_at d
         let fresh = Db::open(&dir.path().join("fresh.db")).unwrap();
         let path = dir.path().join("v14.db");
         drop(Db::open(&path).unwrap());
-        Connection::open(&path).unwrap().execute_batch("drop table repo_seen; pragma user_version = 14;").unwrap();
+        Connection::open(&path)
+            .unwrap()
+            .execute_batch("drop table pr_review_drafts; drop table repo_seen; pragma user_version = 14;")
+            .unwrap();
         let upgraded = Db::open(&path).unwrap();
         let v: i64 = upgraded.with(|c| Ok(c.query_row("pragma user_version", [], |r| r.get(0))?)).unwrap();
         assert_eq!(v, LATEST_VERSION);
         assert!(!shape(&fresh, "repo_seen").is_empty());
         assert_eq!(shape(&upgraded, "repo_seen"), shape(&fresh, "repo_seen"));
+    }
+
+    /// Version 15 to 16: the review drafts get exactly the table and index schema.sql has.
+    #[test]
+    fn the_review_drafts_step_creates_exactly_what_schema_has() {
+        assert!(UPGRADES.contains(&PR_REVIEW_DRAFTS), "the step is part of UPGRADES");
+        assert_eq!(LATEST_VERSION, 16);
+        let sql = |db: &Db| -> Vec<Option<String>> {
+            db.with(|c| {
+                let mut stmt = c.prepare("select sql from sqlite_master where tbl_name = 'pr_review_drafts' order by name")?;
+                let rows = stmt.query_map([], |r| r.get(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .unwrap()
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let fresh = Db::open(&dir.path().join("fresh.db")).unwrap();
+        let path = dir.path().join("v15.db");
+        drop(Db::open(&path).unwrap());
+        Connection::open(&path).unwrap().execute_batch("drop table pr_review_drafts; pragma user_version = 15;").unwrap();
+        let upgraded = Db::open(&path).unwrap();
+        let v: i64 = upgraded.with(|c| Ok(c.query_row("pragma user_version", [], |r| r.get(0))?)).unwrap();
+        assert_eq!(v, LATEST_VERSION);
+        assert_eq!(sql(&fresh).len(), 2, "table and index");
+        assert_eq!(sql(&upgraded), sql(&fresh));
     }
 
     #[test]

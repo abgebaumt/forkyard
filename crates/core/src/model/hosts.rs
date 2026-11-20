@@ -121,6 +121,21 @@ pub struct HostCapabilities {
     pub review_reply_quotes: bool,
     /// Releases can be created for a tag (GitHub, GitLab, Gitea/Forgejo).
     pub releases: bool,
+    /// New review comments can be written on a line of the diff.
+    pub review_comment: bool,
+    /// A review comment can span several lines (`start_line`).
+    pub review_comment_range: bool,
+    /// Review threads can be marked as resolved and reopened.
+    pub review_resolve: bool,
+    /// A review goes out in one request together with its comments; without it each draft is sent on
+    /// its own before the vote.
+    pub review_submit_batch: bool,
+    /// A review can approve the pull request.
+    pub review_approve: bool,
+    /// A review can request changes.
+    pub review_request_changes: bool,
+    /// Approve and request changes are allowed on the user's own pull request.
+    pub review_vote_own_pr: bool,
 }
 
 /// A release at the host, as `release_create` returns it.
@@ -286,6 +301,8 @@ pub struct ReviewThread {
     /// Commit the comment was written on, as far as the host says.
     pub commit: Option<Sha>,
     pub resolved: bool,
+    /// What `pr_review_thread_resolve` takes; `None` = cannot be resolved in Forkyard.
+    pub resolve_id: Option<String>,
     /// The host marks the thread as outdated (the code changed since).
     pub outdated: bool,
     /// Oldest first.
@@ -301,6 +318,88 @@ pub struct ReviewReply {
     /// Posted as a new review comment on the same line that quotes the thread (no answers inside
     /// threads in the host's API).
     pub quoted: bool,
+}
+
+/// What a submitted review says about the pull request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewVote {
+    Comment,
+    Approve,
+    RequestChanges,
+}
+
+/// A new review comment on a line (or range of lines) of the diff, as the UI hands it in.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
+#[serde(rename_all = "camelCase")]
+pub struct NewReviewComment {
+    /// Head commit the line numbers refer to (the pull request's head when written).
+    pub commit: Sha,
+    pub path: String,
+    pub line: u32,
+    /// First line of a range; `None` = one line.
+    pub start_line: Option<u32>,
+    pub side: ReviewSide,
+    /// Only for an unchanged line on the new side: its number in the old version (GitLab needs both).
+    #[cfg_attr(feature = "ts", ts(optional = nullable))]
+    pub old_line: Option<u32>,
+    pub body: String,
+}
+
+/// Where a review draft is kept.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewDraftOrigin {
+    /// In Forkyard, until the review is sent.
+    Local,
+    /// At the host, started in the browser (read only here).
+    Host,
+}
+
+/// A comment of the own review that has not been sent yet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewDraft {
+    /// Local: the decimal row ID; host: the host's ID.
+    pub id: String,
+    pub origin: ReviewDraftOrigin,
+    pub path: String,
+    /// `None` = a host draft whose line is gone.
+    pub line: Option<u32>,
+    pub start_line: Option<u32>,
+    pub side: ReviewSide,
+    pub old_line: Option<u32>,
+    pub commit: Option<Sha>,
+    pub body: String,
+    /// Why the last send failed (local drafts only).
+    pub error: Option<String>,
+}
+
+/// The drafts of the own review of a pull request: the host's first, then the local ones, oldest first.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
+#[serde(rename_all = "camelCase")]
+pub struct PrReviewDrafts {
+    pub drafts: Vec<ReviewDraft>,
+    /// The host's own drafts could not be read (offline, rejected); only local ones are listed.
+    pub host_unreadable: bool,
+}
+
+/// What submitting a review did.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "hosts.ts"))]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewSubmitResult {
+    /// The review (vote and body) reached the host; `false` while drafts failed.
+    pub submitted: bool,
+    /// Local drafts that reached the host (and are gone locally).
+    pub sent: u32,
+    /// Local drafts that stay, with their error.
+    pub failed: Vec<ReviewDraft>,
 }
 
 /// What a line of a suggested fix is in its diff.

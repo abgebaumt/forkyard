@@ -10,6 +10,7 @@ const thread = (id: string, path: string, line: number | null, extra: Partial<Re
   side: "new",
   commit: null,
   resolved: false,
+  resolveId: null,
   outdated: false,
   comments: [],
   ...extra,
