@@ -1,7 +1,7 @@
 //! The AI writes one paragraph about "What's new since …".
 //!
 //! Context: the digest the card shows (`commands::digest`) – ref names and how they changed, commit
-//! subjects with the author's name (never e-mail addresses, bodies or file contents), the names of the
+//! subjects (never authors, e-mail addresses, bodies or file contents), the names of the
 //! user's files the new commits touch, how far the current branch is behind, pull request numbers and
 //! titles. Secret and ignored file names are not named and show up in "What is sent?". Everything is
 //! redacted and sent between the markers of `ai::prompt`; the answer is plain text.
@@ -21,7 +21,7 @@ pub const DIGEST_TITLE: &str = "What changed since the user last looked";
 
 pub const INSTRUCTION: &str =
     "Write one short paragraph in the user's language about what changed in the repository since the user last looked. \
-Name people by their names and branches, tags and pull requests by their names. \
+Name branches, tags and pull requests by their names. \
 Give no advice and use no lists. Return the paragraph as `paragraph`.";
 
 pub fn schema() -> Value {
@@ -51,7 +51,7 @@ fn render(digest: &Digest, exclusions: &Exclusions, omitted: &mut Vec<AiOmitted>
         };
         out.push_str(&format!("Ref {}: {change}, {} new commits\n", r.name, r.new_commits));
         for commit in &r.commits {
-            out.push_str(&format!("   {} (by {})\n", commit.subject, commit.author));
+            out.push_str(&format!("   {}\n", commit.subject));
         }
     }
     for file in &digest.your_files {
@@ -74,8 +74,7 @@ fn render(digest: &Digest, exclusions: &Exclusions, omitted: &mut Vec<AiOmitted>
             DigestPrChange::Merged => "merged",
             DigestPrChange::Closed => "closed",
         };
-        let by = pr.author.as_deref().map(|author| format!(" by {author}")).unwrap_or_default();
-        out.push_str(&format!("Pull request #{} {}: {change}{by}\n", pr.number, pr.title));
+        out.push_str(&format!("Pull request #{} {}: {change}\n", pr.number, pr.title));
     }
     for pr in digest.prs.iter().flat_map(|prs| &prs.comments) {
         out.push_str(&format!("Pull request #{} {}: {} new comments\n", pr.number, pr.title, pr.count));
