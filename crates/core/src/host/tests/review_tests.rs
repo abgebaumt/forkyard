@@ -50,7 +50,7 @@ async fn editing_a_draft_keeps_its_id_and_clears_the_error() {
     let edited = NewReviewComment { body: "  Doch lieber anders.  ".into(), ..comment("a.rs", 4) };
     let saved = pr_review_draft_save(&fx.tc, fx.id(), 9, edited, Some(first.id.clone()), None).await.unwrap();
     assert_eq!((saved.id.as_str(), saved.line, saved.error.as_deref()), (first.id.as_str(), Some(4), None));
-    assert_eq!(saved.body, "Doch lieber anders.");
+    assert_eq!(saved.body, "  Doch lieber anders.  ", "stored as typed (Markdown indentation)");
     assert_eq!(pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts, vec![saved, other]);
 }
 
@@ -93,4 +93,19 @@ async fn deleting_an_unknown_or_foreign_draft_is_not_found() {
     assert_eq!(error.code, ErrorCode::NotFound, "editing through another pull request");
     pr_review_draft_delete(&fx.tc, fx.id(), 9, saved.id.clone(), None).await.unwrap();
     assert!(pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts.is_empty());
+}
+
+#[tokio::test]
+async fn pull_request_zero_is_refused() {
+    let fx = Fixture::new(HostKind::Github).await;
+    for err in [
+        pr_review_drafts(&fx.tc, fx.id(), 0, None).await.unwrap_err(),
+        pr_review_draft_save(&fx.tc, fx.id(), 0, comment("a.rs", 3), None, None).await.unwrap_err(),
+        pr_review_draft_delete(&fx.tc, fx.id(), 0, "1".into(), None).await.unwrap_err(),
+    ] {
+        assert_eq!(err.code, ErrorCode::NotAllowed);
+    }
+    let left: i64 = fx.tc.db.with(|c| Ok(c.query_row("select count(*) from pr_review_drafts", [], |r| r.get(0))?)).unwrap();
+    assert_eq!(left, 0);
+    assert!(fx.server.requests().is_empty());
 }
