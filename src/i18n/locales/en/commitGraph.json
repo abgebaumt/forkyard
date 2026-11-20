@@ -91,6 +91,14 @@
     "apply": "Apply",
     "openTool": "Open in rebase tool",
     "editMessage": "Edit message …",
+    "refused": {
+      "mergeCommits": "The branch's own commits include a merge commit. Editing them would flatten it.",
+      "noCommonAncestor": "The branch has no history in common with the default branch.",
+      "nothingToRebase": "The branch has no commits of its own to edit. Use “{{here}}” on an older commit.",
+      "dirtyWorktree": "There are uncommitted changes. Commit or stash them first.",
+      "detached": "Check out a branch first.",
+      "operationInProgress": "Finish or abort the running merge, rebase, cherry-pick or revert first."
+    },
     "chip": {
       "squash": "squash",
       "fixup": "fixup",

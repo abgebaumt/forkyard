@@ -1,7 +1,8 @@
 /** Pure parts of the graph's edit view (EditHistory.tsx). */
 import type { GraphRow, RebasePlanRow, Sha } from "../../core";
+import type { PendingDrag } from "../../app/rebasePlan/graphEdit";
 import type { PreviewState } from "../../app/conflictPreview";
-import { type EditState, setMessage } from "../../app/rebasePlan/gestures";
+import { type EditState, flipIndex, setMessage } from "../../app/rebasePlan/gestures";
 import { joinMessage, rowRoles } from "../../app/rebasePlan/model";
 import { isCommitRow } from "./model";
 
@@ -45,4 +46,15 @@ export function editMessage(state: EditState, sha: Sha, message: string): EditSt
   const rows = [...state.rows];
   rows[index] = unchanged ? { ...row, action: "pick", message: null } : { ...row, action: "reword", message };
   return { ...state, rows };
+}
+
+/** A drag from a graph row as the list's `initialDrag` (displayed position); none once its pointer went up while the plan loaded. */
+export function takenOverDrag(
+  drag: PendingDrag | null,
+  rows: RebasePlanRow[],
+): { index: number; pointerId: number; clientX: number; clientY: number } | null {
+  const index = drag && !drag.released ? rows.findIndex((row) => row.sha === drag.sha) : -1;
+  return drag && index >= 0
+    ? { index: flipIndex(rows.length, index), pointerId: drag.pointerId, clientX: drag.clientX, clientY: drag.clientY }
+    : null;
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { PreviewState } from "../../app/conflictPreview";
 import type { GraphRow, RebaseAction, RebasePlanRow } from "../../core";
 import { editStart } from "../../app/rebasePlan/gestures";
-import { editMessage, hiddenCount, previewStep } from "./editModel";
+import { editMessage, hiddenCount, previewStep, takenOverDrag } from "./editModel";
 import { QUIET_WIP } from "./model";
 
 const wip = (): GraphRow => ({ ...QUIET_WIP, wipCount: 1 });
@@ -39,5 +39,18 @@ describe("the edit view model", () => {
     expect(reworded.rows[2]).toMatchObject({ action: "reword", message: "Änderung c\n\nNeuer Text" });
     expect(editMessage(reworded, "c", "Änderung c").rows[2]).toMatchObject({ action: "pick", message: null });
     expect(editMessage(group, "b", "egal")).toBe(group);
+  });
+});
+
+describe("a drag handed over from a graph row", () => {
+  const rows = [pick("a"), pick("b"), pick("c")];
+  const drag = { sha: "a", pointerId: 3, clientX: 10, clientY: 20 };
+  it("continues on the row's displayed position (newest on top)", () => {
+    expect(takenOverDrag(drag, rows)).toEqual({ index: 2, pointerId: 3, clientX: 10, clientY: 20 });
+  });
+  it("is dropped when the pointer went up while the plan loaded, or the row is not in the plan", () => {
+    expect(takenOverDrag({ ...drag, released: true }, rows)).toBeNull();
+    expect(takenOverDrag({ ...drag, sha: "z" }, rows)).toBeNull();
+    expect(takenOverDrag(null, rows)).toBeNull();
   });
 });
