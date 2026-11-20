@@ -216,7 +216,7 @@
     "hint": "Update the tool and try again."
   },
   "selection_conflicts_with_index": {
-    "text": "The selected lines of a file build on staged changes.",
+    "text": "The selected lines of a file sit next to or on staged changes.",
     "hint": "Commit or unstage the staged changes of that file first, then try again."
   }
 }

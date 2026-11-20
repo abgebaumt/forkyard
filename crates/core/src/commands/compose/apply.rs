@@ -16,7 +16,7 @@ use serde_json::{json, Map};
 
 use super::units::{self, ChangedFile, ComposeRead};
 use crate::app::Core;
-use crate::commands::commit::{build_message, check_committable, run_commit_on};
+use crate::commands::commit::{build_message, check_committable, hook_changed_error, run_commit_on};
 use crate::commands::diff::patch::{self, Direction};
 use crate::commands::status::read_status;
 use crate::error::{CoreError, CoreResult, ErrorCode};
@@ -221,23 +221,12 @@ fn left_alone(error: CoreError) -> CoreError {
 
 /// `hook_failed` for a hook that changed the index or files; the hooks' output goes along.
 fn hook_changed(hooks: &[HookOutput], what: &str) -> CoreError {
-    let output = hooks
-        .iter()
-        .filter(|hook| !hook.output.is_empty())
-        .map(|hook| format!("{}:\n{}", hook.hook, hook.output))
-        .collect::<Vec<_>>()
-        .join("\n\n");
-    let error = CoreError::new(
-        ErrorCode::HookFailed,
+    hook_changed_error(
+        hooks,
         format!(
             "A Git hook changed {what} while the commits were being created. The commits were taken back; HEAD and the index are as before, changes the hook made to files stay. Create the commits without hooks or let the hook run first."
         ),
-    );
-    if output.is_empty() {
-        error
-    } else {
-        error.with_git_output(output)
-    }
+    )
 }
 
 /// Fills the temporary index: HEAD as it was, complete files from the working-directory tree,
