@@ -8,7 +8,9 @@ export const AUTO_MIN_AGE_HOURS = 8;
 /** Rows shown before "Show all". */
 export const ROW_LIMIT = 8;
 
-export function digestNumbers(d: Digest): { commits: number; prs: number; files: number } {
+export type DigestNumbers = { commits: number; prs: number; files: number };
+
+export function digestNumbers(d: Digest): DigestNumbers {
   const prs = d.prs ? d.prs.changed.length + d.prs.comments.length : 0;
   return { commits: d.newCommits, prs, files: d.yourFiles.length };
 }

@@ -46,23 +46,36 @@ export async function openDigestCard(repoId: Id): Promise<void> {
   else toast({ tone: "info", title: t("digest.nothingNew", { time: formatRelative(digest?.seenAt ?? Date.now()) }) });
 }
 
+/** Fetches seen per repository while its card was open; a reload compares it to catch a fetch that ran meanwhile. */
+const fetchesWhileOpen = new Map<Id, number>();
+
 /**
  * While the card is open, a fetch with changed refs only marks the digest stale (`digestFetchedWhileOpen`).
  * Marking would then swallow news the card never showed: the card reloads instead and the user marks again.
  */
 export function digestFetchedWhileOpen(repoId: Id): void {
   if (!useAppStore.getState().digestOpen[repoId]) return;
+  fetchesWhileOpen.set(repoId, (fetchesWhileOpen.get(repoId) ?? 0) + 1);
   void queryClient.invalidateQueries({ queryKey: qk.digest(repoId), refetchType: "none" });
 }
 
-/** "Mark as seen" and ×: the seen state moves to now and the card closes – unless it is behind a fetch, then it reloads. */
-export async function markDigestSeen(repoId: Id, prMaxNumber: number | null): Promise<void> {
+/**
+ * "Mark as seen" and ×: the seen state moves to now and the card closes – unless it is behind a fetch, then it
+ * reloads ("reloaded") and the user marks again.
+ */
+export async function markDigestSeen(repoId: Id, prMaxNumber: number | null): Promise<"reloaded" | "marked"> {
   if (queryClient.getQueryState(qk.digest(repoId))?.isInvalidated) {
+    const before = fetchesWhileOpen.get(repoId);
     await runAction(t("commands.repo.digest.title"), () => freshDigest(repoId));
-    return;
+    // A fetch during the reload: its answer may predate it, so the card stays stale.
+    if (fetchesWhileOpen.get(repoId) !== before) {
+      await queryClient.invalidateQueries({ queryKey: qk.digest(repoId), refetchType: "none" });
+    }
+    return "reloaded";
   }
   // Closed first: the disabled query then ignores the `seen` event instead of loading a full digest.
   useAppStore.getState().closeDigest(repoId);
   const result = await runAction(t("digest.markSeen"), () => core.digestMarkSeen({ repoId, prMaxNumber }));
   if (!result.ok) useAppStore.getState().openDigest(repoId);
+  return "marked";
 }
