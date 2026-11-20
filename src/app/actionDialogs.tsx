@@ -1,9 +1,9 @@
 /**
- * Dialogs with several fields that actions need: push target, ignore, tag, commit message.
+ * Dialogs with several fields that actions need: push target, ignore, tag, commit message, lasso branch.
  * Each is a function returning a promise – `null` means cancelled. They are shown by the
  * DialogHost (see dialogs.tsx › showDialog).
  */
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Trans } from "react-i18next";
 import type { Id, Remote, Sha } from "../core";
 import { t } from "../i18n";
@@ -23,6 +23,9 @@ import { useReleaseNotesAvailability } from "../screens/ReleaseNotes/useAvailabi
 import { useReleaseNotesWriter } from "../screens/ReleaseNotes/useWriter";
 import { ReleaseNotesWriter } from "../screens/ReleaseNotes/Writer";
 import { refNameIssue, type RefNameIssue } from "./paths";
+import { normalizeRefName, refNameValidator } from "./actions/branches";
+import { currentBranch, headSha } from "./actions/context";
+import { shortSha } from "./format";
 
 /** Spaces turn into "-" while typing (branch and tag names). */
 const dashed = (value: string) => value.replace(/\s/g, "-");
@@ -598,4 +601,139 @@ function MessageDialog({ options, onDone }: { options: MessageDialogOptions; onD
 
 export function askMessage(options: MessageDialogOptions): Promise<MessageInput | null> {
   return showDialog<MessageInput>((done) => <MessageDialog options={options} onDone={done} />);
+}
+
+// ---------------------------------------------------------------------------
+// Lasso: move the selected lines to a new branch
+// ---------------------------------------------------------------------------
+
+export interface SelectionBranchInput {
+  branch: string;
+  summary: string;
+  description: string;
+}
+
+function SelectionBranchDialog({
+  repoId,
+  summary: initialSummary,
+  description: initialDescription,
+  lines,
+  onDone,
+}: {
+  repoId: Id;
+  summary: string;
+  description: string;
+  lines: string;
+  onDone: (value: SelectionBranchInput | null) => void;
+}) {
+  const [branch, setBranch] = useState("");
+  const [summary, setSummary] = useState(initialSummary);
+  const [description, setDescription] = useState(initialDescription);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const check = useRef(0);
+  const validate = useMemo(() => refNameValidator(repoId, "branch"), [repoId]);
+  const current = currentBranch(repoId) ?? shortSha(headSha(repoId) ?? "");
+
+  useEffect(() => {
+    const id = ++check.current;
+    const value = branch.trim();
+    if (!value) {
+      setError(null);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void validate(value).then((result) => {
+        if (id === check.current) setError(result);
+      });
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [branch, validate]);
+
+  const ready = Boolean(branch.trim()) && Boolean(summary.trim()) && !error;
+  const submit = async () => {
+    const name = branch.trim();
+    if (!ready || busy) return;
+    setBusy(true);
+    const result = await validate(name);
+    setBusy(false);
+    if (result) {
+      setError(result);
+      return;
+    }
+    onDone({ branch: name, summary: summary.trim(), description: description.replace(/\s+$/, "") });
+  };
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      void submit();
+    }
+  };
+
+  return (
+    <Dialog
+      open
+      size="md"
+      title={t("wip.lasso.branchTitle")}
+      description={t("wip.lasso.branchBody", { lines, current })}
+      onOpenChange={(open) => {
+        if (!open) onDone(null);
+      }}
+      footer={
+        <>
+          <Button onClick={() => onDone(null)}>{t("ui.cancel")}</Button>
+          <Button variant="primary" disabled={!ready} loading={busy} onClick={() => void submit()}>
+            {t("wip.lasso.branchConfirm")}
+          </Button>
+        </>
+      }
+    >
+      <form
+        className="flex flex-col gap-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+      >
+        <TextField
+          data-lasso-branch-name=""
+          autoFocus
+          label={t("ui.name")}
+          value={branch}
+          placeholder={t("ui.featureNewIdea")}
+          mono
+          autoComplete="off"
+          error={error ?? undefined}
+          onChange={(event) => setBranch(normalizeRefName(event.target.value))}
+        />
+        <TextField
+          label={t("ui.summary")}
+          value={summary}
+          autoComplete="off"
+          spellCheck
+          onChange={(event) => setSummary(event.target.value.replace(/[\r\n]+/g, " "))}
+          onKeyDown={onKeyDown}
+        />
+        <TextArea
+          label={t("ui.description")}
+          value={description}
+          rows={4}
+          spellCheck
+          onChange={(event) => setDescription(event.target.value)}
+          onKeyDown={onKeyDown}
+        />
+        <button type="submit" hidden />
+      </form>
+    </Dialog>
+  );
+}
+
+/** Branch name and message for "Move to new branch …"; the message is prefilled from the commit draft. */
+export function askSelectionBranch(options: {
+  repoId: Id;
+  summary: string;
+  description: string;
+  lines: string;
+}): Promise<SelectionBranchInput | null> {
+  return showDialog<SelectionBranchInput>((done) => <SelectionBranchDialog {...options} onDone={done} />);
 }

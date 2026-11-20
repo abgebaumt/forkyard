@@ -12,7 +12,7 @@
  * In "pick" mode (agent review) only the selection keys apply.
  */
 import { defaultRangeExtractor, useVirtualizer, type Range as VirtualRange } from "@tanstack/react-virtual";
-import { Archive, ChevronDown, ChevronRight, Copy, Minus, Plus, Trash2, Undo2, X } from "lucide-react";
+import { Archive, ChevronDown, ChevronRight, Copy, GitBranchPlus, GitCommitHorizontal, Minus, Plus, Trash2, Undo2, X } from "lucide-react";
 import {
   forwardRef,
   memo,
@@ -954,12 +954,41 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
           className="animate-pop absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-border bg-surface-raised py-1.5 pr-1.5 pl-3 text-sm shadow-pop"
         >
           {lasso ? (
-            <span className="font-medium whitespace-nowrap text-text" aria-live="polite" data-lasso-count="">
-              {t("wip.lasso.count", {
-                lines: t("wip.lasso.lines", { count: lasso.lines }),
-                files: t("wip.lasso.files", { count: lasso.files }),
-              })}
-            </span>
+            <>
+              <span className="font-medium whitespace-nowrap text-text" aria-live="polite" data-lasso-count="">
+                {t("wip.lasso.count", {
+                  lines: t("wip.lasso.lines", { count: lasso.lines }),
+                  files: t("wip.lasso.files", { count: lasso.files }),
+                })}
+              </span>
+              <IconButton
+                size="sm"
+                label={t("ui.clearSelection")}
+                shortcut="Escape"
+                icon={<X className="size-icon" aria-hidden />}
+                data-action="lasso-clear"
+                onClick={clearSelection}
+              />
+              <Button
+                size="sm"
+                disabled={busy}
+                icon={<GitBranchPlus className="size-icon" aria-hidden />}
+                data-action="lasso-branch"
+                onClick={lasso.onBranch}
+              >
+                {t("wip.lasso.toBranch")}
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={busy}
+                icon={<GitCommitHorizontal className="size-icon" aria-hidden />}
+                data-action="lasso-commit"
+                onClick={lasso.onCommit}
+              >
+                {t("wip.lasso.commitOnly")}
+              </Button>
+            </>
           ) : (
             <span className="font-medium whitespace-nowrap text-text" aria-live="polite">
               {t("diff.selection.selected", { count: selectionCount })}
@@ -969,7 +998,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
             <>
               <Button
                 size="sm"
-                variant="primary"
+                variant={lasso ? undefined : "primary"}
                 disabled={busy}
                 icon={<Plus className="size-icon" aria-hidden />}
                 onClick={() => onPatch("stage", { kind: "selection" })}
@@ -1007,13 +1036,15 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
               {t("partialStash.selection", { count: selectionCount })}
             </Button>
           ) : null}
-          <IconButton
-            size="sm"
-            label={t("ui.clearSelection")}
-            shortcut="Escape"
-            icon={<X className="size-icon" aria-hidden />}
-            onClick={clearSelection}
-          />
+          {lasso ? null : (
+            <IconButton
+              size="sm"
+              label={t("ui.clearSelection")}
+              shortcut="Escape"
+              icon={<X className="size-icon" aria-hidden />}
+              onClick={clearSelection}
+            />
+          )}
         </div>
       ) : null}
     </div>

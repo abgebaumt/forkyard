@@ -1,10 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { dropStale, keysFor, lassoCounts, lassoSelections, setLassoFile, type LassoFile } from "./lasso";
+import type { FileDiff } from "../core";
+import {
+  currentTokens,
+  dropStale,
+  guardQueries,
+  keysFor,
+  lassoCounts,
+  lassoSelections,
+  setLassoFile,
+  useLassoStore,
+  type LassoFile,
+} from "./lasso";
+import { useAppStore } from "./store";
 
 const file = (path: string, keys: string[], token = "t1"): LassoFile => ({
   token,
   keys,
   lines: keys.length,
+  forced: false,
   selection: { path, expect: token, hunks: [{ index: 0, lines: keys.map((k) => Number(k.split(":")[1])) }] },
 });
 
@@ -31,5 +44,27 @@ describe("lasso", () => {
     const result = dropStale(lasso, { "session.ts": "t2", "b.ts": "t1", "c.ts": null });
     expect(result.dropped).toEqual(["c.ts", "session.ts"]);
     expect(Object.keys(result.lasso)).toEqual(["b.ts"]);
+  });
+  it("counts nothing as changed while our own write runs", () => {
+    const text = (token: string) => ({ data: { kind: "text", token } as FileDiff, isFetching: false });
+    const unstaged = new Set(["a.ts"]);
+    expect(currentTokens(["a.ts", "b.ts"], unstaged, [text("t2"), text("t1")], true)).toEqual({});
+    expect(currentTokens(["a.ts", "b.ts"], unstaged, [text("t2"), text("t1")], false)).toEqual({ "a.ts": "t2", "b.ts": null });
+    expect(currentTokens(["a.ts"], unstaged, [{ ...text("t2"), isFetching: true }], false)).toEqual({});
+  });
+  it("compares a force-opened file against the forced diff", () => {
+    const lasso = { "big.json": { ...file("big.json", ["0:1"]), forced: true }, "a.ts": file("a.ts", ["0:1"]) };
+    const options = guardQueries("r1", lasso, ["a.ts", "big.json"]).map((query) => query.queryKey[5]);
+    expect(options).toEqual([
+      { force: false, ignoreWhitespace: false },
+      { force: true, ignoreWhitespace: false },
+    ]);
+  });
+  it("forgets a tab's lasso when the tab closes", () => {
+    useAppStore.getState().setRightCollapsed("tab-9", false);
+    useLassoStore.getState().setFile("tab-9", "a.ts", file("a.ts", ["0:1"]));
+    expect(Object.keys(useLassoStore.getState().byTab["tab-9"] ?? {})).toEqual(["a.ts"]);
+    useAppStore.getState().dropTabView("tab-9");
+    expect(useLassoStore.getState().byTab).not.toHaveProperty("tab-9");
   });
 });
