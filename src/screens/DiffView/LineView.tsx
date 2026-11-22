@@ -408,6 +408,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
   /** Review: start of the range marked with Shift+↑/↓ (row index); null = none. */
   const [mark, setMark] = useState<number | null>(null);
   const reviewRange = Boolean(review?.onComment && review.range);
+  const reviewIndexes = useMemo(() => rows.flatMap((row, index) => (row.type === "review" ? [index] : [])), [rows]);
 
   const sizes = useMemo(() => ({ hunk: readRowHeight("--gc-size-control-lg", 32), row: readRowHeight("--gc-size-row", 24), gap: 8 }), []);
   // The cursor is always on a focusable row – also after the content has changed.
@@ -436,17 +437,17 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
       return code.lineHeight;
     },
     overscan: 16,
-    // The row with the keyboard focus always stays in the DOM, even when it scrolls out of view.
+    // The row with the keyboard focus always stays in the DOM, even when it scrolls out of view. So do review
+    // rows: their cards hold typed replies and paid AI answers.
     rangeExtractor: useCallback(
       (range: VirtualRange) => {
         const indexes = defaultRangeExtractor(range);
-        if (cursorIndex < range.startIndex - range.overscan || cursorIndex > range.endIndex + range.overscan) {
-          indexes.push(cursorIndex);
-          indexes.sort((a, b) => a - b);
-        }
-        return indexes;
+        const keep = new Set(indexes);
+        const extra = [cursorIndex, ...reviewIndexes].filter((index) => !keep.has(index));
+        if (extra.length === 0) return indexes;
+        return [...indexes, ...new Set(extra)].sort((a, b) => a - b);
       },
-      [cursorIndex],
+      [cursorIndex, reviewIndexes],
     ),
   });
 

@@ -83,7 +83,9 @@
       "voteRequestChanges": "Request changes",
       "draftCount_one": "{{count}} line comment goes out with it.",
       "draftCount_other": "{{count}} line comments go out with it.",
-      "noDrafts": "No line comments: the text and the verdict go out alone."
+      "noDrafts": "No line comments: the text and the verdict go out alone.",
+      "notInDiff": "Not in these changes ({{count}})",
+      "hostDraftsUnreadable": "Drafts started in the browser could not be read; only the local ones are shown."
     },
     "groups": {
       "mine": "Mine",

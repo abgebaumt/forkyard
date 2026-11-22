@@ -29,7 +29,13 @@ import { anchorKey, canComment, commentFor, placeThreads, type Anchor, type Plac
 export type PrJump = { path: string; anchor: Anchor };
 
 /** The open comment box: where it goes, the text so far, the draft it edits. Kept by the view across tabs. */
-export type Composing = { comment: Omit<NewReviewComment, "body">; body: string; draftId?: string };
+export type Composing = {
+  comment: Omit<NewReviewComment, "body">;
+  body: string;
+  draftId?: string;
+  /** Just opened: the box takes focus once, not on every remount. */
+  focus?: boolean;
+};
 
 const NO_THREADS: ReviewThread[] = [];
 const NO_DRAFTS: ReviewDraft[] = [];
@@ -82,10 +88,12 @@ export function PrFiles({
 
   // --- Review ------------------------------------------------------------------
   const threads = usePrReviewThreads(repoId, pr.number, capabilities.reviewThreads).data ?? NO_THREADS;
-  const drafts = usePrReviewDrafts(repoId, capabilities.reviewComment ? pr.number : null).data?.drafts ?? NO_DRAFTS;
+  const draftsQuery = usePrReviewDrafts(repoId, capabilities.reviewComment ? pr.number : null);
+  const drafts = draftsQuery.data?.drafts ?? NO_DRAFTS;
   const ai = useReviewAi(repoId);
   const commentable = canComment(range.data, pr, capabilities);
   const [outdatedOpen, setOutdatedOpen] = useState(true);
+  const [foreignOpen, setForeignOpen] = useState(true);
   const path = active?.path ?? "";
   const openKey =
     composing && !composing.draftId && composing.comment.path === path
@@ -108,7 +116,7 @@ export function PrFiles({
       setJump({ path: composing.comment.path, anchor: { side: composing.comment.side, line: composing.comment.line } });
       return;
     }
-    onComposing(next);
+    onComposing({ ...next, focus: true });
   };
   const onComment = (first: LineRow, last: LineRow) => startComposing({ comment: commentFor(path, first, last, pr.headSha), body: "" });
 
@@ -122,6 +130,8 @@ export function PrFiles({
           draft={draft}
           body={composing.body}
           onBody={(body) => onComposing({ ...composing, body })}
+          autoFocus={composing.focus}
+          onFocused={() => onComposing({ ...composing, focus: false })}
           onDone={() => onComposing(null)}
         />
       </li>
@@ -174,27 +184,46 @@ export function PrFiles({
     jumpTo: jump?.path === path ? jump.anchor : null,
     renderAbove: (rows: Row[]) => {
       const here = placeThreads(rows, path, threads, drafts);
-      const listed = new Set(files.map((file) => file.path));
-      const outdated = [...here.stale, ...threads.filter((thread) => !listed.has(thread.path))];
-      const outdatedDrafts = [...here.staleDrafts, ...drafts.filter((draft) => !listed.has(draft.path))];
-      const count = outdated.length + outdatedDrafts.length;
-      if (count === 0) return null;
-      return (
-        <div data-review-outdated-block="" className="max-h-64 shrink-0 overflow-y-auto border-b border-border bg-bg px-3 py-1.5">
-          <button
-            type="button"
-            aria-expanded={outdatedOpen}
-            className="flex items-center gap-1 rounded-sm text-sm font-medium text-text-muted hover:text-text"
-            onClick={() => setOutdatedOpen((open) => !open)}
-          >
-            {outdatedOpen ? <ChevronDown className="size-icon" aria-hidden /> : <ChevronRight className="size-icon" aria-hidden />}
-            {t("pullRequest.view.review.outdated", { count })}
-          </button>
-          {outdatedOpen ? <ul className="mt-1.5 mb-1 flex max-w-200 flex-col gap-2">{cards(outdated, outdatedDrafts)}</ul> : null}
-        </div>
+      return block(
+        "outdated",
+        t("pullRequest.view.review.outdated", { count: here.stale.length + here.staleDrafts.length }),
+        outdatedOpen,
+        setOutdatedOpen,
+        here.stale,
+        here.staleDrafts,
       );
     },
   };
+
+  /** A collapsible list of cards above the diff; nothing when empty. */
+  function block(
+    name: string,
+    title: string,
+    open: boolean,
+    setOpen: (open: boolean) => void,
+    list: ReviewThread[],
+    draftList: ReviewDraft[],
+  ) {
+    if (list.length + draftList.length === 0) return null;
+    return (
+      <div data-review-block={name} className="max-h-64 shrink-0 overflow-y-auto border-b border-border bg-bg px-3 py-1.5">
+        <button
+          type="button"
+          aria-expanded={open}
+          className="flex items-center gap-1 rounded-sm text-sm font-medium text-text-muted hover:text-text"
+          onClick={() => setOpen(!open)}
+        >
+          {open ? <ChevronDown className="size-icon" aria-hidden /> : <ChevronRight className="size-icon" aria-hidden />}
+          {title}
+        </button>
+        {open ? <ul className="mt-1.5 mb-1 flex max-w-200 flex-col gap-2">{cards(list, draftList)}</ul> : null}
+      </div>
+    );
+  }
+  // Threads and drafts on files the pull request no longer changes: once for the whole tab, not per file.
+  const listed = new Set(files.map((file) => file.path));
+  const foreign = details.data ? threads.filter((thread) => !listed.has(thread.path)) : NO_THREADS;
+  const foreignDrafts = details.data ? drafts.filter((draft) => !listed.has(draft.path)) : NO_DRAFTS;
 
   // After "Fetch" or "Check out" the commits may be there: look again.
   useEffect(() => {
@@ -306,6 +335,19 @@ export function PrFiles({
               })}
         </span>
       </p>
+      {draftsQuery.data?.hostUnreadable ? (
+        <p data-review-host-unreadable="" className="shrink-0 border-b border-border bg-surface px-3 py-1 text-sm text-text-muted">
+          {t("pullRequest.view.review.hostDraftsUnreadable")}
+        </p>
+      ) : null}
+      {block(
+        "not-in-diff",
+        t("pullRequest.view.review.notInDiff", { count: foreign.length + foreignDrafts.length }),
+        foreignOpen,
+        setForeignOpen,
+        foreign,
+        foreignDrafts,
+      )}
       {capabilities.reviewComment && !commentable ? (
         <p
           data-review-fetch-hint=""

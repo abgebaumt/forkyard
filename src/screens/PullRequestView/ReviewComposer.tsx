@@ -23,6 +23,8 @@ export function ReviewComposer({
   draft,
   body,
   onBody,
+  autoFocus = false,
+  onFocused,
   onDone,
 }: {
   repoId: Id;
@@ -33,6 +35,10 @@ export function ReviewComposer({
   draft?: ReviewDraft;
   body: string;
   onBody: (body: string) => void;
+  /** Only when the box has just been opened: not again when it remounts (scrolling back, switching tabs). */
+  autoFocus?: boolean;
+  /** The box has taken focus once. */
+  onFocused?: () => void;
   onDone: () => void;
 }) {
   const [preview, setPreview] = useState(false);
@@ -81,7 +87,8 @@ export function ReviewComposer({
           rows={3}
           value={body}
           // Opened by C or a click on a line number; never over a dialog.
-          autoFocus={viewMayTakeFocus()}
+          autoFocus={autoFocus && viewMayTakeFocus()}
+          onFocus={autoFocus ? onFocused : undefined}
           onChange={(event) => onBody(event.target.value)}
         />
       )}
