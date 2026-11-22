@@ -255,7 +255,7 @@ pub async fn pr_review_submit(
         if outcome.failed.is_empty() {
             let submission = ReviewSubmission { vote, body: &body, commit: &commit, drafts: &[] };
             match hoster.review_submit(core, &api, &repo, number, submission).await {
-                Ok(done) => outcome.submitted = done.submitted,
+                Ok(done) => (outcome.submitted, outcome.published, outcome.error) = (done.submitted, done.published, done.error),
                 Err(error) => outcome.error = Some(error),
             }
         }

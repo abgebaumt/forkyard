@@ -11,7 +11,8 @@ use serde_json::{json, Value};
 
 use super::{
     already_exists, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, pr_not_found, review_summary,
-    summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, Paging, RepoFacts, RepoPath, MAX_ITEMS,
+    summarize_checks, text, text_then_vote, two_levels, Api, Host, HostFuture, NewPr, Paging, RepoFacts, RepoPath, ReviewSubmission,
+    ReviewSubmitOutcome, MAX_ITEMS,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
@@ -19,8 +20,8 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
     CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage,
-    IssueState, IssueSummary, PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState,
-    PrSummary, ReviewReply, ReviewSide, ReviewThread,
+    IssueState, IssueSummary, NewReviewComment, PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState,
+    PrReviewer, PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread, ReviewVote,
 };
 
 pub const BITBUCKET_WEB: &str = "https://bitbucket.org";
@@ -597,7 +598,7 @@ pub async fn review_threads(core: &Core, api: &Api, repo: &RepoPath, pr: u64) ->
             side,
             commit: None,
             resolved: top.get("resolution").is_some_and(Value::is_object),
-            resolve_id: None,
+            resolve_id: Some(id.to_string()),
             outdated: flag(inline, "outdated"),
             comments,
         });
@@ -620,6 +621,56 @@ pub async fn review_reply(core: &Core, api: &Api, repo: &RepoPath, pr: u64, thre
         .map_err(|e| if e.code == ErrorCode::HostNotFound { missing() } else { e })?
         .json()?;
     Ok(ReviewReply { comment: comment(&value), quoted: false })
+}
+
+/// `POST …/pullrequests/{id}/comments` with `inline`: `to` is the line on the new side, `from` on the old one.
+/// Bitbucket takes single lines only (no range).
+pub async fn review_comment_create(core: &Core, api: &Api, repo: &RepoPath, pr: u64, comment: &NewReviewComment) -> CoreResult<()> {
+    let key = if comment.side == ReviewSide::Old { "from" } else { "to" };
+    let body = json!({ "content": { "raw": comment.body }, "inline": { "path": comment.path, key: comment.line } });
+    api.send_json(core, Method::Post, &format!("{}/comments", pr_path(repo, pr)), &body)
+        .await
+        .map_err(|e| not_found_as(e, pr_not_found(repo, pr)))?;
+    Ok(())
+}
+
+/// `POST …/comments/{comment_id}/resolve` resolves, `DELETE` on the same path reopens.
+pub async fn review_thread_set_resolved(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    pr: u64,
+    resolve_id: &str,
+    resolved: bool,
+) -> CoreResult<()> {
+    let path = format!("{}/comments/{}/resolve", pr_path(repo, pr), encode(resolve_id));
+    let sent = if resolved { api.send_json(core, Method::Post, &path, &json!({})).await } else { api.delete(core, &path).await };
+    sent.map_err(|e| not_found_as(e, || "The review thread does not exist (anymore). Reload the pull request.".to_string()))?;
+    Ok(())
+}
+
+/// The text as an ordinary comment, then `POST …/approve` or `…/request-changes`; a comment review has no vote.
+pub async fn review_submit(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    pr: u64,
+    submission: ReviewSubmission<'_>,
+) -> CoreResult<ReviewSubmitOutcome> {
+    let vote = match submission.vote {
+        ReviewVote::Approve => Some("approve"),
+        ReviewVote::RequestChanges => Some("request-changes"),
+        ReviewVote::Comment => None,
+    };
+    let send_vote = async {
+        if let Some(vote) = vote {
+            api.send_json(core, Method::Post, &format!("{}/{vote}", pr_path(repo, pr)), &json!({}))
+                .await
+                .map_err(|e| not_found_as(e, pr_not_found(repo, pr)))?;
+        }
+        Ok(())
+    };
+    text_then_vote(&BitbucketHost, core, api, repo, pr, &submission, send_vote).await
 }
 
 // ---------------------------------------------------------------------------
@@ -687,12 +738,12 @@ impl Host for BitbucketHost {
             pr_labels: false,
             fork_checkout: false,
             releases: false,
-            review_comment: false,
+            review_comment: true,
             review_comment_range: false,
-            review_resolve: false,
+            review_resolve: true,
             review_submit_batch: false,
-            review_approve: false,
-            review_request_changes: false,
+            review_approve: true,
+            review_request_changes: true,
             review_vote_own_pr: false,
             review_threads: true,
             review_reply: true,
@@ -778,5 +829,36 @@ impl Host for BitbucketHost {
         body: &'a str,
     ) -> HostFuture<'a, ReviewReply> {
         Box::pin(review_reply(core, api, repo, number, thread_id, body))
+    }
+    fn review_comment_create<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        comment: &'a NewReviewComment,
+    ) -> HostFuture<'a, ()> {
+        Box::pin(review_comment_create(core, api, repo, number, comment))
+    }
+    fn review_thread_set_resolved<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        resolve_id: &'a str,
+        resolved: bool,
+    ) -> HostFuture<'a, ()> {
+        Box::pin(review_thread_set_resolved(core, api, repo, number, resolve_id, resolved))
+    }
+    fn review_submit<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        submission: ReviewSubmission<'a>,
+    ) -> HostFuture<'a, ReviewSubmitOutcome> {
+        Box::pin(review_submit(core, api, repo, number, submission))
     }
 }

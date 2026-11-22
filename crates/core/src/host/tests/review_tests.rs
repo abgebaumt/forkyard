@@ -121,16 +121,22 @@ async fn pull_request_zero_is_refused() {
 
 #[tokio::test]
 async fn without_the_capability_nothing_is_sent() {
-    // shortcut: Bitbucket has none of these yet; Task 6 gives it comments and votes, then pick per flag.
-    let fx = Fixture::new(HostKind::Bitbucket).await;
-    for err in [
-        pr_review_comment_create(&fx.tc, fx.id(), 9, comment("a.rs", 3), None).await.unwrap_err(),
-        pr_review_thread_resolve(&fx.tc, fx.id(), 9, "PRRT_kwDOAbc".into(), true, None).await.unwrap_err(),
-        pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, String::new(), "a".repeat(40), None).await.unwrap_err(),
-    ] {
-        assert_eq!(err.code, ErrorCode::HostUnsupported);
+    // Every host comments on lines and approves; the other flags each have a host without them.
+    let gitea = Fixture::new(HostKind::Gitea).await;
+    let error = pr_review_thread_resolve(&gitea.tc, gitea.id(), 9, "91".into(), true, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostUnsupported, "review_resolve");
+    let gitlab = Fixture::new(HostKind::Gitlab).await;
+    let error = pr_review_submit(&gitlab.tc, gitlab.id(), 9, ReviewVote::RequestChanges, "Bitte ändern.".into(), MOCK_GL_HEAD.into(), None)
+        .await
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostUnsupported, "review_request_changes");
+    let bitbucket = Fixture::new(HostKind::Bitbucket).await;
+    let range = NewReviewComment { start_line: Some(2), ..comment("a.rs", 5) };
+    let error = pr_review_comment_create(&bitbucket.tc, bitbucket.id(), 9, range, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::NotAllowed, "review_comment_range");
+    for fx in [&gitea, &gitlab, &bitbucket] {
+        assert!(fx.server.requests().is_empty());
     }
-    assert!(fx.server.requests().is_empty());
 }
 
 #[test]
@@ -289,7 +295,8 @@ fn review_capabilities_match_the_matrix() {
     assert_eq!(row(HostKind::Github), [true, true, true, true, true, true, false]);
     assert_eq!(row(HostKind::Gitlab), [true, false, true, true, true, false, false]);
     assert_eq!(row(HostKind::Gitea), [true, false, false, true, true, true, false]);
-    // Task 6 appends its rows here, exactly as in the plan's matrix.
+    assert_eq!(row(HostKind::Bitbucket), [true, false, true, false, true, true, false]);
+    assert_eq!(row(HostKind::AzureDevops), [true, true, true, false, true, true, true]);
 }
 
 fn gl_comment(path: &str, line: u32) -> NewReviewComment {
@@ -467,17 +474,6 @@ async fn gitlab_refuses_an_approval_it_would_not_take_before_anything_is_sent() 
 }
 
 #[tokio::test]
-async fn gitlab_request_changes_is_unsupported_without_a_request() {
-    let fx = Fixture::new(HostKind::Gitlab).await;
-    let error =
-        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::RequestChanges, "Bitte ändern.".into(), MOCK_GL_HEAD.into(), None)
-            .await
-            .unwrap_err();
-    assert_eq!(error.code, ErrorCode::HostUnsupported);
-    assert!(fx.server.requests().is_empty());
-}
-
-#[tokio::test]
 async fn gitlab_discussions_resolve_with_put() {
     let fx = Fixture::new(HostKind::Gitlab).await;
     let threads = cmd::pr_review_threads(&fx.tc, fx.id(), 9, None).await.unwrap();
@@ -559,10 +555,145 @@ async fn gitea_draft_from_an_older_head_is_not_sent() {
     assert_eq!(gt_writes(&fx), 0);
 }
 
+/// Method and path (after the pull request's `pullrequests/`) of every request that changes something, in order.
+fn pr_writes(fx: &Fixture) -> Vec<String> {
+    fx.server
+        .requests()
+        .iter()
+        .filter(|r| r.method != "GET")
+        .map(|r| format!("{} {}", r.method, r.path().split_once("/pullrequests/").map_or("", |(_, rest)| rest)))
+        .collect()
+}
+
 #[tokio::test]
-async fn gitea_has_no_resolve() {
-    let fx = Fixture::new(HostKind::Gitea).await;
-    let error = pr_review_thread_resolve(&fx.tc, fx.id(), 9, "91".into(), true, None).await.unwrap_err();
-    assert_eq!(error.code, ErrorCode::HostUnsupported);
-    assert!(fx.server.requests().is_empty());
+async fn a_failing_draft_keeps_the_rest_and_withholds_the_vote() {
+    let fx = Fixture::new(HostKind::Bitbucket).await;
+    fx.state.lock().fail_comment_body = Some("kaputt");
+    save(&fx, comment("a.rs", 1)).await;
+    save(&fx, NewReviewComment { body: "kaputt".into(), ..comment("b.rs", 2) }).await;
+    save(&fx, comment("c.rs", 3)).await;
+    let result = cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, String::new(), "a".repeat(40), None).await.unwrap();
+    assert_eq!((result.submitted, result.sent), (false, 2));
+    assert_eq!(result.failed.iter().map(|d| (d.path.as_str(), d.error.is_some())).collect::<Vec<_>>(), vec![("b.rs", true)]);
+    assert!(fx.sent("POST", "/pullrequests/9/approve").is_empty(), "no vote");
+    let left = cmd_review::pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts;
+    assert_eq!(left.len(), 1);
+}
+
+#[tokio::test]
+async fn a_failing_vote_after_all_drafts_drops_them_and_says_what_went_out() {
+    let fx = Fixture::new(HostKind::Bitbucket).await;
+    fx.state.lock().bb_vote_fails = true;
+    save(&fx, comment("a.rs", 3)).await;
+    save(&fx, comment("c.rs", 9)).await;
+    let error =
+        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, String::new(), "a".repeat(40), None).await.unwrap_err();
+    assert!(error.message.starts_with("The 2 line comments were sent; the review itself was not:"), "{}", error.message);
+    assert!(error.message.ends_with("Send the review again."), "{}", error.message);
+    assert_eq!(pr_writes(&fx), ["POST 9/comments", "POST 9/comments", "POST 9/approve"]);
+    assert!(cmd_review::pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts.is_empty(), "sent drafts are gone locally");
+    // With a text, a retry would post it twice: the error says the text is there.
+    let error =
+        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::RequestChanges, "Bitte anpassen.".into(), "a".repeat(40), None)
+            .await
+            .unwrap_err();
+    assert!(error.message.starts_with("The review text was posted on Bitbucket; only the vote failed:"), "{}", error.message);
+    assert!(error.message.ends_with("Request changes on the Bitbucket website; the text is already there."), "{}", error.message);
+}
+
+#[tokio::test]
+async fn bitbucket_inline_comments_use_to_and_from() {
+    let fx = Fixture::new(HostKind::Bitbucket).await;
+    cmd_review::pr_review_comment_create(&fx.tc, fx.id(), 9, comment("src/größe.rs", 42), None).await.unwrap();
+    let old = NewReviewComment { side: ReviewSide::Old, ..comment("src/größe.rs", 7) };
+    cmd_review::pr_review_comment_create(&fx.tc, fx.id(), 9, old, None).await.unwrap();
+    let sent: Vec<_> = fx.sent("POST", "/pullrequests/9/comments").iter().map(|r| r.json()).collect();
+    assert_eq!(
+        sent,
+        [
+            json!({ "content": { "raw": "Hier fehlt die Prüfung auf leer." }, "inline": { "path": "src/größe.rs", "to": 42 } }),
+            json!({ "content": { "raw": "Hier fehlt die Prüfung auf leer." }, "inline": { "path": "src/größe.rs", "from": 7 } }),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn bitbucket_request_changes_posts_body_then_vote() {
+    let fx = Fixture::new(HostKind::Bitbucket).await;
+    let result =
+        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::RequestChanges, "Bitte anpassen.".into(), "a".repeat(40), None)
+            .await
+            .unwrap();
+    assert!(result.submitted);
+    assert_eq!(pr_writes(&fx), ["POST 9/comments", "POST 9/request-changes"]);
+    assert_eq!(fx.sent("POST", "/pullrequests/9/comments")[0].json(), json!({ "content": { "raw": "Bitte anpassen." } }));
+    fx.server.clear();
+    let result = cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, String::new(), "a".repeat(40), None).await.unwrap();
+    assert!(result.submitted);
+    assert_eq!(pr_writes(&fx), ["POST 9/approve"], "no empty comment");
+}
+
+#[tokio::test]
+async fn bitbucket_resolve_and_reopen() {
+    let fx = Fixture::new(HostKind::Bitbucket).await;
+    let threads = cmd::pr_review_threads(&fx.tc, fx.id(), 9, None).await.unwrap();
+    let id = threads[0].resolve_id.clone().expect("top comment id");
+    assert_eq!(id, "901");
+    cmd_review::pr_review_thread_resolve(&fx.tc, fx.id(), 9, id.clone(), true, None).await.unwrap();
+    cmd_review::pr_review_thread_resolve(&fx.tc, fx.id(), 9, id, false, None).await.unwrap();
+    assert_eq!(pr_writes(&fx), ["POST 9/comments/901/resolve", "DELETE 9/comments/901/resolve"]);
+    let error = cmd_review::pr_review_thread_resolve(&fx.tc, fx.id(), 9, "555".into(), true, None).await.unwrap_err();
+    assert_eq!(
+        (error.code, error.message.as_str()),
+        (ErrorCode::HostNotFound, "The review thread does not exist (anymore). Reload the pull request.")
+    );
+}
+
+#[tokio::test]
+async fn azure_range_comment_uses_the_thread_context() {
+    let fx = Fixture::new(HostKind::AzureDevops).await;
+    let c = NewReviewComment { start_line: Some(40), ..comment("src/größe.rs", 42) };
+    cmd_review::pr_review_comment_create(&fx.tc, fx.id(), 9, c, None).await.unwrap();
+    let old = NewReviewComment { side: ReviewSide::Old, ..comment("src/alt.rs", 12) };
+    cmd_review::pr_review_comment_create(&fx.tc, fx.id(), 9, old, None).await.unwrap();
+    let sent: Vec<_> = fx.sent("POST", "/pullrequests/9/threads").iter().map(|r| r.json()).collect();
+    assert_eq!(
+        sent[0],
+        json!({ "comments": [{ "parentCommentId": 0, "content": "Hier fehlt die Prüfung auf leer.", "commentType": 1 }], "status": "active",
+        "threadContext": { "filePath": "/src/größe.rs", "rightFileStart": { "line": 40, "offset": 1 }, "rightFileEnd": { "line": 42, "offset": 1 } } })
+    );
+    assert_eq!(
+        sent[1]["threadContext"],
+        json!({ "filePath": "/src/alt.rs", "leftFileStart": { "line": 12, "offset": 1 }, "leftFileEnd": { "line": 12, "offset": 1 } })
+    );
+}
+
+#[tokio::test]
+async fn azure_votes_are_10_and_minus_5_for_the_signed_in_user() {
+    let fx = Fixture::new(HostKind::AzureDevops).await;
+    let submit = |vote, body: &str| cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, vote, body.into(), "a".repeat(40), None);
+    assert!(submit(ReviewVote::Approve, "").await.unwrap().submitted);
+    assert_eq!(pr_writes(&fx), ["PUT 9/reviewers/6f1c0de2"]);
+    assert_eq!(fx.sent("PUT", "/pullrequests/9/reviewers/6f1c0de2")[0].json(), json!({ "vote": 10 }));
+    fx.server.clear();
+    assert!(submit(ReviewVote::RequestChanges, "Bitte anpassen.").await.unwrap().submitted);
+    assert_eq!(pr_writes(&fx), ["POST 9/threads", "PUT 9/reviewers/6f1c0de2"]);
+    let general = fx.sent("POST", "/pullrequests/9/threads")[0].json();
+    assert_eq!((general["comments"][0]["content"].clone(), general.get("threadContext")), (json!("Bitte anpassen."), None));
+    assert_eq!(fx.sent("PUT", "/pullrequests/9/reviewers/6f1c0de2")[0].json(), json!({ "vote": -5 }));
+    fx.server.clear();
+    assert!(submit(ReviewVote::Comment, "Nur eine Anmerkung.").await.unwrap().submitted);
+    assert_eq!(pr_writes(&fx), ["POST 9/threads"], "no vote");
+}
+
+#[tokio::test]
+async fn azure_threads_resolve_as_fixed_and_reopen_as_active() {
+    let fx = Fixture::new(HostKind::AzureDevops).await;
+    let threads = cmd::pr_review_threads(&fx.tc, fx.id(), 9, None).await.unwrap();
+    let id = threads[0].resolve_id.clone().expect("thread id");
+    assert_eq!(id, "91");
+    cmd_review::pr_review_thread_resolve(&fx.tc, fx.id(), 9, id.clone(), true, None).await.unwrap();
+    cmd_review::pr_review_thread_resolve(&fx.tc, fx.id(), 9, id, false, None).await.unwrap();
+    let sent: Vec<_> = fx.sent("PATCH", "/pullrequests/9/threads/91").iter().map(|r| r.json()).collect();
+    assert_eq!(sent, [json!({ "status": "fixed" }), json!({ "status": "active" })]);
 }

@@ -12,7 +12,8 @@ use serde_json::{json, Value};
 
 use super::{
     already_exists, detect, first_line, flag, host_user, list, missing_repo, not_found_as, number, opt_text, parallel, pr_not_found,
-    review_summary, summarize_checks, text, Api, Host, HostFuture, NewPr, Paging, RepoFacts, RepoPath,
+    review_summary, summarize_checks, text, text_then_vote, Api, Host, HostFuture, NewPr, Paging, RepoFacts, RepoPath, ReviewSubmission,
+    ReviewSubmitOutcome,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
@@ -20,8 +21,8 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
     CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage,
-    IssueState, IssueSummary, PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState,
-    PrSummary, ReviewReply, ReviewSide, ReviewThread,
+    IssueState, IssueSummary, NewReviewComment, PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState,
+    PrReviewer, PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread, ReviewVote,
 };
 
 pub const AZURE_WEB: &str = "https://dev.azure.com";
@@ -359,7 +360,7 @@ fn review_thread(thread: &Value) -> Option<ReviewThread> {
         side,
         commit: None,
         resolved: RESOLVED.contains(&text(thread, "status").as_str()),
-        resolve_id: None,
+        resolve_id: Some(id.to_string()),
         outdated: false,
         comments,
     })
@@ -408,6 +409,74 @@ pub async fn review_reply(core: &Core, api: &Api, repo: &RepoPath, pr: u64, thre
         },
         quoted: false,
     })
+}
+
+/// A new thread on a file position: `rightFile…` on the new side, `leftFile…` on the old one, from the first
+/// to the last line of the range.
+pub async fn review_comment_create(core: &Core, api: &Api, repo: &RepoPath, pr: u64, comment: &NewReviewComment) -> CoreResult<()> {
+    let (start, end) = if comment.side == ReviewSide::Old { ("leftFileStart", "leftFileEnd") } else { ("rightFileStart", "rightFileEnd") };
+    let first = comment.start_line.unwrap_or(comment.line);
+    let body = json!({
+        "comments": [{ "parentCommentId": 0, "content": comment.body, "commentType": 1 }],
+        "status": "active",
+        "threadContext": { "filePath": format!("/{}", comment.path), start: { "line": first, "offset": 1 }, end: { "line": comment.line, "offset": 1 } },
+    });
+    api.send_json(core, Method::Post, &v(&format!("{}/threads", pr_path(repo, pr)), &[]), &body)
+        .await
+        .map_err(|e| not_found_as(e, pr_not_found(repo, pr)))?;
+    Ok(())
+}
+
+/// `PATCH …/threads/{threadId}` with status "fixed" (resolved) or "active" (reopened).
+pub async fn review_thread_set_resolved(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    pr: u64,
+    resolve_id: &str,
+    resolved: bool,
+) -> CoreResult<()> {
+    let path = v(&format!("{}/threads/{}", pr_path(repo, pr), encode(resolve_id)), &[]);
+    api.send_json(core, Method::Patch, &path, &json!({ "status": if resolved { "fixed" } else { "active" } }))
+        .await
+        .map_err(|e| not_found_as(e, || "The review thread does not exist (anymore). Reload the pull request.".to_string()))?;
+    Ok(())
+}
+
+/// The signed-in user's identity ID, `GET {org}/_apis/connectionData` → `authenticatedUser.id`.
+async fn my_id(core: &Core, api: &Api) -> CoreResult<String> {
+    let data = api.get_json(core, "/_apis/connectionData").await?;
+    data.get("authenticatedUser")
+        .and_then(|me| opt_text(me, "id"))
+        .ok_or_else(|| CoreError::unknown(format!("The response from {LABEL} could not be read (no user).")))
+}
+
+/// The user's identity first (before anything is written), then the text as a general thread and the vote as
+/// `PUT …/reviewers/{myId}`: 10 approves, -5 waits for the author; a comment review sends no vote.
+pub async fn review_submit(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    pr: u64,
+    submission: ReviewSubmission<'_>,
+) -> CoreResult<ReviewSubmitOutcome> {
+    let vote = match submission.vote {
+        ReviewVote::Approve => Some(10),
+        ReviewVote::RequestChanges => Some(-5),
+        ReviewVote::Comment => None,
+    };
+    let me = match vote {
+        Some(_) => Some(my_id(core, api).await?),
+        None => None,
+    };
+    let send_vote = async {
+        if let (Some(vote), Some(me)) = (vote, &me) {
+            let path = v(&format!("{}/reviewers/{}", pr_path(repo, pr), encode(me)), &[]);
+            api.send_json(core, Method::Put, &path, &json!({ "vote": vote })).await.map_err(|e| not_found_as(e, pr_not_found(repo, pr)))?;
+        }
+        Ok(())
+    };
+    text_then_vote(&AzureHost, core, api, repo, pr, &submission, send_vote).await
 }
 
 // ---------------------------------------------------------------------------
@@ -758,13 +827,13 @@ impl Host for AzureHost {
             pr_labels: true,
             fork_checkout: false,
             releases: false,
-            review_comment: false,
-            review_comment_range: false,
-            review_resolve: false,
+            review_comment: true,
+            review_comment_range: true,
+            review_resolve: true,
             review_submit_batch: false,
-            review_approve: false,
-            review_request_changes: false,
-            review_vote_own_pr: false,
+            review_approve: true,
+            review_request_changes: true,
+            review_vote_own_pr: true,
             review_threads: true,
             review_reply: true,
             review_reply_quotes: false,
@@ -863,5 +932,36 @@ impl Host for AzureHost {
         body: &'a str,
     ) -> HostFuture<'a, ReviewReply> {
         Box::pin(review_reply(core, api, repo, number, thread_id, body))
+    }
+    fn review_comment_create<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        comment: &'a NewReviewComment,
+    ) -> HostFuture<'a, ()> {
+        Box::pin(review_comment_create(core, api, repo, number, comment))
+    }
+    fn review_thread_set_resolved<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        resolve_id: &'a str,
+        resolved: bool,
+    ) -> HostFuture<'a, ()> {
+        Box::pin(review_thread_set_resolved(core, api, repo, number, resolve_id, resolved))
+    }
+    fn review_submit<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        submission: ReviewSubmission<'a>,
+    ) -> HostFuture<'a, ReviewSubmitOutcome> {
+        Box::pin(review_submit(core, api, repo, number, submission))
     }
 }
