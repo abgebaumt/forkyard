@@ -8,6 +8,9 @@
  * the network, links only in the browser after a prompt.
  *
  * Keys: Esc closes; in the tab bar the arrow keys switch; Ctrl+Enter sends the comment.
+ *
+ * Review (8.3): "Submit review (n)" in the actions sends text, vote and drafts; "Show in diff" on a
+ * thread opens the Files tab at its line.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -21,6 +24,7 @@ import {
   GitPullRequestClosed,
   KeyRound,
   MessageSquarePlus,
+  MessageSquareText,
   Plug,
   RefreshCw,
   RotateCcw,
@@ -28,7 +32,17 @@ import {
   X,
 } from "lucide-react";
 import { Tabs } from "radix-ui";
-import { core, CoreError, type Id, type HostCapabilities, type HostComment, type PrCommit, type PrDetails } from "../../core";
+import {
+  core,
+  CoreError,
+  type Id,
+  type HostCapabilities,
+  type HostComment,
+  type HostRepoInfo,
+  type PrCommit,
+  type PrDetails,
+  type ReviewThread,
+} from "../../core";
 import { openInBrowser, openIntegrations } from "../../app/actions/hosts";
 import { defaultCapabilities, describeHostError, hostKindLabels, type HostErrorText } from "../../app/hosts";
 import { checkoutPr, closePr, commentOnPr, mergeBlock, prBusyKeys, refreshPullRequests, reopenPr } from "../../app/actions/pullrequests";
@@ -36,7 +50,7 @@ import { busyKeys } from "../../app/actions/keys";
 import { fetchAll } from "../../app/actions/sync";
 import { shortSha } from "../../app/format";
 import { keyBelongsToView } from "../../app/viewFocus";
-import { useHostRepo, usePullRequest } from "../../app/queries";
+import { useHostRepo, usePrReviewDrafts, usePullRequest } from "../../app/queries";
 import { runAction } from "../../app/run";
 import { useAppStore, useBusy } from "../../app/store";
 import { Button, IconButton } from "../../ui/Button";
@@ -47,7 +61,9 @@ import { cn } from "../../ui/cn";
 import { t } from "../../i18n";
 import { isPlainEscape } from "../../components/ViewParts";
 import { openConnectDialog } from "../Hosts";
-import { PrFiles } from "./Files";
+import { PrFiles, type Composing, type PrJump } from "./Files";
+import { isOwnPr, reviewChoices, submitLabel } from "./reviewPlacement";
+import { openSubmitReview } from "./SubmitReviewDialog";
 import { SafeMarkdown } from "../../components/markdown/SafeMarkdown";
 import { openMergeDialog } from "./MergeDialog";
 import { ReviewThreads } from "./ReviewThreads";
@@ -218,12 +234,14 @@ function Conversation({
   pr,
   capabilities,
   hostName,
+  onJump,
 }: {
   repoId: Id;
   tabId: Id;
   pr: PrDetails;
   capabilities: HostCapabilities;
   hostName: string;
+  onJump: (thread: ReviewThread) => void;
 }) {
   const author = userName(pr.author);
   return (
@@ -298,7 +316,7 @@ function Conversation({
         </section>
       </div>
 
-      <ReviewThreads repoId={repoId} tabId={tabId} pr={pr} capabilities={capabilities} hostName={hostName} />
+      <ReviewThreads repoId={repoId} tabId={tabId} pr={pr} capabilities={capabilities} hostName={hostName} onJump={onJump} />
 
       <section aria-label={t("ui.comments")} data-pr-comments="">
         <BlockTitle count={pr.comments.length || undefined}>{t("ui.comments")}</BlockTitle>
@@ -391,6 +409,7 @@ function Body({
   pr,
   capabilities,
   hostName,
+  hostInfo,
   stale,
 }: {
   repoId: Id;
@@ -398,9 +417,25 @@ function Body({
   pr: PrDetails;
   capabilities: HostCapabilities;
   hostName: string;
+  hostInfo: HostRepoInfo | null;
   stale: HostErrorText | null;
 }) {
   const [tab, setTab] = useState<TabId>("conversation");
+  const [jumpTo, setJumpTo] = useState<PrJump | null>(null);
+  const [composing, setComposing] = useState<Composing | null>(null);
+  const [announce, setAnnounce] = useState("");
+  const canReview = capabilities.reviewComment && pr.state === "open";
+  const drafts = usePrReviewDrafts(repoId, canReview ? pr.number : null).data?.drafts ?? [];
+  const submit = async () => {
+    setAnnounce("");
+    const vote = await openSubmitReview(repoId, pr, reviewChoices(capabilities, isOwnPr(hostInfo, pr)), drafts.length);
+    if (vote) setAnnounce(t("pullRequest.view.review.submitted"));
+  };
+  const jump = (thread: ReviewThread) => {
+    if (thread.line === null) return;
+    setJumpTo({ path: thread.path, anchor: { side: thread.side, line: thread.line } });
+    setTab("files");
+  };
   const writing = useBusy(prBusyKeys.write(repoId, pr.number));
   const checkingOut = useBusy(busyKeys.history(repoId));
   const blocked = mergeBlock(pr);
@@ -493,6 +528,20 @@ function Body({
               {t("ui.reopen")}
             </Button>
           ) : null}
+          {canReview ? (
+            <Button
+              size="sm"
+              data-review-submit-open=""
+              disabled={writing}
+              icon={<MessageSquareText className="size-3.5" aria-hidden />}
+              onClick={() => void submit()}
+            >
+              {submitLabel(drafts)}
+            </Button>
+          ) : null}
+          <span aria-live="polite" data-review-announce="" className="sr-only">
+            {announce}
+          </span>
         </div>
         {open && blocked ? (
           <p id="s24-merge-blocked" data-merge-blocked="" className="mt-1.5 flex items-start gap-1.5 text-sm text-text-muted">
@@ -525,7 +574,15 @@ function Body({
         </div>
       ) : null}
 
-      <Tabs.Root value={tab} onValueChange={(value) => setTab(value as TabId)} className="flex min-h-0 flex-1 flex-col">
+      <Tabs.Root
+        value={tab}
+        onValueChange={(value) => {
+          setTab(value as TabId);
+          // A jump is consumed once: coming back to the files later does not jump again.
+          setJumpTo(null);
+        }}
+        className="flex min-h-0 flex-1 flex-col"
+      >
         <Tabs.List
           ref={tabList}
           aria-label={t("pullRequest.view.tabs")}
@@ -552,13 +609,22 @@ function Body({
           ))}
         </Tabs.List>
         <Tabs.Content value="conversation" tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto outline-none">
-          <Conversation repoId={repoId} tabId={tabId} pr={pr} capabilities={capabilities} hostName={hostName} />
+          <Conversation repoId={repoId} tabId={tabId} pr={pr} capabilities={capabilities} hostName={hostName} onJump={jump} />
         </Tabs.Content>
         <Tabs.Content value="commits" tabIndex={-1} className="@container min-h-0 flex-1 overflow-y-auto outline-none">
           <Commits repoId={repoId} tabId={tabId} pr={pr} />
         </Tabs.Content>
         <Tabs.Content value="files" tabIndex={-1} className="min-h-0 flex-1 overflow-hidden outline-none">
-          <PrFiles repoId={repoId} tabId={tabId} pr={pr} />
+          <PrFiles
+            repoId={repoId}
+            tabId={tabId}
+            pr={pr}
+            capabilities={capabilities}
+            hostName={hostName}
+            jumpTo={jumpTo}
+            composing={composing}
+            onComposing={setComposing}
+          />
         </Tabs.Content>
       </Tabs.Root>
     </>
@@ -601,6 +667,7 @@ export function PullRequestView({ repoId, tabId, number }: PullRequestViewProps)
         pr={pr}
         capabilities={hostRepo.data?.capabilities ?? defaultCapabilities[hostKind]}
         hostName={hostKindLabels[hostKind]}
+        hostInfo={hostRepo.data ?? null}
         stale={query.isError ? describeHostError(query.error) : null}
       />
     );

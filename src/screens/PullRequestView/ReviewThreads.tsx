@@ -5,6 +5,8 @@
  * `fixup! <target>` on the checked-out pull request branch ("Check out branch" first otherwise). "Reply"
  * posts an editable answer – never automatically. After a takeover the section offers to squash the
  * fixups in the interactive rebase (autosquash). AI errors stay inline; a late answer never moves focus.
+ * The same cards sit between the lines of the "Files" tab (8.3): there with "Resolve"/"Reopen", resolved
+ * threads folded to one line; here every card has "Show in diff".
  */
 import { useState } from "react";
 import {
@@ -25,6 +27,7 @@ import { aiVisibility, featureVisible } from "../../app/ai/visibility";
 import { describeHostError } from "../../app/hosts";
 import { runHostAction } from "../../app/actions/hosts";
 import { checkoutPr, prBusyKeys } from "../../app/actions/pullrequests";
+import { setResolved } from "../../app/actions/review";
 import { shortSha } from "../../app/format";
 import { qk, queryClient, useAiStatus, usePrReviewThreads, useRepoSettings } from "../../app/queries";
 import { runAction } from "../../app/run";
@@ -40,7 +43,19 @@ import { SafeMarkdown } from "../../components/markdown/SafeMarkdown";
 import { BlockTitle, When, userName } from "./parts";
 import { REVIEW_FEATURE, fixAvailability, replyDraft, splitThreads, targetHint, threadLines } from "./reviewModel";
 
-type Ai = { visible: boolean; opensSetup: boolean; local: boolean; provider: AiProviderKind | null };
+export type Ai = { visible: boolean; opensSetup: boolean; local: boolean; provider: AiProviderKind | null };
+
+/** Whether and how the cards offer "Suggest fix". */
+export function useReviewAi(repoId: Id): Ai {
+  const status = useAiStatus();
+  const repoSettings = useRepoSettings(repoId);
+  return {
+    visible: featureVisible(status.data, REVIEW_FEATURE, repoSettings.data?.aiOff ?? false),
+    opensSetup: aiVisibility(status.data).elementsOpenSetup,
+    local: status.data?.local ?? false,
+    provider: status.data?.provider ?? null,
+  };
+}
 
 /** The hunk of a suggestion; the sign and a hidden word say what a line is, not only the colour. */
 function DiffLines({ fix }: { fix: AiReviewFix }) {
@@ -70,7 +85,7 @@ function DiffLines({ fix }: { fix: AiReviewFix }) {
   );
 }
 
-function ThreadCard({
+export function ThreadCard({
   repoId,
   pr,
   thread,
@@ -78,6 +93,8 @@ function ThreadCard({
   quotes,
   hostName,
   onApplied,
+  resolvable = false,
+  onJump,
 }: {
   repoId: Id;
   pr: PrDetails;
@@ -86,7 +103,12 @@ function ThreadCard({
   quotes: boolean;
   hostName: string;
   onApplied: (applied: ReviewFixApplied) => void;
+  /** "Resolve"/"Reopen" (host `reviewResolve` and the thread has a `resolveId`). */
+  resolvable?: boolean;
+  /** "Show in diff"; missing = not offered. */
+  onJump?: (thread: ReviewThread) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const job = useAiJob(ai.local, t("pullRequest.view.reviewThreads.writing"));
   const { run, running, loading } = job;
   /** Applying the fix failed (the AI part went fine). */
@@ -186,6 +208,20 @@ function ThreadCard({
     ...(target ? [] : [{ value: "none", label: t("pullRequest.view.reviewThreads.chooseTarget"), disabled: true }]),
     ...(fix?.candidates ?? []).map((candidate) => ({ value: candidate.sha, label: `${shortSha(candidate.sha)} ${candidate.summary}` })),
   ];
+  if (thread.resolved && !expanded) {
+    return (
+      <li data-review-thread={thread.id} data-review-resolved-thread="" className="text-sm text-text-muted">
+        <button
+          type="button"
+          aria-expanded={false}
+          className="rounded-sm px-1 hover:text-text hover:underline"
+          onClick={() => setExpanded(true)}
+        >
+          {t("pullRequest.view.review.resolvedShow")}
+        </button>
+      </li>
+    );
+  }
   return (
     <li data-review-thread={thread.id} className="rounded-md border border-border bg-surface">
       <header className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-border px-3 py-1.5 text-sm text-text-muted">
@@ -237,6 +273,22 @@ function ThreadCard({
           <span className="text-sm text-text-muted">{t("pullRequest.view.reviewThreads.unavailable")}</span>
         ) : null}
         <span className="flex-1" />
+        {onJump && thread.line !== null && !thread.outdated ? (
+          <Button size="sm" variant="ghost" data-review-jump="" onClick={() => onJump(thread)}>
+            {t("pullRequest.view.review.jump")}
+          </Button>
+        ) : null}
+        {resolvable && thread.resolveId ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            data-review-resolve={thread.resolved ? "reopen" : "resolve"}
+            disabled={posting}
+            onClick={() => void setResolved(repoId, pr.number, thread.resolveId!, !thread.resolved)}
+          >
+            {t(thread.resolved ? "pullRequest.view.review.reopen" : "pullRequest.view.review.resolve")}
+          </Button>
+        ) : null}
         <Button size="sm" variant="ghost" aria-expanded={replyOpen} data-review-reply-open="" onClick={() => setReplyOpen((open) => !open)}>
           {t("pullRequest.view.reviewThreads.reply")}
         </Button>
@@ -348,24 +400,19 @@ export function ReviewThreads({
   pr,
   capabilities,
   hostName,
+  onJump,
 }: {
   repoId: Id;
   tabId: Id;
   pr: PrDetails;
   capabilities: HostCapabilities;
   hostName: string;
+  onJump?: (thread: ReviewThread) => void;
 }) {
   const query = usePrReviewThreads(repoId, pr.number, capabilities.reviewThreads);
-  const status = useAiStatus();
-  const repoSettings = useRepoSettings(repoId);
+  const ai = useReviewAi(repoId);
   const [squash, setSquash] = useState<ReviewFixApplied | null>(null);
   if (!capabilities.reviewThreads) return null;
-  const ai: Ai = {
-    visible: featureVisible(status.data, REVIEW_FEATURE, repoSettings.data?.aiOff ?? false),
-    opensSetup: aiVisibility(status.data).elementsOpenSetup,
-    local: status.data?.local ?? false,
-    provider: status.data?.provider ?? null,
-  };
   const { open, resolved } = splitThreads(query.data ?? []);
   return (
     <section aria-label={t("pullRequest.view.reviewThreads.title")} data-review-threads="">
@@ -419,6 +466,8 @@ export function ReviewThreads({
               quotes={capabilities.reviewReplyQuotes}
               hostName={hostName}
               onApplied={setSquash}
+              resolvable={capabilities.reviewResolve}
+              onJump={onJump}
             />
           ))}
         </ul>

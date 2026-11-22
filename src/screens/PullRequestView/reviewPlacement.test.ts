@@ -1,8 +1,18 @@
 import { describe, expect, test } from "vitest";
 import type { HostCapabilities, HostRepoInfo, ReviewDraft, ReviewThread, TextDiff } from "../../core";
 import { defaultCapabilities } from "../../app/hosts";
-import { buildHunkRows, type Row } from "../DiffView/model";
-import { anchorKey, canComment, isOwnPr, placeThreads, reviewChoices, rowAnchor, submitLabel } from "./reviewPlacement";
+import { buildHunkRows, type LineRow, type Row } from "../DiffView/model";
+import {
+  anchorKey,
+  canComment,
+  commentFor,
+  commentRange,
+  isOwnPr,
+  placeThreads,
+  reviewChoices,
+  rowAnchor,
+  submitLabel,
+} from "./reviewPlacement";
 
 const PATH = "src/größe.rs";
 const diff: TextDiff = {
@@ -183,4 +193,56 @@ test("own is decided by login, case-insensitive", () => {
 
 test("submit label counts all drafts", () => {
   expect(submitLabel([draft({}), draft({ origin: "host" })])).toBe("Submit review (2)");
+});
+
+test("threads on both sides of a context row share one review row", () => {
+  const p = placeThreads(
+    rows,
+    PATH,
+    [thread({ id: "neu", line: 13 }), thread({ id: "alt", side: "old", line: 12 })],
+    [draft({ line: 13 })],
+  );
+  expect(rowsAfter(p.rows, "new:13")).toEqual(["review"]);
+  expect(p.at.get("new:13")).toMatchObject({ threads: [{ id: "neu" }, { id: "alt" }], drafts: [{ id: "d" }] });
+  expect(p.at.has("old:12")).toBe(false);
+});
+
+test("the open comment box gets a review row of its own and wins the row's anchor", () => {
+  const p = placeThreads(rows, PATH, [thread({ id: "alt", side: "old", line: 12 })], [], "new:13");
+  expect(p.rows.filter((row) => row.type === "review")).toEqual([{ type: "review", anchor: "new:13" }]);
+  expect(p.at.get("new:13")!.threads.map((t) => t.id)).toEqual(["alt"]);
+  expect(placeThreads(rows, PATH, [], [], "new:400").rows).toEqual(rows);
+});
+
+describe("commentRange", () => {
+  const at = (key: string) => rows.findIndex((row) => row.type === "line" && anchorKey(rowAnchor(row)!) === key);
+  const keys = (range: ReturnType<typeof commentRange>) =>
+    range && { first: anchorKey(rowAnchor(range.first)!), last: anchorKey(rowAnchor(range.last)!) };
+
+  test("a range stays on one side inside one hunk", () => {
+    expect(keys(commentRange(rows, at("new:11"), at("new:13"), true))).toEqual({ first: "new:11", last: "new:13" });
+    expect(keys(commentRange(rows, at("new:13"), at("new:11"), true))).toEqual({ first: "new:11", last: "new:13" });
+    expect(keys(commentRange(rows, at("old:11"), at("new:12"), true))).toEqual({ first: "new:12", last: "new:12" });
+    expect(keys(commentRange(rows, at("new:11"), at("new:13"), false))).toEqual({ first: "new:13", last: "new:13" });
+  });
+
+  test("not across hunks, and nothing on a non-code row", () => {
+    const two = buildHunkRows({ ...diff, hunks: [diff.hunks[0]!, { ...diff.hunks[0]!, index: 1 }] }, 4).rows;
+    const second = two.length - 1; // new:13 of the second hunk
+    expect(keys(commentRange(two, 1, second, true))).toEqual({ first: "new:13", last: "new:13" });
+    expect(commentRange(rows, 0, 0, true)).toBeNull();
+  });
+});
+
+test("a comment carries its side, the range start and the old number of an unchanged line", () => {
+  const line = (key: string) => rows.find((row) => row.type === "line" && anchorKey(rowAnchor(row)!) === key) as LineRow;
+  expect(commentFor(PATH, line("new:11"), line("new:13"), "h")).toEqual({
+    commit: "h",
+    path: PATH,
+    line: 13,
+    startLine: 11,
+    side: "new",
+    oldLine: 12,
+  });
+  expect(commentFor(PATH, line("old:11"), line("old:11"), "h")).toMatchObject({ line: 11, startLine: null, side: "old", oldLine: null });
 });

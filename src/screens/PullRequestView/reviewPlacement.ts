@@ -3,7 +3,17 @@
  * whether commenting is possible, which votes the submit dialog offers.
  * Without React, so it can be tested (reviewPlacement.test.ts).
  */
-import type { HostCapabilities, HostRepoInfo, PrDetails, PrSummary, ReviewDraft, ReviewSide, ReviewThread, ReviewVote } from "../../core";
+import type {
+  HostCapabilities,
+  HostRepoInfo,
+  NewReviewComment,
+  PrDetails,
+  PrSummary,
+  ReviewDraft,
+  ReviewSide,
+  ReviewThread,
+  ReviewVote,
+} from "../../core";
 import type { PrRange } from "../../app/hosts";
 import { t } from "../../i18n";
 import type { LineRow, ReviewRow, Row } from "../DiffView/model";
@@ -24,8 +34,12 @@ export interface Placement {
   staleDrafts: ReviewDraft[];
 }
 
-/** Inserts one ReviewRow after every code row that has threads/drafts (thread anchor = its last line `line`, side `side`); the rest goes to stale. */
-export function placeThreads(rows: Row[], path: string, threads: ReviewThread[], drafts: ReviewDraft[]): Placement {
+/**
+ * Inserts one ReviewRow after every code row that has threads/drafts (thread anchor = its last line `line`, side `side`); the rest goes to stale.
+ * `open` (an anchor key) is where the comment box is open: that row gets a review row even without threads.
+ * A context row with threads on both sides gets one review row; the box's anchor, else the first one found, names it.
+ */
+export function placeThreads(rows: Row[], path: string, threads: ReviewThread[], drafts: ReviewDraft[], open?: string): Placement {
   const index = new Map<string, number>();
   rows.forEach((row, i) => {
     if (row.type !== "line") return;
@@ -43,6 +57,7 @@ export function placeThreads(rows: Row[], path: string, threads: ReviewThread[],
   const keyOf = (item: { line: number | null; side: ReviewSide }) =>
     item.line === null ? null : anchorKey({ side: item.side, line: item.line });
 
+  if (open !== undefined && index.has(open)) slot(open);
   const stale: ReviewThread[] = [];
   for (const thread of threads) {
     if (thread.path !== path) continue;
@@ -58,6 +73,20 @@ export function placeThreads(rows: Row[], path: string, threads: ReviewThread[],
     else staleDrafts.push(draft);
   }
 
+  const byRow = new Map<number, string>();
+  for (const [key, entry] of at) {
+    const i = index.get(key)!;
+    const first = byRow.get(i);
+    if (first === undefined) {
+      byRow.set(i, key);
+      continue;
+    }
+    const kept = at.get(first)!;
+    kept.threads.push(...entry.threads);
+    kept.drafts.push(...entry.drafts);
+    at.delete(key);
+  }
+
   const out = [...rows];
   const inserts = [...at.keys()].map((key) => [index.get(key)!, key] as const).sort((a, b) => b[0] - a[0]);
   for (const [i, anchor] of inserts) {
@@ -66,6 +95,44 @@ export function placeThreads(rows: Row[], path: string, threads: ReviewThread[],
     out.splice(out[i + 1]?.type === "note" ? i + 2 : i + 1, 0, row);
   }
   return { rows: out, at, stale, staleDrafts };
+}
+
+/**
+ * The lines a new comment covers: from `anchorIndex` to `cursorIndex` when ranges are allowed and both are code rows on
+ * the same side of the same hunk; otherwise the single line at the cursor. null when the cursor is not on a code row.
+ */
+export function commentRange(
+  rows: Row[],
+  anchorIndex: number,
+  cursorIndex: number,
+  rangeAllowed: boolean,
+): { first: LineRow; last: LineRow } | null {
+  const cursor = rows[cursorIndex];
+  if (cursor?.type !== "line" || !rowAnchor(cursor)) return null;
+  const from = rows[anchorIndex];
+  const ok =
+    rangeAllowed &&
+    from?.type === "line" &&
+    from.hunkOrd !== null &&
+    from.hunkOrd === cursor.hunkOrd &&
+    rowAnchor(from)?.side === rowAnchor(cursor)!.side;
+  if (!ok) return { first: cursor, last: cursor };
+  return anchorIndex <= cursorIndex ? { first: from, last: cursor } : { first: cursor, last: from };
+}
+
+/** The comment on the lines `first..last` (from commentRange) against the head commit `commit`, without its text. */
+export function commentFor(path: string, first: LineRow, last: LineRow, commit: string): Omit<NewReviewComment, "body"> {
+  const end = rowAnchor(last)!;
+  const start = rowAnchor(first)!.line;
+  return {
+    commit,
+    path,
+    line: end.line,
+    startLine: start < end.line ? start : null,
+    side: end.side,
+    // GitLab needs both numbers of an unchanged line.
+    oldLine: last.kind === "context" ? last.oldNo : null,
+  };
 }
 
 /** Commenting needs the local diff at the PR head and the host capability. */

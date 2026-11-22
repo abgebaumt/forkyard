@@ -10,6 +10,8 @@
  *   Del                         discard the selection or hunk (with a prompt)
  *   Esc                         clear the selection (unstaged: the whole lasso)
  * In "pick" mode (agent review) only the selection keys apply.
+ * With a review layer (pull request): C comments on the cursor line, Shift+↑/↓ then Shift+C (or
+ * Shift+click on a line number) on a range of lines.
  */
 import { defaultRangeExtractor, useVirtualizer, type Range as VirtualRange } from "@tanstack/react-virtual";
 import { Archive, ChevronDown, ChevronRight, Copy, GitBranchPlus, GitCommitHorizontal, Minus, Plus, Trash2, Undo2, X } from "lucide-react";
@@ -26,6 +28,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 import type { CodeSettings } from "../../components/code/settings";
 import type { LineTokens } from "../../components/code/highlight";
@@ -49,13 +52,16 @@ import {
   type LineRow,
   type NoteRow,
   type PatchMode,
+  type ReviewRow,
   type Row,
   type RowModel,
   type WordDiffCache,
 } from "./model";
 import { t } from "../../i18n";
 import { writeClipboard } from "../../app/actions/clipboard";
-import { keyBelongsToView } from "../../app/viewFocus";
+import { keyBelongsToView, viewMayTakeFocus } from "../../app/viewFocus";
+import { anchorKey, commentRange, rowAnchor } from "../PullRequestView/reviewPlacement";
+import type { DiffReviewLayer } from "./index";
 import { readRowHeight } from "../../components/VirtualList";
 
 export type PatchTarget = { kind: "selection" } | { kind: "hunk"; hunkOrd: number };
@@ -95,6 +101,8 @@ export interface LineViewProps {
   /** Reports which change block the cursor is in (−1 = before the first). */
   onChangeIndex?: (index: number) => void;
   label: string;
+  /** Review threads, drafts and commenting (pull request). */
+  review?: DiffReviewLayer;
 }
 
 const signs = { context: " ", add: "+", remove: "−" } as const;
@@ -124,6 +132,24 @@ interface CodeLineProps {
   numberStyle: CSSProperties;
   onGutterDown: (index: number, event: ReactPointerEvent) => void;
   onCodeClick: (index: number) => void;
+  /** Line numbers become buttons: comment on this line (with Shift: on the range from the cursor). */
+  onComment?: (index: number, range: boolean) => void;
+}
+
+/** The line number on the row's own side as a comment button. Not a tab stop: the keyboard path is C. */
+function CommentNo({ no, index, onComment }: { no: number; index: number; onComment: (index: number, range: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      tabIndex={-1}
+      data-comment-line={no}
+      aria-label={t("pullRequest.view.review.commentOnLine", { line: no })}
+      className="w-full cursor-pointer text-right tabular-nums hover:text-text hover:underline"
+      onClick={(event) => onComment(index, event.shiftKey)}
+    >
+      {no}
+    </button>
+  );
 }
 
 const CodeLine = memo(function CodeLine({
@@ -138,8 +164,10 @@ const CodeLine = memo(function CodeLine({
   numberStyle,
   onGutterDown,
   onCodeClick,
+  onComment,
 }: CodeLineProps) {
   const lineNo = row.kind === "remove" ? row.oldNo : row.newNo;
+  const commentable = Boolean(onComment) && row.hunkOrd !== null && lineNo !== null;
   // Very long lines (minified code, single-line JSON) stay uncoloured: tens of thousands of
   // coloured segments in ONE line froze the view for seconds.
   const lineTokens = lineNo !== null && row.text.length <= HIGHLIGHT_MAX_LINE ? tokens?.[lineNo - 1] : undefined;
@@ -165,10 +193,10 @@ const CodeLine = memo(function CodeLine({
       >
         {selected ? <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-accent" /> : null}
         <span role="gridcell" style={numberStyle} className="shrink-0 pr-2 text-right tabular-nums">
-          {row.oldNo ?? ""}
+          {commentable && row.kind === "remove" ? <CommentNo no={lineNo!} index={index} onComment={onComment!} /> : (row.oldNo ?? "")}
         </span>
         <span role="gridcell" style={numberStyle} className="shrink-0 pr-2 text-right tabular-nums">
-          {row.newNo ?? ""}
+          {commentable && row.kind !== "remove" ? <CommentNo no={lineNo!} index={index} onComment={onComment!} /> : (row.newNo ?? "")}
         </span>
         <span role="gridcell" className={cn("w-5 shrink-0 text-center", row.kind !== "context" && "font-semibold")}>
           <span aria-hidden>{signs[row.kind]}</span>
@@ -202,6 +230,24 @@ const CodeLine = memo(function CodeLine({
     </div>
   );
 });
+
+/** Threads, drafts and the comment box below a code row; keys and the context menu stay with the cards. */
+function ReviewLine({ row, index, render }: { row: ReviewRow; index: number; render: (row: ReviewRow) => ReactNode }) {
+  return (
+    <div
+      role="row"
+      data-row={index}
+      data-review-row={row.anchor}
+      aria-rowindex={index + 1}
+      className="min-w-full"
+      onContextMenu={(event) => event.stopPropagation()}
+    >
+      <div role="gridcell" className="sticky left-0 w-(--gc-diff-viewport) bg-bg px-3 py-2 font-sans">
+        {render(row)}
+      </div>
+    </div>
+  );
+}
 
 function NoteLine({ row, index, gutterStyle }: { row: NoteRow; index: number; gutterStyle: CSSProperties }) {
   return (
@@ -339,6 +385,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
     onToggleFold,
     onChangeIndex,
     label,
+    review,
   },
   ref,
 ) {
@@ -358,6 +405,9 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
   const clearSelection = onClearSelection ?? (() => onSelectedChange(new Set()));
   const lassoLines = lasso?.lines ?? 0;
   const allowSelect = caps.select;
+  /** Review: start of the range marked with Shift+↑/↓ (row index); null = none. */
+  const [mark, setMark] = useState<number | null>(null);
+  const reviewRange = Boolean(review?.onComment && review.range);
 
   const sizes = useMemo(() => ({ hunk: readRowHeight("--gc-size-control-lg", 32), row: readRowHeight("--gc-size-row", 24), gap: 8 }), []);
   // The cursor is always on a focusable row – also after the content has changed.
@@ -382,6 +432,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
       const row = rows[index];
       if (row?.type === "hunk") return sizes.hunk + (index === 0 ? 0 : sizes.gap);
       if (row?.type === "fold") return sizes.row;
+      if (row?.type === "review") return 96;
       return code.lineHeight;
     },
     overscan: 16,
@@ -486,6 +537,50 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
     [changeStarts, cursorIndex, focusRow, setCursor],
   );
 
+  // The thread list asked for a line: there once, centred (focus only when nothing else is open).
+  const jumpTo = review?.jumpTo;
+  useEffect(() => {
+    if (!jumpTo) return;
+    const key = anchorKey(jumpTo);
+    const index = rowsRef.current.findIndex(
+      (row) =>
+        row.type === "line" &&
+        (anchorKey(rowAnchor(row) ?? { side: "new", line: -1 }) === key ||
+          (row.kind === "context" && row.oldNo !== null && anchorKey({ side: "old", line: row.oldNo }) === key)),
+    );
+    if (index >= 0) setCursor(index, { align: "center", focus: viewMayTakeFocus() });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jumpTo]);
+
+  // --- Kommentieren ------------------------------------------------------------
+
+  const reviewRef = useRef(review);
+  reviewRef.current = review;
+  /** Opens the comment box for the lines from row `from` to row `to` (one line if that is not a valid range). */
+  const comment = useCallback((from: number, to: number) => {
+    const layer = reviewRef.current;
+    const lines = layer?.onComment ? commentRange(rowsRef.current, from, to, Boolean(layer.range)) : null;
+    if (!lines || !layer?.onComment) return false;
+    setMark(null);
+    layer.onComment(lines.first, lines.last);
+    return true;
+  }, []);
+  const onCommentClick = useCallback(
+    (index: number, range: boolean) => {
+      const from = range ? cursorRef.current : index;
+      visited.current = true;
+      setCursorState(index);
+      comment(from, index);
+    },
+    [comment],
+  );
+  /** The lines Shift+C would comment on – shown like a selection. */
+  const marked = useMemo(() => {
+    if (mark === null || !reviewRange) return null;
+    const lines = commentRange(rows, mark, cursorIndex, true);
+    return lines ? { from: rows.indexOf(lines.first), to: rows.indexOf(lines.last) } : null;
+  }, [mark, reviewRange, rows, cursorIndex]);
+
   // --- Auswahl ---------------------------------------------------------------
 
   const toggleKey = useCallback(
@@ -564,6 +659,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
     // Only set the cursor; a text selection stays untouched.
     if (window.getSelection()?.isCollapsed === false) return;
     anchor.current = null;
+    setMark(null);
     visited.current = true;
     setCursorState(index);
     setFocusTick((tick) => tick + 1);
@@ -612,6 +708,8 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
   const onKeyDown = (event: KeyboardEvent) => {
     visited.current = true;
     const target = event.target as HTMLElement;
+    // Threads, drafts and the comment box keep all their keys.
+    if (target.closest("[data-review-row]")) return;
     // Buttons in hunk headers keep Enter and Space.
     if (target.closest("button") && !target.closest("[data-row-focus]")) return;
     if (event.altKey) return;
@@ -677,6 +775,9 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
         } else if (!event.ctrlKey && !event.metaKey && key === "u" && patchMode === "staged") {
           event.preventDefault();
           runOn("unstage", cursorAt);
+        } else if (!event.ctrlKey && !event.metaKey && key === "c" && review?.onComment && keyBelongsToView(event.nativeEvent)) {
+          event.preventDefault();
+          comment(event.shiftKey && mark !== null ? mark : cursorAt, cursorAt);
         }
         return;
       }
@@ -684,7 +785,11 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
     if (next === null) return;
     event.preventDefault();
     if (event.shiftKey && allowSelect) extendTo(next, cursorAt);
-    else anchor.current = null;
+    else if (event.shiftKey && reviewRange) setMark((from) => from ?? cursorAt);
+    else {
+      anchor.current = null;
+      setMark(null);
+    }
     setCursor(next);
   };
 
@@ -890,13 +995,17 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
               let content;
               if (row.type === "line") {
                 const selectable = allowSelect && isSelectable(row);
+                const inMark = marked !== null && item.index >= marked.from && item.index <= marked.to;
                 content = (
                   <CodeLine
                     row={row}
                     index={item.index}
                     wrap={wrap}
                     selectable={selectable}
-                    selected={selectable && row.hunkOrd !== null && row.pos !== null && selected.has(lineKey(row.hunkOrd, row.pos))}
+                    selected={
+                      inMark || (selectable && row.hunkOrd !== null && row.pos !== null && selected.has(lineKey(row.hunkOrd, row.pos)))
+                    }
+                    onComment={review?.onComment ? onCommentClick : undefined}
                     isCursor={isCursor}
                     tokens={row.kind === "remove" ? oldTokens : newTokens}
                     words={words}
@@ -922,6 +1031,8 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
                 content = <FoldHead row={row} index={item.index} isCursor={isCursor} onToggle={onToggleFold} />;
               } else if (row.type === "note") {
                 content = <NoteLine row={row} index={item.index} gutterStyle={gutterStyle} />;
+              } else if (review) {
+                content = <ReviewLine row={row} index={item.index} render={review.renderRow} />;
               } else {
                 content = null;
               }
