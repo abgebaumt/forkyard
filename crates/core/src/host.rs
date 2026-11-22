@@ -179,6 +179,9 @@ pub struct ReviewSubmitOutcome {
     pub sent: Vec<String>,
     /// (local draft ID, error message) – stays local.
     pub failed: Vec<(String, String)>,
+    /// The final step (vote, publishing) failed after drafts were already sent: the sent ones are still
+    /// deleted locally, then this error is returned.
+    pub error: Option<CoreError>,
 }
 
 /// A call this host cannot make: `host_unsupported`, before anything is sent.

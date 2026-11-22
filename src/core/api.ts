@@ -1176,9 +1176,8 @@ export interface CoreCommands {
   /**
    * Submits the own review: vote, `body` (as typed) and every draft. Drafts that reached the host are
    * deleted locally (`sent`); failing ones stay with their error (`failed`), and then the vote is not sent
-   * (`submitted: false`). Errors (nothing sent, drafts untouched – except a failing vote after all drafts
-   * went out on hosts without `reviewSubmitBatch`: those drafts are gone): `host_unsupported` (vote not
-   * offered), `empty_message` (comment without text or drafts, request changes without text),
+   * (`submitted: false`). Errors (nothing sent, drafts untouched – except a vote that failed after drafts
+   * went out: those drafts are gone and the message says so): `host_unsupported` (vote not offered), `empty_message` (comment without text or drafts, request changes without text),
    * `not_allowed` (number 0, text over 65 536 bytes, `commit` not a full ID), host errors.
    */
   prReviewSubmit(

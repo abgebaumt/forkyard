@@ -138,3 +138,17 @@ fn a_review_needs_text_or_drafts_and_request_changes_needs_text() {
     assert!(check_submission(ReviewVote::Approve, "", 0).is_ok());
 }
 // The invalid-ID case (`"../x"` → `not_allowed`, no request) is asserted in Task 3 once GitHub resolves.
+
+#[test]
+fn a_failing_vote_after_sent_comments_says_they_were_sent() {
+    use crate::error::CoreError;
+    let error = CoreError::new(ErrorCode::HostRateLimited, "GitHub refused the request: too many requests.");
+    let error = cmd_review::vote_failed_after(2, error);
+    assert_eq!(error.code, ErrorCode::HostRateLimited, "the code stays");
+    assert_eq!(
+        error.message,
+        "The 2 line comments were sent; the review itself was not: GitHub refused the request: too many requests. Send the review again."
+    );
+    let one = cmd_review::vote_failed_after(1, CoreError::new(ErrorCode::Offline, "No connection"));
+    assert_eq!(one.message, "The line comment was sent; the review itself was not: No connection. Send the review again.");
+}
