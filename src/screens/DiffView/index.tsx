@@ -29,7 +29,19 @@ import { applyPatch, modeLabels, patchBusyKey, saveViewSetting, type PatchAction
 import { DiffHeader } from "./DiffHeader";
 import "./diff.css";
 import { LineView, type LineViewHandle, type PatchTarget } from "./LineView";
-import { WordDiffCache, buildFileRows, buildHunkRows, hunkToPatch, patchModeOf, selectionToPatch, sourceKey } from "./model";
+import {
+  WordDiffCache,
+  buildFileRows,
+  buildHunkRows,
+  hunkToPatch,
+  patchModeOf,
+  selectionToPatch,
+  sourceKey,
+  type LineRow,
+  type ReviewRow,
+  type Row,
+} from "./model";
+import type { Anchor } from "../PullRequestView/reviewPlacement";
 import { queueStashSelection } from "../StashForm/selection";
 import { wipBusy } from "../WipPanel/actions";
 import { whyLineEntries } from "./whyLine";
@@ -50,6 +62,22 @@ export interface DiffViewProps {
    * history and close button; Esc and Alt+←/→ stay with the host view.
    */
   embedded?: boolean;
+  /** Review threads and drafts between the lines (pull request); forces the line view. */
+  review?: DiffReviewLayer;
+}
+
+export interface DiffReviewLayer {
+  /** Receives the built rows, returns them with ReviewRows inserted (placeThreads). */
+  place(rows: Row[]): Row[];
+  renderRow(row: ReviewRow): ReactNode;
+  /** Comment on the lines `first..last` (rows of the placed list); missing = read-only. */
+  onComment?: (first: LineRow, last: LineRow) => void;
+  /** The host takes comments on several lines (`reviewCommentRange`). */
+  range?: boolean;
+  /** Scroll target set by the thread list; consumed once. */
+  jumpTo?: Anchor | null;
+  /** Above the diff (the "Outdated" block), from the rows before placing; [] when the file shows no lines. */
+  renderAbove?(rows: Row[]): ReactNode;
 }
 
 const EMPTY: ReadonlySet<string> = new Set();
@@ -83,7 +111,7 @@ function Strip({ children, action }: { children: ReactNode; action?: ReactNode }
 }
 
 /** Diff. */
-export function DiffView({ repoId, tabId, path, source, embedded = false }: DiffViewProps) {
+export function DiffView({ repoId, tabId, path, source, embedded = false, review }: DiffViewProps) {
   const store = useAppStore.getState;
   const fileKey = `${sourceKey(source)}|${path}`;
   const root = useRef<HTMLElement>(null);
@@ -176,15 +204,24 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
     ? mode
     : mode === "inline" && newMissing
       ? "hunks"
-      : mode === "split" && (oldMissing || newMissing)
+      : mode === "split" && (oldMissing || newMissing || review)
         ? "hunks"
         : mode;
-  const fellBack = Boolean(text) && shown !== mode;
+  const fellBack = Boolean(text) && shown !== mode && !review;
 
   const model = useMemo(() => {
     if (!text) return null;
     return shown === "inline" ? buildFileRows(text, text.newText ?? "", collapsed, code.tabSize) : buildHunkRows(text, code.tabSize);
   }, [text, shown, collapsed, code.tabSize]);
+  // Review rows go between the lines; the change starts move with their rows.
+  const place = review?.place;
+  const placed = useMemo(() => {
+    if (!model || !place) return model;
+    const rows = place(model.rows);
+    if (rows === model.rows) return model;
+    const at = new Map(rows.map((row, index) => [row, index]));
+    return { ...model, rows, changeStarts: model.changeStarts.map((index) => at.get(model.rows[index]!) ?? index) };
+  }, [model, place]);
   const words = useMemo(() => (text ? new WordDiffCache(text) : null), [text]);
   const oldTokens = useLineTokens(text ? (text.oldPath ?? text.path) : null, shown === "split" ? null : text?.oldText);
   const newTokens = useLineTokens(text ? text.path : null, shown === "split" ? null : text?.newText);
@@ -385,13 +422,14 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
         />
       </Suspense>
     );
-  } else if (model && words) {
+  } else if (placed && words) {
     body = (
       <LineView
         ref={lineView}
         key={fileKey}
         diff={diff}
-        model={model}
+        model={placed}
+        review={review}
         mode={shown}
         wrap={wrap}
         patchMode={patchMode}
@@ -459,6 +497,7 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
           {t("diff.whitespace.ignoredNoStage")}
         </Strip>
       ) : null}
+      {review?.renderAbove && !query.isPending ? review.renderAbove(model?.rows ?? []) : null}
       <div className="relative min-h-0 flex-1">{body}</div>
     </section>
   );
