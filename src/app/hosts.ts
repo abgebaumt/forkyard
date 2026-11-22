@@ -71,7 +71,15 @@ export const defaultCapabilities: Record<HostKind, HostCapabilities> = {
     reviewApprove: true,
     mergeMethods: ["merge", "squash"],
   },
-  gitea: { ...ALL_FEATURES, reviewReplyQuotes: true, mergeMethods: ["merge", "squash", "rebase"] },
+  gitea: {
+    ...ALL_FEATURES,
+    reviewReplyQuotes: true,
+    reviewComment: true,
+    reviewSubmitBatch: true,
+    reviewApprove: true,
+    reviewRequestChanges: true,
+    mergeMethods: ["merge", "squash", "rebase"],
+  },
   bitbucket: {
     ...ALL_FEATURES,
     prReopen: false,
