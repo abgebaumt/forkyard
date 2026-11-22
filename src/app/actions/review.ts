@@ -29,8 +29,8 @@ export async function saveDraft(repoId: Id, number: number, comment: NewReviewCo
  */
 export function resaveDraft(repoId: Id, number: number, draft: ReviewDraft, head: Sha): Promise<boolean> {
   const { path, line, startLine, side, oldLine, body } = draft;
-  // Only host drafts lose their line; those are read only and not re-saved here.
-  if (line === null) return Promise.resolve(false);
+  // Host drafts are read only, and their IDs are not local row IDs.
+  if (draft.origin !== "local" || line === null) return Promise.resolve(false);
   return saveDraft(repoId, number, { commit: head, path, line, startLine, side, oldLine, body }, draft.id);
 }
 
