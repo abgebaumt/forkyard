@@ -2,6 +2,7 @@
 
 use serde_json::json;
 
+use super::mocks::{MOCK_GL_BASE, MOCK_GL_HEAD, MOCK_GL_START};
 use super::{cmd, Fixture};
 use crate::commands::pr_review::{
     self as cmd_review, pr_review_comment_create, pr_review_draft_delete, pr_review_draft_save, pr_review_drafts, pr_review_submit,
@@ -286,5 +287,156 @@ fn review_capabilities_match_the_matrix() {
         ]
     };
     assert_eq!(row(HostKind::Github), [true, true, true, true, true, true, false]);
-    // Tasks 4–6 append their rows here, exactly as in the plan's matrix.
+    assert_eq!(row(HostKind::Gitlab), [true, false, true, true, true, false, false]);
+    // Tasks 5–6 append their rows here, exactly as in the plan's matrix.
+}
+
+fn gl_comment(path: &str, line: u32) -> NewReviewComment {
+    NewReviewComment { commit: MOCK_GL_HEAD.into(), ..comment(path, line) }
+}
+
+/// Method and path (after the project) of every request that changes something, in order.
+fn gl_writes(fx: &Fixture) -> Vec<String> {
+    fx.server
+        .requests()
+        .iter()
+        .filter(|r| r.method != "GET")
+        .map(|r| format!("{} {}", r.method, r.path().split_once("/merge_requests/").map_or("", |(_, rest)| rest)))
+        .collect()
+}
+
+#[tokio::test]
+async fn gitlab_comment_on_an_unchanged_line_sends_both_numbers() {
+    let fx = Fixture::new(HostKind::Gitlab).await;
+    let c = NewReviewComment { old_line: Some(40), ..gl_comment("src/größe.rs", 42) };
+    cmd_review::pr_review_comment_create(&fx.tc, fx.id(), 9, c, None).await.unwrap();
+    assert_eq!(
+        fx.sent("POST", "/merge_requests/9/discussions")[0].json(),
+        json!({ "body": "Hier fehlt die Prüfung auf leer.",
+        "position": { "position_type": "text", "base_sha": MOCK_GL_BASE, "start_sha": MOCK_GL_START, "head_sha": MOCK_GL_HEAD,
+                      "old_path": "src/größe.rs", "new_path": "src/größe.rs", "new_line": 42, "old_line": 40 } })
+    );
+}
+
+#[tokio::test]
+async fn gitlab_comment_on_the_old_side_sends_only_the_old_number() {
+    let fx = Fixture::new(HostKind::Gitlab).await;
+    let c = NewReviewComment { side: ReviewSide::Old, ..gl_comment("src/alt.rs", 12) };
+    cmd_review::pr_review_comment_create(&fx.tc, fx.id(), 9, c, None).await.unwrap();
+    let position = fx.sent("POST", "/merge_requests/9/discussions")[0].json()["position"].clone();
+    assert_eq!((position["old_line"].clone(), position.get("new_line")), (json!(12), None));
+}
+
+#[tokio::test]
+async fn gitlab_refuses_a_comment_on_an_old_head() {
+    let fx = Fixture::new(HostKind::Gitlab).await;
+    let c = NewReviewComment { commit: "b".repeat(40), ..comment("src/größe.rs", 42) };
+    let error = cmd_review::pr_review_comment_create(&fx.tc, fx.id(), 9, c, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::StaleState);
+    assert_eq!(error.message, "The merge request has new commits. Reload and comment again.");
+    assert!(gl_writes(&fx).is_empty(), "no POST: {:?}", gl_writes(&fx));
+}
+
+#[tokio::test]
+async fn gitlab_submit_publishes_draft_notes_then_body_then_approval() {
+    let fx = Fixture::new(HostKind::Gitlab).await;
+    fx.state.lock().gl_draft_note = true;
+    save(&fx, NewReviewComment { old_line: Some(2), ..gl_comment("a.rs", 3) }).await;
+    let listed = cmd_review::pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts;
+    let host = &listed[0];
+    assert_eq!(
+        (host.origin, host.id.as_str(), host.path.as_str(), host.line, host.side, host.body.as_str()),
+        (ReviewDraftOrigin::Host, "5501", "src/anmeldung.rs", Some(12), ReviewSide::New, "Im Browser begonnen.")
+    );
+    assert_eq!(listed[1].origin, ReviewDraftOrigin::Local);
+    fx.server.clear();
+    let result = cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, "Sieht gut aus.".into(), MOCK_GL_HEAD.into(), None)
+        .await
+        .unwrap();
+    assert_eq!((result.submitted, result.sent, result.failed.len()), (true, 1, 0));
+    assert_eq!(gl_writes(&fx), ["POST 9/draft_notes", "POST 9/draft_notes/bulk_publish", "POST 9/notes", "POST 9/approve"]);
+    let note = fx.sent("POST", "/merge_requests/9/draft_notes")[0].json();
+    assert_eq!(note["note"], "Hier fehlt die Prüfung auf leer.");
+    assert_eq!((note["position"]["new_line"].clone(), note["position"]["old_line"].clone()), (json!(3), json!(2)));
+    assert_eq!(note["position"]["head_sha"], MOCK_GL_HEAD);
+    assert_eq!(fx.sent("POST", "/merge_requests/9/notes")[0].json(), json!({ "body": "Sieht gut aus." }));
+    assert_eq!(fx.sent("POST", "/merge_requests/9/approve")[0].json(), json!({ "sha": MOCK_GL_HEAD }));
+    let left = cmd_review::pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts;
+    assert!(left.iter().all(|d| d.origin == ReviewDraftOrigin::Host), "local drafts are gone: {left:?}");
+}
+
+#[tokio::test]
+async fn gitlab_failing_draft_note_keeps_it_and_publishes_nothing() {
+    let fx = Fixture::new(HostKind::Gitlab).await;
+    let fine = save(&fx, gl_comment("a.rs", 3)).await;
+    let broken = save(&fx, NewReviewComment { body: "kaputt".into(), ..gl_comment("b.rs", 7) }).await;
+    let result =
+        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, String::new(), MOCK_GL_HEAD.into(), None).await.unwrap();
+    assert!(!result.submitted);
+    assert_eq!((result.sent, result.failed.len()), (1, 1));
+    assert_eq!(result.failed[0].id, broken.id);
+    assert!(result.failed[0].error.is_some());
+    assert_eq!(gl_writes(&fx), ["POST 9/draft_notes", "POST 9/draft_notes"], "no bulk_publish, no approve");
+    let left = cmd_review::pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts;
+    assert!(left.iter().all(|d| d.id != fine.id), "the sent one is a draft note at GitLab now");
+}
+
+#[tokio::test]
+async fn gitlab_draft_from_an_older_head_is_not_sent() {
+    let fx = Fixture::new(HostKind::Gitlab).await;
+    let old = save(&fx, comment("a.rs", 3)).await;
+    let result =
+        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Comment, String::new(), MOCK_GL_HEAD.into(), None).await.unwrap();
+    assert_eq!((result.submitted, result.sent), (false, 0));
+    assert_eq!(result.failed[0].id, old.id);
+    assert!(gl_writes(&fx).is_empty(), "{:?}", gl_writes(&fx));
+}
+
+#[tokio::test]
+async fn gitlab_refuses_a_review_on_an_old_head() {
+    let fx = Fixture::new(HostKind::Gitlab).await;
+    save(&fx, gl_comment("a.rs", 3)).await;
+    let error =
+        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, String::new(), "b".repeat(40), None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::StaleState);
+    assert!(gl_writes(&fx).is_empty());
+    let left = cmd_review::pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts;
+    assert_eq!((left.len(), left[0].error.clone()), (1, None));
+}
+
+#[tokio::test]
+async fn gitlab_failing_approval_after_sent_drafts_still_drops_them() {
+    let fx = Fixture::new(HostKind::Gitlab).await;
+    fx.state.lock().gl_approve_fails = true;
+    save(&fx, gl_comment("a.rs", 3)).await;
+    save(&fx, gl_comment("c.rs", 9)).await;
+    let error =
+        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, String::new(), MOCK_GL_HEAD.into(), None).await.unwrap_err();
+    assert!(error.message.starts_with("The 2 line comments were sent; the review itself was not:"), "{}", error.message);
+    assert_eq!(gl_writes(&fx), ["POST 9/draft_notes", "POST 9/draft_notes", "POST 9/draft_notes/bulk_publish", "POST 9/approve"]);
+    let left = cmd_review::pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts;
+    assert!(left.is_empty(), "sent drafts are gone locally: {left:?}");
+}
+
+#[tokio::test]
+async fn gitlab_request_changes_is_unsupported_without_a_request() {
+    let fx = Fixture::new(HostKind::Gitlab).await;
+    let error =
+        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::RequestChanges, "Bitte ändern.".into(), MOCK_GL_HEAD.into(), None)
+            .await
+            .unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostUnsupported);
+    assert!(fx.server.requests().is_empty());
+}
+
+#[tokio::test]
+async fn gitlab_discussions_resolve_with_put() {
+    let fx = Fixture::new(HostKind::Gitlab).await;
+    let threads = cmd::pr_review_threads(&fx.tc, fx.id(), 9, None).await.unwrap();
+    let id = threads[0].resolve_id.clone().expect("resolvable discussion");
+    assert_eq!(id, threads[0].id, "the discussion id");
+    cmd_review::pr_review_thread_resolve(&fx.tc, fx.id(), 9, id.clone(), true, None).await.unwrap();
+    cmd_review::pr_review_thread_resolve(&fx.tc, fx.id(), 9, id.clone(), false, None).await.unwrap();
+    let sent = fx.sent("PUT", &format!("/merge_requests/9/discussions/{id}"));
+    assert_eq!(sent.iter().map(|r| r.json()).collect::<Vec<_>>(), [json!({ "resolved": true }), json!({ "resolved": false })]);
 }

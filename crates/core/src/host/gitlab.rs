@@ -7,8 +7,8 @@
 use serde_json::{json, Value};
 
 use super::{
-    already_exists, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, release_error, summarize_checks,
-    text, Api, Host, HostFuture, NewPr, NewRelease, Paging, RepoFacts, RepoPath,
+    already_exists, detect, draft_as_comment, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, release_error,
+    summarize_checks, text, Api, Host, HostFuture, NewPr, NewRelease, Paging, RepoFacts, RepoPath, ReviewSubmission, ReviewSubmitOutcome,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
@@ -16,8 +16,8 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
     CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRelease, HostRepoRef, HostUser, IssueDetails, IssueListState,
-    IssuePage, IssueState, IssueSummary, PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer,
-    PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread,
+    IssuePage, IssueState, IssueSummary, NewReviewComment, PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState,
+    PrReviewer, PrState, PrSummary, ReviewDraft, ReviewDraftOrigin, ReviewReply, ReviewSide, ReviewThread, ReviewVote,
 };
 
 /// Prefix with which GitLab marks a merge request as a draft.
@@ -517,6 +517,7 @@ fn discussion_thread(value: &Value) -> Option<ReviewThread> {
         })
         .collect();
     Some(ReviewThread {
+        resolve_id: (!resolvable.is_empty()).then(|| id.clone()),
         id,
         path,
         line,
@@ -524,7 +525,6 @@ fn discussion_thread(value: &Value) -> Option<ReviewThread> {
         side,
         commit: opt_text(position, "head_sha"),
         resolved: !resolvable.is_empty() && resolvable.iter().all(|n| flag(n, "resolved")),
-        resolve_id: None,
         outdated: false,
         comments,
     })
@@ -547,6 +547,154 @@ pub async fn review_reply(core: &Core, api: &Api, repo: &RepoPath, mr: u64, thre
         .map_err(|e| not_found_as(e, || format!("The review thread does not exist (anymore) in merge request !{mr}.")))?
         .json()?;
     Ok(ReviewReply { comment: note(&value), quoted: false })
+}
+
+// ---------------------------------------------------------------------------
+// Own review (8.3)
+// ---------------------------------------------------------------------------
+
+fn new_commits(what_next: &str) -> CoreError {
+    CoreError::new(ErrorCode::StaleState, format!("The merge request has new commits. Reload and {what_next}."))
+}
+
+/// `diff_refs` of the merge request (`GET …/merge_requests/:iid`); the head must still be `expected_head`.
+async fn diff_refs(core: &Core, api: &Api, repo: &RepoPath, mr: u64, expected_head: &str, what_next: &str) -> CoreResult<Value> {
+    let value = mr_raw(core, api, repo, mr).await?;
+    let refs = value.get("diff_refs").filter(|r| !text(r, "head_sha").is_empty()).cloned().ok_or_else(|| {
+        CoreError::new(
+            ErrorCode::HostRejected,
+            format!("GitLab has not worked out the changes of merge request !{mr} yet. Try again in a moment."),
+        )
+    })?;
+    if text(&refs, "head_sha") != expected_head {
+        return Err(new_commits(what_next));
+    }
+    Ok(refs)
+}
+
+/// The documented text `position` of a comment on a line: the new side takes `new_line` (plus `old_line` on an
+/// unchanged line), the old side `old_line`.
+fn position(diff_refs: &Value, comment: &NewReviewComment) -> Value {
+    let mut position = json!({
+        "position_type": "text",
+        "base_sha": diff_refs["base_sha"],
+        "start_sha": diff_refs["start_sha"],
+        "head_sha": diff_refs["head_sha"],
+        "old_path": comment.path,
+        "new_path": comment.path,
+    });
+    match comment.side {
+        ReviewSide::New => {
+            position["new_line"] = json!(comment.line);
+            if let Some(old) = comment.old_line {
+                position["old_line"] = json!(old);
+            }
+        }
+        ReviewSide::Old => position["old_line"] = json!(comment.line),
+    }
+    position
+}
+
+/// `POST /projects/:id/merge_requests/:iid/discussions` – a new discussion on a line of the diff.
+pub async fn review_comment_create(core: &Core, api: &Api, repo: &RepoPath, mr: u64, comment: &NewReviewComment) -> CoreResult<()> {
+    let refs = diff_refs(core, api, repo, mr, &comment.commit, "comment again").await?;
+    let body = json!({ "body": comment.body, "position": position(&refs, comment) });
+    api.send_json(core, Method::Post, &format!("{}/discussions", mr_path(repo, mr)), &body)
+        .await
+        .map_err(|e| not_found_as(e, mr_missing(repo, mr)))?;
+    Ok(())
+}
+
+/// `PUT /projects/:id/merge_requests/:iid/discussions/:discussion_id` with `resolved`.
+pub async fn review_thread_set_resolved(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    mr: u64,
+    resolve_id: &str,
+    resolved: bool,
+) -> CoreResult<()> {
+    let path = format!("{}/discussions/{}", mr_path(repo, mr), encode(resolve_id));
+    api.send_json(core, Method::Put, &path, &json!({ "resolved": resolved }))
+        .await
+        .map_err(|e| not_found_as(e, || "The review thread does not exist (anymore). Reload the merge request.".to_string()))?;
+    Ok(())
+}
+
+/// The token user's draft notes on lines, `GET …/merge_requests/:iid/draft_notes`; general ones are left out.
+pub async fn review_host_drafts(core: &Core, api: &Api, repo: &RepoPath, mr: u64) -> CoreResult<Vec<ReviewDraft>> {
+    let notes = api
+        .get_all(core, &format!("{}/draft_notes?per_page=100", mr_path(repo, mr)))
+        .await
+        .map_err(|e| not_found_as(e, mr_missing(repo, mr)))?;
+    Ok(notes
+        .iter()
+        .filter_map(|n| {
+            let position = n.get("position").filter(|p| p.is_object())?;
+            let (new, old) = (position_line(position, "new_line"), position_line(position, "old_line"));
+            let path = if new.is_some() { opt_text(position, "new_path") } else { opt_text(position, "old_path") }?;
+            Some(ReviewDraft {
+                id: number(n, "id").to_string(),
+                origin: ReviewDraftOrigin::Host,
+                path,
+                line: new.or(old),
+                start_line: None,
+                side: if new.is_none() && old.is_some() { ReviewSide::Old } else { ReviewSide::New },
+                old_line: new.and(old),
+                commit: opt_text(position, "head_sha"),
+                body: text(n, "note"),
+                error: None,
+            })
+        })
+        .collect())
+}
+
+/// Each local draft becomes a draft note (`POST …/draft_notes`); only when all arrived: `bulk_publish` (which
+/// also publishes the draft notes started in the browser), the text as a note, then the approval with the
+/// head as `sha`. Once a draft note exists at GitLab every error goes into the outcome, so the sent drafts are
+/// dropped locally and not posted twice.
+pub async fn review_submit(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    mr: u64,
+    submission: ReviewSubmission<'_>,
+) -> CoreResult<ReviewSubmitOutcome> {
+    let refs = diff_refs(core, api, repo, mr, submission.commit, "send the review again").await?;
+    let path = mr_path(repo, mr);
+    let not_found = |e| not_found_as(e, mr_missing(repo, mr));
+    let mut outcome = ReviewSubmitOutcome::default();
+    for draft in submission.drafts {
+        // Its line numbers belong to another head; GitLab would put it on the wrong line.
+        if draft.commit.as_deref() != Some(submission.commit) {
+            let message = "The merge request has new commits since this comment was written. Check the line and save the comment again.";
+            outcome.failed.push((draft.id.clone(), message.to_string()));
+            continue;
+        }
+        let body = json!({ "note": draft.body, "position": position(&refs, &draft_as_comment(draft)) });
+        match api.send_json(core, Method::Post, &format!("{path}/draft_notes"), &body).await {
+            Ok(_) => outcome.sent.push(draft.id.clone()),
+            Err(error) => outcome.failed.push((draft.id.clone(), error.message)),
+        }
+    }
+    if !outcome.failed.is_empty() {
+        return Ok(outcome);
+    }
+    let finish = async {
+        api.send_json(core, Method::Post, &format!("{path}/draft_notes/bulk_publish"), &json!({})).await?;
+        if !submission.body.trim().is_empty() {
+            comment_create(core, api, repo, mr, submission.body).await?;
+        }
+        if submission.vote == ReviewVote::Approve {
+            api.send_json(core, Method::Post, &format!("{path}/approve"), &json!({ "sha": submission.commit })).await?;
+        }
+        CoreResult::Ok(())
+    };
+    match finish.await {
+        Ok(()) => outcome.submitted = true,
+        Err(error) => outcome.error = Some(not_found(error)),
+    }
+    Ok(outcome)
 }
 
 // ---------------------------------------------------------------------------
@@ -611,11 +759,11 @@ impl Host for GitlabHost {
             pr_labels: true,
             fork_checkout: true,
             releases: true,
-            review_comment: false,
+            review_comment: true,
             review_comment_range: false,
-            review_resolve: false,
-            review_submit_batch: false,
-            review_approve: false,
+            review_resolve: true,
+            review_submit_batch: true,
+            review_approve: true,
             review_request_changes: false,
             review_vote_own_pr: false,
             review_threads: true,
@@ -712,5 +860,39 @@ impl Host for GitlabHost {
         body: &'a str,
     ) -> HostFuture<'a, ReviewReply> {
         Box::pin(review_reply(core, api, repo, number, thread_id, body))
+    }
+    fn review_comment_create<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        comment: &'a NewReviewComment,
+    ) -> HostFuture<'a, ()> {
+        Box::pin(review_comment_create(core, api, repo, number, comment))
+    }
+    fn review_thread_set_resolved<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        resolve_id: &'a str,
+        resolved: bool,
+    ) -> HostFuture<'a, ()> {
+        Box::pin(review_thread_set_resolved(core, api, repo, number, resolve_id, resolved))
+    }
+    fn review_submit<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        submission: ReviewSubmission<'a>,
+    ) -> HostFuture<'a, ReviewSubmitOutcome> {
+        Box::pin(review_submit(core, api, repo, number, submission))
+    }
+    fn review_host_drafts<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, Vec<ReviewDraft>> {
+        Box::pin(review_host_drafts(core, api, repo, number))
     }
 }

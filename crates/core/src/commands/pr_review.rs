@@ -205,21 +205,6 @@ pub async fn pr_review_thread_resolve(
     hoster.review_thread_set_resolved(core, &api, &repo, number, &resolve_id, resolved).await
 }
 
-/// A stored local draft as the comment it was saved from.
-fn as_comment(draft: &ReviewDraft) -> NewReviewComment {
-    // Local drafts always carry both (`commit_sha` and `line` are NOT NULL); only host drafts lack them.
-    debug_assert!(draft.commit.is_some() && draft.line.is_some(), "local draft without commit or line");
-    NewReviewComment {
-        commit: draft.commit.clone().unwrap_or_default(),
-        path: draft.path.clone(),
-        line: draft.line.unwrap_or_default(),
-        start_line: draft.start_line,
-        side: draft.side,
-        old_line: draft.old_line,
-        body: draft.body.clone(),
-    }
-}
-
 /// Submits the own review with its vote, text and drafts. Batch hosts take the local drafts with the
 /// review; the others get each draft on its own first, and the vote only when all of them arrived.
 /// Drafts that reached the host are deleted locally, failing ones stay with their error.
@@ -262,7 +247,7 @@ pub async fn pr_review_submit(
     } else {
         let mut outcome = ReviewSubmitOutcome::default();
         for draft in &local {
-            match hoster.review_comment_create(core, &api, &repo, number, &as_comment(draft)).await {
+            match hoster.review_comment_create(core, &api, &repo, number, &host::draft_as_comment(draft)).await {
                 Ok(()) => outcome.sent.push(draft.id.clone()),
                 Err(error) => outcome.failed.push((draft.id.clone(), error.message)),
             }
