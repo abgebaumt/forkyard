@@ -23,9 +23,9 @@ export type Digest = {
   prs: DigestPrs | null;
   prDataMissing: HostKind | null;
   /**
-   * Highest PR number read; for `digestMarkSeen`.
+   * What this digest compared; `digestMarkSeen` stores exactly this.
    */
-  prMaxNumber: number | null;
+  mark: DigestMark;
   /**
    * No refs and no PR changes (behind alone does not count).
    */
@@ -65,6 +65,29 @@ export type DigestFile = {
    * Changed on the current branch since its merge base with the base branch.
    */
   onBranch: boolean;
+};
+
+/**
+ * The state a digest compared against, for `digestMarkSeen`: marking stores what the card showed,
+ * so news that arrive while it is open stay news.
+ */
+export type DigestMark = {
+  /**
+   * When the digest was composed: the next seen time.
+   */
+  composedAt: string;
+  /**
+   * Remote branches and tags compared (full ref name → object ID as Git stores it).
+   */
+  refs: { [key in string]: string };
+  /**
+   * Highest PR number read, never below the stored one.
+   */
+  prMaxNumber: number | null;
+  /**
+   * Numbers of the open PRs read; `None` without PR data (marking keeps the stored ones).
+   */
+  prOpen: Array<number> | null;
 };
 
 export type DigestPr = { number: number; title: string; change: DigestPrChange; author: string | null; webUrl: string };

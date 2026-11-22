@@ -11,7 +11,9 @@ use crate::error::CoreResult;
 use crate::git::log::LOG_SAFE;
 use crate::git::rev;
 use crate::host;
-use crate::model::{Digest, DigestBehind, DigestCommit, DigestFile, DigestRef, DigestRefChange, Head, HostKind, RefKind, RefsSnapshot};
+use crate::model::{
+    Digest, DigestBehind, DigestCommit, DigestFile, DigestMark, DigestRef, DigestRefChange, Head, HostKind, RefKind, RefsSnapshot,
+};
 use crate::util;
 
 use super::{prs, seen};
@@ -32,7 +34,9 @@ struct LogCommit {
 
 /// The digest against `seen`.
 pub(crate) async fn compose_at(core: &Core, repo_id: &str, seen: &SeenRow) -> CoreResult<Digest> {
-    let (current, snapshot, status, own, (prs, pr_data_missing, pr_max_number)) = tokio::join!(
+    // Before anything is read: what happens from here on is news next time.
+    let composed_at = util::now_iso();
+    let (current, snapshot, status, own, pr) = tokio::join!(
         seen::current_refs(core, repo_id),
         refs::read_refs(core, repo_id),
         status::read_status(core, repo_id),
@@ -125,17 +129,22 @@ pub(crate) async fn compose_at(core: &Core, repo_id: &str, seen: &SeenRow) -> Co
         (Head::Branch { branch, .. }, Some(base)) if default.as_ref() != Some(branch) => behind_of(core, repo_id, branch, base).await?,
         _ => None,
     };
-    let is_empty = digest_refs.is_empty() && !prs.as_ref().is_some_and(|p| !p.changed.is_empty() || !p.comments.is_empty());
+    let is_empty = digest_refs.is_empty() && !pr.prs.as_ref().is_some_and(|p| !p.changed.is_empty() || !p.comments.is_empty());
     Ok(Digest {
         seen_at: seen.seen_at.clone(),
         refs: digest_refs,
         new_commits: foreign.len() as u32,
         your_files,
         behind,
-        prs,
-        pr_data_missing,
-        // Never below the stored number: without PR data marking as seen keeps it.
-        pr_max_number: pr_max_number.max(seen.pr_max_number),
+        prs: pr.prs,
+        pr_data_missing: pr.missing,
+        mark: DigestMark {
+            composed_at,
+            refs: current,
+            // Never below the stored number: without PR data marking as seen keeps it.
+            pr_max_number: pr.max.max(seen.pr_max_number),
+            pr_open: pr.open,
+        },
         is_empty,
     })
 }

@@ -932,10 +932,12 @@ async fn push_many(
     }
 
     let mut refs: Vec<PushRefResult> = Vec::with_capacity(specs.len());
+    let mut befores: Vec<Option<String>> = Vec::with_capacity(specs.len());
     let mut reported = false;
     for (local, remote_ref) in &specs {
         let line = exact_push_line(&out.stdout, remote_ref);
         reported |= line.is_some();
+        befores.push(line.as_ref().and_then(|(_, summary)| tip_before(summary)));
         let (status, forced, reason) = match line {
             Some((' ' | '*' | '-', _)) => (PushRefStatus::Ok, false, None),
             Some(('+', _)) => (PushRefStatus::Ok, true, None),
@@ -953,16 +955,23 @@ async fn push_many(
             .await?;
     }
     // Own pushes are not news: the seen state follows them.
-    let pushed: Vec<String> = refs
+    let pushed: Vec<(String, Option<String>)> = refs
         .iter()
-        .filter(|item| item.status == PushRefStatus::Ok)
-        .map(|item| match item.remote_ref.strip_prefix("refs/heads/") {
-            Some(branch) => format!("refs/remotes/{}/{branch}", target.remote),
-            None => item.local.clone(),
+        .zip(befores)
+        .filter(|(item, _)| item.status == PushRefStatus::Ok)
+        .map(|(item, before)| match item.remote_ref.strip_prefix("refs/heads/") {
+            Some(branch) => (format!("refs/remotes/{}/{branch}", target.remote), before),
+            None => (item.local.clone(), before),
         })
         .collect();
-    seen::absorb(core, repo_id, &pushed).await;
+    seen::absorb_push(core, repo_id, &pushed).await;
     Ok(PushResult::Multi { remote: target.remote, atomic, refs })
+}
+
+/// The remote's tip before the push from a `--porcelain` summary (`old..new`, `old...new (forced
+/// update)`), abbreviated; `None` for a new ref.
+fn tip_before(summary: &str) -> Option<String> {
+    summary.split_once("..").map(|(old, _)| old.to_string())
 }
 
 /// The `--porcelain` line for exactly `remote_ref` (unlike `parse_push_porcelain`, no fallback to
@@ -1074,9 +1083,9 @@ pub(crate) async fn push_transfer(
             Ok(PushResult::Rejected { reason })
         }
         Some(('=', _)) if out.success() && !created_upstream => Ok(PushResult::UpToDate),
-        Some((flag, _)) if out.success() => {
+        Some((flag, summary)) if out.success() => {
             // Own pushes are not news: the seen state follows them.
-            seen::absorb(core, repo_id, &[format!("refs/remotes/{remote}/{remote_branch}")]).await;
+            seen::absorb_push(core, repo_id, &[(format!("refs/remotes/{remote}/{remote_branch}"), tip_before(&summary))]).await;
             Ok(PushResult::Done { remote, branch: remote_branch, created_upstream, forced: flag == '+' })
         }
         _ => Err(push_error(core, repo_id, &out).await),

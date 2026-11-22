@@ -1,5 +1,5 @@
 /** "What's new since …": the core calls behind the card, the palette command and the check after a fetch. */
-import { core, type Digest, type Id, type Tab } from "../../core";
+import { core, type Digest, type DigestMark, type Id, type Tab } from "../../core";
 import { formatRelative } from "../../app/format";
 import { qk, queryClient } from "../../app/queries";
 import { runAction } from "../../app/run";
@@ -60,10 +60,10 @@ export function digestFetchedWhileOpen(repoId: Id): void {
 }
 
 /**
- * "Mark as seen" and ×: the seen state moves to now and the card closes – unless it is behind a fetch, then it
+ * "Mark as seen" and ×: the seen state becomes what the shown digest compared (`mark`) and the card closes – unless it is behind a fetch, then it
  * reloads ("reloaded") and the user marks again. A failed reload is "failed": the error toast says it all.
  */
-export async function markDigestSeen(repoId: Id, prMaxNumber: number | null): Promise<"reloaded" | "marked" | "failed"> {
+export async function markDigestSeen(repoId: Id, mark: DigestMark): Promise<"reloaded" | "marked" | "failed"> {
   if (queryClient.getQueryState(qk.digest(repoId))?.isInvalidated) {
     const before = fetchesWhileOpen.get(repoId);
     const result = await runAction(t("commands.repo.digest.title"), () => freshDigest(repoId));
@@ -76,7 +76,7 @@ export async function markDigestSeen(repoId: Id, prMaxNumber: number | null): Pr
   }
   // Closed first: the disabled query then ignores the `seen` event instead of loading a full digest.
   useAppStore.getState().closeDigest(repoId);
-  const result = await runAction(t("digest.markSeen"), () => core.digestMarkSeen({ repoId, prMaxNumber }));
+  const result = await runAction(t("digest.markSeen"), () => core.digestMarkSeen({ repoId, mark }));
   if (!result.ok) useAppStore.getState().openDigest(repoId);
   return "marked";
 }

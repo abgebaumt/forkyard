@@ -288,7 +288,7 @@ mod tests {
     async fn too_old_git_is_reported_with_its_version() {
         let dir = tempfile::tempdir().unwrap();
         let tc = TestCore::with_git_path(fake_git(dir.path(), "2.30.1.windows.1")).await;
-        let info = app_info(&tc).await.unwrap();
+        let info = recheck_until_found(&tc).await;
         assert_eq!(info.git_version.as_deref(), Some("2.30.1"));
         assert!(info.git_path.is_some());
         let err = tc.git_at(tc.data_dir()).args(["status"]).run().await.unwrap_err();

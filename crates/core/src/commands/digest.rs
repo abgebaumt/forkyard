@@ -9,7 +9,7 @@ pub(crate) use compose::compose_at;
 use crate::app::Core;
 use crate::db::repo_seen;
 use crate::error::CoreResult;
-use crate::model::Digest;
+use crate::model::{Digest, DigestMark};
 
 /// What changed since the seen state. With `min_age_hours`, `None` while the seen state is younger,
 /// before any Git work (auto-fetch asks every minute). Without a seen state one is created and the
@@ -30,24 +30,24 @@ pub async fn digest_get(core: &Core, repo_id: String, min_age_hours: Option<u32>
     }
     if fresh {
         return Ok(Some(Digest {
-            seen_at: row.seen_at,
+            seen_at: row.seen_at.clone(),
             refs: Vec::new(),
             new_commits: 0,
             your_files: Vec::new(),
             behind: None,
             prs: None,
             pr_data_missing: None,
-            pr_max_number: row.pr_max_number,
+            mark: DigestMark { composed_at: row.seen_at, refs: row.refs, pr_max_number: row.pr_max_number, pr_open: Some(row.pr_open) },
             is_empty: true,
         }));
     }
     compose_at(core, &repo_id, &row).await.map(Some)
 }
 
-/// The user has seen everything up to now. `pr_max_number` comes from the digest the card showed;
-/// `None` keeps the stored one.
-pub async fn digest_mark_seen(core: &Core, repo_id: String, pr_max_number: Option<u64>) -> CoreResult<()> {
-    seen::mark(core, &repo_id, pr_max_number).await
+/// The user has seen what the card showed: `mark` comes from that digest, so what arrived after it
+/// was composed stays news.
+pub async fn digest_mark_seen(core: &Core, repo_id: String, mark: DigestMark) -> CoreResult<()> {
+    seen::mark(core, &repo_id, mark).await
 }
 
 #[cfg(test)]

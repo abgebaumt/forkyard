@@ -11,7 +11,8 @@ export const ROW_LIMIT = 8;
 export type DigestNumbers = { commits: number; prs: number; files: number };
 
 export function digestNumbers(d: Digest): DigestNumbers {
-  const prs = d.prs ? d.prs.changed.length + d.prs.comments.length : 0;
+  // A pull request both changed and commented counts once.
+  const prs = new Set([...(d.prs?.changed ?? []), ...(d.prs?.comments ?? [])].map((pr) => pr.number)).size;
   return { commits: d.newCommits, prs, files: d.yourFiles.length };
 }
 
@@ -31,10 +32,12 @@ export function digestRows(d: Digest): DigestRow[] {
   }
   for (const ref of d.refs) {
     const word = ref.kind === "tag" && ref.change === "new" ? "newTag" : ref.change;
-    rows.push({ kind: "ref", key: `ref:${ref.name}`, label: t(`digest.ref.${word}`, { name: ref.name }), sha: ref.newSha });
+    // A remote branch and a tag can share a short name.
+    const id = `${ref.kind}:${ref.name}`;
+    rows.push({ kind: "ref", key: `ref:${id}`, label: t(`digest.ref.${word}`, { name: ref.name }), sha: ref.newSha });
     for (const commit of ref.commits) {
       const label = t("digest.commit", { subject: commit.subject, author: commit.author });
-      rows.push({ kind: "commit", key: `commit:${ref.name}:${commit.sha}`, sha: commit.sha, label });
+      rows.push({ kind: "commit", key: `commit:${id}:${commit.sha}`, sha: commit.sha, label });
     }
   }
   for (const pr of d.prs?.changed ?? []) {

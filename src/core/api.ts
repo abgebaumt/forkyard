@@ -33,6 +33,7 @@ import type {
   BranchCleanupList,
   BranchCleanupTarget,
   Digest,
+  DigestMark,
   Agent,
   AgentCleanupPreview,
   AgentSuggestion,
@@ -445,8 +446,11 @@ export interface CoreCommands {
    * the digest is empty.
    */
   digestGet(input: R & { minAgeHours?: number | null }): Promise<Digest | null>;
-  /** Stores the current refs as seen (`prMaxNumber: null` keeps the stored number); reports `repo:changed` with `seen`. */
-  digestMarkSeen(input: R & { prMaxNumber?: number | null }): Promise<void>;
+  /**
+   * Stores what the shown digest compared (`digest.mark`) as seen, so what arrived after it stays news; a ref an
+   * own push moved meanwhile keeps that. `prMaxNumber`/`prOpen: null` keep the stored PR data. Reports `repo:changed` with `seen`.
+   */
+  digestMarkSeen(input: R & { mark: DigestMark }): Promise<void>;
   /**
    * One paragraph about the current digest, as plain text; the seen state stays. Job `jobId`
    * (cancellable). Show and confirm `aiPreview` with `{ kind: "digest" }` first. Errors: `ai_disabled`,

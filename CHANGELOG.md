@@ -58,7 +58,8 @@ All notable changes to Forkyard are listed here. The format follows
   the commit graph shows what happened since – new, updated, force-pushed and deleted remote branches
   and tags with their new commits, which of your files they touch, how far your branch is behind the
   default branch and, with a connected host, opened, merged and closed pull requests and new comments
-  on yours. Your own commits and pushes never count. Every row jumps to the commit, pull request or
+  on yours. Commits under your e-mail address and what you push, tag or delete from Forkyard are left
+  out. Every row jumps to the commit, pull request or
   file. Also from the command palette at any time; with AI turned on, a one-paragraph summary on request.
 
 ### Fixed

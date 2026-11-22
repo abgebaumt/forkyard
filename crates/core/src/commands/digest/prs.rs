@@ -13,19 +13,32 @@ const PAGES: u32 = 2;
 /// Own open pull requests whose comments are read.
 const OWN_PRS: usize = 10;
 
-/// The pull requests, the host whose data is missing, and the highest PR number read.
-pub(crate) async fn pr_part(core: &Core, repo_id: &str, seen: &SeenRow) -> (Option<DigestPrs>, Option<HostKind>, Option<u64>) {
+/// What the host adds to a digest.
+#[derive(Default)]
+pub(crate) struct PrPart {
+    pub prs: Option<DigestPrs>,
+    /// The host whose data is missing.
+    pub missing: Option<HostKind>,
+    /// Highest PR number read.
+    pub max: Option<u64>,
+    /// Numbers of the open PRs read, ascending; `None` without PR data.
+    pub open: Option<Vec<u64>>,
+}
+
+/// The pull requests since `seen`.
+pub(crate) async fn pr_part(core: &Core, repo_id: &str, seen: &SeenRow) -> PrPart {
+    let missing = |kind| PrPart { missing: Some(kind), ..PrPart::default() };
     let found = match host::resolve(core, repo_id, None).await {
         Ok(Some(found)) => found,
-        Ok(None) => return (None, None, None),
+        Ok(None) => return PrPart::default(),
         Err(e) => {
             log::info!("Digest without PR data: {}", e.message);
-            return (None, None, None);
+            return PrPart::default();
         }
     };
     let kind = found.detected.kind;
     let Some(account) = &found.detected.account else {
-        return (None, Some(kind), None);
+        return missing(kind);
     };
     let remote = Some(found.remote.clone());
     let mut prs: Vec<PrSummary> = Vec::new();
@@ -39,7 +52,7 @@ pub(crate) async fn pr_part(core: &Core, repo_id: &str, seen: &SeenRow) -> (Opti
             }
             Err(e) => {
                 log::info!("Digest without PR data: {}", e.message);
-                return (None, Some(kind), None);
+                return missing(kind);
             }
         }
     }
@@ -48,11 +61,16 @@ pub(crate) async fn pr_part(core: &Core, repo_id: &str, seen: &SeenRow) -> (Opti
     let mut changed: Vec<DigestPr> = prs
         .iter()
         .filter_map(|pr| {
+            // PR numbers rise on every host; `PrSummary` has no creation date. `updated_at` moves
+            // with every later comment, so only a PR open at the last look can have ended since.
+            let new = seen.pr_max_number.is_some_and(|m| pr.number > m);
+            if !new && !seen.pr_open.contains(&pr.number) {
+                return None;
+            }
             let change = match pr.state {
-                // PR numbers rise on every host; `PrSummary` has no creation date.
-                _ if seen.pr_max_number.is_some_and(|m| pr.number > m) => DigestPrChange::Opened,
-                PrState::Merged if after(&pr.updated_at, &seen.seen_at) => DigestPrChange::Merged,
-                PrState::Closed if after(&pr.updated_at, &seen.seen_at) => DigestPrChange::Closed,
+                PrState::Open if new => DigestPrChange::Opened,
+                PrState::Merged => DigestPrChange::Merged,
+                PrState::Closed => DigestPrChange::Closed,
                 _ => return None,
             };
             Some(DigestPr {
@@ -80,7 +98,7 @@ pub(crate) async fn pr_part(core: &Core, repo_id: &str, seen: &SeenRow) -> (Opti
                 Ok(details) => details,
                 Err(e) => {
                     log::info!("Digest without PR data: {}", e.message);
-                    return (None, Some(kind), None);
+                    return missing(kind);
                 }
             };
             let count = details
@@ -94,7 +112,11 @@ pub(crate) async fn pr_part(core: &Core, repo_id: &str, seen: &SeenRow) -> (Opti
         }
         comments.sort_by_key(|c| c.number);
     }
-    (Some(DigestPrs { changed, comments }), None, max)
+    // Open ones beyond the pages read stay as they were: unknown is not ended.
+    let unread = seen.pr_open.iter().copied().filter(|n| !prs.iter().any(|pr| pr.number == *n));
+    let mut open: Vec<u64> = prs.iter().filter(|pr| pr.state == PrState::Open).map(|pr| pr.number).chain(unread).collect();
+    open.sort_unstable();
+    PrPart { prs: Some(DigestPrs { changed, comments }), missing: None, max, open: Some(open) }
 }
 
 /// `at` is later than `since`; an unreadable time is not.

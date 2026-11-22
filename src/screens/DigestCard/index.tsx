@@ -71,9 +71,17 @@ export function DigestCard({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   useEffect(() => {
     if (open && empty) useAppStore.getState().closeDigest(repoId);
   }, [open, empty, repoId]);
-  if (!open || !digest || empty) return null;
-  // Mounted only while open: closing drops the hint and the paragraph and cancels a running request.
-  return <OpenCard repoId={repoId} tabId={tabId} digest={digest} />;
+  const shown = open && digest && !empty ? digest : null;
+  return (
+    <>
+      {/* Mounted before the card: a live region that appears together with its text is not announced. */}
+      <p className="sr-only" aria-live="polite" data-digest-announce="">
+        {shown ? t("digest.title", { time: formatRelative(shown.seenAt) }) : ""}
+      </p>
+      {/* Mounted only while open: closing drops the hint and the paragraph and cancels a running request. */}
+      {shown ? <OpenCard repoId={repoId} tabId={tabId} digest={shown} /> : null}
+    </>
+  );
 }
 
 function OpenCard({ repoId, tabId, digest }: { repoId: Id; tabId: Id; digest: Digest }) {
@@ -93,7 +101,7 @@ function OpenCard({ repoId, tabId, digest }: { repoId: Id; tabId: Id; digest: Di
     // The paragraph described what the card showed before.
     setParagraph(null);
   };
-  const seen = () => void markDigestSeen(repoId, digest.prMaxNumber).then((done) => done === "reloaded" && reload());
+  const seen = () => void markDigestSeen(repoId, digest.mark).then((done) => done === "reloaded" && reload());
   const aiVisible = featureVisible(status.data, AI_FEATURE, repoSettings.data?.aiOff ?? false);
   const opensSetup = aiVisibility(status.data).elementsOpenSetup;
   const summarise = async () => {

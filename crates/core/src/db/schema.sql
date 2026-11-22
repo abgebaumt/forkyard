@@ -180,6 +180,7 @@ create table repo_seen (
   seen_at       text not null,
   refs          text not null check (json_valid(refs)),   -- {"refs/remotes/origin/main": "<sha>", "refs/tags/v1": "<sha>"}
   pr_max_number integer,
+  pr_open       text not null default '[]' check (json_valid(pr_open)),   -- numbers of the PRs open when last seen
   primary key (profile_id, repository_id)
 ) strict;
 -- Since version 15: end
