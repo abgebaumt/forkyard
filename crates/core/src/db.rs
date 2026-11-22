@@ -108,6 +108,7 @@ create table repo_seen (
   seen_at       text not null,
   refs          text not null check (json_valid(refs)),   -- {"refs/remotes/origin/main": "<sha>", "refs/tags/v1": "<sha>"}
   pr_max_number integer,
+  pr_open       text not null default '[]' check (json_valid(pr_open)),   -- numbers of the PRs open when last seen
   primary key (profile_id, repository_id)
 ) strict;
 "#;
@@ -1119,7 +1120,7 @@ create index undo_entries_repo_time on undo_entries (repository_id, created_at d
         let upgraded = Db::open(&path).unwrap();
         let v: i64 = upgraded.with(|c| Ok(c.query_row("pragma user_version", [], |r| r.get(0))?)).unwrap();
         assert_eq!(v, LATEST_VERSION);
-        assert!(!shape(&fresh, "repo_seen").is_empty());
+        assert!(shape(&fresh, "repo_seen").iter().any(|(name, ..)| name == "pr_open"), "the open PRs are part of the seen state");
         assert_eq!(shape(&upgraded, "repo_seen"), shape(&fresh, "repo_seen"));
     }
 

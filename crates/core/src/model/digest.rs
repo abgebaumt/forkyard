@@ -120,8 +120,24 @@ pub struct Digest {
     pub behind: Option<DigestBehind>,
     pub prs: Option<DigestPrs>,
     pub pr_data_missing: Option<HostKind>,
-    /// Highest PR number read; for `digestMarkSeen`.
-    pub pr_max_number: Option<u64>,
+    /// What this digest compared; `digestMarkSeen` stores exactly this.
+    pub mark: DigestMark,
     /// No refs and no PR changes (behind alone does not count).
     pub is_empty: bool,
+}
+
+/// The state a digest compared against, for `digestMarkSeen`: marking stores what the card showed,
+/// so news that arrive while it is open stay news.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "digest.ts"))]
+#[serde(rename_all = "camelCase")]
+pub struct DigestMark {
+    /// When the digest was composed: the next seen time.
+    pub composed_at: IsoTime,
+    /// Remote branches and tags compared (full ref name → object ID as Git stores it).
+    pub refs: std::collections::BTreeMap<String, String>,
+    /// Highest PR number read, never below the stored one.
+    pub pr_max_number: Option<u64>,
+    /// Numbers of the open PRs read; `None` without PR data (marking keeps the stored ones).
+    pub pr_open: Option<Vec<u64>>,
 }

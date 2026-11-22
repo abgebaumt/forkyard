@@ -90,11 +90,12 @@ async function start(t, options = {}) {
   return { app, ui };
 }
 
-/** Opens the repository and takes the seen state now (as a first look would). */
+/** Opens the repository and takes the seen state now (as a first look at the card would). */
 async function openAndSee(app, ui, fx) {
   const ids = await app.openRepo(fx.path);
   await app.waitFor(() => ui.toolButton("Fetch"), 20_000, { message: "repository toolbar" });
-  await app.invoke("digest_mark_seen", { repoId: ids.repoId });
+  const { mark } = await app.invoke("digest_get", { repoId: ids.repoId });
+  await app.invoke("digest_mark_seen", { repoId: ids.repoId, mark });
   await app.settle();
   return ids;
 }
@@ -134,7 +135,8 @@ const rowByText = (app, text) =>
     () =>
       app.exec(
         (card, wanted) =>
-          [...document.querySelectorAll(`${card} [data-digest-row]`)].find((row) => row.innerText.trim() === wanted) ?? null,
+          [...document.querySelectorAll(`${card} [data-digest-row]`)].find((row) => row.innerText.replace(/\s+/g, " ").trim() === wanted) ??
+          null,
         CARD,
         text,
       ),
@@ -172,7 +174,7 @@ scenario("palette shows what the colleague did; rows jump; Mark as seen empties 
 
     await ui.runCommand("What's new since", "repo.digest");
     await waitCard(app);
-    assertMatch(await textOf(app, `${CARD} h2`), /^What's new since /, "title");
+    assertMatch(await textOf(app, `${CARD} h2`), /^What's new – last looked /, "title");
     assertEqual(await textOf(app, `${CARD} [data-digest-number="commits"]`), "2 new commits", "commits number");
     assertEqual(await textOf(app, `${CARD} [data-digest-number="files"]`), "1 of your files affected", "files number");
     assertEqual(
@@ -194,6 +196,11 @@ scenario("palette shows what the colleague did; rows jump; Mark as seen empties 
       "polite",
       "numbers announced politely",
     );
+    assertMatch(
+      (await textOf(app, "[data-digest-announce]")) ?? "",
+      /^What's new – last looked /,
+      "the live region mounted before the card announces it",
+    );
     await t.shot("card");
 
     // The deleted ref has no target, but stays in the Tab order: aria-disabled, not disabled.
@@ -204,7 +211,7 @@ scenario("palette shows what the colleague did; rows jump; Mark as seen empties 
     await app.press("Tab");
     assertEqual(
       await app.exec(() => document.activeElement?.getAttribute("data-digest-row")),
-      "ref:origin/feature/weg",
+      "ref:remote:origin/feature/weg",
       "Tab reaches the deleted row",
     );
 
@@ -218,7 +225,7 @@ scenario("palette shows what the colleague did; rows jump; Mark as seen empties 
     await app.click(`${CARD} [data-digest-seen]`);
     await waitNoCard(app);
     await ui.runCommand("What's new since", "repo.digest");
-    await ui.waitToast(/^Nothing new since /, "info");
+    await ui.waitToast(/^Nothing new – last looked /, "info");
     assert(!(await app.$(CARD)), "no card when nothing is new");
     await t.noConsoleErrors(app);
   } finally {
@@ -306,7 +313,7 @@ scenario("own push and own force push never appear", "edge", async (t) => {
     assertEqual(gitIn(fx, fx.remotePath, ["rev-parse", "feature/eigen"]), git(fx, "rev-parse", "HEAD"), "the amend is on the remote");
 
     await ui.runCommand("What's new since", "repo.digest");
-    await ui.waitToast(/^Nothing new since /, "info");
+    await ui.waitToast(/^Nothing new – last looked /, "info");
     assert(!(await app.$(CARD)), "no card for own pushes");
     await t.noConsoleErrors(app);
   } finally {
@@ -318,11 +325,12 @@ scenario("a fetch with a fresh seen state opens no card", "edge", async (t) => {
   const fx = makeCleanRepoWithRemote({ name: "messnetz" });
   try {
     const { app, ui } = await start(t);
-    await openAndSee(app, ui, fx);
+    const { repoId } = await openAndSee(app, ui, fx);
     const sha = fx.commitOnRemote({ message: "Kalibrierung nachgetragen" });
     await fetchNow(ui);
     assertEqual(git(fx, "rev-parse", "origin/main"), sha, "the fetch brought the colleague's tip");
     // The check after the fetch answers before any Git work while the seen state is young.
+    assertEqual(await app.invoke("digest_get", { repoId, minAgeHours: 8 }), null, "the young seen state answers nothing");
     await app.settle();
     assert(!(await app.$(CARD)), "no card");
     // The news are there, the palette shows them.
@@ -395,7 +403,7 @@ scenario("German texts", "edge", async (t) => {
     await app.settle();
     await ui.runCommand("Was ist neu seit", "repo.digest");
     await waitCard(app);
-    assertMatch(await textOf(app, `${CARD} h2`), /^Neu seit /, "German title");
+    assertMatch(await textOf(app, `${CARD} h2`), /^Neu – zuletzt angesehen /, "German title");
     assertEqual(await textOf(app, `${CARD} [data-digest-number="commits"]`), "2 neue Commits", "German commits number");
     const rows = await rowTexts(app);
     assert(rows.includes("origin/feature/alt – force-gepusht"), `force-gepusht: ${JSON.stringify(rows)}`);
@@ -404,7 +412,7 @@ scenario("German texts", "edge", async (t) => {
     await app.click(`${CARD} [data-digest-seen]`);
     await waitNoCard(app);
     await ui.runCommand("Was ist neu seit", "repo.digest");
-    await ui.waitToast(/^Nichts Neues seit /, "info");
+    await ui.waitToast(/^Nichts Neues – zuletzt angesehen /, "info");
     await t.noConsoleErrors(app);
   } finally {
     fx.cleanup();

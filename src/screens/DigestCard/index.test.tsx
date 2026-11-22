@@ -22,7 +22,7 @@ const sample = {
   behind: null,
   prs: null,
   prDataMissing: null,
-  prMaxNumber: null,
+  mark: { composedAt: "2026-11-20T08:00:00Z", refs: {}, prMaxNumber: null, prOpen: null },
   isEmpty: false,
 } satisfies Digest;
 
@@ -32,7 +32,7 @@ describe("DigestSummary", () => {
     useAppStore.getState().openDigest("r1");
     digestGet.mockResolvedValue(sample);
     digestFetchedWhileOpen("r1");
-    const reloaded = (await markDigestSeen("r1", null)) === "reloaded";
+    const reloaded = (await markDigestSeen("r1", sample.mark)) === "reloaded";
     const markup = renderToStaticMarkup(<DigestSummary numbers={numbers} reloaded={reloaded} />);
     expect(markup).toMatch(/^<p [^>]*aria-live="polite"[^>]*>.*New changes arrived – check them, then mark as seen<\/span><\/p>$/);
   });

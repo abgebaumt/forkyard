@@ -36,7 +36,7 @@ const sample: Digest = {
     comments: [{ number: 7, title: "Login", count: 2 }],
   },
   prDataMissing: null,
-  prMaxNumber: 7,
+  mark: { composedAt: "2026-11-20T08:00:00Z", refs: { "refs/remotes/origin/main": "b".repeat(40) }, prMaxNumber: 7, prOpen: [3] },
   isEmpty: false,
 };
 
@@ -50,7 +50,10 @@ const deletedOnly: Digest = {
 
 describe("digestNumbers", () => {
   it("counts commits, changed pull requests with comments, and your files", () => {
-    expect(digestNumbers(sample)).toEqual({ commits: 3, prs: 3, files: 1 });
+    expect(digestNumbers(sample)).toEqual({ commits: 3, prs: 2, files: 1 });
+  });
+  it("counts a pull request opened and commented once", () => {
+    expect(digestNumbers(sample).prs).toBe(new Set([7, 5]).size);
   });
   it("counts no pull requests without PR data", () => expect(digestNumbers(deletedOnly).prs).toBe(0));
 });
@@ -61,6 +64,17 @@ describe("digestRows", () => {
   });
   it("keys stay unique when a pull request is both changed and commented", () => {
     const keys = digestRows(sample).map((row) => row.key);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+  it("keys stay unique for a remote branch and a tag with the same short name", () => {
+    const twins: Digest = {
+      ...deletedOnly,
+      refs: [
+        ref({ name: "v2", commits: [{ sha: "e".repeat(40), subject: "Zwei", author: "Ana" }] }),
+        ref({ name: "v2", kind: "tag", change: "new", commits: [{ sha: "e".repeat(40), subject: "Zwei", author: "Ana" }] }),
+      ],
+    };
+    const keys = digestRows(twins).map((row) => row.key);
     expect(new Set(keys).size).toBe(keys.length);
   });
   it("names the change in words, a new tag as such", () => {

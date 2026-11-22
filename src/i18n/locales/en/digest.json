@@ -1,5 +1,5 @@
 {
-  "title": "What's new since {{time}}",
+  "title": "What's new – last looked {{time}}",
   "numbers": {
     "commits_one": "{{count}} new commit",
     "commits_other": "{{count}} new commits",
@@ -34,6 +34,6 @@
   "reloaded": "New changes arrived – check them, then mark as seen",
   "summarise": "Summarise",
   "markSeen": "Mark as seen",
-  "nothingNew": "Nothing new since {{time}}",
+  "nothingNew": "Nothing new – last looked {{time}}",
   "rows": "Changes since you last looked"
 }

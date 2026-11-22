@@ -416,6 +416,8 @@ impl TestCore {
             crate::commands::trust::repo_trust_set(&self.core, opened.repo.id.clone(), true).await.expect("repo_trust_set");
             opened.repo.trusted = true;
         }
+        // Waits for the seen state `start_background` creates: its Git calls never land in a later `take_spawned`.
+        crate::commands::digest::seen::ensure(&self.core, &opened.repo.id).await.expect("seen state");
         opened
     }
 }

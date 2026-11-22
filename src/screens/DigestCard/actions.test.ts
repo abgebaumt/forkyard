@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Digest } from "../../core";
+import type { Digest, DigestMark } from "../../core";
 
 type GetInput = { repoId: string; minAgeHours?: number | null };
 const digestGet = vi.fn<(input: GetInput) => Promise<Digest | null>>();
-const digestMarkSeen = vi.fn<(input: { repoId: string; prMaxNumber?: number | null }) => Promise<void>>();
+const digestMarkSeen = vi.fn<(input: { repoId: string; mark: DigestMark }) => Promise<void>>();
 const toastSpy = vi.fn<(options: { tone: string; title: string }) => void>();
 
 vi.mock("../../core", async (original) => ({
   ...(await original<typeof import("../../core")>()),
   core: {
     digestGet: (input: GetInput) => digestGet(input),
-    digestMarkSeen: (input: { repoId: string; prMaxNumber?: number | null }) => digestMarkSeen(input),
+    digestMarkSeen: (input: { repoId: string; mark: DigestMark }) => digestMarkSeen(input),
     on: () => () => undefined,
   },
 }));
@@ -30,7 +30,7 @@ const sample = {
   behind: null,
   prs: null,
   prDataMissing: null,
-  prMaxNumber: 7,
+  mark: { composedAt: "2026-11-20T08:00:00Z", refs: { "refs/remotes/origin/main": "b".repeat(40) }, prMaxNumber: 7, prOpen: [3] },
   isEmpty: false,
 } satisfies Digest;
 
@@ -101,25 +101,25 @@ describe("openDigestCard", () => {
     digestGet.mockResolvedValue({ ...sample, isEmpty: true });
     await openDigestCard("r1");
     expect(useAppStore.getState().digestOpen.r1).toBeFalsy();
-    expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ title: expect.stringMatching(/^Nothing new since /) }));
+    expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ title: expect.stringMatching(/^Nothing new – last looked /) }));
   });
 });
 
 describe("markDigestSeen", () => {
-  it("closes the card and marks with the shown PR number", async () => {
+  it("closes the card and marks what the shown digest compared", async () => {
     withTab();
     digestGet.mockResolvedValue(sample);
     digestMarkSeen.mockResolvedValue(undefined);
     await checkDigestAfterFetch("r1");
-    expect(await markDigestSeen("r1", 7)).toBe("marked");
-    expect(digestMarkSeen).toHaveBeenCalledWith({ repoId: "r1", prMaxNumber: 7 });
+    expect(await markDigestSeen("r1", sample.mark)).toBe("marked");
+    expect(digestMarkSeen).toHaveBeenCalledWith({ repoId: "r1", mark: sample.mark });
     expect(useAppStore.getState().digestOpen.r1).toBe(false);
   });
 
   it("reopens the card when marking fails", async () => {
     useAppStore.getState().openDigest("r1");
     digestMarkSeen.mockRejectedValue(new Error("db locked"));
-    await markDigestSeen("r1", null);
+    await markDigestSeen("r1", sample.mark);
     expect(useAppStore.getState().digestOpen.r1).toBe(true);
   });
 
@@ -132,7 +132,7 @@ describe("markDigestSeen", () => {
     digestFetchedWhileOpen("r1");
     await checkDigestAfterFetch("r1");
     expect(digestGet).not.toHaveBeenCalled();
-    expect(await markDigestSeen("r1", 7)).toBe("reloaded");
+    expect(await markDigestSeen("r1", sample.mark)).toBe("reloaded");
     expect(digestMarkSeen).not.toHaveBeenCalled();
     expect(digestGet).toHaveBeenCalledTimes(1);
     expect(digestGet).toHaveBeenCalledWith({ repoId: "r1" });
@@ -147,14 +147,14 @@ describe("markDigestSeen", () => {
     let answer: (value: Digest | null) => void = () => undefined;
     digestGet.mockImplementation(() => new Promise((resolve) => (answer = resolve)));
     digestFetchedWhileOpen("r1");
-    const reload = markDigestSeen("r1", 7);
+    const reload = markDigestSeen("r1", sample.mark);
     await vi.waitFor(() => expect(digestGet).toHaveBeenCalledTimes(1));
     digestFetchedWhileOpen("r1");
     answer(sample);
     expect(await reload).toBe("reloaded");
     expect(queryClient.getQueryState(qk.digest("r1"))?.isInvalidated).toBe(true);
     digestGet.mockResolvedValue(sample);
-    expect(await markDigestSeen("r1", 7)).toBe("reloaded");
+    expect(await markDigestSeen("r1", sample.mark)).toBe("reloaded");
     expect(digestMarkSeen).not.toHaveBeenCalled();
     expect(queryClient.getQueryState(qk.digest("r1"))?.isInvalidated).toBe(false);
   });
@@ -164,7 +164,7 @@ describe("markDigestSeen", () => {
     useAppStore.getState().openDigest("r1");
     digestFetchedWhileOpen("r1");
     digestGet.mockRejectedValue(new Error("network down"));
-    expect(await markDigestSeen("r1", 7)).toBe("failed");
+    expect(await markDigestSeen("r1", sample.mark)).toBe("failed");
     expect(digestMarkSeen).not.toHaveBeenCalled();
     expect(useAppStore.getState().digestOpen.r1).toBe(true);
   });
