@@ -157,7 +157,7 @@ export function fileMenu(ctx: MenuBase & { files: FileChange[]; source: DiffSour
       item(
         single ? t("menus.file.stashOnly") : t("menus.file.stashOnlyMany", { n: count }),
         Archive,
-        () => void stashFiles(repoId, paths),
+        () => void stashFiles(repoId, paths, () => forgetLassoPaths(tabId, paths)),
         { blocked: someConflicts },
       ),
       item(t("ui.ignore"), EyeOff, () => undefined, ignore.length ? { children: ignore } : { blocked: t("menus.file.ignoreNone") }),

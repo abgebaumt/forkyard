@@ -229,8 +229,8 @@ export async function ignoreFiles(repoId: Id, files: Pick<FileChange, "path" | "
   return ignorePattern(repoId, choice.pattern, choice.stopTracking);
 }
 
-/** Stashes only these files. */
-export function stashFiles(repoId: Id, paths: string[]) {
+/** Stashes only these files. `onApplied` as in `stagePaths`. */
+export function stashFiles(repoId: Id, paths: string[], onApplied?: () => void) {
   if (!paths.length) return Promise.resolve(null);
   return stashChanges(repoId, {
     paths,
@@ -239,6 +239,7 @@ export function stashFiles(repoId: Id, paths: string[]) {
         ? t("actions.files.stashOne", { path: paths[0] })
         : t("actions.files.stashMany", { count: paths.length, paths: clip(paths.join(", "), 60) }),
     includeUntracked: true,
+    onApplied,
   });
 }
 
