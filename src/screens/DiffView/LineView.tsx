@@ -920,8 +920,10 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
                 );
               } else if (row.type === "fold") {
                 content = <FoldHead row={row} index={item.index} isCursor={isCursor} onToggle={onToggleFold} />;
-              } else {
+              } else if (row.type === "note") {
                 content = <NoteLine row={row} index={item.index} gutterStyle={gutterStyle} />;
+              } else {
+                content = null;
               }
               return (
                 <div

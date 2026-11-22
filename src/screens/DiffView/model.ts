@@ -48,7 +48,13 @@ export interface NoteRow {
   note: "no_newline";
 }
 
-export type Row = LineRow | HunkRow | FoldRow | NoteRow;
+/** Review material below a code row (PR review): threads and drafts anchored at `anchor`. */
+export interface ReviewRow {
+  type: "review";
+  anchor: string;
+}
+
+export type Row = LineRow | HunkRow | FoldRow | NoteRow | ReviewRow;
 
 export interface RowModel {
   rows: Row[];

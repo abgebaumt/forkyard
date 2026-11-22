@@ -154,6 +154,7 @@ export const qk = {
   prs: (repoId: Id) => ["repo", repoId, "pr"] as const,
   pr: (repoId: Id, number: number) => ["repo", repoId, "pr", number] as const,
   prReviewThreads: (repoId: Id, number: number) => ["repo", repoId, "pr", number, "threads"] as const,
+  prReviewDrafts: (repoId: Id, number: number) => ["repo", repoId, "pr", number, "drafts"] as const,
   prTemplate: (repoId: Id) => ["repo", repoId, "prTemplate"] as const,
 
   // Issues of the host.
@@ -641,6 +642,15 @@ export const usePrReviewThreads = (repoId: Id | null | undefined, number: number
     queryKey: qk.prReviewThreads(repoId ?? "", number ?? 0),
     queryFn: () => core.prReviewThreads({ repoId: repoId!, number: number! }),
     enabled: enabledFor(repoId) && typeof number === "number" && enabled,
+    staleTime: HOST_STALE_MS,
+  });
+
+/** Drafts of the own review: the host's first, then the local ones (8.3). */
+export const usePrReviewDrafts = (repoId: Id | null, number: number | null) =>
+  useQuery({
+    queryKey: qk.prReviewDrafts(repoId ?? "", number ?? 0),
+    queryFn: () => core.prReviewDrafts({ repoId: repoId!, number: number! }),
+    enabled: enabledFor(repoId) && typeof number === "number",
     staleTime: HOST_STALE_MS,
   });
 
