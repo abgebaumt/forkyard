@@ -15,6 +15,12 @@ All notable changes to Forkyard are listed here. The format follows
 
 ### Added
 
+- Partial commits: lines selected in the diff of your local changes stay selected when you switch files
+  (click, Shift-click, drag over the line numbers, keyboard), and the file list shows how many lines of
+  each file are selected. "Commit only this" commits exactly those lines – staged changes stay staged and
+  your files stay as they are; hooks and signing run as usual. "Move to new branch …" puts them on a new
+  branch from HEAD and takes them out of your working copy; one Undo brings everything back. A file
+  whose staged changes collide with the selection is named instead of being committed half.
 - Clean up branches: a view – from the command palette, the menu of the “Local” section and “Clean up
   repository” – lists the local branches that can go, each with its reasons (merged, pull request merged
   – also squash merges –, upstream gone, older than 90 days (Preferences), no pull request, commits not
