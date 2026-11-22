@@ -136,13 +136,22 @@ fn require(hoster: &dyn Host, can: bool, what: &str) -> CoreResult<()> {
     if can {
         Ok(())
     } else {
-        Err(CoreError::new(ErrorCode::HostUnsupported, format!("{} offers no {what} through its API.", hoster.label())))
+        Err(CoreError::new(ErrorCode::HostUnsupported, format!("{} does not offer {what} through its API.", hoster.label())))
     }
+}
+
+/// The review text is at most 64 KiB.
+fn check_review_body(body: &str) -> CoreResult<()> {
+    if body.len() > MAX_BODY_BYTES {
+        return Err(CoreError::not_allowed(format!("The review text is longer than {MAX_BODY_BYTES} bytes. Shorten it.")));
+    }
+    Ok(())
 }
 
 /// What a review needs besides its vote: `Comment` a text or at least one draft (local or at the host),
 /// `RequestChanges` a text; the text at most 64 KiB.
 pub(crate) fn check_submission(vote: ReviewVote, body: &str, drafts: usize) -> CoreResult<()> {
+    check_review_body(body)?;
     let blank = body.trim().is_empty();
     if vote == ReviewVote::RequestChanges && blank {
         return Err(CoreError::new(ErrorCode::EmptyMessage, "Requesting changes needs a text that says what to change. Write one."));
@@ -153,10 +162,14 @@ pub(crate) fn check_submission(vote: ReviewVote, body: &str, drafts: usize) -> C
             "This review has neither a text nor comments on lines. Write a text or comment on a line first.",
         ));
     }
-    if body.len() > MAX_BODY_BYTES {
-        return Err(CoreError::not_allowed(format!("The review text is longer than {MAX_BODY_BYTES} bytes. Shorten it.")));
-    }
     Ok(())
+}
+
+/// The error of a vote that failed after `sent` line comments already reached the host; the code stays.
+pub(crate) fn vote_failed_after(sent: usize, mut error: CoreError) -> CoreError {
+    let what = if sent == 1 { "The line comment was sent".to_string() } else { format!("The {sent} line comments were sent") };
+    error.message = format!("{what}; the review itself was not: {}. Send the review again.", error.message.trim_end_matches('.'));
+    error
 }
 
 /// Sends one comment on a line (or range) at once, without a draft.
@@ -188,12 +201,14 @@ pub async fn pr_review_thread_resolve(
     let resolve_id = check_thread_id(&resolve_id)?.to_string();
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
     let hoster = host::host(api.kind);
-    require(hoster, hoster.capabilities().review_resolve, "resolving of review threads")?;
+    require(hoster, hoster.capabilities().review_resolve, "resolving review threads")?;
     hoster.review_thread_set_resolved(core, &api, &repo, number, &resolve_id, resolved).await
 }
 
 /// A stored local draft as the comment it was saved from.
 fn as_comment(draft: &ReviewDraft) -> NewReviewComment {
+    // Local drafts always carry both (`commit_sha` and `line` are NOT NULL); only host drafts lack them.
+    debug_assert!(draft.commit.is_some() && draft.line.is_some(), "local draft without commit or line");
     NewReviewComment {
         commit: draft.commit.clone().unwrap_or_default(),
         path: draft.path.clone(),
@@ -229,15 +244,21 @@ pub async fn pr_review_submit(
     if !is_sha(&commit) {
         return Err(CoreError::not_allowed("The review must name the full ID of the commit it refers to. Reload the pull request."));
     }
+    check_review_body(&body)?;
     let full = repo.full();
     let local = core.db.with(|c| db::review_drafts::list(c, &repo_id, &full, number))?;
-    // Unreadable host drafts count as none: the host itself refuses an empty review.
-    let at_host = hoster.review_host_drafts(core, &api, &repo, number).await.map(|d| d.len()).unwrap_or(0);
+    // The host's drafts matter only for a comment review without text or local drafts; unreadable ones
+    // count as none (the host itself refuses an empty review).
+    let at_host = if vote == ReviewVote::Comment && body.trim().is_empty() && local.is_empty() {
+        hoster.review_host_drafts(core, &api, &repo, number).await.map(|d| d.len()).unwrap_or(0)
+    } else {
+        0
+    };
     check_submission(vote, &body, local.len() + at_host)?;
 
-    let (outcome, error) = if caps.review_submit_batch {
+    let outcome = if caps.review_submit_batch {
         let submission = ReviewSubmission { vote, body: &body, commit: &commit, drafts: &local };
-        (hoster.review_submit(core, &api, &repo, number, submission).await?, None)
+        hoster.review_submit(core, &api, &repo, number, submission).await?
     } else {
         let mut outcome = ReviewSubmitOutcome::default();
         for draft in &local {
@@ -246,15 +267,14 @@ pub async fn pr_review_submit(
                 Err(error) => outcome.failed.push((draft.id.clone(), error.message)),
             }
         }
-        let mut error = None;
         if outcome.failed.is_empty() {
             let submission = ReviewSubmission { vote, body: &body, commit: &commit, drafts: &[] };
             match hoster.review_submit(core, &api, &repo, number, submission).await {
                 Ok(done) => outcome.submitted = done.submitted,
-                Err(e) => error = Some(e),
+                Err(error) => outcome.error = Some(error),
             }
         }
-        (outcome, error)
+        outcome
     };
 
     // Drafts that reached the host go even when the vote failed afterwards: a retry must not post them twice.
@@ -267,8 +287,8 @@ pub async fn pr_review_submit(
         }
         Ok(())
     })?;
-    if let Some(error) = error {
-        return Err(error);
+    if let Some(error) = outcome.error {
+        return Err(if outcome.sent.is_empty() { error } else { vote_failed_after(outcome.sent.len(), error) });
     }
     let failed = core.db.with(|c| db::review_drafts::list(c, &repo_id, &full, number))?.into_iter().filter(|d| d.error.is_some()).collect();
     Ok(ReviewSubmitResult { submitted: outcome.submitted, sent: outcome.sent.len() as u32, failed })
