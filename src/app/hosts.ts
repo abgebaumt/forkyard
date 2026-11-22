@@ -87,6 +87,10 @@ export const defaultCapabilities: Record<HostKind, HostCapabilities> = {
     prLabels: false,
     forkCheckout: false,
     releases: false,
+    reviewComment: true,
+    reviewResolve: true,
+    reviewApprove: true,
+    reviewRequestChanges: true,
     mergeMethods: ["merge", "squash"],
   },
   azure_devops: {
@@ -95,6 +99,12 @@ export const defaultCapabilities: Record<HostKind, HostCapabilities> = {
     prReviewers: false,
     forkCheckout: false,
     releases: false,
+    reviewComment: true,
+    reviewCommentRange: true,
+    reviewResolve: true,
+    reviewApprove: true,
+    reviewRequestChanges: true,
+    reviewVoteOwnPr: true,
     mergeMethods: ["merge", "squash", "rebase"],
   },
 };

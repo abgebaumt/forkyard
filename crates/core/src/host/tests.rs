@@ -66,6 +66,10 @@ pub(crate) struct MockState {
     pub gl_already_approved: bool,
     /// The token's user may not approve (GitLab).
     pub gl_cannot_approve: bool,
+    /// A new review comment with exactly this body is refused with 400 (Bitbucket, Azure DevOps).
+    pub fail_comment_body: Option<&'static str>,
+    /// Approving and requesting changes fail with 409 (Bitbucket).
+    pub bb_vote_fails: bool,
 }
 
 pub(crate) struct Fixture {

@@ -202,6 +202,42 @@ pub(crate) fn draft_as_comment(draft: &ReviewDraft) -> NewReviewComment {
     }
 }
 
+/// The review on a host without batch submit (the command layer sent the drafts one by one before): the text
+/// as an ordinary comment when there is one, then `vote`. A vote that fails after the text went out goes into
+/// the outcome (`published`) with what to do next, because sending the same review again would post the text twice.
+pub(crate) async fn text_then_vote(
+    hoster: &dyn Host,
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    number: u64,
+    submission: &ReviewSubmission<'_>,
+    vote: impl Future<Output = CoreResult<()>>,
+) -> CoreResult<ReviewSubmitOutcome> {
+    let mut outcome = ReviewSubmitOutcome::default();
+    let has_text = !submission.body.trim().is_empty();
+    if has_text {
+        hoster.pr_comment(core, api, repo, number, submission.body).await?;
+    }
+    if let Err(mut error) = vote.await {
+        if !has_text {
+            return Err(error);
+        }
+        let label = hoster.label();
+        let next = match submission.vote {
+            ReviewVote::Approve => format!("Approve the {} on {label}, or send an Approve review here without text.", hoster.pr_word()),
+            _ => format!("Request changes on the {label} website; the text is already there."),
+        };
+        error.message =
+            format!("The review text was posted on {label}; only the vote failed: {}. {next}", error.message.trim_end_matches('.'));
+        outcome.published = true;
+        outcome.error = Some(error);
+        return Ok(outcome);
+    }
+    outcome.submitted = true;
+    Ok(outcome)
+}
+
 /// A call this host cannot make: `host_unsupported`, before anything is sent.
 pub(crate) fn unsupported<'a, T: Send + 'a>(label: &str, what: &str) -> HostFuture<'a, T> {
     let error = CoreError::new(ErrorCode::HostUnsupported, format!("{label} does not offer {what} through its API."));

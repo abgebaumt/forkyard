@@ -1337,6 +1337,27 @@ pub(crate) fn bitbucket(request: &MockRequest, state: &Mutex<MockState>) -> Mock
                     "inline": { "path": "src/anmeldung.rs", "to": 42, "from": Value::Null } }),
             )
         }
+        ("POST", ["pullrequests", _, "comments"]) if state.fail_comment_body.is_some_and(|b| request.json()["content"]["raw"] == b) => {
+            bb_error(400, "Invalid inline comment: the line is not part of the diff.")
+        }
+        ("POST", ["pullrequests", _, "approve" | "request-changes"]) if state.bb_vote_fails => {
+            bb_error(409, "The pull request has changed since you last loaded it.")
+        }
+        ("POST", ["pullrequests", _, "approve"]) => MockResponse::json(
+            200,
+            json!({ "type": "participant", "user": bb_user("lena"), "role": "REVIEWER", "approved": true, "state": "approved" }),
+        ),
+        ("POST", ["pullrequests", _, "request-changes"]) => MockResponse::json(
+            200,
+            json!({ "type": "participant", "user": bb_user("lena"), "role": "REVIEWER", "approved": false, "state": "changes_requested" }),
+        ),
+        ("POST" | "DELETE", ["pullrequests", _, "comments", id, "resolve"]) if number != 9 || *id != "901" => {
+            bb_error(404, "Comment not found")
+        }
+        ("POST", ["pullrequests", _, "comments", _, "resolve"]) => {
+            MockResponse::json(200, json!({ "type": "comment_resolution", "user": bb_user("lena"), "created_on": "2026-09-05T08:00:00Z" }))
+        }
+        ("DELETE", ["pullrequests", _, "comments", _, "resolve"]) => MockResponse::empty(204),
         ("POST", ["pullrequests", _, "comments"]) => MockResponse::json(
             201,
             json!({ "id": 99, "user": bb_user("lena"), "content": { "raw": request.json()["content"]["raw"] }, "created_on": "2026-09-05T08:00:00Z" }),
@@ -1643,6 +1664,25 @@ pub(crate) fn azure(request: &MockRequest, state: &Mutex<MockState>) -> MockResp
             json!({ "id": 2, "comments": [{ "id": 1, "author": az_user("mira"), "content": "Sieht gut aus.", "publishedDate": "2026-09-02T09:00:00Z", "commentType": "text" }] }),
             json!({ "id": 3, "threadContext": { "filePath": "/src/anmeldung.rs", "rightFileStart": { "line": 42, "offset": 1 } }, "comments": [{ "id": 1, "author": az_user("mira"), "content": "Hier bitte prüfen.", "publishedDate": "2026-09-02T09:30:00Z", "commentType": "text" }] }),
         ]),
+        ("POST", ["pullrequests", _, "threads"])
+            if state.fail_comment_body.is_some_and(|b| request.json()["comments"][0]["content"] == b) =>
+        {
+            az_error(400, "TF401181: The file position is not part of the pull request.")
+        }
+        ("PATCH", ["pullrequests", _, "threads", id]) => {
+            match az_review_threads().into_iter().find(|t| t["id"].as_u64().is_some() && t["id"].as_u64() == id.parse::<u64>().ok()) {
+                Some(mut thread) if number == 9 => {
+                    thread["status"] = request.json()["status"].clone();
+                    MockResponse::json(200, thread)
+                }
+                _ => az_error(404, "TF401181: The requested pull request thread was not found."),
+            }
+        }
+        ("PUT", ["pullrequests", _, "reviewers", "6f1c0de2"]) => MockResponse::json(
+            200,
+            json!({ "id": "6f1c0de2", "displayName": "Lena Hartmann", "uniqueName": "lena@example.org", "vote": request.json()["vote"] }),
+        ),
+        ("PUT", ["pullrequests", _, "reviewers", _]) => az_error(400, "TF401019: The reviewer identity is not valid."),
         ("POST", ["pullrequests", _, "threads"]) => MockResponse::json(
             200,
             json!({ "id": 7, "comments": [{ "id": 1, "author": az_user("lena"), "content": request.json()["comments"][0]["content"], "publishedDate": "2026-09-05T08:00:00Z", "commentType": "text" }] }),
