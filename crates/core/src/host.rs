@@ -184,6 +184,21 @@ pub struct ReviewSubmitOutcome {
     pub error: Option<CoreError>,
 }
 
+/// A stored local draft as the comment it was saved from.
+pub(crate) fn draft_as_comment(draft: &ReviewDraft) -> NewReviewComment {
+    // Local drafts always carry both (`commit_sha` and `line` are NOT NULL); only host drafts lack them.
+    debug_assert!(draft.commit.is_some() && draft.line.is_some(), "local draft without commit or line");
+    NewReviewComment {
+        commit: draft.commit.clone().unwrap_or_default(),
+        path: draft.path.clone(),
+        line: draft.line.unwrap_or_default(),
+        start_line: draft.start_line,
+        side: draft.side,
+        old_line: draft.old_line,
+        body: draft.body.clone(),
+    }
+}
+
 /// A call this host cannot make: `host_unsupported`, before anything is sent.
 pub(crate) fn unsupported<'a, T: Send + 'a>(label: &str, what: &str) -> HostFuture<'a, T> {
     let error = CoreError::new(ErrorCode::HostUnsupported, format!("{label} does not offer {what} through its API."));

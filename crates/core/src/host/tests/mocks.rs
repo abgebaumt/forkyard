@@ -448,6 +448,10 @@ pub(crate) fn github(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
 // ---------------------------------------------------------------------------
 
 const PROJECT: &str = "/projects/gruppe%2Funter%2Fdemo";
+/// `diff_refs` of every merge request; the head is `sha(number)`, so `MOCK_GL_HEAD` belongs to no. 9.
+pub(crate) const MOCK_GL_BASE: &str = "00000000000000000000000000000000000003e8";
+pub(crate) const MOCK_GL_START: &str = "00000000000000000000000000000000000003e9";
+pub(crate) const MOCK_GL_HEAD: &str = "0000000000000000000000000000000000000009";
 
 fn gl_user(username: &str) -> Value {
     json!({ "id": 40 + username.len(), "username": username, "name": format!("{} (Name)", username), "avatar_url": format!("https://avatars.example/{username}.png"), "state": "active" })
@@ -483,6 +487,7 @@ fn gl_mr(base: &str, number: u64, state: &MockState, single: bool) -> Value {
         "reviewers": if number == 2 { json!([gl_user("mira")]) } else { json!([]) },
         "sha": sha(number),
         "detailed_merge_status": if number == 13 { "conflict" } else { "mergeable" },
+        "diff_refs": { "base_sha": MOCK_GL_BASE, "start_sha": MOCK_GL_START, "head_sha": sha(number) },
     });
     if single {
         mr["head_pipeline"] = match pipeline {
@@ -706,6 +711,54 @@ pub(crate) fn gitlab(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
             )
         }
         ("POST", ["merge_requests", _, "discussions", _, "notes"]) => not_found("404 Discussion Not Found"),
+        ("POST", ["merge_requests", _, "discussions"]) => {
+            let body = request.json();
+            MockResponse::json(
+                201,
+                json!({ "id": "7f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6", "individual_note": false, "notes": [
+                    { "id": 950, "type": "DiffNote", "body": body["body"], "author": gl_user("lena.hartmann"), "created_at": "2026-09-05T08:00:00Z", "system": false, "resolvable": true, "resolved": false, "position": body["position"] }
+                ] }),
+            )
+        }
+        ("PUT", ["merge_requests", _, "discussions", id]) => {
+            let resolved = request.json()["resolved"].as_bool().unwrap_or(false);
+            MockResponse::json(
+                200,
+                json!({ "id": id, "individual_note": false, "notes": [
+                    { "id": 901, "type": "DiffNote", "body": "Hier fehlt die Prüfung auf leer.", "author": gl_user("mira"), "created_at": "2026-09-02T09:30:00Z", "system": false, "resolvable": true, "resolved": resolved }
+                ] }),
+            )
+        }
+        ("GET", ["merge_requests", _, "draft_notes"]) => gl_page(
+            request,
+            if state.gl_draft_note {
+                vec![
+                    json!({ "id": 5501, "author_id": 1, "merge_request_id": 9000 + number, "resolve_discussion": false, "discussion_id": Value::Null, "note": "Im Browser begonnen.", "commit_id": Value::Null, "line_code": Value::Null,
+                    "position": { "base_sha": MOCK_GL_BASE, "start_sha": MOCK_GL_START, "head_sha": sha(number), "old_path": "src/anmeldung.rs", "new_path": "src/anmeldung.rs", "position_type": "text", "old_line": Value::Null, "new_line": 12 } }),
+                ]
+            } else {
+                Vec::new()
+            },
+            None,
+        ),
+        ("POST", ["merge_requests", _, "draft_notes"]) => {
+            let body = request.json();
+            if body["note"] == "kaputt" {
+                return MockResponse::json(400, json!({ "message": "400 Bad request - Note {:line_code=>[\"can't be blank\"]}" }));
+            }
+            MockResponse::json(
+                201,
+                json!({ "id": 5600, "author_id": 1, "merge_request_id": 9000 + number, "resolve_discussion": false, "discussion_id": Value::Null, "note": body["note"], "commit_id": Value::Null, "line_code": "x_1", "position": body["position"] }),
+            )
+        }
+        ("POST", ["merge_requests", _, "draft_notes", "bulk_publish"]) => MockResponse::raw(204, ""),
+        ("POST", ["merge_requests", _, "approve"]) if state.gl_approve_fails => {
+            MockResponse::json(403, json!({ "message": "403 Forbidden" }))
+        }
+        ("POST", ["merge_requests", _, "approve"]) => MockResponse::json(
+            201,
+            json!({ "id": 9000 + number, "iid": number, "approved": true, "approvals_left": 0, "approved_by": [{ "user": gl_user("lena.hartmann") }] }),
+        ),
         ("GET", ["merge_requests", _, "commits"]) => gl_page(
             request,
             vec![

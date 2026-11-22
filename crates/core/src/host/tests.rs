@@ -58,6 +58,10 @@ pub(crate) struct MockState {
     pub pr_authors: Vec<(u64, String)>,
     /// The token's user has a pending review on every pull request, started in the browser (GitHub).
     pub gh_pending_review: bool,
+    /// The token's user has a draft note on every merge request, started in the browser (GitLab).
+    pub gl_draft_note: bool,
+    /// Approving a merge request is refused (GitLab).
+    pub gl_approve_fails: bool,
 }
 
 pub(crate) struct Fixture {
