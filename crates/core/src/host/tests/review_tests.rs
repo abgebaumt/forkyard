@@ -405,17 +405,64 @@ async fn gitlab_refuses_a_review_on_an_old_head() {
 }
 
 #[tokio::test]
-async fn gitlab_failing_approval_after_sent_drafts_still_drops_them() {
+async fn gitlab_failing_approval_after_publishing_says_what_went_out() {
     let fx = Fixture::new(HostKind::Gitlab).await;
     fx.state.lock().gl_approve_fails = true;
     save(&fx, gl_comment("a.rs", 3)).await;
     save(&fx, gl_comment("c.rs", 9)).await;
-    let error =
-        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, String::new(), MOCK_GL_HEAD.into(), None).await.unwrap_err();
-    assert!(error.message.starts_with("The 2 line comments were sent; the review itself was not:"), "{}", error.message);
-    assert_eq!(gl_writes(&fx), ["POST 9/draft_notes", "POST 9/draft_notes", "POST 9/draft_notes/bulk_publish", "POST 9/approve"]);
+    let error = cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, "Sieht gut aus.".into(), MOCK_GL_HEAD.into(), None)
+        .await
+        .unwrap_err();
+    assert!(
+        error.message.starts_with("The line comments and the review text were posted on GitLab; only the approval failed:"),
+        "{}",
+        error.message
+    );
+    assert!(
+        error.message.ends_with("Approve the merge request on GitLab, or send an Approve review here without text."),
+        "{}",
+        error.message
+    );
+    assert_eq!(
+        gl_writes(&fx),
+        ["POST 9/draft_notes", "POST 9/draft_notes", "POST 9/draft_notes/bulk_publish", "POST 9/notes", "POST 9/approve"]
+    );
     let left = cmd_review::pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts;
     assert!(left.is_empty(), "sent drafts are gone locally: {left:?}");
+    // The advised retry: an Approve without text posts nothing again.
+    fx.state.lock().gl_approve_fails = false;
+    fx.server.clear();
+    cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, String::new(), MOCK_GL_HEAD.into(), None).await.unwrap();
+    assert_eq!(gl_writes(&fx), ["POST 9/draft_notes/bulk_publish", "POST 9/approve"]);
+}
+
+#[tokio::test]
+async fn gitlab_already_approved_skips_the_approval_and_succeeds() {
+    let fx = Fixture::new(HostKind::Gitlab).await;
+    fx.state.lock().gl_already_approved = true;
+    save(&fx, gl_comment("a.rs", 3)).await;
+    let result = cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, "Sieht gut aus.".into(), MOCK_GL_HEAD.into(), None)
+        .await
+        .unwrap();
+    assert!(result.submitted);
+    assert_eq!(gl_writes(&fx), ["POST 9/draft_notes", "POST 9/draft_notes/bulk_publish", "POST 9/notes"], "no second approval");
+    let flagged: i64 =
+        fx.tc.db.with(|c| Ok(c.query_row("select count(*) from hoster_accounts where last_error is not null", [], |r| r.get(0))?)).unwrap();
+    assert_eq!(flagged, 0, "the account is not flagged");
+}
+
+#[tokio::test]
+async fn gitlab_refuses_an_approval_it_would_not_take_before_anything_is_sent() {
+    let fx = Fixture::new(HostKind::Gitlab).await;
+    fx.state.lock().gl_cannot_approve = true;
+    let draft = save(&fx, gl_comment("a.rs", 3)).await;
+    let error = cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, "Sieht gut aus.".into(), MOCK_GL_HEAD.into(), None)
+        .await
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::NotAllowed);
+    assert!(error.message.contains("does not let you approve merge request !9"), "{}", error.message);
+    assert!(gl_writes(&fx).is_empty(), "{:?}", gl_writes(&fx));
+    assert_eq!(cmd_review::pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts, vec![draft]);
 }
 
 #[tokio::test]

@@ -273,7 +273,7 @@ pub async fn pr_review_submit(
         Ok(())
     })?;
     if let Some(error) = outcome.error {
-        return Err(if outcome.sent.is_empty() { error } else { vote_failed_after(outcome.sent.len(), error) });
+        return Err(if outcome.published || outcome.sent.is_empty() { error } else { vote_failed_after(outcome.sent.len(), error) });
     }
     let failed = core.db.with(|c| db::review_drafts::list(c, &repo_id, &full, number))?.into_iter().filter(|d| d.error.is_some()).collect();
     Ok(ReviewSubmitResult { submitted: outcome.submitted, sent: outcome.sent.len() as u32, failed })
