@@ -52,7 +52,17 @@ const ALL_FEATURES: Omit<HostCapabilities, "mergeMethods"> = {
 
 /** GitLab has no "rebase" when merging via the API; GitHub cannot toggle drafts there. */
 export const defaultCapabilities: Record<HostKind, HostCapabilities> = {
-  github: { ...ALL_FEATURES, draftToggle: false, mergeMethods: ["merge", "squash", "rebase"] },
+  github: {
+    ...ALL_FEATURES,
+    draftToggle: false,
+    reviewComment: true,
+    reviewCommentRange: true,
+    reviewResolve: true,
+    reviewSubmitBatch: true,
+    reviewApprove: true,
+    reviewRequestChanges: true,
+    mergeMethods: ["merge", "squash", "rebase"],
+  },
   gitlab: { ...ALL_FEATURES, mergeMethods: ["merge", "squash"] },
   gitea: { ...ALL_FEATURES, reviewReplyQuotes: true, mergeMethods: ["merge", "squash", "rebase"] },
   bitbucket: {
