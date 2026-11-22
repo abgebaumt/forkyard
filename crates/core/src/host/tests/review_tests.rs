@@ -1,6 +1,8 @@
 //! PR review: local drafts of the own review, kept per pull request until they are sent.
 
-use super::Fixture;
+use serde_json::json;
+
+use super::{cmd, Fixture};
 use crate::commands::pr_review::{
     self as cmd_review, pr_review_comment_create, pr_review_draft_delete, pr_review_draft_save, pr_review_drafts, pr_review_submit,
     pr_review_thread_resolve,
@@ -74,7 +76,7 @@ async fn invalid_comments_are_refused_before_storing() {
         assert_eq!(pr_review_draft_save(&fx.tc, fx.id(), 9, bad, None, None).await.unwrap_err().code, code);
     }
     assert!(pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts.is_empty(), "nothing stored");
-    assert!(fx.server.requests().is_empty(), "nothing sent");
+    assert!(fx.server.requests().iter().all(|r| r.method == "GET"), "nothing sent (listing reads the pending review)");
     // Exactly at the limit is fine; a range only where the host takes one (Gitea/Forgejo never does).
     save(&fx, NewReviewComment { body: "x".repeat(65_536), ..comment("a.rs", 1) }).await;
     let gitea = Fixture::new(HostKind::Gitea).await;
@@ -118,7 +120,8 @@ async fn pull_request_zero_is_refused() {
 
 #[tokio::test]
 async fn without_the_capability_nothing_is_sent() {
-    let fx = Fixture::new(HostKind::Github).await;
+    // shortcut: Bitbucket has none of these yet; Task 6 gives it comments and votes, then pick per flag.
+    let fx = Fixture::new(HostKind::Bitbucket).await;
     for err in [
         pr_review_comment_create(&fx.tc, fx.id(), 9, comment("a.rs", 3), None).await.unwrap_err(),
         pr_review_thread_resolve(&fx.tc, fx.id(), 9, "PRRT_kwDOAbc".into(), true, None).await.unwrap_err(),
@@ -137,7 +140,6 @@ fn a_review_needs_text_or_drafts_and_request_changes_needs_text() {
     assert_eq!(check_submission(ReviewVote::RequestChanges, " ", 2).unwrap_err().code, ErrorCode::EmptyMessage);
     assert!(check_submission(ReviewVote::Approve, "", 0).is_ok());
 }
-// The invalid-ID case (`"../x"` → `not_allowed`, no request) is asserted in Task 3 once GitHub resolves.
 
 #[test]
 fn a_failing_vote_after_sent_comments_says_they_were_sent() {
@@ -151,4 +153,138 @@ fn a_failing_vote_after_sent_comments_says_they_were_sent() {
     );
     let one = cmd_review::vote_failed_after(1, CoreError::new(ErrorCode::Offline, "No connection"));
     assert_eq!(one.message, "The line comment was sent; the review itself was not: No connection. Send the review again.");
+}
+
+#[tokio::test]
+async fn a_range_draft_is_stored_on_github() {
+    let fx = Fixture::new(HostKind::Github).await;
+    let saved = save(&fx, NewReviewComment { start_line: Some(40), ..comment("src/größe.rs", 42) }).await;
+    assert_eq!((saved.start_line, saved.line), (Some(40), Some(42)));
+    assert_eq!(pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts, vec![saved]);
+    assert!(fx.server.requests().iter().all(|r| r.method == "GET"), "nothing sent (listing reads the pending review)");
+}
+
+#[tokio::test]
+async fn github_comment_on_a_range_sends_the_documented_body() {
+    let fx = Fixture::new(HostKind::Github).await;
+    let c = NewReviewComment { start_line: Some(40), ..comment("src/größe.rs", 42) };
+    cmd_review::pr_review_comment_create(&fx.tc, fx.id(), 9, c, None).await.unwrap();
+    let sent = fx.sent("POST", "/pulls/9/comments");
+    assert_eq!(sent.len(), 1);
+    assert_eq!(
+        sent[0].json(),
+        json!({ "body": "Hier fehlt die Prüfung auf leer.", "commit_id": "a".repeat(40),
+        "path": "src/größe.rs", "line": 42, "side": "RIGHT", "start_line": 40, "start_side": "RIGHT" })
+    );
+}
+
+#[tokio::test]
+async fn github_fresh_review_sends_drafts_and_vote_in_one_request() {
+    let fx = Fixture::new(HostKind::Github).await;
+    save(&fx, comment("a.rs", 3)).await;
+    save(&fx, NewReviewComment { side: ReviewSide::Old, ..comment("b.rs", 7) }).await;
+    let result =
+        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::RequestChanges, "Bitte noch anpassen.".into(), "a".repeat(40), None)
+            .await
+            .unwrap();
+    assert_eq!((result.submitted, result.sent, result.failed.len()), (true, 2, 0));
+    let body = fx.sent("POST", "/pulls/9/reviews")[0].json();
+    assert_eq!(body["event"], "REQUEST_CHANGES");
+    assert_eq!(body["body"], "Bitte noch anpassen.");
+    assert_eq!(body["commit_id"], "a".repeat(40));
+    assert_eq!(
+        body["comments"],
+        json!([
+        { "path": "a.rs", "body": "Hier fehlt die Prüfung auf leer.", "line": 3, "side": "RIGHT" },
+        { "path": "b.rs", "body": "Hier fehlt die Prüfung auf leer.", "line": 7, "side": "LEFT" }])
+    );
+    assert!(cmd_review::pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts.is_empty());
+}
+
+#[tokio::test]
+async fn local_drafts_join_the_pending_review_instead_of_a_new_one() {
+    let fx = Fixture::new(HostKind::Github).await;
+    fx.state.lock().gh_pending_review = true;
+    save(&fx, comment("a.rs", 3)).await;
+    save(&fx, comment("c.rs", 9)).await;
+    let listed = cmd_review::pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap();
+    assert_eq!(
+        listed.drafts.iter().map(|d| (d.origin, d.body.as_str())).collect::<Vec<_>>()[0],
+        (ReviewDraftOrigin::Host, "Im Browser begonnen.")
+    );
+    let host = &listed.drafts[0];
+    assert_eq!((host.id.as_str(), host.path.as_str(), host.line, host.side), ("7701", "src/anmeldung.rs", Some(12), ReviewSide::New));
+    let result = cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, String::new(), "a".repeat(40), None).await.unwrap();
+    assert!(result.submitted);
+    let mutations: Vec<_> =
+        fx.sent("POST", "/api/graphql").into_iter().filter(|r| r.body_text().contains("addPullRequestReviewThread")).collect();
+    assert_eq!(mutations.len(), 2);
+    assert_eq!(mutations[0].json()["variables"]["input"]["pullRequestReviewId"], "PRR_kwDOpending");
+    assert_eq!(fx.sent("POST", "/pulls/9/reviews/77/events")[0].json(), json!({ "body": "", "event": "APPROVE" }));
+    assert!(fx.sent("POST", "/pulls/9/reviews").is_empty(), "no second review");
+}
+
+#[tokio::test]
+async fn a_failing_vote_after_joining_the_pending_review_still_drops_the_sent_drafts() {
+    let fx = Fixture::new(HostKind::Github).await;
+    fx.state.lock().gh_pending_review = true;
+    save(&fx, comment("a.rs", 3)).await;
+    save(&fx, comment("c.rs", 9)).await;
+    fx.mode("422");
+    let error =
+        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, String::new(), "a".repeat(40), None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostRejected);
+    assert!(error.message.starts_with("The 2 line comments were sent; the review itself was not:"), "{}", error.message);
+    assert_eq!(fx.sent("POST", "/pulls/9/reviews/77/events").len(), 1);
+    let left = cmd_review::pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts;
+    assert!(left.iter().all(|d| d.origin == ReviewDraftOrigin::Host), "sent drafts are gone locally: {left:?}");
+}
+
+#[tokio::test]
+async fn github_threads_resolve_through_graphql_with_the_thread_node_id() {
+    let fx = Fixture::new(HostKind::Github).await;
+    let threads = cmd::pr_review_threads(&fx.tc, fx.id(), 9, None).await.unwrap();
+    let id = threads[0].resolve_id.clone().expect("node id");
+    cmd_review::pr_review_thread_resolve(&fx.tc, fx.id(), 9, id.clone(), true, None).await.unwrap();
+    cmd_review::pr_review_thread_resolve(&fx.tc, fx.id(), 9, id.clone(), false, None).await.unwrap();
+    let bodies: Vec<String> = fx.sent("POST", "/api/graphql").iter().map(|r| r.body_text()).collect();
+    assert!(bodies.iter().any(|b| b.contains("resolveReviewThread") && b.contains(&id)));
+    assert!(bodies.iter().any(|b| b.contains("unresolveReviewThread")));
+    fx.server.clear();
+    let bad = cmd_review::pr_review_thread_resolve(&fx.tc, fx.id(), 9, "../x".into(), true, None).await.unwrap_err();
+    assert_eq!(bad.code, ErrorCode::NotAllowed);
+    assert!(fx.server.requests().is_empty());
+}
+
+#[tokio::test]
+async fn github_rejection_keeps_all_drafts() {
+    let fx = Fixture::new(HostKind::Github).await;
+    save(&fx, comment("a.rs", 3)).await;
+    save(&fx, comment("b.rs", 7)).await;
+    fx.mode("422");
+    let error =
+        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Comment, String::new(), "a".repeat(40), None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostRejected);
+    assert!(!error.message.contains("were sent"), "{}", error.message);
+    let left = cmd_review::pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts;
+    assert_eq!(left.len(), 2);
+    assert!(left.iter().all(|d| d.error.is_none()), "one request: nothing was sent, no draft is marked");
+}
+
+#[test]
+fn review_capabilities_match_the_matrix() {
+    let row = |k| {
+        let c = crate::host::host(k).capabilities();
+        [
+            c.review_comment,
+            c.review_comment_range,
+            c.review_resolve,
+            c.review_submit_batch,
+            c.review_approve,
+            c.review_request_changes,
+            c.review_vote_own_pr,
+        ]
+    };
+    assert_eq!(row(HostKind::Github), [true, true, true, true, true, true, false]);
+    // Tasks 4–6 append their rows here, exactly as in the plan's matrix.
 }

@@ -56,6 +56,8 @@ pub(crate) struct MockState {
     pub pr_details_fail: bool,
     /// Author login per pull request number instead of `jonas` (GitHub).
     pub pr_authors: Vec<(u64, String)>,
+    /// The token's user has a pending review on every pull request, started in the browser (GitHub).
+    pub gh_pending_review: bool,
 }
 
 pub(crate) struct Fixture {
@@ -498,7 +500,7 @@ fn review_threads_reach_the_ui_in_camel_case() {
         side: ReviewSide::New,
         commit: None,
         resolved: false,
-        resolve_id: None,
+        resolve_id: Some("PRRT_kwDOAbc".into()),
         outdated: true,
         comments: vec![comment.clone()],
     };
@@ -506,6 +508,7 @@ fn review_threads_reach_the_ui_in_camel_case() {
     assert_eq!(shape["startLine"], 40);
     assert_eq!(shape["side"], "new");
     assert_eq!(shape["outdated"], true);
+    assert_eq!(shape["resolveId"], "PRRT_kwDOAbc");
     assert_eq!(shape["commit"], serde_json::Value::Null);
     assert_eq!(shape["path"], "src/ä b.rs");
     assert_eq!(shape["comments"][0]["createdAt"], "2026-09-02T09:30:00Z");

@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use super::{
     already_exists, color, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, pr_not_found,
     release_error, review_summary, summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, NewRelease, Paging, RepoFacts,
-    RepoPath, MAX_ITEMS,
+    RepoPath, ReviewSubmission, ReviewSubmitOutcome, MAX_ITEMS,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
@@ -15,8 +15,8 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
     CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRelease, HostRepoRef, HostUser, IssueDetails, IssueListState,
-    IssuePage, IssueState, IssueSummary, PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer,
-    PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread,
+    IssuePage, IssueState, IssueSummary, NewReviewComment, PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState,
+    PrReviewer, PrState, PrSummary, ReviewDraft, ReviewDraftOrigin, ReviewReply, ReviewSide, ReviewThread, ReviewVote,
 };
 
 pub(super) fn repo_path(repo: &RepoPath) -> String {
@@ -540,7 +540,7 @@ pub(crate) fn graphql_url(api_base: &str) -> String {
 }
 
 /// 50 threads per page, up to 100 comments each. Fields: documented `PullRequestReviewThread`.
-const REVIEW_THREADS: &str = "query($owner: String!, $name: String!, $number: Int!, $after: String) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { reviewThreads(first: 50, after: $after) { pageInfo { hasNextPage endCursor } nodes { isResolved isOutdated path line startLine originalLine originalStartLine diffSide comments(first: 100) { nodes { databaseId author { login avatarUrl } body createdAt originalCommit { oid } } } } } } } }";
+const REVIEW_THREADS: &str = "query($owner: String!, $name: String!, $number: Int!, $after: String) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { reviewThreads(first: 50, after: $after) { pageInfo { hasNextPage endCursor } nodes { id isResolved isOutdated path line startLine originalLine originalStartLine diffSide comments(first: 100) { nodes { databaseId author { login avatarUrl } body createdAt originalCommit { oid } } } } } } } }";
 
 fn positive_line(value: &Value, key: &str) -> Option<u32> {
     value.get(key).and_then(Value::as_u64).and_then(|n| u32::try_from(n).ok()).filter(|n| *n > 0)
@@ -572,7 +572,7 @@ fn review_thread(node: &Value) -> Option<ReviewThread> {
         side: if text(node, "diffSide") == "LEFT" { ReviewSide::Old } else { ReviewSide::New },
         commit: first.get("originalCommit").and_then(|c| opt_text(c, "oid")),
         resolved: flag(node, "isResolved"),
-        resolve_id: None,
+        resolve_id: opt_text(node, "id"),
         outdated: flag(node, "isOutdated"),
         comments,
     })
@@ -611,6 +611,138 @@ pub async fn review_reply(core: &Core, api: &Api, repo: &RepoPath, pr: u64, thre
         .map_err(|e| not_found_as(e, || format!("The review thread does not exist (anymore) in pull request #{pr}.")))?
         .json()?;
     Ok(ReviewReply { comment: comment("", &value, "created_at"), quoted: false })
+}
+
+// ---------------------------------------------------------------------------
+// Own review (8.3)
+// ---------------------------------------------------------------------------
+
+const ADD_REVIEW_THREAD: &str =
+    "mutation($input: AddPullRequestReviewThreadInput!) { addPullRequestReviewThread(input: $input) { thread { id } } }";
+const RESOLVE_THREAD: &str = "mutation($id: ID!) { resolveReviewThread(input: {threadId: $id}) { thread { isResolved } } }";
+const UNRESOLVE_THREAD: &str = "mutation($id: ID!) { unresolveReviewThread(input: {threadId: $id}) { thread { isResolved } } }";
+
+fn side(side: ReviewSide) -> &'static str {
+    match side {
+        ReviewSide::New => "RIGHT",
+        ReviewSide::Old => "LEFT",
+    }
+}
+
+/// REST fields of a comment on a line, plus `start_line`/`start_side` for a range.
+fn line_fields(path: &str, body: &str, line: u32, start_line: Option<u32>, at: ReviewSide) -> Value {
+    let mut fields = json!({ "path": path, "body": body, "line": line, "side": side(at) });
+    if let Some(start) = start_line {
+        fields["start_line"] = json!(start);
+        fields["start_side"] = json!(side(at));
+    }
+    fields
+}
+
+/// `POST /repos/{owner}/{repo}/pulls/{number}/comments` – a single comment outside any review.
+pub async fn review_comment_create(core: &Core, api: &Api, repo: &RepoPath, pr: u64, comment: &NewReviewComment) -> CoreResult<()> {
+    let mut body = line_fields(&comment.path, &comment.body, comment.line, comment.start_line, comment.side);
+    body["commit_id"] = json!(comment.commit);
+    api.send_json(core, Method::Post, &format!("{}/pulls/{pr}/comments", repo_path(repo)), &body)
+        .await
+        .map_err(|e| not_found_as(e, pr_not_found(repo, pr)))?;
+    Ok(())
+}
+
+/// `resolveReviewThread` / `unresolveReviewThread` through GraphQL (REST has neither); `resolve_id` is the thread's node ID.
+pub async fn review_thread_set_resolved(
+    core: &Core,
+    api: &Api,
+    _repo: &RepoPath,
+    _pr: u64,
+    resolve_id: &str,
+    resolved: bool,
+) -> CoreResult<()> {
+    let query = if resolved { RESOLVE_THREAD } else { UNRESOLVE_THREAD };
+    api.graphql(core, &graphql_url(&api.api_base), query, json!({ "id": resolve_id }))
+        .await
+        .map_err(|e| not_found_as(e, || "The review thread does not exist (anymore). Reload the pull request.".to_string()))?;
+    Ok(())
+}
+
+/// The token user's pending review (started in the browser): GitHub shows it only to its author.
+async fn pending_review(core: &Core, api: &Api, repo: &RepoPath, pr: u64) -> CoreResult<Option<Value>> {
+    let all = reviews(core, api, repo, pr).await.map_err(|e| not_found_as(e, pr_not_found(repo, pr)))?;
+    Ok(all.into_iter().find(|review| text(review, "state") == "PENDING"))
+}
+
+/// The comments of the pending review, `GET …/pulls/{number}/reviews/{id}/comments`.
+pub async fn review_host_drafts(core: &Core, api: &Api, repo: &RepoPath, pr: u64) -> CoreResult<Vec<ReviewDraft>> {
+    let Some(review) = pending_review(core, api, repo, pr).await? else {
+        return Ok(Vec::new());
+    };
+    let path = format!("{}/pulls/{pr}/reviews/{}/comments?per_page=100", repo_path(repo), number(&review, "id"));
+    let comments = api.get_all(core, &path).await.map_err(|e| not_found_as(e, pr_not_found(repo, pr)))?;
+    Ok(comments
+        .iter()
+        .map(|c| ReviewDraft {
+            id: number(c, "id").to_string(),
+            origin: ReviewDraftOrigin::Host,
+            path: text(c, "path"),
+            line: positive_line(c, "line").or_else(|| positive_line(c, "original_line")),
+            start_line: positive_line(c, "start_line"),
+            side: if text(c, "side") == "LEFT" { ReviewSide::Old } else { ReviewSide::New },
+            old_line: None,
+            commit: opt_text(c, "commit_id"),
+            body: text(c, "body"),
+            error: None,
+        })
+        .collect())
+}
+
+/// Without a pending review: one `POST …/pulls/{number}/reviews` with vote, text and all drafts. With one
+/// (a second review is refused while it exists): each draft through `addPullRequestReviewThread`, then
+/// `POST …/reviews/{id}/events`; the vote is withheld while a draft failed. Once a draft reached the host
+/// every error goes into the outcome, so the sent drafts are dropped locally and not posted twice.
+pub async fn review_submit(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    pr: u64,
+    submission: ReviewSubmission<'_>,
+) -> CoreResult<ReviewSubmitOutcome> {
+    let event = match submission.vote {
+        ReviewVote::Approve => "APPROVE",
+        ReviewVote::RequestChanges => "REQUEST_CHANGES",
+        ReviewVote::Comment => "COMMENT",
+    };
+    let reviews_path = format!("{}/pulls/{pr}/reviews", repo_path(repo));
+    let not_found = |e| not_found_as(e, pr_not_found(repo, pr));
+    let Some(pending) = pending_review(core, api, repo, pr).await? else {
+        let comments: Vec<Value> =
+            submission.drafts.iter().map(|d| line_fields(&d.path, &d.body, d.line.unwrap_or_default(), d.start_line, d.side)).collect();
+        let body = json!({ "commit_id": submission.commit, "body": submission.body, "event": event, "comments": comments });
+        api.send_json(core, Method::Post, &reviews_path, &body).await.map_err(not_found)?;
+        let sent = submission.drafts.iter().map(|d| d.id.clone()).collect();
+        return Ok(ReviewSubmitOutcome { submitted: true, sent, ..ReviewSubmitOutcome::default() });
+    };
+    let endpoint = graphql_url(&api.api_base);
+    let review_id = text(&pending, "node_id");
+    let mut outcome = ReviewSubmitOutcome::default();
+    for draft in submission.drafts {
+        let mut input = json!({ "pullRequestReviewId": review_id, "path": draft.path, "line": draft.line, "side": side(draft.side), "body": draft.body });
+        if let Some(start) = draft.start_line {
+            input["startLine"] = json!(start);
+            input["startSide"] = json!(side(draft.side));
+        }
+        match api.graphql(core, &endpoint, ADD_REVIEW_THREAD, json!({ "input": input })).await {
+            Ok(_) => outcome.sent.push(draft.id.clone()),
+            Err(error) => outcome.failed.push((draft.id.clone(), error.message)),
+        }
+    }
+    if outcome.failed.is_empty() {
+        let path = format!("{reviews_path}/{}/events", number(&pending, "id"));
+        match api.send_json(core, Method::Post, &path, &json!({ "body": submission.body, "event": event })).await {
+            Ok(_) => outcome.submitted = true,
+            Err(error) => outcome.error = Some(not_found(error)),
+        }
+    }
+    Ok(outcome)
 }
 
 // ---------------------------------------------------------------------------
@@ -679,12 +811,13 @@ impl Host for GithubHost {
             pr_labels: true,
             fork_checkout: true,
             releases: true,
-            review_comment: false,
-            review_comment_range: false,
-            review_resolve: false,
-            review_submit_batch: false,
-            review_approve: false,
-            review_request_changes: false,
+            review_comment: true,
+            review_comment_range: true,
+            review_resolve: true,
+            review_submit_batch: true,
+            review_approve: true,
+            review_request_changes: true,
+            // GitHub refuses approving or requesting changes on the own pull request.
             review_vote_own_pr: false,
             review_threads: true,
             review_reply: true,
@@ -777,5 +910,39 @@ impl Host for GithubHost {
         body: &'a str,
     ) -> HostFuture<'a, ReviewReply> {
         Box::pin(review_reply(core, api, repo, number, thread_id, body))
+    }
+    fn review_comment_create<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        comment: &'a NewReviewComment,
+    ) -> HostFuture<'a, ()> {
+        Box::pin(review_comment_create(core, api, repo, number, comment))
+    }
+    fn review_thread_set_resolved<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        resolve_id: &'a str,
+        resolved: bool,
+    ) -> HostFuture<'a, ()> {
+        Box::pin(review_thread_set_resolved(core, api, repo, number, resolve_id, resolved))
+    }
+    fn review_submit<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        submission: ReviewSubmission<'a>,
+    ) -> HostFuture<'a, ReviewSubmitOutcome> {
+        Box::pin(review_submit(core, api, repo, number, submission))
+    }
+    fn review_host_drafts<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, Vec<ReviewDraft>> {
+        Box::pin(review_host_drafts(core, api, repo, number))
     }
 }

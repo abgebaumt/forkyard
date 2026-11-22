@@ -148,9 +148,19 @@ fn gh_issue(base: &str, number: u64) -> Value {
 
 /// GitHub's GraphQL endpoint (`POST /api/graphql`): the review threads of pull request 9, two per page
 /// (cursor `seite-<n>`); unknown repositories and pull requests answer with GraphQL errors (status 200).
+/// Mutations: `addPullRequestReviewThread`, `resolveReviewThread`, `unresolveReviewThread`.
 fn gh_graphql(request: &MockRequest) -> MockResponse {
     let body = request.json();
     let vars = &body["variables"];
+    let query = body["query"].as_str().unwrap_or("");
+    if query.contains("addPullRequestReviewThread") {
+        return MockResponse::json(200, json!({ "data": { "addPullRequestReviewThread": { "thread": { "id": "PRRT_kwDOneu" } } } }));
+    }
+    for (mutation, resolved) in [("unresolveReviewThread", false), ("resolveReviewThread", true)] {
+        if query.contains(mutation) {
+            return MockResponse::json(200, json!({ "data": { mutation: { "thread": { "isResolved": resolved } } } }));
+        }
+    }
     if request.method != "POST"
         || !body["query"].as_str().unwrap_or("").contains("reviewThreads")
         || vars["owner"] != "octo"
@@ -171,11 +181,11 @@ fn gh_graphql(request: &MockRequest) -> MockResponse {
     let comment = |id: u64, login: &str, body: &str, at: &str| json!({ "databaseId": id, "author": { "login": login, "avatarUrl": format!("https://avatars.example/{login}.png") }, "body": body, "createdAt": at, "originalCommit": { "oid": sha(9) } });
     let threads: Vec<Value> = if number == 9 {
         vec![
-            json!({ "isResolved": false, "isOutdated": false, "path": "src/anmeldung.rs", "line": 42, "startLine": 40, "originalLine": 42, "originalStartLine": 40, "diffSide": "RIGHT",
+            json!({ "id": "PRRT_kwDOfaden1", "isResolved": false, "isOutdated": false, "path": "src/anmeldung.rs", "line": 42, "startLine": 40, "originalLine": 42, "originalStartLine": 40, "diffSide": "RIGHT",
                 "comments": { "nodes": [comment(9001, "mira", "Hier fehlt die Prüfung auf leer.", "2026-09-02T09:30:00Z"), comment(9002, "jonas", "Stimmt, mache ich.", "2026-09-02T10:00:00Z")] } }),
-            json!({ "isResolved": true, "isOutdated": false, "path": "src/meldung.rs", "line": 7, "startLine": Value::Null, "originalLine": 7, "originalStartLine": Value::Null, "diffSide": "RIGHT",
+            json!({ "id": "PRRT_kwDOfaden2", "isResolved": true, "isOutdated": false, "path": "src/meldung.rs", "line": 7, "startLine": Value::Null, "originalLine": 7, "originalStartLine": Value::Null, "diffSide": "RIGHT",
                 "comments": { "nodes": [comment(9011, "mira", "Tippfehler: „Fehler“.", "2026-09-02T09:40:00Z")] } }),
-            json!({ "isResolved": false, "isOutdated": true, "path": "src/alt.rs", "line": Value::Null, "startLine": Value::Null, "originalLine": 12, "originalStartLine": Value::Null, "diffSide": "RIGHT",
+            json!({ "id": "PRRT_kwDOfaden3", "isResolved": false, "isOutdated": true, "path": "src/alt.rs", "line": Value::Null, "startLine": Value::Null, "originalLine": 12, "originalStartLine": Value::Null, "diffSide": "RIGHT",
                 "comments": { "nodes": [comment(9021, "mira", "Diese Zeile gibt es so nicht mehr.", "2026-09-02T09:50:00Z")] } }),
         ]
     } else {
@@ -306,9 +316,8 @@ pub(crate) fn github(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
             }
             MockResponse::json(200, pr)
         }
-        ("GET", ["pulls", _, "reviews"]) => MockResponse::json(
-            200,
-            match number {
+        ("GET", ["pulls", _, "reviews"]) => {
+            let mut reviews = match number {
                 1 => json!([
                     { "id": 11, "user": gh_user("mira"), "state": "COMMENTED", "body": "Erster Blick: sieht gut aus.", "submitted_at": "2026-09-02T09:00:00Z" },
                     { "id": 12, "user": gh_user("mira"), "state": "APPROVED", "body": "", "submitted_at": "2026-09-02T10:00:00Z" }
@@ -317,8 +326,42 @@ pub(crate) fn github(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
                     json!([{ "id": 41, "user": gh_user("jonas"), "state": "CHANGES_REQUESTED", "body": "Bitte die Tests ergänzen.", "submitted_at": "2026-09-03T10:00:00Z" }])
                 }
                 _ => json!([]),
-            },
+            };
+            if state.gh_pending_review {
+                // Only the token's user sees its own pending review; it has no `submitted_at`.
+                reviews
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({ "id": 77, "node_id": "PRR_kwDOpending", "state": "PENDING", "user": gh_user("lena"), "body": "" }));
+            }
+            MockResponse::json(200, reviews)
+        }
+        ("GET", ["pulls", _, "reviews", "77", "comments"]) if state.gh_pending_review => MockResponse::json(
+            200,
+            json!([{ "id": 7701, "pull_request_review_id": 77, "path": "src/anmeldung.rs", "line": 12, "side": "RIGHT", "start_line": Value::Null, "commit_id": sha(9), "user": gh_user("lena"), "body": "Im Browser begonnen." }]),
         ),
+        ("POST", ["pulls", _, "reviews"] | ["pulls", _, "reviews", _, "events"]) if state.mode == "422" => MockResponse::json(
+            422,
+            json!({ "message": "Unprocessable Entity", "errors": ["Pull request review thread line must be part of the diff"] }),
+        ),
+        ("POST", ["pulls", _, "reviews"]) => {
+            let body = request.json();
+            MockResponse::json(
+                200,
+                json!({ "id": 80, "node_id": "PRR_kwDOneu", "user": gh_user("lena-hartmann"), "body": body["body"], "state": "CHANGES_REQUESTED", "commit_id": body["commit_id"], "submitted_at": "2026-09-05T08:00:00Z" }),
+            )
+        }
+        ("POST", ["pulls", _, "reviews", id, "events"]) if *id == "77" && state.gh_pending_review => MockResponse::json(
+            200,
+            json!({ "id": 77, "node_id": "PRR_kwDOpending", "user": gh_user("lena"), "body": request.json()["body"], "state": "APPROVED", "submitted_at": "2026-09-05T08:00:00Z" }),
+        ),
+        ("POST", ["pulls", _, "comments"]) => {
+            let body = request.json();
+            MockResponse::json(
+                201,
+                json!({ "id": 9100, "user": gh_user("lena-hartmann"), "body": body["body"], "path": body["path"], "line": body["line"], "side": body["side"], "start_line": body["start_line"], "commit_id": body["commit_id"], "created_at": "2026-09-05T08:00:00Z" }),
+            )
+        }
         ("GET", ["pulls", _, "comments"]) => MockResponse::json(
             200,
             if number == 1 {
