@@ -18,7 +18,7 @@ import { describeError } from "../../app/errors";
 import { openMergeTool } from "../../app/actions/tools";
 import { fileMenu } from "../../app/menus";
 import { useStatus } from "../../app/queries";
-import { useLasso, useLassoGuard } from "../../app/lasso";
+import { useLasso } from "../../app/lasso";
 import { fileLock, useLockIndex } from "../Lfs/locks";
 import { getTabView, useAppStore, useBusy } from "../../app/store";
 import { useCommandShortcut } from "../../app/registry";
@@ -281,7 +281,6 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
   const { data: status, error, isPending, refetch, isFetching } = useStatus(repoId);
   const wip = useWipTab(tabId);
   const lasso = useLasso(tabId);
-  useLassoGuard(repoId, tabId);
   const view = useWipStore((state) => state.view);
   const split = useWipStore((state) => state.split);
   const store = useWipStore.getState;
