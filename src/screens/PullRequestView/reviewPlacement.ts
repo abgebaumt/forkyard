@@ -99,7 +99,8 @@ export function placeThreads(rows: Row[], path: string, threads: ReviewThread[],
 
 /**
  * The lines a new comment covers: from `anchorIndex` to `cursorIndex` when ranges are allowed and both are code rows on
- * the same side of the same hunk; otherwise the single line at the cursor. null when the cursor is not on a code row.
+ * the same side of the same hunk; otherwise the single line at the cursor. null when the cursor is not on a code row
+ * of a hunk.
  */
 export function commentRange(
   rows: Row[],
@@ -108,7 +109,8 @@ export function commentRange(
   rangeAllowed: boolean,
 ): { first: LineRow; last: LineRow } | null {
   const cursor = rows[cursorIndex];
-  if (cursor?.type !== "line" || !rowAnchor(cursor)) return null;
+  // Lines outside every hunk ("Whole file") are not part of the pull request's diff: hosts refuse comments there.
+  if (cursor?.type !== "line" || cursor.hunkOrd === null || !rowAnchor(cursor)) return null;
   const from = rows[anchorIndex];
   const ok =
     rangeAllowed &&

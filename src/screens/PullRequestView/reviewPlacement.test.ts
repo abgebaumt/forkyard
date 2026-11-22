@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type { HostCapabilities, HostRepoInfo, ReviewDraft, ReviewThread, TextDiff } from "../../core";
 import { defaultCapabilities } from "../../app/hosts";
-import { buildHunkRows, type LineRow, type Row } from "../DiffView/model";
+import { buildFileRows, buildHunkRows, type LineRow, type Row } from "../DiffView/model";
 import {
   anchorKey,
   canComment,
@@ -245,4 +245,14 @@ test("a comment carries its side, the range start and the old number of an uncha
     oldLine: 12,
   });
   expect(commentFor(PATH, line("old:11"), line("old:11"), "h")).toMatchObject({ line: 11, startLine: null, side: "old", oldLine: null });
+});
+
+test("no comment on unchanged lines outside every hunk (whole file)", () => {
+  const newText = Array.from({ length: 14 }, (_, i) => `zeile ${i + 1}`).join("\n");
+  const file = buildFileRows(diff, newText, new Set(), 4).rows;
+  const outside = file.findIndex((row) => row.type === "line" && row.newNo === 1);
+  const inside = file.findIndex((row) => row.type === "line" && row.newNo === 11);
+  expect(file[outside]).toMatchObject({ type: "line", hunkOrd: null });
+  expect(commentRange(file, outside, outside, true)).toBeNull();
+  expect(commentRange(file, outside, inside, true)).toMatchObject({ first: { newNo: 11 }, last: { newNo: 11 } });
 });

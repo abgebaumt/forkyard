@@ -83,7 +83,9 @@
       "voteRequestChanges": "Änderungen verlangen",
       "draftCount_one": "{{count}} Zeilenkommentar geht mit.",
       "draftCount_other": "{{count}} Zeilenkommentare gehen mit.",
-      "noDrafts": "Keine Zeilenkommentare: Text und Urteil gehen allein raus."
+      "noDrafts": "Keine Zeilenkommentare: Text und Urteil gehen allein raus.",
+      "notInDiff": "Nicht in diesen Änderungen ({{count}})",
+      "hostDraftsUnreadable": "Im Browser begonnene Entwürfe ließen sich nicht lesen; nur die lokalen werden gezeigt."
     },
     "groups": {
       "mine": "Meine",
