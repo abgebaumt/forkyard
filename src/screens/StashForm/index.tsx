@@ -3,6 +3,7 @@ import { Archive, ArrowLeft } from "lucide-react";
 import type { Id, Status } from "../../core";
 import { busyKeys } from "../../app/actions/keys";
 import { stashChanges } from "../../app/actions/stash";
+import { forgetLassoPaths } from "../../app/lasso";
 import { qk, queryClient, useStatus } from "../../app/queries";
 import { useAppStore, useBusy } from "../../app/store";
 import { Button } from "../../ui/Button";
@@ -78,11 +79,16 @@ function StashFields({ repoId, tabId }: StashFormProps) {
     const selected = currentPending(useWipStore.getState().tabs[tabId]?.stashSelection ?? null, fresh);
     const current = planStash(fresh, marked, onlyMarked && !selected, wip.stashUntracked, selected);
     if (current.blocked) return;
+    const selection = selected ? toStashSelection(selected) : null;
+    const paths = selected ? null : current.paths;
+    // The files whose changes leave: their lasso goes first, so the guard does not report our own stash.
+    const leaving = selection ? [...selection.staged, ...selection.unstaged].map((file) => file.path) : paths;
     const result = await stashChanges(repoId, {
       message: wip.stashMessage,
-      paths: selected ? null : current.paths,
+      paths,
       includeUntracked: wip.stashUntracked,
-      selection: selected ? toStashSelection(selected) : null,
+      selection,
+      onApplied: () => forgetLassoPaths(tabId, leaving),
     });
     if (!result.ok) {
       // The diff changed since the selection: it no longer fits and is dropped.

@@ -5,6 +5,7 @@ const commitSelection = vi.fn<(input: Record<string, unknown>) => Promise<Commit
 const selectionToBranch = vi.fn<(input: Record<string, unknown>) => Promise<CommitResult>>();
 const stagePaths = vi.fn<(input: Record<string, unknown>) => Promise<Status>>();
 const discardPaths = vi.fn<(input: Record<string, unknown>) => Promise<Status>>();
+const stashCreate = vi.fn<(input: Record<string, unknown>) => Promise<unknown>>();
 
 vi.mock("../../core", async (original) => ({
   ...(await original<typeof import("../../core")>()),
@@ -13,6 +14,7 @@ vi.mock("../../core", async (original) => ({
     selectionToBranch: (input: Record<string, unknown>) => selectionToBranch(input),
     stagePaths: (input: Record<string, unknown>) => stagePaths(input),
     discardPaths: (input: Record<string, unknown>) => discardPaths(input),
+    stashCreate: (input: Record<string, unknown>) => stashCreate(input),
     on: () => () => undefined,
   },
 }));
@@ -33,6 +35,9 @@ const { commitLasso, lassoToBranch } = await import("./lasso");
 const { focusSummarySoon } = await import("../commands/focus");
 const { getTabView, useAppStore } = await import("../store");
 const { discardFiles, stageFiles } = await import("../../screens/WipPanel/actions");
+const { stashFiles } = await import("./files");
+const { stashChanges } = await import("./stash");
+const { forgetLassoPaths } = await import("../lasso");
 
 const coreError = (code: ErrorCode) => new CoreError({ code, message: code, gitOutput: null });
 const lastToast = () => vi.mocked(toast).mock.calls.at(-1)?.[0];
@@ -72,6 +77,15 @@ describe("commit only this", () => {
     expect(useWipStore.getState().tabs.t1?.summaryError?.text).toBe(t("wip.commit.summaryMissing"));
     expect(focusSummarySoon).toHaveBeenCalled();
     expect(getTabView("t1").rightCollapsed).toBe(false);
+  });
+
+  it("an empty commit field brings the commit form up when the right panel shows something else", async () => {
+    setDraft("r1", { summary: "", description: "" });
+    useAppStore.getState().selectCommits("t1", ["c1"]);
+    useAppStore.getState().openArchaeology("t1", { path: "src/sitzung.ts", line: 1, sha: null });
+    await expect(commitLasso("r1", "t1")).resolves.toBe("needsMessage");
+    expect(getTabView("t1")).toMatchObject({ rightPanel: "details", selection: { kind: "wip" }, rightCollapsed: false });
+    expect(focusSummarySoon).toHaveBeenCalled();
   });
 
   it("a checked Amend blocks it: nothing is sent, the flag stays", async () => {
@@ -171,5 +185,28 @@ describe("staging or discarding whole files", () => {
   it("discarding forgets their lasso the same way", async () => {
     expect(await lassoWhenStatusArrives(discardPaths, () => discardFiles("r1", "t1", ["src/sitzung.ts"]))).toEqual({});
     expect(discardPaths).toHaveBeenCalledWith({ repoId: "r1", paths: ["src/sitzung.ts"] });
+  });
+
+  /** A stash reloads the status afterwards (`withFreshStatus`): the lasso at that reload. */
+  async function lassoWhenStatusReloads(run: () => Promise<unknown>) {
+    stashCreate.mockResolvedValue([]);
+    let lassoAtReload: unknown = "unset";
+    const refetch = vi.spyOn(queryClient, "refetchQueries").mockImplementation(async () => {
+      if (lassoAtReload === "unset") lassoAtReload = useLassoStore.getState().byTab.t1;
+    });
+    await run();
+    refetch.mockRestore();
+    return lassoAtReload;
+  }
+
+  it("stashing whole files forgets their lasso the same way", async () => {
+    expect(
+      await lassoWhenStatusReloads(() => stashFiles("r1", ["src/sitzung.ts"], () => forgetLassoPaths("t1", ["src/sitzung.ts"]))),
+    ).toEqual({});
+    expect(stashCreate).toHaveBeenCalledWith(expect.objectContaining({ paths: ["src/sitzung.ts"] }));
+  });
+
+  it("creating a stash of everything forgets the whole lasso", async () => {
+    expect(await lassoWhenStatusReloads(() => stashChanges("r1", { onApplied: () => forgetLassoPaths("t1", null) }))).toEqual({});
   });
 });

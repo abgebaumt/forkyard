@@ -21,6 +21,8 @@ export interface StashOptions {
   undoable?: boolean;
   /** Only these lines (partial stash); `paths` must then be null. */
   selection?: StashSelection | null;
+  /** Runs once the core succeeded, before its status reaches the cache (as in `stagePaths`). */
+  onApplied?: () => void;
 }
 
 /** A stash as menus and lists pass it. With `sha` the action finds it again even if the list has shifted. */
@@ -50,8 +52,8 @@ export async function stashChanges(repoId: Id, options: StashOptions = {}) {
   const paths = options.paths ?? null;
   const result = await runAction(
     t("ui.stash"),
-    withFreshStatus(repoId, () =>
-      core.stashCreate({
+    withFreshStatus(repoId, async () => {
+      const stashes = await core.stashCreate({
         repoId,
         opId: newOpId(),
         message: options.message?.trim() || null,
@@ -59,8 +61,10 @@ export async function stashChanges(repoId: Id, options: StashOptions = {}) {
         includeUntracked: options.includeUntracked ?? true,
         undoable: options.undoable ?? null,
         selection: options.selection ?? null,
-      }),
-    ),
+      });
+      options.onApplied?.();
+      return stashes;
+    }),
     {
       busyKey: busyKeys.stash(repoId),
       success: options.quiet

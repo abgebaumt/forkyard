@@ -285,3 +285,38 @@ describe("shortcuts in menus", () => {
     expect(shortcuts(stashMenu({ repoId: "r1", tabId: "t1", stash }))).toEqual(["Alt+P"]);
   });
 });
+
+describe("stashing whole files forgets their lasso", () => {
+  // Otherwise the guard would report our own stash as "the file has changed".
+  const lassoFile = (path: string) => ({
+    token: "tok",
+    keys: ["0:1"],
+    lines: 1,
+    forced: false,
+    selection: { path, expect: "tok", hunks: [{ index: 0, lines: [1] }] },
+  });
+
+  beforeEach(async () => {
+    const { useLassoStore } = await import("../lasso");
+    invoke.mockReset();
+    invoke.mockImplementation(async (name: string) => (name === "stash_create" ? [] : { unstaged: [], staged: [], conflicted: [] }));
+    const unstaged = [file("src/a.ts", "modified"), file("src/b.ts", "modified")];
+    queryClient.setQueryData(qk.status("r1"), { head: { kind: "branch" }, unstaged, staged: [], conflicted: [] } as unknown as Status);
+    useLassoStore.getState().replace("t1", { "src/a.ts": lassoFile("src/a.ts"), "src/b.ts": lassoFile("src/b.ts") });
+  });
+
+  it("“Stash only this file” forgets that file's lasso, the others stay", async () => {
+    const { useLassoStore } = await import("../lasso");
+    const entries = fileMenu({ repoId: "r1", tabId: "t1", files: [file("src/a.ts", "modified")], source: { kind: "unstaged" } });
+    find(entries, "Stash only this file")!.onSelect!();
+    await vi.waitFor(() => expect(Object.keys(useLassoStore.getState().byTab.t1 ?? {})).toEqual(["src/b.ts"]));
+    expect(invoke.mock.calls.find(([name]) => name === "stash_create")?.[1]).toMatchObject({ paths: ["src/a.ts"] });
+  });
+
+  it("“Create stash” forgets the whole lasso", async () => {
+    const { useLassoStore } = await import("../lasso");
+    find(wipMenu({ repoId: "r1", tabId: "t1" }), "Create stash")!.onSelect!();
+    await vi.waitFor(() => expect(useLassoStore.getState().byTab.t1).toEqual({}));
+    expect(invoke.mock.calls.map(([name]) => name)).toContain("stash_create");
+  });
+});

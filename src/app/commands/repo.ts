@@ -8,6 +8,7 @@ import { popStash, stashChanges } from "../actions/stash";
 import { fetchAll, pull, pullModeLabels, push } from "../actions/sync";
 import { redo, undo } from "../actions/undo";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
+import { forgetLassoPaths } from "../lasso";
 import { qk } from "../queries";
 
 const hasRepo = (ctx: CommandContext) => Boolean(ctx.repoId && ctx.tabId);
@@ -91,7 +92,7 @@ export const commands: AppCommand[] = [
     // Ctrl+Shift+S belongs to "Stage all" (src/app/commands/wip.ts); stash and pop live on Alt.
     shortcut: "Alt+S",
     when: (ctx) => hasRepo(ctx) && hasChanges(ctx),
-    run: (ctx) => stashChanges(ctx.repoId!),
+    run: (ctx) => stashChanges(ctx.repoId!, { onApplied: () => forgetLassoPaths(ctx.tabId!, null) }),
   },
   {
     id: "stash.createNamed",

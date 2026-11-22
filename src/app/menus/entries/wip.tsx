@@ -31,7 +31,7 @@ export function wipMenu(ctx: MenuBase): MenuEntry[] {
       blocked: status && staged === 0 ? t("menus.wip.nothingStaged") : null,
     }),
     SEPARATOR,
-    item(t("ui.createStash"), Archive, () => void stashChanges(repoId), {
+    item(t("ui.createStash"), Archive, () => void stashChanges(repoId, { onApplied: () => forgetLassoPaths(tabId, null) }), {
       shortcut: commandShortcut("stash.create"),
       blocked: stashBlock,
     }),
