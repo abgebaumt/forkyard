@@ -73,7 +73,7 @@ const ELEMENT_KEY = "element-6066-11e4-a52e-4f735466cecf";
 
 const launch = (t, options = {}) => t.launch({ width: 1440, height: 900, lang: "en", theme: "light", ...options });
 
-/** Opens the repository with the commit panel (where the lasso guard lives) on the right. */
+/** Opens the repository with the commit panel on the right. */
 async function open(t, repo, options) {
   const app = await launch(t, options);
   const ui = commitUi(app);
@@ -353,7 +353,7 @@ scenario("staged changes in the same place are refused with the file name", "edg
   }
 });
 
-scenario("a file changed on disk loses only its selection, also while the commit panel was away", "edge", async (t) => {
+scenario("a file changed on disk loses only its selection, also while the right panel shows something else", "edge", async (t) => {
   const repo = lassoRepo("lasso-aussen");
   try {
     changeAll(repo);
@@ -374,17 +374,28 @@ scenario("a file changed on disk loses only its selection, also while the commit
     assertEqual(await ui.selectedRows(), ['+export const umlaut = "äöü";'], "the open diff keeps its line");
     await ui.closeToasts();
 
-    // The guard lives in the commit panel: show a commit instead, change the file, come back.
+    // The right panel shows a commit instead of the commit form: the guard still acts, the bar keeps counting.
+    await ui.openDiff("unstaged", SESSION);
+    await app.click(await ui.gutter("add", 'export const neu = "Sitzung";'));
+    await waitCount(app, "2 lines in 2 files");
     await ui.selectCommit(tabId, repo.tip());
     await app.waitFor(() => app.exec(() => !document.querySelector('[data-screen="commit-panel"]')), 10_000, {
       message: "commit panel gone",
     });
     repo.write(EXPORT, text([...exportChanged(), "// gespeichert"]));
-    await ui.selectWip(tabId);
-    await app.waitFor('[data-screen="commit-panel"]', 10_000);
     await ui.waitToast("info", /Selection in export ü\.ts cleared – the file has changed/);
-    assertEqual(await fileDetail(app, EXPORT), null, "file list: export ü.ts has no selection any more");
-    await waitNoBar(app);
+    await waitCount(app, "1 line in 1 file");
+    assert(await app.exec(() => !document.querySelector('[data-screen="commit-panel"]')), "the notice came without the commit panel");
+    await ui.closeToasts();
+
+    // "Commit only this" with an empty message brings the commit form up and focuses its summary.
+    const headBefore = repo.tip();
+    await app.click(await lassoButton(app, "lasso-commit"));
+    await app.waitFor(() => app.exec(() => document.activeElement?.hasAttribute("data-commit-summary") ?? false), 10_000, {
+      message: "commit form up, summary field focused",
+    });
+    assertEqual(repo.tip(), headBefore, "git: nothing committed without a message");
+    await waitCount(app, "1 line in 1 file");
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();

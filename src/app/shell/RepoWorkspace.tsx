@@ -18,6 +18,7 @@ import { qk, queryClient, useRepo, useRepoLocked, useRepoMissing, useRepoTrust }
 import { runAction } from "../run";
 import { PANEL_LIMITS, showsSidePanels, useAppStore, useLeftCollapsed, useTabView, type CenterView, type TabView } from "../store";
 import { useCommandShortcut } from "../registry";
+import { useLassoGuard } from "../lasso";
 import { FullPage } from "./FullPage";
 import { Splitter } from "./Splitter";
 import { t } from "../../i18n";
@@ -102,6 +103,12 @@ function Center({ repoId, tabId, center }: { repoId: Id; tabId: Id; center: Cent
     case "branch_cleanup":
       return <BranchCleanupView {...props} />;
   }
+}
+
+/** One lasso guard per tab, live whatever the right panel shows (the lasso bar lives in the diff). */
+function LassoGuard({ repoId, tabId }: { repoId: Id; tabId: Id }) {
+  useLassoGuard(repoId, tabId);
+  return null;
 }
 
 function RightPanel({ repoId, tabId, view }: { repoId: Id; tabId: Id; view: TabView }) {
@@ -353,6 +360,7 @@ export function RepoWorkspace({ tab, repoId }: { tab: Tab; repoId: Id }) {
 
   return (
     <div ref={setContainer} data-no-scroll className="flex min-h-0 min-w-0 flex-1">
+      <LassoGuard repoId={repoId} tabId={tabId} />
       {!panels ? null : leftCollapsed ? (
         <Rail side="left" onOpen={() => toggleLeft('[role="separator"][data-side="left"]')} />
       ) : (

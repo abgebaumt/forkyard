@@ -16,7 +16,7 @@ import { lassoCounts, lassoSelections, useLassoStore } from "../lasso";
 import { qk, queryClient } from "../queries";
 import { newOpId, runAction } from "../run";
 import { withFreshStatus } from "../statusCache";
-import { getTabView, useAppStore } from "../store";
+import { useAppStore } from "../store";
 import { checkout } from "./branches";
 import { headSha } from "./context";
 import { followVanishedDiff } from "./files";
@@ -69,7 +69,9 @@ export async function commitLasso(repoId: Id, tabId: Id): Promise<"done" | "need
         : null;
   if (missing) {
     failSummary(tabId, missing);
-    if (getTabView(tabId).rightCollapsed) useAppStore.getState().setRightCollapsed(tabId, false);
+    // The error shows only in the commit form: bring it up whatever the right panel showed (as "Focus commit message").
+    useAppStore.getState().selectWip(tabId);
+    useAppStore.getState().setRightPanel(tabId, "details");
     focusSummarySoon();
     return "needsMessage";
   }
