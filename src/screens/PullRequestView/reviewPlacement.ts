@@ -28,8 +28,11 @@ export interface Placement {
 export function placeThreads(rows: Row[], path: string, threads: ReviewThread[], drafts: ReviewDraft[]): Placement {
   const index = new Map<string, number>();
   rows.forEach((row, i) => {
-    const anchor = row.type === "line" ? rowAnchor(row) : null;
+    if (row.type !== "line") return;
+    const anchor = rowAnchor(row);
     if (anchor) index.set(anchorKey(anchor), i);
+    // A context row exists on both sides: a thread on its old line sits there too.
+    if (row.kind === "context" && row.oldNo !== null) index.set(anchorKey({ side: "old", line: row.oldNo }), i);
   });
   const at: Placement["at"] = new Map();
   const slot = (key: string) => {

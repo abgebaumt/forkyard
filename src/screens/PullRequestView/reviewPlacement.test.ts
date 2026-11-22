@@ -127,6 +127,23 @@ describe("placeThreads", () => {
   });
 });
 
+test("an old-side thread on a context row sits under that row", () => {
+  const p = placeThreads(rows, PATH, [thread({ id: "ctx", side: "old", line: 12 })], []);
+  expect(p.stale).toEqual([]);
+  expect(rowsAfter(p.rows, "new:13")).toEqual(["review"]);
+  expect(p.rows.find((row) => row.type === "review")).toEqual({ type: "review", anchor: "old:12" });
+});
+
+test("the review row goes below a no-newline note", () => {
+  const last = diff.hunks[0]!.lines.at(-1)!;
+  const noNewline = {
+    ...diff,
+    hunks: [{ ...diff.hunks[0]!, lines: [...diff.hunks[0]!.lines.slice(0, -1), { ...last, noNewline: true }] }],
+  };
+  const p = placeThreads(buildHunkRows(noNewline, 4).rows, PATH, [thread({ id: "end", line: 13 })], []);
+  expect(p.rows.slice(-3).map((row) => row.type)).toEqual(["line", "note", "review"]);
+});
+
 describe("rowAnchor", () => {
   test("removed rows anchor on the old side, the rest on the new side", () => {
     const lines = rows.filter((row) => row.type === "line");

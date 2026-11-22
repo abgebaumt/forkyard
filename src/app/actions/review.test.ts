@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { NewReviewComment, ReviewDraft, ReviewSubmitResult } from "../../core";
+import { CoreError, type NewReviewComment, type ReviewDraft, type ReviewSubmitResult } from "../../core";
 
 const prReviewSubmit = vi.fn<(input: unknown) => Promise<ReviewSubmitResult>>();
 const prReviewDraftSave = vi.fn<(input: unknown) => Promise<ReviewDraft>>();
@@ -81,5 +81,20 @@ describe("resaveDraft", () => {
       body: "Bitte prüfen",
     };
     expect(prReviewDraftSave).toHaveBeenCalledWith({ repoId: REPO, number: 7, comment: expected, draftId: "4" });
+  });
+
+  it("leaves host drafts alone", async () => {
+    expect(await resaveDraft(REPO, 7, draft({ id: "PRRC_kw1", origin: "host" }), HEAD)).toBe(false);
+    expect(prReviewDraftSave).not.toHaveBeenCalled();
+  });
+
+  it("reports a failed save and keeps the drafts fresh", async () => {
+    prReviewDraftSave.mockRejectedValue(
+      new CoreError({ code: "not_found", message: "This review draft no longer exists.", gitOutput: null }),
+    );
+    queryClient.setQueryData(qk.prReviewDrafts(REPO, 7), { drafts: [], hostUnreadable: false });
+    expect(await resaveDraft(REPO, 7, draft({}), HEAD)).toBe(false);
+    expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ tone: "danger" }));
+    expect(queryClient.getQueryState(qk.prReviewDrafts(REPO, 7))?.isInvalidated).toBe(true);
   });
 });
