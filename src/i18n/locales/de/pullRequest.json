@@ -54,7 +54,17 @@
       "commented": "Kommentiert",
       "required": "Review steht aus",
       "requested": "Review angefragt",
-      "dismissed": "Review verworfen"
+      "dismissed": "Review verworfen",
+      "submitCount": "Review abschicken ({{count}})",
+      "submit": "Review abschicken",
+      "saveDraft": "Entwurf speichern",
+      "deleteDraft": "Entwurf verwerfen",
+      "commentNow": "Sofort kommentieren",
+      "resolve": "Thread als erledigt markieren",
+      "reopen": "Thread wieder öffnen",
+      "submitted": "Review gesendet",
+      "failed_one": "{{count}} Kommentar konnte nicht gesendet werden",
+      "failed_other": "{{count}} Kommentare konnten nicht gesendet werden"
     },
     "groups": {
       "mine": "Meine",

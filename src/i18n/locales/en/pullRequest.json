@@ -54,7 +54,17 @@
       "commented": "Commented",
       "required": "Review pending",
       "requested": "Review requested",
-      "dismissed": "Review dismissed"
+      "dismissed": "Review dismissed",
+      "submitCount": "Submit review ({{count}})",
+      "submit": "Submit review",
+      "saveDraft": "Save draft",
+      "deleteDraft": "Discard draft",
+      "commentNow": "Comment now",
+      "resolve": "Resolve thread",
+      "reopen": "Reopen thread",
+      "submitted": "Review sent",
+      "failed_one": "{{count}} comment could not be sent",
+      "failed_other": "{{count}} comments could not be sent"
     },
     "groups": {
       "mine": "Mine",
