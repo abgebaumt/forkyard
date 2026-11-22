@@ -288,7 +288,8 @@ fn review_capabilities_match_the_matrix() {
     };
     assert_eq!(row(HostKind::Github), [true, true, true, true, true, true, false]);
     assert_eq!(row(HostKind::Gitlab), [true, false, true, true, true, false, false]);
-    // Tasks 5–6 append their rows here, exactly as in the plan's matrix.
+    assert_eq!(row(HostKind::Gitea), [true, false, false, true, true, true, false]);
+    // Task 6 appends its rows here, exactly as in the plan's matrix.
 }
 
 fn gl_comment(path: &str, line: u32) -> NewReviewComment {
@@ -486,4 +487,82 @@ async fn gitlab_discussions_resolve_with_put() {
     cmd_review::pr_review_thread_resolve(&fx.tc, fx.id(), 9, id.clone(), false, None).await.unwrap();
     let sent = fx.sent("PUT", &format!("/merge_requests/9/discussions/{id}"));
     assert_eq!(sent.iter().map(|r| r.json()).collect::<Vec<_>>(), [json!({ "resolved": true }), json!({ "resolved": false })]);
+}
+
+/// Gitea's mock pull request no. 9 has the head `MOCK_GL_HEAD` (`sha(9)`).
+fn gt_comment(path: &str, line: u32) -> NewReviewComment {
+    NewReviewComment { commit: MOCK_GL_HEAD.into(), ..comment(path, line) }
+}
+
+fn gt_writes(fx: &Fixture) -> usize {
+    fx.server.requests().iter().filter(|r| r.method != "GET").count()
+}
+
+#[tokio::test]
+async fn gitea_review_carries_line_numbers_as_positions() {
+    let fx = Fixture::new(HostKind::Gitea).await;
+    save(&fx, gt_comment("a.rs", 3)).await;
+    save(&fx, NewReviewComment { side: ReviewSide::Old, ..gt_comment("b.rs", 7) }).await;
+    let result =
+        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, "Passt.".into(), MOCK_GL_HEAD.into(), None).await.unwrap();
+    assert_eq!((result.submitted, result.sent), (true, 2));
+    assert_eq!(
+        fx.sent("POST", "/pulls/9/reviews")[0].json(),
+        json!({ "body": "Passt.", "commit_id": MOCK_GL_HEAD, "event": "APPROVED",
+        "comments": [{ "path": "a.rs", "body": "Hier fehlt die Prüfung auf leer.", "new_position": 3 },
+                     { "path": "b.rs", "body": "Hier fehlt die Prüfung auf leer.", "old_position": 7 }] })
+    );
+    assert!(cmd_review::pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts.is_empty());
+}
+
+#[tokio::test]
+async fn gitea_request_changes_uses_its_event() {
+    let fx = Fixture::new(HostKind::Gitea).await;
+    cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::RequestChanges, "Bitte ändern.".into(), MOCK_GL_HEAD.into(), None)
+        .await
+        .unwrap();
+    let sent = fx.sent("POST", "/pulls/9/reviews")[0].json();
+    assert_eq!((sent["event"].clone(), sent["comments"].clone()), (json!("REQUEST_CHANGES"), json!([])));
+}
+
+#[tokio::test]
+async fn gitea_comment_now_is_a_comment_review_with_one_comment() {
+    let fx = Fixture::new(HostKind::Gitea).await;
+    cmd_review::pr_review_comment_create(&fx.tc, fx.id(), 9, gt_comment("a.rs", 3), None).await.unwrap();
+    assert_eq!(
+        fx.sent("POST", "/pulls/9/reviews")[0].json(),
+        json!({ "body": "", "commit_id": MOCK_GL_HEAD, "event": "COMMENT",
+        "comments": [{ "path": "a.rs", "body": "Hier fehlt die Prüfung auf leer.", "new_position": 3 }] })
+    );
+}
+
+#[tokio::test]
+async fn gitea_refuses_a_comment_and_a_review_on_an_old_head() {
+    let fx = Fixture::new(HostKind::Gitea).await;
+    let old = NewReviewComment { commit: "b".repeat(40), ..comment("a.rs", 3) };
+    let error = cmd_review::pr_review_comment_create(&fx.tc, fx.id(), 9, old, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::StaleState);
+    save(&fx, gt_comment("a.rs", 3)).await;
+    let error =
+        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Approve, String::new(), "b".repeat(40), None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::StaleState);
+    assert_eq!(gt_writes(&fx), 0);
+}
+
+#[tokio::test]
+async fn gitea_draft_from_an_older_head_is_not_sent() {
+    let fx = Fixture::new(HostKind::Gitea).await;
+    let old = save(&fx, comment("a.rs", 3)).await;
+    let result =
+        cmd_review::pr_review_submit(&fx.tc, fx.id(), 9, ReviewVote::Comment, String::new(), MOCK_GL_HEAD.into(), None).await.unwrap();
+    assert_eq!((result.submitted, result.sent, result.failed[0].id.clone()), (false, 0, old.id));
+    assert_eq!(gt_writes(&fx), 0);
+}
+
+#[tokio::test]
+async fn gitea_has_no_resolve() {
+    let fx = Fixture::new(HostKind::Gitea).await;
+    let error = pr_review_thread_resolve(&fx.tc, fx.id(), 9, "91".into(), true, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostUnsupported);
+    assert!(fx.server.requests().is_empty());
 }

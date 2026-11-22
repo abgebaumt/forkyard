@@ -8,9 +8,9 @@ use serde_json::{json, Value};
 
 use super::github::{head_sha, repo_path};
 use super::{
-    already_exists, color, first_line, flag, host_user, list, missing_repo, not_found_as, number, opt_text, parallel, pr_not_found,
-    release_error, review_summary, summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, NewRelease, Paging, RepoFacts,
-    RepoPath,
+    already_exists, color, draft_as_comment, first_line, flag, host_user, list, missing_repo, not_found_as, number, opt_text, parallel,
+    pr_not_found, release_error, review_summary, summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, NewRelease, Paging,
+    RepoFacts, RepoPath, ReviewSubmission, ReviewSubmitOutcome,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
@@ -18,8 +18,8 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
     CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRelease, HostRepoRef, HostUser, IssueDetails, IssueListState,
-    IssuePage, IssueState, IssueSummary, PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer,
-    PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread,
+    IssuePage, IssueState, IssueSummary, NewReviewComment, PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState,
+    PrReviewer, PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread, ReviewVote,
 };
 
 /// Codeberg, the public Forgejo instance: what "no address" means for this host.
@@ -604,6 +604,68 @@ pub async fn review_reply(core: &Core, api: &Api, repo: &RepoPath, index: u64, t
     Ok(ReviewReply { comment: review_comment(first).0, quoted: true })
 }
 
+/// A line comment of a review: `new_position` on the new side, `old_position` on the old one.
+fn review_comment_json(c: &NewReviewComment) -> Value {
+    let key = if c.side == ReviewSide::New { "new_position" } else { "old_position" };
+    json!({ "path": c.path, "body": c.body, key: c.line })
+}
+
+/// The pull request must still be at the head the line numbers belong to.
+async fn check_head(core: &Core, api: &Api, repo: &RepoPath, index: u64, expected: &str, what_next: &str) -> CoreResult<()> {
+    if head_sha(&pr_raw(core, api, repo, index).await?) != expected {
+        return Err(CoreError::new(ErrorCode::StaleState, format!("The pull request has new commits. Reload and {what_next}.")));
+    }
+    Ok(())
+}
+
+/// `POST …/pulls/{index}/reviews` with `{body, commit_id, event, comments}`.
+async fn post_review(core: &Core, api: &Api, repo: &RepoPath, index: u64, request: Value) -> CoreResult<()> {
+    api.send_json(core, Method::Post, &format!("{}/pulls/{index}/reviews", repo_path(repo)), &request)
+        .await
+        .map_err(|e| not_found_as(e, pr_not_found(repo, index)))?;
+    Ok(())
+}
+
+/// A single comment is a `COMMENT` review without text and with one line comment.
+pub async fn review_comment_create(core: &Core, api: &Api, repo: &RepoPath, index: u64, comment: &NewReviewComment) -> CoreResult<()> {
+    check_head(core, api, repo, index, &comment.commit, "comment again").await?;
+    let request = json!({ "body": "", "commit_id": comment.commit, "event": "COMMENT", "comments": [review_comment_json(comment)] });
+    post_review(core, api, repo, index, request).await
+}
+
+const DRAFT_ON_OLD_HEAD: &str =
+    "The pull request has new commits since this comment was written. Check the line and save the comment again.";
+
+/// One request with vote, text and all drafts, so it is all-or-nothing: an error means nothing reached the host.
+/// Drafts written for an older head are not sent (and nothing else is), they stay with an error.
+pub async fn review_submit(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    index: u64,
+    submission: ReviewSubmission<'_>,
+) -> CoreResult<ReviewSubmitOutcome> {
+    check_head(core, api, repo, index, submission.commit, "send the review again").await?;
+    let mut outcome = ReviewSubmitOutcome::default();
+    for draft in submission.drafts.iter().filter(|d| d.commit.as_deref() != Some(submission.commit)) {
+        outcome.failed.push((draft.id.clone(), DRAFT_ON_OLD_HEAD.to_string()));
+    }
+    if !outcome.failed.is_empty() {
+        return Ok(outcome);
+    }
+    let event = match submission.vote {
+        ReviewVote::Approve => "APPROVED",
+        ReviewVote::RequestChanges => "REQUEST_CHANGES",
+        ReviewVote::Comment => "COMMENT",
+    };
+    let comments: Vec<Value> = submission.drafts.iter().map(|d| review_comment_json(&draft_as_comment(d))).collect();
+    let request = json!({ "body": submission.body, "commit_id": submission.commit, "event": event, "comments": comments });
+    post_review(core, api, repo, index, request).await?;
+    outcome.sent = submission.drafts.iter().map(|d| d.id.clone()).collect();
+    outcome.submitted = true;
+    Ok(outcome)
+}
+
 // ---------------------------------------------------------------------------
 // As a `Host`
 // ---------------------------------------------------------------------------
@@ -669,12 +731,12 @@ impl Host for GiteaHost {
             pr_labels: true,
             fork_checkout: true,
             releases: true,
-            review_comment: false,
+            review_comment: true,
             review_comment_range: false,
             review_resolve: false,
-            review_submit_batch: false,
-            review_approve: false,
-            review_request_changes: false,
+            review_submit_batch: true,
+            review_approve: true,
+            review_request_changes: true,
             review_vote_own_pr: false,
             review_threads: true,
             review_reply: true,
@@ -767,5 +829,25 @@ impl Host for GiteaHost {
         body: &'a str,
     ) -> HostFuture<'a, ReviewReply> {
         Box::pin(review_reply(core, api, repo, number, thread_id, body))
+    }
+    fn review_comment_create<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        comment: &'a NewReviewComment,
+    ) -> HostFuture<'a, ()> {
+        Box::pin(review_comment_create(core, api, repo, number, comment))
+    }
+    fn review_submit<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        submission: ReviewSubmission<'a>,
+    ) -> HostFuture<'a, ReviewSubmitOutcome> {
+        Box::pin(review_submit(core, api, repo, number, submission))
     }
 }
