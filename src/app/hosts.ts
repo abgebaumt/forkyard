@@ -63,7 +63,14 @@ export const defaultCapabilities: Record<HostKind, HostCapabilities> = {
     reviewRequestChanges: true,
     mergeMethods: ["merge", "squash", "rebase"],
   },
-  gitlab: { ...ALL_FEATURES, mergeMethods: ["merge", "squash"] },
+  gitlab: {
+    ...ALL_FEATURES,
+    reviewComment: true,
+    reviewResolve: true,
+    reviewSubmitBatch: true,
+    reviewApprove: true,
+    mergeMethods: ["merge", "squash"],
+  },
   gitea: { ...ALL_FEATURES, reviewReplyQuotes: true, mergeMethods: ["merge", "squash", "rebase"] },
   bitbucket: {
     ...ALL_FEATURES,
