@@ -651,14 +651,16 @@ pub(crate) fn gitlab(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
             state.merged.push(number);
             MockResponse::json(200, gl_mr(&base, number, &state, true))
         }
-        ("GET", ["merge_requests", _, "approvals"]) => MockResponse::json(
-            200,
-            if number == 1 {
+        ("GET", ["merge_requests", _, "approvals"]) => {
+            let mut approvals = if number == 1 {
                 json!({ "approved": true, "approvals_left": 0, "approved_by": [{ "user": gl_user("mira") }] })
             } else {
                 json!({ "approved": false, "approvals_left": 0, "approved_by": [] })
-            },
-        ),
+            };
+            approvals["user_has_approved"] = json!(state.gl_already_approved);
+            approvals["user_can_approve"] = json!(!state.gl_cannot_approve && !state.gl_already_approved);
+            MockResponse::json(200, approvals)
+        }
         ("GET", ["merge_requests" | "issues", _, "notes"]) => gl_page(
             request,
             vec![
@@ -752,8 +754,12 @@ pub(crate) fn gitlab(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
             )
         }
         ("POST", ["merge_requests", _, "draft_notes", "bulk_publish"]) => MockResponse::raw(204, ""),
+        // GitLab refuses a second or forbidden approval with 401, not 403.
+        ("POST", ["merge_requests", _, "approve"]) if state.gl_already_approved || state.gl_cannot_approve => {
+            MockResponse::json(401, json!({ "message": "401 Unauthorized" }))
+        }
         ("POST", ["merge_requests", _, "approve"]) if state.gl_approve_fails => {
-            MockResponse::json(403, json!({ "message": "403 Forbidden" }))
+            MockResponse::json(409, json!({ "message": "SHA does not match HEAD of source branch" }))
         }
         ("POST", ["merge_requests", _, "approve"]) => MockResponse::json(
             201,

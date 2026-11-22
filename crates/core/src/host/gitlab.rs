@@ -649,10 +649,30 @@ pub async fn review_host_drafts(core: &Core, api: &Api, repo: &RepoPath, mr: u64
         .collect())
 }
 
-/// Each local draft becomes a draft note (`POST …/draft_notes`); only when all arrived: `bulk_publish` (which
-/// also publishes the draft notes started in the browser), the text as a note, then the approval with the
-/// head as `sha`. Once a draft note exists at GitLab every error goes into the outcome, so the sent drafts are
-/// dropped locally and not posted twice.
+const DRAFT_ON_OLD_HEAD: &str =
+    "The merge request has new commits since this comment was written. Check the line and save the comment again.";
+
+/// Whether `POST …/approve` is still needed, from `GET …/approvals` (GitLab answers a refused approval with 401,
+/// which would read as a rejected token): already approved → no; not allowed to → `not_allowed`.
+async fn approval_needed(core: &Core, api: &Api, repo: &RepoPath, mr: u64) -> CoreResult<bool> {
+    let approvals =
+        api.get_json(core, &format!("{}/approvals", mr_path(repo, mr))).await.map_err(|e| not_found_as(e, mr_missing(repo, mr)))?;
+    if flag(&approvals, "user_has_approved") {
+        return Ok(false);
+    }
+    if approvals.get("user_can_approve").and_then(Value::as_bool) == Some(false) {
+        return Err(CoreError::not_allowed(format!(
+            "GitLab does not let you approve merge request !{mr} (for example your own, or the project's approval rules leave you out). Send the review as a comment instead."
+        )));
+    }
+    Ok(true)
+}
+
+/// Before any write: the head and, for an approval, whether GitLab lets the user approve. Then each local draft
+/// becomes a draft note (`POST …/draft_notes`); only when all arrived: `bulk_publish` (which also publishes the
+/// draft notes started in the browser), the text as a note, then the approval with the head as `sha`. Once a
+/// draft note exists at GitLab every error goes into the outcome, so the sent drafts are dropped locally and not
+/// posted twice; a failed approval after publishing says what went out (`published`).
 pub async fn review_submit(
     core: &Core,
     api: &Api,
@@ -661,14 +681,14 @@ pub async fn review_submit(
     submission: ReviewSubmission<'_>,
 ) -> CoreResult<ReviewSubmitOutcome> {
     let refs = diff_refs(core, api, repo, mr, submission.commit, "send the review again").await?;
+    let approve = submission.vote == ReviewVote::Approve && approval_needed(core, api, repo, mr).await?;
     let path = mr_path(repo, mr);
     let not_found = |e| not_found_as(e, mr_missing(repo, mr));
     let mut outcome = ReviewSubmitOutcome::default();
     for draft in submission.drafts {
         // Its line numbers belong to another head; GitLab would put it on the wrong line.
         if draft.commit.as_deref() != Some(submission.commit) {
-            let message = "The merge request has new commits since this comment was written. Check the line and save the comment again.";
-            outcome.failed.push((draft.id.clone(), message.to_string()));
+            outcome.failed.push((draft.id.clone(), DRAFT_ON_OLD_HEAD.to_string()));
             continue;
         }
         let body = json!({ "note": draft.body, "position": position(&refs, &draft_as_comment(draft)) });
@@ -680,20 +700,37 @@ pub async fn review_submit(
     if !outcome.failed.is_empty() {
         return Ok(outcome);
     }
-    let finish = async {
+    let has_text = !submission.body.trim().is_empty();
+    let publish = async {
         api.send_json(core, Method::Post, &format!("{path}/draft_notes/bulk_publish"), &json!({})).await?;
-        if !submission.body.trim().is_empty() {
+        if has_text {
             comment_create(core, api, repo, mr, submission.body).await?;
-        }
-        if submission.vote == ReviewVote::Approve {
-            api.send_json(core, Method::Post, &format!("{path}/approve"), &json!({ "sha": submission.commit })).await?;
         }
         CoreResult::Ok(())
     };
-    match finish.await {
-        Ok(()) => outcome.submitted = true,
-        Err(error) => outcome.error = Some(not_found(error)),
+    if let Err(error) = publish.await {
+        outcome.error = Some(not_found(error));
+        return Ok(outcome);
     }
+    if approve {
+        if let Err(error) = api.send_json(core, Method::Post, &format!("{path}/approve"), &json!({ "sha": submission.commit })).await {
+            let what = match (outcome.sent.is_empty(), has_text) {
+                (false, true) => "The line comments and the review text were posted",
+                (false, false) => "The line comments were posted",
+                (true, true) => "The review text was posted",
+                (true, false) => "The review was published",
+            };
+            let mut error = not_found(error);
+            error.message = format!(
+                "{what} on GitLab; only the approval failed: {}. Approve the merge request on GitLab, or send an Approve review here without text.",
+                error.message.trim_end_matches('.')
+            );
+            outcome.published = true;
+            outcome.error = Some(error);
+            return Ok(outcome);
+        }
+    }
+    outcome.submitted = true;
     Ok(outcome)
 }
 

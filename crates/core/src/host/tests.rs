@@ -60,8 +60,12 @@ pub(crate) struct MockState {
     pub gh_pending_review: bool,
     /// The token's user has a draft note on every merge request, started in the browser (GitLab).
     pub gl_draft_note: bool,
-    /// Approving a merge request is refused (GitLab).
+    /// Approving fails although allowed: the head moved meanwhile, 409 (GitLab).
     pub gl_approve_fails: bool,
+    /// The token's user has already approved every merge request (GitLab).
+    pub gl_already_approved: bool,
+    /// The token's user may not approve (GitLab).
+    pub gl_cannot_approve: bool,
 }
 
 pub(crate) struct Fixture {

@@ -182,6 +182,9 @@ pub struct ReviewSubmitOutcome {
     /// The final step (vote, publishing) failed after drafts were already sent: the sent ones are still
     /// deleted locally, then this error is returned.
     pub error: Option<CoreError>,
+    /// Comments and text reached the host and only the vote failed afterwards: `error` already says so and
+    /// is returned as is (a retry with the same text would post it twice).
+    pub published: bool,
 }
 
 /// A stored local draft as the comment it was saved from.
