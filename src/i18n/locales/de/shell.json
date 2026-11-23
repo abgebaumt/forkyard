@@ -89,7 +89,7 @@
     "activityHint": "Protokoll der ausgeführten Git-Befehle",
     "activity": "Protokoll",
     "versionHint": "Forkyard {{version}} – Änderungsprotokoll auf GitHub öffnen",
-    "versionLabel": "Forkyard-Version {{version}}, Änderungsprotokoll"
+    "versionLabel": "Forkyard {{version}}, Änderungsprotokoll"
   },
   "tabMenu": {
     "closeOthers": "Andere Tabs schließen",
