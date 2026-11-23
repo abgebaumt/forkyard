@@ -213,7 +213,9 @@ fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) ->
         gitcore::commands::update::configure(&core, Some(if base == "off" { String::new() } else { base }));
     }
     // A release installs itself where that works; a development build only with a local manifest.
-    let may_update = gitcore::commands::update::installable(std::env::consts::OS, std::env::var_os("APPIMAGE").as_deref());
+    // Development build: no bundle type, so `APPIMAGE` alone decides (E2E).
+    let appimage_build = dev_mode() || tauri::utils::platform::bundle_type() == Some(tauri::utils::config::BundleType::AppImage);
+    let may_update = gitcore::commands::update::installable(std::env::consts::OS, std::env::var_os("APPIMAGE").as_deref(), appimage_build);
     let manifest = dev_env_value(UPDATER_URL_ENV).is_some();
     gitcore::commands::update::configure_installable(&core, may_update && (!dev_mode() || manifest));
     gitcore::commands::update::configure_version(&core, dev_env_value(APP_VERSION_ENV).and_then(|v| v.into_string().ok()));

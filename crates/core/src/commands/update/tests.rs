@@ -309,12 +309,14 @@ async fn test_cores_never_ask_github() {
 #[test]
 fn only_windows_macos_and_appimages_install() {
     use std::ffi::OsStr;
-    assert!(installable("windows", None));
-    assert!(installable("macos", None));
-    assert!(installable("linux", Some(OsStr::new("/home/lena/Programme/Forkyard.AppImage"))));
-    assert!(!installable("linux", None), ".deb/.rpm");
-    assert!(!installable("linux", Some(OsStr::new(""))));
-    assert!(!installable("freebsd", None));
+    let appimage = Some(OsStr::new("/home/lena/Programme/Forkyard.AppImage"));
+    assert!(installable("windows", None, false));
+    assert!(installable("macos", None, false));
+    assert!(installable("linux", appimage, true));
+    assert!(!installable("linux", appimage, false), "a .deb started from an AppImage's terminal inherits APPIMAGE");
+    assert!(!installable("linux", None, true), ".deb/.rpm");
+    assert!(!installable("linux", Some(OsStr::new("")), true));
+    assert!(!installable("freebsd", None, true));
 }
 
 #[tokio::test]
