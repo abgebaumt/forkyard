@@ -48,7 +48,7 @@ export type AiInput =
   | { kind: "stack_split"; branch: string; base: string }
   | { kind: "review_fix"; number: number; threadId: string }
   | { kind: "semantic_search"; query: string }
-  | { kind: "digest" };
+  | { kind: "digest"; since: string };
 
 /**
  * A model of the provider (`ai_models`).

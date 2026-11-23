@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use crate::ai::context::{self, Built, Exclusions};
 use crate::ai::prompt::{self, Section};
 use crate::app::Core;
-use crate::commands::digest::{compose, WINDOW_HOURS};
+use crate::commands::digest::compose;
 use crate::error::{CoreError, CoreResult};
 use crate::model::{AiDigest, AiOmitReason, AiOmitted, Digest, DigestPrChange, RefKind, Settings};
 
@@ -76,17 +76,21 @@ fn render(digest: &Digest, exclusions: &Exclusions, omitted: &mut Vec<AiOmitted>
     out
 }
 
-/// The prompt for the repository's current digest. `secrets`: values known to be secret (the
+/// The prompt for the repository's digest from `since` (RFC 3339) on. `secrets`: values known to be secret (the
 /// provider key), scrubbed literally.
 pub async fn build(
     core: &Core,
     repo_id: &str,
+    since: &str,
     settings: &Settings,
     budget_tokens: u64,
     locale: &str,
     secrets: &[String],
 ) -> CoreResult<Built> {
-    let digest = compose(core, repo_id, chrono::Utc::now() - chrono::Duration::hours(WINDOW_HOURS)).await?;
+    let since = chrono::DateTime::parse_from_rfc3339(since)
+        .map_err(|_| CoreError::not_allowed(format!("“{since}” is not a valid time.")))?
+        .with_timezone(&chrono::Utc);
+    let digest = compose(core, repo_id, since).await?;
     let exclusions = Exclusions::load(core, repo_id, &settings.ai_exclude).await?;
     let mut omitted = Vec::new();
     let body = context::redact_for_ai(&render(&digest, &exclusions, &mut omitted), secrets);

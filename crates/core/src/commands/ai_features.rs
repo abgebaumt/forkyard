@@ -96,9 +96,9 @@ pub async fn ai_stack_split(
 
 /// "Summarise" on the "What's new" card: one paragraph about the current digest – a text only, the
 /// seen state stays. The prompt is the one `ai_preview` shows for `AiInput::Digest`.
-pub async fn ai_digest(core: &Core, repo_id: String, job_id: String, locale: String) -> CoreResult<crate::model::AiDigest> {
+pub async fn ai_digest(core: &Core, repo_id: String, job_id: String, since: String, locale: String) -> CoreResult<crate::model::AiDigest> {
     let frame = run::ask(core, &repo_id, AiFeature::Digest).await?;
-    let built = ai::features::digest::build(core, &repo_id, &frame.settings, frame.budget, &locale, &frame.secrets).await?;
+    let built = ai::features::digest::build(core, &repo_id, &since, &frame.settings, frame.budget, &locale, &frame.secrets).await?;
     let answer = frame.send(core, &job_id, &built.prompt, &ai::features::digest::schema()).await?;
     Ok(ai::features::digest::finish(&answer.value))
 }

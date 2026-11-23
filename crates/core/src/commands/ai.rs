@@ -224,7 +224,7 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
         AiInput::StackSplit { branch, base } => {
             ai::features::stack::build(core, &repo_id, &settings, &branch, &base, budget, &locale, &secrets).await?.built
         }
-        AiInput::Digest => ai::features::digest::build(core, &repo_id, &settings, budget, &locale, &secrets).await?,
+        AiInput::Digest { since } => ai::features::digest::build(core, &repo_id, &since, &settings, budget, &locale, &secrets).await?,
         AiInput::ReviewFix { number, thread_id } => {
             ai::features::review::build(core, &repo_id, &settings, number, &thread_id, budget, &locale, &secrets).await?.built
         }

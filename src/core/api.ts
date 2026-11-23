@@ -453,12 +453,12 @@ export interface CoreCommands {
    */
   digestGet(input: R & { ifChanged?: boolean | null }): Promise<Digest | null>;
   /**
-   * One paragraph about the current digest, as plain text. Job `jobId`
-   * (cancellable). Show and confirm `aiPreview` with `{ kind: "digest" }` first. Errors: `ai_disabled`,
+   * One paragraph about the digest from `since` on (the shown `Digest.since`), as plain text. Job `jobId`
+   * (cancellable). Show and confirm `aiPreview` with `{ kind: "digest", since }` first. Errors: `ai_disabled`,
    * `ai_not_configured`, `ai_provider_unavailable`, `ai_invalid_answer`, `ai_refused`, `ai_limit_reached`,
    * `ai_too_large`, `not_allowed` (not confirmed), `repo_untrusted`, `cancelled`, `timeout`.
    */
-  aiDigest(input: R & { jobId: string; locale: string }): Promise<AiDigest>;
+  aiDigest(input: R & { jobId: string; since: string; locale: string }): Promise<AiDigest>;
   /**
    * Deletes the branch `name` on the remote (`git push <remote> --delete <name>`); `name` without
    * the remote prefix (`origin/x` works too). `done`: deleted; `up_to_date`: did not exist there
