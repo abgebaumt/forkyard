@@ -33,7 +33,12 @@ pub(crate) fn core_error(error: &tauri_plugin_updater::Error) -> CoreError {
 /// Debug builds: the `plugins.updater` value from the switches, `None` without `FORKYARD_UPDATER_URL`.
 pub(crate) fn dev_config(url: Option<String>, pubkey: Option<String>) -> Option<serde_json::Value> {
     let url = url?;
-    Some(serde_json::json!({ "pubkey": pubkey.unwrap_or_default(), "endpoints": [url], "dangerousInsecureTransportProtocol": true }))
+    Some(serde_json::json!({
+        "pubkey": pubkey.unwrap_or_default(),
+        "endpoints": [url],
+        "dangerousInsecureTransportProtocol": true,
+        "requireSignedVersion": true,
+    }))
 }
 
 #[tauri::command]
@@ -115,6 +120,8 @@ mod tests {
             conf["plugins"]["updater"]["endpoints"],
             json!(["https://github.com/abgebaumt/forkyard/releases/latest/download/latest.json"])
         );
+        // The manifest is not signed: without this, an old signed release can be announced as a newer version.
+        assert_eq!(conf["plugins"]["updater"]["requireSignedVersion"], json!(true));
         assert!(conf["bundle"].get("createUpdaterArtifacts").is_none(), "only through tauri.updater.conf.json");
         let extra: serde_json::Value = serde_json::from_str(include_str!("../tauri.updater.conf.json")).unwrap();
         assert_eq!(extra, json!({ "bundle": { "createUpdaterArtifacts": true } }));
@@ -125,7 +132,9 @@ mod tests {
         assert_eq!(dev_config(None, Some("k".into())), None);
         assert_eq!(
             dev_config(Some("http://127.0.0.1:4711/latest.json".into()), Some("k".into())),
-            Some(json!({ "pubkey": "k", "endpoints": ["http://127.0.0.1:4711/latest.json"], "dangerousInsecureTransportProtocol": true }))
+            Some(
+                json!({ "pubkey": "k", "endpoints": ["http://127.0.0.1:4711/latest.json"], "dangerousInsecureTransportProtocol": true, "requireSignedVersion": true })
+            )
         );
     }
 }
