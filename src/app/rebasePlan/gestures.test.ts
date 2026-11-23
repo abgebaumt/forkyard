@@ -57,6 +57,12 @@ describe("rebase plan gestures", () => {
     expect(next.rows[2]).toMatchObject({ action: "reword", message: "Neu: Übersicht\n\nKörper" });
     expect(rewordSummary(next, "c3", "c3").rows[2]).toMatchObject({ action: "pick", message: null });
   });
+  it("confirming the unchanged summary keeps squash and drop, and turns a reword back to pick", () => {
+    const squashed = squashOnto(start, "c4", "c1", false);
+    expect(rewordSummary(squashed, "c4", "c4")).toBe(squashed);
+    const dropped = toggleDrop(start, "c2");
+    expect(rewordSummary(dropped, "c2", "c2").rows[1]!.action).toBe("drop");
+  });
   it("rewording a pick with a group result message keeps that message's description", () => {
     const grouped = setMessage(squashOnto(start, "c4", "c1", false), "c1", "Gruppe\n\nAlles zusammen");
     expect(rewordSummary(grouped, "c1", "Neu").rows[0]).toMatchObject({ action: "reword", message: "Neu\n\nAlles zusammen" });
