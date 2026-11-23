@@ -308,8 +308,8 @@ export async function commitChanges(repoId: Id, tabId: Id, options: { stageAll?:
     // The status is reloaded before the "Commit …" toast appears (statusCache.ts).
     // With amend, the commit the form showed as the last one goes along: if HEAD is a different one
     // by now (commit in the terminal at the same moment), the core refuses.
-    withFreshStatus(repoId, () =>
-      core.commitCreate({
+    withFreshStatus(repoId, async () => {
+      const committed = await core.commitCreate({
         repoId,
         opId,
         summary,
@@ -319,8 +319,11 @@ export async function commitChanges(repoId: Id, tabId: Id, options: { stageAll?:
         pushAfter,
         stageAll: plan.stageAll,
         expectedHead: amend ? wip.amendSha : null,
-      }),
-    ),
+      });
+      // Staging everything is our own whole-file write: no "file has changed" notice for the lasso.
+      if (plan.stageAll) forgetLassoPaths(tabId, null);
+      return committed;
+    }),
     {
       busyKey: wipBusy.commit(repoId),
       quiet: ["empty_message", "hook_failed", "identity_missing"],
