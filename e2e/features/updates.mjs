@@ -556,10 +556,11 @@ scenario(
     await openInstallDialog(app);
     await app.click(await dialogButton(app, "Install"));
     await waitPhase(app, "error");
-    // The plugin's own message, then the hint of `update_signature_invalid`.
+    // The text and hint of `update_signature_invalid`, not the plugin's minisign message.
     const text = await dialogText(app);
     assertIncludes(text, "The update could not be installed");
-    assertIncludes(text, "signature");
+    assertIncludes(text, "The download is not signed by Forkyard. Nothing was installed.");
+    assert(!/minisign/i.test(text), `no plugin message: ${text}`);
     assertIncludes(text, "Download the release from the release page instead.");
     await app.click(await dialogButton(app, "Open release page"));
     assertEqual(await app.waitFor(async () => ((await opened(app)).length ? opened(app) : null), 10_000), [PAGE(NEWER)]);
