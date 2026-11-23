@@ -633,11 +633,7 @@ pub async fn review_comment_create(core: &Core, api: &Api, repo: &RepoPath, inde
     post_review(core, api, repo, index, request).await
 }
 
-const DRAFT_ON_OLD_HEAD: &str =
-    "The pull request has new commits since this comment was written. Check the line and save the comment again.";
-
 /// One request with vote, text and all drafts, so it is all-or-nothing: an error means nothing reached the host.
-/// Drafts written for an older head are not sent (and nothing else is), they stay with an error.
 pub async fn review_submit(
     core: &Core,
     api: &Api,
@@ -647,12 +643,6 @@ pub async fn review_submit(
 ) -> CoreResult<ReviewSubmitOutcome> {
     check_head(core, api, repo, index, submission.commit, "send the review again").await?;
     let mut outcome = ReviewSubmitOutcome::default();
-    for draft in submission.drafts.iter().filter(|d| d.commit.as_deref() != Some(submission.commit)) {
-        outcome.failed.push((draft.id.clone(), DRAFT_ON_OLD_HEAD.to_string()));
-    }
-    if !outcome.failed.is_empty() {
-        return Ok(outcome);
-    }
     let event = match submission.vote {
         ReviewVote::Approve => "APPROVED",
         ReviewVote::RequestChanges => "REQUEST_CHANGES",

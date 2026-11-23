@@ -332,7 +332,7 @@ pub(crate) fn github(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
                 reviews
                     .as_array_mut()
                     .unwrap()
-                    .push(json!({ "id": 77, "node_id": "PRR_kwDOpending", "state": "PENDING", "user": gh_user("lena"), "body": "" }));
+                    .push(json!({ "id": 77, "node_id": "PRR_kwDOpending", "state": "PENDING", "commit_id": "a".repeat(40), "user": gh_user("lena"), "body": "" }));
             }
             MockResponse::json(200, reviews)
         }

@@ -721,6 +721,13 @@ pub async fn review_submit(
         let sent = submission.drafts.iter().map(|d| d.id.clone()).collect();
         return Ok(ReviewSubmitOutcome { submitted: true, sent, ..ReviewSubmitOutcome::default() });
     };
+    // The pending review anchors the threads to its own commit; drafts written for another head would land on the wrong lines.
+    if !submission.drafts.is_empty() && text(&pending, "commit_id") != submission.commit {
+        return Err(CoreError::new(
+            ErrorCode::StaleState,
+            "The review you started on GitHub belongs to another version of the pull request. Finish or discard it on the website, then send the review again.",
+        ));
+    }
     let endpoint = graphql_url(&api.api_base);
     let review_id = text(&pending, "node_id");
     let mut outcome = ReviewSubmitOutcome::default();
