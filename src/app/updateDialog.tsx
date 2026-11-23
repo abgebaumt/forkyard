@@ -19,12 +19,30 @@ import { useAppStore } from "./store";
 
 type Phase = "ready" | "downloading" | "downloaded" | "error";
 
+/** Runs the restart; a failure comes back as the text for the error phase (null = fine or the app is gone). */
+export async function restartFailure(restart: () => Promise<void>): Promise<{ text: string; hint: string } | null> {
+  try {
+    await restart();
+    return null;
+  } catch (error) {
+    return describeError(error);
+  }
+}
+
 function UpdateDialog({ release, done }: { release: UpdateRelease; done: () => void }) {
   const [phase, setPhase] = useState<Phase>("ready");
   const [jobId] = useState(newJobId);
   const [failure, setFailure] = useState<{ text: string; hint: string } | null>(null);
   const percent = useAppStore((state) => state.jobs[jobId]?.percent ?? null);
   const openPage = () => void openInBrowser(release.url, t("updates.page"));
+
+  async function restart() {
+    const problem = await restartFailure(restartForUpdate);
+    if (problem) {
+      setFailure(problem);
+      setPhase("error");
+    }
+  }
 
   async function install() {
     setPhase("downloading");
@@ -58,7 +76,7 @@ function UpdateDialog({ release, done }: { release: UpdateRelease; done: () => v
     ) : phase === "downloaded" ? (
       <>
         <Button onClick={done}>{t("updates.dialog.later")}</Button>
-        <Button variant="primary" autoFocus onClick={() => void restartForUpdate()}>
+        <Button variant="primary" autoFocus onClick={() => void restart()}>
           {t("updates.dialog.restartNow")}
         </Button>
       </>
