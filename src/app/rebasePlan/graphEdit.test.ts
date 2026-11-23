@@ -83,6 +83,7 @@ describe("graph edit", () => {
     expect(staleAfter(edit, undefined)).toBe(false);
     expect(staleAfter(edit, okPlan(["a", "b", "c"]))).toBe(true);
     expect(staleAfter(edit, okPlan(["a", "b"], "other-base"))).toBe(true);
+    expect(staleAfter(edit, { ...okPlan(["a", "b"]), branch: "backup" })).toBe(true);
     expect(staleAfter(edit, refused("dirty_worktree"))).toBe(false);
     expect(staleAfter(edit, refused("operation_in_progress"))).toBe(true);
   });

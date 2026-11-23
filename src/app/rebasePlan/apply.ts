@@ -25,7 +25,7 @@ export const refusalTitle: Record<Refusal["reason"], string> = {
   operation_in_progress: t("rebase.refused.operationInProgress"),
 };
 
-export const planSignature = (plan: OkPlan) => `${plan.base}:${plan.rows.map((row) => row.sha).join(",")}`;
+export const planSignature = (plan: OkPlan) => `${plan.branch}@${plan.base}:${plan.rows.map((row) => row.sha).join(",")}`;
 
 /**
  * Prompt before starting if the plan costs something: commits fall out of the branch, or commits
