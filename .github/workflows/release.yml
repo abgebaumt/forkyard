@@ -12,7 +12,9 @@ name: Release
 # updater. All matrix targets merge into one `latest.json` on the draft; it is covered by SHA256SUMS.txt.
 #
 # GitHub only offers ARM64 Linux runners to public repositories, so that build is skipped
-# while the repository is private. Run the workflow by hand with the tag to add it later.
+# while the repository is private; the first release after the repository went public includes it.
+# Running the workflow by hand with a tag only finishes a release that is still a draft (e.g. after a
+# failed build); it stops when that tag already has a published release and never changes its files.
 on:
   push:
     tags: ["v*"]
@@ -94,7 +96,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          id=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -n1)
+          releases=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate --jq ".[] | select(.tag_name == \"$TAG\") | {id, draft}")
+          if echo "$releases" | jq -e 'select(.draft | not)' >/dev/null; then
+            echo "::error::$TAG is already published; a published release is never changed. Release a new version instead."
+            exit 1
+          fi
+          id=$(echo "$releases" | jq -r 'select(.draft) | .id' | head -n1)
           if [ -z "$id" ]; then
             notes=$(awk -v v="${TAG#v}" '$0 ~ "^## \\[" v "\\]" {on=1; next} /^## \[/ {on=0} on' CHANGELOG.md)
             id=$(gh api "repos/$GITHUB_REPOSITORY/releases" -f tag_name="$TAG" -f name="Forkyard $TAG" \
