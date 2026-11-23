@@ -15,7 +15,7 @@ import { openDiffTool } from "../../app/actions/tools";
 import { featureVisible } from "../../app/ai/visibility";
 import { toCoreError } from "../../app/errors";
 import { useAiStatus, useCommitDetails, useDiff, useRepoSettings, useSettings, useStatus } from "../../app/queries";
-import { keyBelongsToView } from "../../app/viewFocus";
+import { isTextTarget, keyBelongsToView } from "../../app/viewFocus";
 import { keysFor, lassoCounts, useLasso, useLassoStore } from "../../app/lasso";
 import { commitLasso, lassoToBranch } from "../../app/actions/lasso";
 import { useAppStore, useBusy } from "../../app/store";
@@ -313,7 +313,7 @@ export function DiffView({ repoId, tabId, path, source, embedded = false, review
       const target = event.target instanceof Element ? event.target : null;
       // Foreign editors keep their keys.
       const inside = Boolean(target && root.current?.contains(target));
-      if (!inside && target instanceof HTMLElement && target.isContentEditable) return;
+      if (!inside && isTextTarget(target)) return;
       const plain = !event.ctrlKey && !event.metaKey;
       let handled = true;
       if (event.key === "F7" && plain && !event.altKey) keys.current.goToChange(event.shiftKey ? -1 : 1);

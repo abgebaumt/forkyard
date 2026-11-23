@@ -18,6 +18,17 @@ export function viewMayTakeFocus(): boolean {
 export const isTextField = (element: Element | null) =>
   Boolean(element && (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT"));
 
+/** A field that takes typed text: contenteditable, CodeMirror, and inputs that are not buttons, checkboxes and the like. */
+export function isTextTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
+  if (target instanceof HTMLInputElement) {
+    return !["checkbox", "radio", "button", "submit", "reset", "range", "color", "file"].includes(target.type);
+  }
+  return Boolean(target.closest(".cm-editor"));
+}
+
 /**
  * Whether a key press belongs to the view: not in text fields, menus, dialogs; not while a
  * dialog, an overlay or a menu is open.
