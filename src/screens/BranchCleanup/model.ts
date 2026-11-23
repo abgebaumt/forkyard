@@ -3,13 +3,18 @@ import type { BranchCleanupCandidate, BranchCleanupClass } from "../../core";
 
 const CLASS_ORDER: BranchCleanupClass[] = ["safe", "review", "blocked"];
 
-/** Candidates per class in the order safe, review, blocked; `filter` is a case-insensitive part of the name; empty groups are left out. */
+/** The candidates the filter shows (a case-insensitive part of the name); only these count and get deleted. */
+export function shownCandidates(list: BranchCleanupCandidate[], filter: string): BranchCleanupCandidate[] {
+  const needle = filter.trim().toLowerCase();
+  return needle ? list.filter((candidate) => candidate.name.toLowerCase().includes(needle)) : list;
+}
+
+/** Candidates per class in the order safe, review, blocked, as `shownCandidates` filters them; empty groups are left out. */
 export function groupCandidates(
   list: BranchCleanupCandidate[],
   filter: string,
 ): { class: BranchCleanupClass; rows: BranchCleanupCandidate[] }[] {
-  const needle = filter.trim().toLowerCase();
-  const shown = needle ? list.filter((candidate) => candidate.name.toLowerCase().includes(needle)) : list;
+  const shown = shownCandidates(list, filter);
   return CLASS_ORDER.map((kind) => ({ class: kind, rows: shown.filter((candidate) => candidate.class === kind) })).filter(
     (group) => group.rows.length > 0,
   );
