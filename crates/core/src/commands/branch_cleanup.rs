@@ -67,12 +67,13 @@ pub(crate) async fn candidates_at(core: &Core, repo_id: &str, now: i64) -> CoreR
     let (prs, pr_data_missing) = pr_facts(core, repo_id, &branches, &settled, default_ref).await?;
     let heads = remote_heads(core, repo_id).await;
 
-    let mut candidates = Vec::new();
+    // Whether a branch is listed never depends on the count: count only the listed ones.
+    let mut listed = Vec::new();
     for branch in branches {
         // No row (created meanwhile) or no readable date: skip rather than call it stale since 1970.
         let Some((committed_at, remote, remote_ref)) = details.get(&branch.name).cloned() else { continue };
         let has_upstream = branch.upstream.is_some() && !branch.upstream_gone;
-        let mut facts = BranchFacts {
+        let facts = BranchFacts {
             name: branch.name.clone(),
             merged: merged.contains(&branch.name),
             unmerged: 0,
@@ -83,21 +84,30 @@ pub(crate) async fn candidates_at(core: &Core, repo_id: &str, now: i64) -> CoreR
             protected: is_protected(&branch.name, &own_patterns),
             pr: prs.get(&branch.name).copied().unwrap_or(PrFact::Unknown),
         };
-        // Whether a branch is listed never depends on the count: count only the listed ones.
-        if classify(&facts, now, stale_days).is_none() {
-            continue;
+        if classify(&facts, now, stale_days).is_some() {
+            let up = snapshot.remotes.iter().find(|r| has_upstream && branch.upstream.as_ref() == Some(&r.name));
+            listed.push((branch, facts, remote, remote_ref, up));
         }
-        if !facts.merged && !bases.is_empty() {
-            facts.unmerged = unmerged_count(core, repo_id, &branch.sha, &bases).await?;
-        }
+    }
+    // Behind: the remote branch has commits this one lacks; they may only go if the default branch has them.
+    let tips: HashSet<String> = if bases.is_empty() {
+        HashSet::new()
+    } else {
+        listed
+            .iter()
+            .flat_map(|(branch, facts, _, _, up)| {
+                let own = (!facts.merged).then(|| branch.sha.clone());
+                own.into_iter().chain(up.filter(|_| branch.behind > 0).map(|up| up.sha.clone()))
+            })
+            .collect()
+    };
+    let counts = unmerged_counts(core, repo_id, tips, &bases).await?;
+
+    let mut candidates = Vec::new();
+    for (branch, mut facts, remote, remote_ref, up) in listed {
+        facts.unmerged = counts.get(&branch.sha).copied().unwrap_or(0);
         let Some((class, reasons)) = classify(&facts, now, stale_days) else { continue };
-        let upstream_sha = match snapshot.remotes.iter().find(|r| has_upstream && branch.upstream.as_ref() == Some(&r.name)) {
-            // Behind: the remote branch has commits this one lacks; they may only go if the default branch has them.
-            Some(up) if branch.behind == 0 || (!bases.is_empty() && unmerged_count(core, repo_id, &up.sha, &bases).await? == 0) => {
-                Some(up.sha.clone())
-            }
-            _ => None,
-        };
+        let upstream_sha = up.filter(|up| branch.behind == 0 || counts.get(&up.sha) == Some(&0)).map(|up| up.sha.clone());
         let remote_branch = remote_ref.strip_prefix("refs/heads/").unwrap_or(&remote_ref).to_string();
         // Never offered: a protected or the default branch on the remote (e.g. a branch created from `origin/main`).
         let keeps_remote = is_protected(&remote_branch, &own_patterns)
@@ -111,7 +121,7 @@ pub(crate) async fn candidates_at(core: &Core, repo_id: &str, now: i64) -> CoreR
             sha: branch.sha.clone(),
             class,
             reasons,
-            committed_at: util::unix_to_iso(committed_at),
+            committed_at: util::unix_to_iso(facts.committed_at),
             upstream_remote,
             upstream_branch,
             upstream_sha,
@@ -179,6 +189,20 @@ fn fields(stdout: &[u8], count: usize) -> Vec<Vec<String>> {
 async fn unmerged_count(core: &Core, repo_id: &str, tip: &str, bases: &[String]) -> CoreResult<u32> {
     let out = core.git_for(repo_id)?.read().args(["rev-list", "--count", tip, "--not"]).args(bases).arg("--").run().await?;
     Ok(out.stdout_text().trim().parse().unwrap_or(0))
+}
+
+/// `unmerged_count` for each of `tips`, a few Git processes at a time.
+async fn unmerged_counts(core: &Core, repo_id: &str, tips: HashSet<String>, bases: &[String]) -> CoreResult<HashMap<String, u32>> {
+    let tips: Vec<String> = tips.into_iter().collect();
+    let counts = host::parallel(tips.clone(), |tip| {
+        let (core, repo_id, bases) = (core.clone(), repo_id.to_string(), bases.to_vec());
+        async move { unmerged_count(&core, &repo_id, &tip, &bases).await }
+    })
+    .await;
+    tips.into_iter()
+        .zip(counts)
+        .map(|(tip, count)| Ok((tip, count.ok_or_else(|| CoreError::unknown("Counting the commits of a branch failed."))??)))
+        .collect()
 }
 
 /// The local branch `refs/remotes/<remote>/HEAD` points at (`origin` first), else `main`, else
@@ -251,19 +275,28 @@ async fn pr_facts(
     let host_prefix = format!("{}/", found.remote);
     let on_host = |r: &Ref| r.upstream.as_deref().and_then(|u| u.strip_prefix(&host_prefix)).map(str::to_string).unwrap_or(r.name.clone());
     let default = default_ref.map(on_host).unwrap_or_default();
+    let mut unsure = Vec::new();
     for branch in branches {
-        let mut fact = listed_fact(&prs, &on_host(branch), &default, cut_off, settled.contains(&branch.name));
+        let fact = listed_fact(&prs, &on_host(branch), &default, cut_off, settled.contains(&branch.name));
         if let PrFact::Merged { number, commits_after_head: true } = fact {
-            // An unknown head (details fail, object missing locally) counts as commits after it.
-            let contained = match host_cmd::pr_get(core, repo_id.to_string(), number, Some(found.remote.clone())).await {
-                Ok(details) => {
-                    details.head_sha == branch.sha || rev::is_ancestor(core, repo_id, &branch.sha, &details.head_sha).await.unwrap_or(false)
-                }
-                Err(_) => false,
-            };
-            fact = PrFact::Merged { number, commits_after_head: !contained };
+            unsure.push((branch.name.clone(), branch.sha.clone(), number));
         }
         facts.insert(branch.name.clone(), fact);
+    }
+    // Whether the branch has commits after the merged PR's head: the details, a few at a time.
+    let checked = host::parallel(unsure.clone(), |(_, sha, number)| {
+        let (core, repo_id, remote) = (core.clone(), repo_id.to_string(), found.remote.clone());
+        async move {
+            // An unknown head (details fail, object missing locally) counts as commits after it.
+            match host_cmd::pr_get(&core, repo_id.clone(), number, Some(remote)).await {
+                Ok(details) => details.head_sha == sha || rev::is_ancestor(&core, &repo_id, &sha, &details.head_sha).await.unwrap_or(false),
+                Err(_) => false,
+            }
+        }
+    })
+    .await;
+    for ((name, _, number), contained) in unsure.into_iter().zip(checked) {
+        facts.insert(name, PrFact::Merged { number, commits_after_head: !contained.unwrap_or(false) });
     }
     Ok((facts, None))
 }
