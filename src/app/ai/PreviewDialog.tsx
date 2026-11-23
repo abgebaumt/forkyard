@@ -102,5 +102,6 @@ export function AiPreviewDialog({
 
 /** `look`: only shows (Close). `confirm`: Send / Cancel and, for size and cost, "Don't ask again". */
 export function showAiPreview(preview: AiPreview, mode: "look" | "confirm"): Promise<PreviewChoice | null> {
-  return showDialog<PreviewChoice>((done) => <AiPreviewDialog preview={preview} mode={mode} onDone={done} />);
+  // Above: asked for from inside a dialog (What's new), it must not wait in the queue behind it.
+  return showDialog<PreviewChoice>((done) => <AiPreviewDialog preview={preview} mode={mode} onDone={done} />, { above: true });
 }

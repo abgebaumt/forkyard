@@ -348,3 +348,52 @@ scenario("German texts", "edge", async (t) => {
     fx.cleanup();
   }
 });
+
+scenario("own unpushed commits: the palette lists them under the local branch and a row jumps", "main", async (t) => {
+  const fx = makeCleanRepoWithRemote({ name: "messnetz" });
+  try {
+    git(fx, "checkout", "-q", "feature/export");
+    fx.write("lokal.txt", "1\n");
+    git(fx, "add", "-A");
+    git(fx, "commit", "-q", "-m", "Noch nicht gepusht");
+    const local = git(fx, "rev-parse", "HEAD");
+    const { app, ui } = await start(t);
+    await openAndWait(app, ui, fx);
+    await ui.runCommand("What's new", "repo.digest");
+    await ui.waitDialog(TITLE);
+    await t.shot("local-dialog");
+    const row = await app.waitFor(
+      () =>
+        app.exec(
+          (root) =>
+            [...document.querySelectorAll(`${root} [data-digest-row^="commit:"]`)].find((r) =>
+              r.innerText.startsWith("Noch nicht gepusht"),
+            ) ?? null,
+          DIGEST,
+        ),
+      10_000,
+      { message: "the local commit row" },
+    );
+    await app.click(row);
+    await ui.waitNoDialog();
+    await graphSelected(app, local);
+    t.step("the local commit row closes the dialog and selects the commit");
+
+    // The AI preview opens on top of the dialog, not queued behind it; closing it leaves the dialog open.
+    await app.invoke("settings_set", { patch: { aiEnabled: true, aiProvider: "ollama", aiModel: "qwen3:8b" } });
+    await ui.runCommand("What's new", "repo.digest");
+    await ui.waitDialog(TITLE);
+    await app.click(await app.waitFor(() => app.$("[data-digest-what-is-sent]"), 10_000, { message: "What is sent?" }));
+    await app.waitFor(() => app.$("[data-ai-preview]"), 10_000, { message: "the preview opens over the dialog" });
+    assert(await app.$(DIGEST), "the digest stays open below");
+    await app.click(
+      await app.waitFor(() => app.$('[role="dialog"]:has([data-ai-preview]) button[data-autofocus]'), 5_000, { message: "Close" }),
+    );
+    await app.waitFor(async () => !(await app.$("[data-ai-preview]")), 5_000, { message: "the preview closes" });
+    assert(await app.$(DIGEST), "the digest is still open");
+    t.step("What is sent? opens on top of the digest (the send gate uses the same dialog)");
+    await t.noConsoleErrors(app);
+  } finally {
+    fx.cleanup();
+  }
+});
