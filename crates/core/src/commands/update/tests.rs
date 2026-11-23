@@ -305,3 +305,95 @@ async fn test_cores_never_ask_github() {
     assert_eq!(info.latest, None);
     assert_eq!(info.checked_at, None, "turned off: nothing was asked");
 }
+
+#[test]
+fn only_windows_macos_and_appimages_install() {
+    use std::ffi::OsStr;
+    assert!(installable("windows", None));
+    assert!(installable("macos", None));
+    assert!(installable("linux", Some(OsStr::new("/home/lena/Programme/Forkyard.AppImage"))));
+    assert!(!installable("linux", None), ".deb/.rpm");
+    assert!(!installable("linux", Some(OsStr::new(""))));
+    assert!(!installable("freebsd", None));
+}
+
+#[tokio::test]
+async fn a_package_install_refuses_the_download() {
+    let tc = TestCore::new().await;
+    assert_eq!(ensure_installable(&tc).unwrap_err().code, ErrorCode::UpdateUnavailableForPackage);
+    assert!(!update_check(&tc, true).await.unwrap().installable);
+    configure_installable(&tc, true);
+    assert!(ensure_installable(&tc).is_ok());
+    assert!(update_check(&tc, true).await.unwrap().installable, "the UI learns it from UpdateInfo");
+}
+
+#[test]
+fn the_plugin_version_must_match_the_reported_one() {
+    assert!(check_reported("1.3.1", "1.3.1").is_ok());
+    assert!(check_reported("1.3.1", "v1.3.1").is_ok());
+    assert_eq!(check_reported("1.3.1", "1.3.2").unwrap_err().code, ErrorCode::StaleState);
+    assert_eq!(check_reported("1.3.1", "1.3.1-rc.1").unwrap_err().code, ErrorCode::StaleState);
+    assert_eq!(check_reported("1.3.1", "kaputt").unwrap_err().code, ErrorCode::StaleState);
+}
+
+#[tokio::test]
+async fn whats_new_shows_once_per_version_and_never_on_a_fresh_database() {
+    let tc = TestCore::new().await;
+    let stored = |tc: &TestCore| tc.db.with(|c| db::app_settings::get(c, LAST_SEEN_KEY)).unwrap();
+    assert_eq!(whats_new_at(&tc, "1.3.0").unwrap(), None, "fresh database");
+    assert_eq!(stored(&tc), Some(json!("1.3.0")));
+    assert_eq!(whats_new_at(&tc, "1.3.0").unwrap(), None, "same version");
+    assert_eq!(whats_new_at(&tc, "1.3.1").unwrap(), Some("1.3.1".into()));
+    assert_eq!(whats_new_at(&tc, "1.3.1").unwrap(), None, "only once");
+    assert_eq!(whats_new_at(&tc, "1.3.0").unwrap(), None, "downgrade");
+    assert_eq!(stored(&tc), Some(json!("1.3.1")), "the higher one stays");
+    assert_eq!(whats_new_at(&tc, "1.3.1").unwrap(), None, "re-upgrade after downgrade");
+    tc.db.with(|c| db::app_settings::set(c, LAST_SEEN_KEY, &json!("Unsinn"))).unwrap();
+    assert_eq!(whats_new_at(&tc, "1.3.1").unwrap(), None);
+    assert_eq!(stored(&tc), Some(json!("1.3.1")));
+}
+
+/// The branch runs as `1.3.0-dev`: a prerelease is newer than the last release and gets the dialog once.
+#[tokio::test]
+async fn a_prerelease_build_sees_whats_new_once() {
+    let tc = TestCore::new().await;
+    tc.db.with(|c| db::app_settings::set(c, LAST_SEEN_KEY, &json!("1.2.0"))).unwrap();
+    assert_eq!(whats_new_at(&tc, "1.3.0-dev").unwrap(), Some("1.3.0-dev".into()));
+    assert_eq!(whats_new_at(&tc, "1.3.0-dev").unwrap(), None, "only once");
+    assert_eq!(whats_new_at(&tc, "v1.3.0").unwrap(), Some("v1.3.0".into()), "the final release is newer than its prerelease");
+    assert_eq!(whats_new_at(&tc, "1.3.0-dev").unwrap(), None, "back to the prerelease");
+}
+
+#[tokio::test]
+async fn whats_new_uses_the_configured_version() {
+    let tc = TestCore::new().await;
+    tc.db.with(|c| db::app_settings::set(c, LAST_SEEN_KEY, &json!("0.0.1"))).unwrap();
+    configure_version(&tc, Some("99.0.0".into()));
+    assert_eq!(update_whats_new(&tc).await.unwrap(), Some("99.0.0".into()));
+    configure_version(&tc, None);
+    assert_eq!(update_whats_new(&tc).await.unwrap(), None, "the build's own version is lower than the one seen");
+}
+
+#[tokio::test]
+async fn an_installation_upgraded_from_1_2_sees_whats_new() {
+    let tc = TestCore::new().await;
+    // Back to the version before the seeding step (16); the restart runs the step.
+    tc.db.with(|c| Ok(c.execute_batch("pragma user_version = 16;")?)).unwrap();
+    let tc = tc.restart().await;
+    assert_eq!(tc.db.with(|c| db::app_settings::get(c, LAST_SEEN_KEY)).unwrap(), Some(json!("1.2.0")));
+    assert_eq!(whats_new_at(&tc, "1.3.0").unwrap(), Some("1.3.0".into()));
+}
+
+#[test]
+fn the_excerpt_ends_at_a_whole_line() {
+    let mut changelog = String::from("### Added\n\n- PR review in the app: comments at [diff lines](https://example.org/a).\n");
+    while changelog.len() < 3990 {
+        changelog.push_str("- Ein Eintrag mit Umlauten: Größe, Übergänge, „Zitate“.\n");
+    }
+    changelog.push_str("- Dieser Link wird nicht [halb](https://example.org/sehr/lang/abgeschnitten) gezeigt.\n");
+    let excerpt = notes_excerpt(&changelog);
+    assert!(excerpt.len() <= NOTES_MAX + "\n…".len());
+    assert!(excerpt.ends_with("\n…"));
+    assert!(!excerpt.contains("[halb]"), "the line that does not fit is left out whole");
+    assert_eq!(notes_excerpt("### Fixed\n\n- Kurz.\n"), "### Fixed\n\n- Kurz.");
+}

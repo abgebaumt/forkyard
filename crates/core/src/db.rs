@@ -78,7 +78,11 @@ const UPGRADES: &[&str] = &[
     REPO_SEEN,
     // v1.3: drafts of the own pull request review (local, per pull request).
     PR_REVIEW_DRAFTS,
+    // v1.3: existing installations have seen 1.2 at most – "What's new" shows once; new ones get no row.
+    LAST_SEEN_VERSION,
 ];
+
+const LAST_SEEN_VERSION: &str = r#"insert or ignore into app_settings (key, value) values ('lastSeenVersion', '"1.2.0"');"#;
 
 const PR_REVIEW_DRAFTS: &str = r#"
 create table pr_review_drafts (
@@ -733,6 +737,10 @@ mod tests {
         };
         assert_eq!(intro(&db), 1, "after the upgrade");
         assert_eq!(intro(&fresh), 0, "not on a new installation");
+        // v1.3: an upgraded database has seen 1.2 ("What's new" shows once); a new one has no row.
+        assert_eq!(db.with(|c| app_settings::get(c, "lastSeenVersion")).unwrap(), Some(serde_json::json!("1.2.0")));
+        assert_eq!(fresh.with(|c| app_settings::get(c, "lastSeenVersion")).unwrap(), None);
+        assert_eq!(LATEST_VERSION, 17);
         // Every undo action the core knows can be stored in the upgraded database.
         for (index, action) in crate::undo::UndoAction::ALL.iter().enumerate() {
             db.with(|c| {
@@ -1128,7 +1136,7 @@ create index undo_entries_repo_time on undo_entries (repository_id, created_at d
     #[test]
     fn the_review_drafts_step_creates_exactly_what_schema_has() {
         assert!(UPGRADES.contains(&PR_REVIEW_DRAFTS), "the step is part of UPGRADES");
-        assert_eq!(LATEST_VERSION, 16);
+        assert_eq!(UPGRADES[14], PR_REVIEW_DRAFTS, "version 16");
         let sql = |db: &Db| -> Vec<Option<String>> {
             db.with(|c| {
                 let mut stmt = c.prepare("select sql from sqlite_master where tbl_name = 'pr_review_drafts' order by name")?;

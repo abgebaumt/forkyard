@@ -207,6 +207,10 @@ export type UpdateInfo = {
    * Version the user chose to skip: no notice for it at all.
    */
   skippedVersion: string | null;
+  /**
+   * This build can replace itself (Windows, macOS, Linux AppImage); otherwise the UI links the release page.
+   */
+  installable: boolean;
 };
 
 /**
