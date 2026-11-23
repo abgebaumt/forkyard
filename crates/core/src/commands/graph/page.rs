@@ -415,7 +415,7 @@ async fn mark_collapsible(plan: &Plan, reach: &mut Reach, rows: &mut [GraphRow])
 /// `git rev-list --topo-order` over them per page. That order lists every commit before its parents,
 /// so a commit's set (bit `i` = `tips[i]`) is complete when it comes. Kept are the sets of merges
 /// and their side parents; every commit read counts as reached. Git starts with the first question,
-/// or earlier via `start`.
+/// or earlier via `start`. The walker of a page sequence carries it to the next page.
 pub(super) struct Reach {
     core: Core,
     path: PathBuf,
@@ -683,16 +683,25 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
         Some(_) => return Err(CoreError::stale_state()),
         None => (0, LayoutState::new(), HashSet::new(), None),
     };
+    let walkers = core.state::<GraphWalkers>();
+    if first_page {
+        walkers.drop_abandoned(repo_id, &plan.fingerprint);
+    }
+    let mut taken =
+        if plan.tips.is_empty() { None } else { walker_id.and_then(|id| walkers.take(repo_id, &id, &plan.fingerprint, offset)) };
     let mut reach = Reach::new(core, &path, repo_id, &plan, ref_shas);
+    // A follow-up page reads on in the walk of the page before instead of sorting and reading the
+    // history from the top again.
+    if let Some(carried) = taken.as_mut().and_then(|walker| walker.reach.take()) {
+        if carried.error.is_none() && carried.tips == reach.tips {
+            reach = carried;
+        }
+    }
     if first_page {
         // Without a commit-graph Git sorts the whole history first; on the first page that runs
         // beside the sort of `git log`. Later pages start it with their first merge. A failure
         // comes back with the first question.
         let _ = reach.start().await;
-    }
-    let walkers = core.state::<GraphWalkers>();
-    if first_page {
-        walkers.drop_abandoned(repo_id, &plan.fingerprint);
     }
     let mut builder = PageBuilder { plan: &plan, state, rows: Vec::new(), max_lane: 0, commits: 0, hidden, sync };
 
@@ -714,7 +723,6 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
     let mut consumed = offset;
     let mut kept_walker = None;
     if !plan.tips.is_empty() {
-        let taken = walker_id.and_then(|id| walkers.take(repo_id, &id, &plan.fingerprint, offset));
         let mut walker = match taken {
             Some(walker) => walker,
             None => {
@@ -758,7 +766,8 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
     } else {
         None
     };
-    if let Some(walker) = kept_walker {
+    if let Some(mut walker) = kept_walker {
+        walker.reach = Some(reach);
         walkers.put(walker);
     }
     Ok(GraphPage { rows, next_cursor, max_lane })
