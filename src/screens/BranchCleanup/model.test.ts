@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { BranchCleanupCandidate } from "../../core";
-import { groupCandidates, initialSelection, lostCommits, remoteNames, remoteTargets, selectionCount, toggleSelection } from "./model";
+import {
+  groupCandidates,
+  initialSelection,
+  lostCommits,
+  remoteNames,
+  remoteTargets,
+  selectionCount,
+  shownCandidates,
+  toggleSelection,
+} from "./model";
 
 const candidate = (partial: Partial<BranchCleanupCandidate> & Pick<BranchCleanupCandidate, "name" | "class">): BranchCleanupCandidate => ({
   sha: "a".repeat(40),
@@ -51,6 +60,15 @@ describe("branch cleanup model", () => {
     ]);
     expect(groupCandidates(list, "THEMA").map((group) => group.class)).toEqual(["safe"]);
     expect(groupCandidates(list, "gibt es nicht")).toEqual([]);
+  });
+
+  it("counts and deletes only the marked branches the filter shows", () => {
+    const shown = shownCandidates(list, "thema");
+    expect(shown.map((row) => row.name)).toEqual(["feature/thema-20"]);
+    // "fertig" stays marked but hidden: neither counted nor deleted (locally or on the remote).
+    expect(selectionCount(shown, initialSelection(list))).toEqual({ selected: 1, total: 1 });
+    expect(remoteTargets(shown, initialSelection(list))).toEqual([]);
+    expect(shownCandidates(list, " ")).toBe(list);
   });
 
   it("preselects safe branches only and never selects blocked ones", () => {

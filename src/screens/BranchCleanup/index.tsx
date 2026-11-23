@@ -24,7 +24,7 @@ import { Banner, Centered, SkeletonRows } from "../../ui/Feedback";
 import { Checkbox, TextField } from "../../ui/Field";
 import { t } from "../../i18n";
 import { deleteSelected } from "./actions";
-import { groupCandidates, initialSelection, lostCommits, remoteNames, selectionCount, toggleSelection } from "./model";
+import { groupCandidates, initialSelection, lostCommits, remoteNames, selectionCount, shownCandidates, toggleSelection } from "./model";
 
 export interface BranchCleanupViewProps {
   repoId: Id;
@@ -54,7 +54,8 @@ export function BranchCleanupView({ repoId, tabId }: BranchCleanupViewProps) {
   const runDelete = async () => {
     setRunning(true);
     try {
-      await deleteSelected(repoId, candidates, selection, alsoRemote);
+      // Marks hidden by the filter stay, but only the shown branches are deleted.
+      await deleteSelected(repoId, shownCandidates(candidates, filter), selection, alsoRemote);
     } finally {
       setRunning(false);
     }
@@ -72,7 +73,7 @@ export function BranchCleanupView({ repoId, tabId }: BranchCleanupViewProps) {
 
   const groups = groupCandidates(candidates, filter);
   const remotes = remoteNames(candidates);
-  const { selected, total } = selectionCount(candidates, selection);
+  const { selected, total } = selectionCount(shownCandidates(candidates, filter), selection);
   const missingHost = query.data?.prDataMissing ?? null;
 
   let content;
