@@ -4,6 +4,8 @@
 //!
 //! A project is addressed by its encoded path (`group%2Fsubgroup%2Fproject`).
 
+use std::collections::HashMap;
+
 use serde_json::{json, Value};
 
 use super::{
@@ -582,15 +584,22 @@ async fn diff_refs(core: &Core, api: &Api, repo: &RepoPath, mr: u64, expected_he
     Ok(refs)
 }
 
+/// The old path of every renamed file of the merge request, keyed by the new one (`GET …/diffs`): the UI names a
+/// file by its new path, GitLab places a comment on a renamed file only with both. Unreadable: no renames known.
+async fn renames(core: &Core, api: &Api, repo: &RepoPath, mr: u64) -> HashMap<String, String> {
+    let diffs = api.get_all(core, &format!("{}/diffs?per_page=100", mr_path(repo, mr))).await.unwrap_or_default();
+    diffs.iter().filter(|d| flag(d, "renamed_file")).map(|d| (text(d, "new_path"), text(d, "old_path"))).collect()
+}
+
 /// The documented text `position` of a comment on a line: the new side takes `new_line` (plus `old_line` on an
 /// unchanged line), the old side `old_line`.
-fn position(diff_refs: &Value, comment: &NewReviewComment) -> Value {
+fn position(diff_refs: &Value, comment: &NewReviewComment, renames: &HashMap<String, String>) -> Value {
     let mut position = json!({
         "position_type": "text",
         "base_sha": diff_refs["base_sha"],
         "start_sha": diff_refs["start_sha"],
         "head_sha": diff_refs["head_sha"],
-        "old_path": comment.path,
+        "old_path": renames.get(&comment.path).unwrap_or(&comment.path),
         "new_path": comment.path,
     });
     match comment.side {
@@ -608,7 +617,8 @@ fn position(diff_refs: &Value, comment: &NewReviewComment) -> Value {
 /// `POST /projects/:id/merge_requests/:iid/discussions` – a new discussion on a line of the diff.
 pub async fn review_comment_create(core: &Core, api: &Api, repo: &RepoPath, mr: u64, comment: &NewReviewComment) -> CoreResult<()> {
     let refs = diff_refs(core, api, repo, mr, &comment.commit, "comment again").await?;
-    let body = json!({ "body": comment.body, "position": position(&refs, comment) });
+    let renames = renames(core, api, repo, mr).await;
+    let body = json!({ "body": comment.body, "position": position(&refs, comment, &renames) });
     api.send_json(core, Method::Post, &format!("{}/discussions", mr_path(repo, mr)), &body)
         .await
         .map_err(|e| not_found_as(e, mr_missing(repo, mr)))?;
@@ -692,8 +702,9 @@ pub async fn review_submit(
     let path = mr_path(repo, mr);
     let not_found = |e| not_found_as(e, mr_missing(repo, mr));
     let mut outcome = ReviewSubmitOutcome::default();
+    let renames = if submission.drafts.is_empty() { HashMap::new() } else { renames(core, api, repo, mr).await };
     for draft in submission.drafts {
-        let body = json!({ "note": draft.body, "position": position(&refs, &draft_as_comment(draft)) });
+        let body = json!({ "note": draft.body, "position": position(&refs, &draft_as_comment(draft), &renames) });
         match api.send_json(core, Method::Post, &format!("{path}/draft_notes"), &body).await {
             Ok(_) => outcome.sent.push(draft.id.clone()),
             Err(error) => outcome.failed.push((draft.id.clone(), error.message)),

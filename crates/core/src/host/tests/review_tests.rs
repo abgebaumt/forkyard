@@ -327,6 +327,14 @@ async fn gitlab_comment_on_an_unchanged_line_sends_both_numbers() {
 }
 
 #[tokio::test]
+async fn gitlab_comment_on_a_renamed_file_sends_its_old_path() {
+    let fx = Fixture::new(HostKind::Gitlab).await;
+    cmd_review::pr_review_comment_create(&fx.tc, fx.id(), 9, gl_comment("a.rs", 3), None).await.unwrap();
+    let position = fx.sent("POST", "/merge_requests/9/discussions")[0].json()["position"].clone();
+    assert_eq!((position["old_path"].clone(), position["new_path"].clone()), (json!("src/alt_name.rs"), json!("a.rs")));
+}
+
+#[tokio::test]
 async fn gitlab_comment_on_the_old_side_sends_only_the_old_number() {
     let fx = Fixture::new(HostKind::Gitlab).await;
     let c = NewReviewComment { side: ReviewSide::Old, ..gl_comment("src/alt.rs", 12) };
@@ -367,6 +375,11 @@ async fn gitlab_submit_publishes_draft_notes_then_body_then_approval() {
     assert_eq!(note["note"], "Hier fehlt die Prüfung auf leer.");
     assert_eq!((note["position"]["new_line"].clone(), note["position"]["old_line"].clone()), (json!(3), json!(2)));
     assert_eq!(note["position"]["head_sha"], MOCK_GL_HEAD);
+    assert_eq!(
+        (note["position"]["old_path"].clone(), note["position"]["new_path"].clone()),
+        (json!("src/alt_name.rs"), json!("a.rs")),
+        "renamed"
+    );
     assert_eq!(fx.sent("POST", "/merge_requests/9/notes")[0].json(), json!({ "body": "Sieht gut aus." }));
     assert_eq!(fx.sent("POST", "/merge_requests/9/approve")[0].json(), json!({ "sha": MOCK_GL_HEAD }));
     let left = cmd_review::pr_review_drafts(&fx.tc, fx.id(), 9, None).await.unwrap().drafts;
