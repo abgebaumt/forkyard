@@ -25,7 +25,7 @@ const sample = {
 const { qk, queryClient } = await import("../../app/queries");
 const { checkDigestAfterFetch, openDigest } = await import("./actions");
 
-const withTab = () => queryClient.setQueryData(qk.tabs, [{ id: "t1", kind: "repo", repoId: "r1" }]);
+const withTab = (isActive = true) => queryClient.setQueryData(qk.tabs, [{ id: "t1", kind: "repo", repoId: "r1", isActive }]);
 
 beforeEach(() => {
   digestGet.mockReset();
@@ -48,6 +48,12 @@ describe("checkDigestAfterFetch", () => {
     digestGet.mockResolvedValue(null);
     await checkDigestAfterFetch("r1");
     expect(showDigestDialog).not.toHaveBeenCalled();
+  });
+
+  it("does nothing for a repository in a background tab", async () => {
+    withTab(false);
+    await checkDigestAfterFetch("r1");
+    expect(digestGet).not.toHaveBeenCalled();
   });
 
   it("does nothing in a window without a tab for the repository", async () => {

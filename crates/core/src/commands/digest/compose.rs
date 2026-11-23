@@ -32,22 +32,27 @@ struct LogCommit {
 
 /// The digest for everything since `since`.
 pub(crate) async fn compose(core: &Core, repo_id: &str, since: DateTime<Utc>) -> CoreResult<Digest> {
-    let (current, snapshot, status, own, pr, tag_times) = tokio::join!(
+    let (current, snapshot, status, own, pr, ref_times) = tokio::join!(
         seen::current_refs(core, repo_id),
         refs::read_refs(core, repo_id),
         status::read_status(core, repo_id),
         own_emails(core, repo_id),
         prs::pr_part(core, repo_id, since),
-        tag_times(core, repo_id),
+        ref_times(core, repo_id),
     );
-    let (current, snapshot, status, tag_times) = (current?, snapshot?, status?, tag_times?);
+    let (current, snapshot, status, ref_times) = (current?, snapshot?, status?, ref_times?);
     let default = branch_cleanup::default_branch(core, repo_id, &snapshot.locals).await;
     let base = default.as_deref().and_then(|name| base_of(&snapshot, name));
 
     // The base branch first: a commit on both it and a feature branch is listed under the base.
     // shortcut: the rest by name, not by who contains whom; fine while a shared commit is rare in 24 hours.
     let base_ref = base.as_ref().map(|b| format!("refs/remotes/{b}"));
-    let mut branches: Vec<&String> = current.keys().filter(|name| name.starts_with("refs/remotes/")).collect();
+    // A tip older than the window has no commit in it: one `git log` less per idle branch.
+    // shortcut: trusts the tip's committer date; a commit with a date from the future would hide older ones below it.
+    let mut branches: Vec<&String> = current
+        .keys()
+        .filter(|name| name.starts_with("refs/remotes/") && ref_times.get(*name).is_some_and(|time| *time > since.timestamp()))
+        .collect();
     branches.sort_by_key(|name| (Some(*name) != base_ref.as_ref(), *name));
 
     let mut digest_refs = Vec::new();
@@ -75,7 +80,7 @@ pub(crate) async fn compose(core: &Core, repo_id: &str, since: DateTime<Utc>) ->
     let mut tags: Vec<DigestRef> = snapshot
         .tags
         .iter()
-        .filter(|t| tag_times.get(&t.full_name).is_some_and(|time| *time > since.timestamp()))
+        .filter(|t| ref_times.get(&t.full_name).is_some_and(|time| *time > since.timestamp()))
         .map(|t| DigestRef { name: t.name.clone(), kind: RefKind::Tag, new_sha: Some(t.sha.clone()), new_commits: 0, commits: Vec::new() })
         .collect();
     tags.sort_by(|a, b| a.name.cmp(&b.name));
@@ -115,11 +120,12 @@ pub(crate) async fn compose(core: &Core, repo_id: &str, since: DateTime<Utc>) ->
     })
 }
 
-/// Creation time (Unix seconds) per full tag name: the tagger date of an annotated tag, the commit date of a lightweight one.
-async fn tag_times(core: &Core, repo_id: &str) -> CoreResult<BTreeMap<String, i64>> {
+/// Time (Unix seconds) per full ref name of the remote branches and tags: the committer date of a branch tip, the
+/// tagger date of an annotated tag, the commit date of a lightweight one. One Git call.
+async fn ref_times(core: &Core, repo_id: &str) -> CoreResult<BTreeMap<String, i64>> {
     let path = core.repo_path(repo_id)?;
     let options = ["--format=%(refname)%00%(creatordate:unix)".to_string()];
-    let out = refs::for_each_ref(core, &path, repo_id, &options, &["refs/tags"]).await?;
+    let out = refs::for_each_ref(core, &path, repo_id, &options, &["refs/remotes", "refs/tags"]).await?;
     Ok(out
         .stdout_lines()
         .into_iter()

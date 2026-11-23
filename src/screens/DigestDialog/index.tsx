@@ -13,7 +13,7 @@ import { showInGraph } from "../../app/backNav";
 import { openPr } from "../../app/actions/pullrequests";
 import { showDialog } from "../../app/dialogs";
 import { hostKindLabels } from "../../app/hosts";
-import { qk, queryClient, useAiStatus, useRepoSettings } from "../../app/queries";
+import { qk, queryClient, useAiStatus, useRepo, useRepoSettings } from "../../app/queries";
 import { useAppStore } from "../../app/store";
 import { Button, Spinner } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
@@ -64,6 +64,7 @@ export function showDigestDialog(repoId: Id, tabId: Id, digest: Digest): Promise
 
 function DigestDialog({ repoId, tabId, digest, onClose }: { repoId: Id; tabId: Id; digest: Digest; onClose: () => void }) {
   const status = useAiStatus();
+  const { data: repo } = useRepo(repoId);
   const repoSettings = useRepoSettings(repoId);
   const job = useAiJob(status.data?.local ?? false);
   const [paragraph, setParagraph] = useState<string | null>(null);
@@ -91,7 +92,7 @@ function DigestDialog({ repoId, tabId, digest, onClose }: { repoId: Id; tabId: I
     <Dialog
       open
       size="lg"
-      title={t("digest.title")}
+      title={t("digest.title", { repo: repo?.name ?? "" })}
       onOpenChange={(open) => {
         if (!open) {
           job.cancel();
