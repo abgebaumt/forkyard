@@ -454,6 +454,15 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
   // Wrapping, font or content changed: discard all measured heights.
   useLayoutEffect(() => {
     virtualizer.measure();
+    // A mounted row whose height did not change reports no resize and would fall back to its estimate: measure the
+    // mounted rows again (review cards are taller than their estimate; otherwise the next rows overlap them). The
+    // positions are recomputed first, so the comparison is against the estimate and not the discarded height. In a
+    // microtask: a resize during scrolling flushes synchronously, which React refuses inside a layout effect.
+    queueMicrotask(() => {
+      virtualizer.getTotalSize();
+      for (const element of scroller.current?.querySelectorAll<HTMLElement>(':scope [role="rowgroup"] > [data-index]') ?? [])
+        virtualizer.resizeItem(Number(element.dataset.index), element.offsetHeight);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wrap, code.lineHeight, code.fontSize, model]);
 
