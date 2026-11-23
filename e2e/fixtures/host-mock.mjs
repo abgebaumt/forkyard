@@ -16,8 +16,16 @@
  *   mock.caFile       certificate of the test CA for settings.sslCaFile (tls only)
  *   mock.requests     [{ method, path, query, headers, body, status }] in order of arrival
  *   mock.state        mutable data: { merged: Set, closed: Set, created: [], comments: [], releases: [],
- *                     prOverrides: Map(number → { source, head, commits: [{ sha, message }] }),
- *                     reviewThreads: Map(number → GitHub GraphQL review-thread nodes), replies: [] }
+ *                     prOverrides: Map(number → { source, head, commits: [{ sha, message }], author }) – every host,
+ *                     reviewThreads: Map(number → review threads in the host's own shape: GitHub GraphQL
+ *                       nodes (with `id`), GitLab discussions, Bitbucket inline comments, Azure DevOps threads),
+ *                     replies: [],
+ *                     reviewRequests: [{ method, path, body }] – the review writes (comments on lines, reviews,
+ *                       draft notes, votes, resolve) in order of arrival,
+ *                     pendingReview: null | { number, comments: [{ id, path, line, side, body }] } – GitHub: the
+ *                       token user's review started in the browser (id 77, node id PRR_kwDOpending),
+ *                     draftNotes: [{ id, number, note, position }] – GitLab: the token user's draft notes,
+ *                     failCommentBody: null | text – Bitbucket/Azure DevOps refuse a new comment with this text (400) }
  *
  * Control:
  *   mock.fail("unauthorized")                          all further requests fail like this …
@@ -75,8 +83,24 @@ function freshState() {
     prOverrides: new Map(),
     reviewThreads: new Map(),
     replies: [],
+    reviewRequests: [],
+    pendingReview: null,
+    draftNotes: [],
+    failCommentBody: null,
   };
 }
+
+/** The review thread with this ID in `state.reviewThreads`, whatever the host. */
+function findThread(state, id) {
+  for (const threads of state.reviewThreads.values()) {
+    const found = threads.find((thread) => String(thread.id) === String(id));
+    if (found) return found;
+  }
+  return null;
+}
+
+/** The commits of a pull request with an override, as `{ sha, message }`. */
+const overrideCommits = (state, number) => state.prOverrides.get(number)?.commits ?? null;
 
 /** Records a release; `target` is the commit (`target_commitish`, on GitLab `ref`). */
 function recordRelease(state, body, target, description) {
@@ -100,6 +124,8 @@ function prState(number, state) {
 
 // --- GitHub ---------------------------------------------------------------------------------
 
+/** The state of a submitted review per event. */
+const GH_REVIEW_STATE = { APPROVE: "APPROVED", REQUEST_CHANGES: "CHANGES_REQUESTED", COMMENT: "COMMENTED" };
 const ghUser = (login) => ({ login, id: login.length, avatar_url: `https://avatars.example/${login}.png`, type: "User" });
 
 function ghPull(base, number, state) {
@@ -115,7 +141,7 @@ function ghPull(base, number, state) {
     state: status === "open" ? "open" : "closed",
     merged_at: status === "merged" ? "2026-09-20T10:00:00Z" : null,
     draft: created?.draft ?? number === 3,
-    user: ghUser(created ? "lena-hartmann" : "jonas"),
+    user: ghUser(override?.author ?? (created ? "lena-hartmann" : "jonas")),
     body: created?.body ?? `Beschreibung zu **Thema ${number}**.\n\n- [x] Tests\n- [ ] Doku`,
     head: {
       ref: override?.source ?? created?.source ?? sourceBranch(number),
@@ -148,10 +174,28 @@ function ghIssue(base, number) {
   return issue;
 }
 
-/** GitHub's GraphQL endpoint (`POST /api/graphql`): only review threads, from `state.reviewThreads`. */
+/**
+ * GitHub's GraphQL endpoint (`POST /api/graphql`): review threads from `state.reviewThreads`, and the
+ * mutations `addPullRequestReviewThread`, `resolveReviewThread`, `unresolveReviewThread`.
+ */
 function githubGraphql(ctx) {
   const { method, body, json, state } = ctx;
   const vars = body?.variables ?? {};
+  const query = String(body?.query ?? "");
+  if (method === "POST" && /\b(addPullRequestReviewThread|resolveReviewThread|unresolveReviewThread)\b/.test(query)) {
+    state.reviewRequests.push({ method, path: ctx.path, body });
+    if (query.includes("addPullRequestReviewThread"))
+      return json(200, { data: { addPullRequestReviewThread: { thread: { id: `PRRT_kwDOneu${state.reviewRequests.length}` } } } });
+    const resolved = !/\bunresolveReviewThread\b/.test(query);
+    const node = findThread(state, vars.id);
+    if (!node)
+      return json(200, {
+        data: null,
+        errors: [{ type: "NOT_FOUND", message: `Could not resolve to a node with the global id of '${vars.id}'.` }],
+      });
+    node.isResolved = resolved;
+    return json(200, { data: { [resolved ? "resolveReviewThread" : "unresolveReviewThread"]: { thread: { isResolved: resolved } } } });
+  }
   if (method !== "POST" || !String(body?.query ?? "").includes("reviewThreads") || vars.owner !== "octo" || vars.name !== "demo") {
     return json(200, { data: null, errors: [{ type: "NOT_FOUND", message: "Could not resolve to a Repository with the name 'demo'." }] });
   }
@@ -236,10 +280,14 @@ function github(ctx) {
       if (body.state === "open") state.closed.delete(number);
       if (typeof body.title === "string") state.titles.set(number, body.title);
       return json(200, ghPull(base, number, state));
-    case "GET pulls/:n/reviews":
-      return json(
-        200,
-        number === 1
+    case "GET pulls/:n/reviews": {
+      // Only the token's user sees its own pending review; it has no `submitted_at`.
+      const pending =
+        state.pendingReview?.number === number
+          ? [{ id: 77, node_id: "PRR_kwDOpending", user: ghUser("lena-hartmann"), state: "PENDING", body: "" }]
+          : [];
+      return json(200, [
+        ...(number === 1
           ? [
               {
                 id: 11,
@@ -260,8 +308,29 @@ function github(ctx) {
                   submitted_at: "2026-09-03T10:00:00Z",
                 },
               ]
-            : [],
-      );
+            : []),
+        ...pending,
+      ]);
+    }
+    case "POST pulls/:n/comments":
+      state.reviewRequests.push({ method, path: ctx.path, body });
+      return json(201, {
+        id: 8800 + state.reviewRequests.length,
+        user: ghUser("lena-hartmann"),
+        ...body,
+        created_at: "2026-09-05T08:00:00Z",
+      });
+    case "POST pulls/:n/reviews":
+      state.reviewRequests.push({ method, path: ctx.path, body });
+      if (state.pendingReview?.number === number)
+        return json(422, { message: "Unprocessable Entity", errors: ["User can only have one pending review per pull request"] });
+      return json(200, {
+        id: 78,
+        node_id: "PRR_kwDOneu",
+        user: ghUser("lena-hartmann"),
+        state: GH_REVIEW_STATE[body.event],
+        body: body.body ?? "",
+      });
     case "GET pulls/:n/comments":
       return json(
         200,
@@ -360,6 +429,26 @@ function github(ctx) {
           in_reply_to_id: entry.inReplyTo,
         });
       }
+      if (method === "GET" && parts[0] === "pulls" && parts[2] === "reviews" && parts[4] === "comments") {
+        const pending = state.pendingReview?.number === number && parts[3] === "77" ? state.pendingReview : null;
+        if (!pending) return notFound("Not Found");
+        return json(
+          200,
+          pending.comments.map((comment) => ({
+            pull_request_review_id: 77,
+            start_line: null,
+            commit_id: ghPull(base, number, state).head.sha,
+            user: ghUser("lena-hartmann"),
+            ...comment,
+          })),
+        );
+      }
+      if (method === "POST" && parts[0] === "pulls" && parts[2] === "reviews" && parts[4] === "events") {
+        state.reviewRequests.push({ method, path: ctx.path, body });
+        if (state.pendingReview?.number !== number || parts[3] !== "77") return notFound("Not Found");
+        state.pendingReview = null;
+        return json(200, { id: 77, user: ghUser("lena-hartmann"), state: GH_REVIEW_STATE[body.event], body: body.body ?? "" });
+      }
       if (method === "DELETE" && parts[0] === "git") return ctx.send(204, "", {});
       return notFound("Not Found");
   }
@@ -377,6 +466,7 @@ const glUser = (username) => ({
 
 function glMerge(base, number, state, single) {
   const created = state.created.find((entry) => entry.number === number);
+  const override = state.prOverrides.get(number);
   const status = prState(number, state);
   const title = state.titles.get(number) ?? created?.title ?? (number === 3 ? "Draft: Thema 3 umsetzen" : `Thema ${number} umsetzen`);
   const pipeline = { 1: "success", 2: "running", 4: "failed" }[number];
@@ -388,8 +478,8 @@ function glMerge(base, number, state, single) {
     state: status === "open" ? "opened" : status,
     draft: title.startsWith("Draft:"),
     work_in_progress: title.startsWith("Draft:"),
-    author: glUser(created ? "lena.hartmann" : "jonas"),
-    source_branch: created?.source ?? sourceBranch(number),
+    author: glUser(override?.author ?? (created ? "lena.hartmann" : "jonas")),
+    source_branch: override?.source ?? created?.source ?? sourceBranch(number),
     target_branch: created?.target ?? "main",
     source_project_id: number === 8 ? 99 : 7,
     target_project_id: 7,
@@ -397,9 +487,10 @@ function glMerge(base, number, state, single) {
     web_url: `${base}/gruppe/unter/demo/-/merge_requests/${number}`,
     labels: number === 1 ? ["bug"] : [],
     reviewers: number === 2 ? [glUser("mira")] : [],
-    sha: sha(number),
+    sha: override?.head ?? sha(number),
     detailed_merge_status: number === 13 ? "conflict" : "mergeable",
   };
+  if (single) merge.diff_refs = { base_sha: sha(1000), start_sha: sha(1000), head_sha: merge.sha };
   if (single)
     merge.head_pipeline = pipeline
       ? { id: 500 + number, project_id: 7, status: pipeline, web_url: `${base}/gruppe/unter/demo/-/pipelines/${500 + number}` }
@@ -528,11 +619,68 @@ function gitlab(ctx) {
       state.comments.push(entry);
       return json(201, { id: entry.id, system: false, body: entry.body, author: glUser("lena.hartmann"), created_at: entry.at });
     }
-    case "GET merge_requests/:n/commits":
+    case "GET merge_requests/:n/discussions":
+      return ctx.page(state.reviewThreads.get(number) ?? []);
+    case "POST merge_requests/:n/discussions":
+      state.reviewRequests.push({ method, path: ctx.path, body });
+      return json(201, {
+        id: `d${state.reviewRequests.length}`,
+        individual_note: false,
+        notes: [
+          {
+            id: 9500 + state.reviewRequests.length,
+            type: "DiffNote",
+            body: body.body,
+            author: glUser("lena.hartmann"),
+            created_at: "2026-09-05T08:00:00Z",
+            system: false,
+            resolvable: true,
+            resolved: false,
+            position: body.position,
+          },
+        ],
+      });
+    case "GET merge_requests/:n/draft_notes":
+      return ctx.page(
+        state.draftNotes
+          .filter((entry) => entry.number === number)
+          .map((entry) => ({ id: entry.id, author_id: 1, merge_request_id: 9000 + number, note: entry.note, position: entry.position })),
+      );
+    case "POST merge_requests/:n/draft_notes": {
+      state.reviewRequests.push({ method, path: ctx.path, body });
+      const entry = { id: 5600 + state.draftNotes.length, number, note: body.note, position: body.position };
+      state.draftNotes.push(entry);
+      return json(201, { id: entry.id, author_id: 1, merge_request_id: 9000 + number, note: entry.note, position: entry.position });
+    }
+    case "POST merge_requests/:n/draft_notes/bulk_publish":
+      state.reviewRequests.push({ method, path: ctx.path, body });
+      state.draftNotes = state.draftNotes.filter((entry) => entry.number !== number);
+      return ctx.send(204, "", {});
+    case "POST merge_requests/:n/approve":
+      state.reviewRequests.push({ method, path: ctx.path, body });
+      return json(201, {
+        id: 9000 + number,
+        iid: number,
+        approved: true,
+        approvals_left: 0,
+        approved_by: [{ user: glUser("lena.hartmann") }],
+      });
+    case "GET merge_requests/:n/commits": {
+      const commits = overrideCommits(state, number);
+      if (commits)
+        return ctx.page(
+          [...commits].reverse().map((commit) => ({
+            id: commit.sha,
+            title: commit.message,
+            author_name: "Jonas Weber",
+            authored_date: "2026-09-01T13:00:00Z",
+          })),
+        );
       return ctx.page([
         { id: sha(number), title: "Meldung übersetzt", author_name: "Jonas Weber", authored_date: "2026-09-01T13:00:00Z" },
         { id: sha(number * 100 + 1), title: "Prüfung ergänzt", author_name: "Jonas Weber", authored_date: "2026-09-01T12:00:00Z" },
       ]);
+    }
     case "GET issues": {
       const wanted = query.get("state") ?? "all";
       const search = query.get("search");
@@ -546,6 +694,13 @@ function gitlab(ctx) {
     case "GET issues/:n":
       return number >= 1 && number <= 200 ? json(200, glIssue(base, number)) : notFound("404 Not found");
     default:
+      if (method === "PUT" && parts[0] === "merge_requests" && parts[2] === "discussions" && parts.length === 4) {
+        state.reviewRequests.push({ method, path: ctx.path, body });
+        const discussion = findThread(state, decodeURIComponent(parts[3]));
+        if (!discussion) return notFound("404 Discussion Not Found");
+        for (const note of discussion.notes) if (note.resolvable) note.resolved = Boolean(body.resolved);
+        return json(200, discussion);
+      }
       return notFound("404 Not Found");
   }
 }
@@ -556,17 +711,18 @@ const gtUser = (login) => ({ id: login.length, login, full_name: `${login} (Name
 
 function gtPull(base, number, state) {
   const created = state.created.find((entry) => entry.number === number);
+  const override = state.prOverrides.get(number);
   const status = prState(number, state);
   return {
     number,
     title: state.titles.get(number) ?? created?.title ?? (number === 3 ? "WIP: Thema 3 umsetzen" : `Thema ${number} umsetzen`),
     state: status === "open" ? "open" : "closed",
     merged: status === "merged",
-    user: gtUser(created ? "lena" : "jonas"),
+    user: gtUser(override?.author ?? (created ? "lena" : "jonas")),
     body: created?.body ?? `Beschreibung zu **Thema ${number}**.`,
     head: {
-      ref: created?.source ?? sourceBranch(number),
-      sha: sha(number),
+      ref: override?.source ?? created?.source ?? sourceBranch(number),
+      sha: override?.head ?? sha(number),
       repo: { full_name: number === 8 ? "fremd/demo" : "octo/demo" },
     },
     base: { ref: created?.target ?? "main", sha: sha(1000), repo: { full_name: "octo/demo" } },
@@ -677,9 +833,16 @@ function gitea(ctx) {
             : [],
       );
     case "GET pulls/:n/commits":
-      return json(200, [
-        { sha: sha(number), commit: { message: "Meldung übersetzt", author: { name: "Jonas Weber", date: "2026-09-01T13:00:00Z" } } },
-      ]);
+      return json(
+        200,
+        (overrideCommits(state, number) ?? [{ sha: sha(number), message: "Meldung übersetzt" }]).map((commit) => ({
+          sha: commit.sha,
+          commit: { message: commit.message, author: { name: "Jonas Weber", date: "2026-09-01T13:00:00Z" } },
+        })),
+      );
+    case "POST pulls/:n/reviews":
+      state.reviewRequests.push({ method, path: ctx.path, body });
+      return json(200, { id: 95, user: gtUser("lena"), state: body.event, body: body.body ?? "", commit_id: body.commit_id });
     case "POST pulls/:n/requested_reviewers":
       return json(201, []);
     case "DELETE pulls/:n/requested_reviewers":
@@ -743,6 +906,7 @@ const bbState = (status) => (status === "merged" ? "MERGED" : status === "closed
 
 function bbPull(base, number, state) {
   const created = state.created.find((entry) => entry.number === number);
+  const override = state.prOverrides.get(number);
   return {
     type: "pullrequest",
     id: number,
@@ -750,10 +914,11 @@ function bbPull(base, number, state) {
     description: created?.body ?? `Beschreibung zu **Thema ${number}**.`,
     state: bbState(prState(number, state)),
     draft: created?.draft ?? number === 3,
-    author: bbUser(created ? "lena" : "jonas"),
+    author: bbUser(override?.author ?? (created ? "lena" : "jonas")),
     source: {
-      branch: { name: created?.source ?? sourceBranch(number) },
-      commit: { hash: sha(number).slice(0, 12) },
+      branch: { name: override?.source ?? created?.source ?? sourceBranch(number) },
+      // Bitbucket names the commit by its short hash here.
+      commit: { hash: (override?.head ?? sha(number)).slice(0, 12) },
       repository: { full_name: number === 8 ? "fremd/demo" : "team/demo" },
     },
     destination: {
@@ -864,8 +1029,12 @@ function bitbucket(ctx) {
     case "GET pullrequests/:n/comments":
       return values([
         { id: 2, user: bbUser("mira"), content: { raw: "Sieht gut aus." }, created_on: "2026-09-02T09:00:00Z", deleted: false },
+        ...(state.reviewThreads.get(number) ?? []),
       ]);
     case "POST pullrequests/:n/comments": {
+      if (body.inline) state.reviewRequests.push({ method, path: ctx.path, body });
+      if (state.failCommentBody !== null && body.content?.raw === state.failCommentBody)
+        return bbError(400, "The line is not part of the pull request's diff.");
       const comment = {
         id: 900 + state.comments.length,
         user: bbUser("lena"),
@@ -876,14 +1045,24 @@ function bitbucket(ctx) {
       return json(201, comment);
     }
     case "GET pullrequests/:n/commits":
-      return values([
-        {
-          hash: sha(number),
-          message: "Meldung übersetzt",
+      return values(
+        [...(overrideCommits(state, number) ?? [{ sha: sha(number), message: "Meldung übersetzt" }])].reverse().map((commit) => ({
+          hash: commit.sha,
+          message: commit.message,
           author: { raw: "Jonas Weber <jonas@example.org>" },
           date: "2026-09-01T13:00:00Z",
-        },
-      ]);
+        })),
+      );
+    case "POST pullrequests/:n/approve":
+    case "POST pullrequests/:n/request-changes":
+      state.reviewRequests.push({ method, path: ctx.path, body });
+      return json(200, {
+        type: "participant",
+        user: bbUser("lena"),
+        role: "REVIEWER",
+        approved: parts[2] === "approve",
+        state: parts[2] === "approve" ? "approved" : "changes_requested",
+      });
     case "GET issues": {
       const q = query.get("q") ?? "";
       const numbers = range(ISSUES, 1)
@@ -896,6 +1075,17 @@ function bitbucket(ctx) {
     case "GET issues/:n/comments":
       return values([{ id: 21, user: bbUser("jonas"), content: { raw: "Danke fürs Ansehen!" }, created_on: "2026-09-02T09:45:00Z" }]);
     default:
+      if ((method === "POST" || method === "DELETE") && parts[0] === "pullrequests" && parts[2] === "comments" && parts[4] === "resolve") {
+        state.reviewRequests.push({ method, path: ctx.path, body: ctx.body });
+        const comment = findThread(state, parts[3]);
+        if (!comment) return bbError(404, "Comment not found");
+        if (method === "DELETE") {
+          delete comment.resolution;
+          return ctx.send(204, "", {});
+        }
+        comment.resolution = { type: "comment_resolution", user: bbUser("lena"), created_on: "2026-09-05T08:00:00Z" };
+        return json(200, comment.resolution);
+      }
       return bbError(404, "Resource not found");
   }
 }
@@ -911,6 +1101,7 @@ const azStatus = (status) => (status === "merged" ? "completed" : status === "cl
 
 function azPull(number, state) {
   const created = state.created.find((entry) => entry.number === number);
+  const override = state.prOverrides.get(number);
   const status = azStatus(prState(number, state));
   const pr = {
     pullRequestId: number,
@@ -918,10 +1109,10 @@ function azPull(number, state) {
     description: created?.body ?? `Beschreibung zu **Thema ${number}**.`,
     status,
     isDraft: created?.draft ?? number === 3,
-    createdBy: azUser(created ? "lena" : "jonas"),
+    createdBy: azUser(override?.author ?? (created ? "lena" : "jonas")),
     creationDate: stamp(number),
     closedDate: status === "active" ? null : stamp(number),
-    sourceRefName: `refs/heads/${created?.source ?? sourceBranch(number)}`,
+    sourceRefName: `refs/heads/${override?.source ?? created?.source ?? sourceBranch(number)}`,
     targetRefName: `refs/heads/${created?.target ?? "main"}`,
     repository: { name: "demo", project: { name: "projekt" } },
     labels: number === 1 ? [{ name: "bug", active: true }] : [],
@@ -934,7 +1125,7 @@ function azPull(number, state) {
             ? [{ ...azUser("jonas"), vote: -10 }]
             : [],
     mergeStatus: number === 13 ? "conflicts" : "succeeded",
-    lastMergeSourceCommit: { commitId: sha(number) },
+    lastMergeSourceCommit: { commitId: override?.head ?? sha(number) },
   };
   if (number === 8) pr.forkSource = { repository: { name: "demo", project: { name: "fremd" } } };
   return pr;
@@ -1087,8 +1278,12 @@ function azure(ctx) {
             { id: 1, author: azUser("mira"), content: "Sieht gut aus.", publishedDate: "2026-09-02T09:00:00Z", commentType: "text" },
           ],
         },
+        ...(state.reviewThreads.get(number) ?? []),
       ]);
     case "POST pullrequests/:n/threads": {
+      state.reviewRequests.push({ method, path: ctx.path, body });
+      if (state.failCommentBody !== null && body.comments?.[0]?.content === state.failCommentBody)
+        return azError(400, "TF401181: The thread position is not part of the pull request's changes.");
       const thread = {
         id: 700 + state.comments.length,
         comments: [
@@ -1105,11 +1300,29 @@ function azure(ctx) {
       return json(200, thread);
     }
     case "GET pullrequests/:n/commits":
-      return list([{ commitId: sha(number), comment: "Meldung übersetzt", author: { name: "Jonas Weber", date: "2026-09-01T13:00:00Z" } }]);
+      return list(
+        [...(overrideCommits(state, number) ?? [{ sha: sha(number), message: "Meldung übersetzt" }])].reverse().map((commit) => ({
+          commitId: commit.sha,
+          comment: commit.message,
+          author: { name: "Jonas Weber", date: "2026-09-01T13:00:00Z" },
+        })),
+      );
     case "POST pullrequests/:n/labels":
       return json(200, { name: body.name, active: true });
     default:
       if (method === "DELETE" && parts[2] === "labels") return ctx.send(204, "", {});
+      if (method === "PATCH" && parts[0] === "pullrequests" && parts[2] === "threads" && parts.length === 4) {
+        state.reviewRequests.push({ method, path: ctx.path, body });
+        const thread = findThread(state, parts[3]);
+        if (!thread) return azError(404, `TF401181: The thread ${parts[3]} does not exist.`);
+        thread.status = body.status;
+        return json(200, thread);
+      }
+      if (method === "PUT" && parts[0] === "pullrequests" && parts[2] === "reviewers" && parts.length === 4) {
+        state.reviewRequests.push({ method, path: ctx.path, body });
+        if (parts[3] !== "mock-user") return azError(400, "TF401019: The reviewer identity is not valid.");
+        return json(200, { ...azUser("lena"), id: parts[3], vote: body.vote });
+      }
       return azError(404, "The resource cannot be found.");
   }
 }

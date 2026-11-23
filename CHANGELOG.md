@@ -15,6 +15,9 @@ All notable changes to Forkyard are listed here. The format follows
 
 ### Added
 
+- Review pull requests in the app on GitHub, GitLab, Gitea/Forgejo, Bitbucket Cloud and Azure DevOps: comments
+  at diff lines (ranges where the host allows), drafts that survive restarts and join a review started in the
+  browser, Approve / Request changes / Comment, resolve and reopen threads.
 - Partial commits: lines selected in the diff of your local changes stay selected when you switch files
   (click, Shift-click, drag over the line numbers, keyboard), and the file list shows how many lines of
   each file are selected. "Commit only this" commits exactly those lines – staged changes stay staged and
