@@ -179,6 +179,12 @@ jobs:
           mkdir assets && cd assets
           tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/${{ needs.release.outputs.id }}" --jq .tag_name)
           gh release download "$tag" -R "$GITHUB_REPOSITORY" --pattern '*' --skip-existing
+          # The app requires the version in each signature (requireSignedVersion); `tauri build` writes it.
+          for sig in *.sig; do
+            if ! base64 -d "$sig" | grep -qP "^trusted comment: .*\tversion:\Q${tag#v}\E(\t|$)"; then
+              echo "::error::$sig is not signed for version ${tag#v}; the app would refuse this update"; exit 1
+            fi
+          done
           rm -f SHA256SUMS.txt
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt

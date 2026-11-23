@@ -16,6 +16,7 @@
  *
  * - main: install from the toast: notes as Markdown, progress to 100 %, "Restart now" replaces the file;
  * - edge: a download signed with another key is refused, the file stays;
+ * - edge: an older release announced as the newer version (signed version differs) is refused, the file stays;
  * - edge: a package build (no AppImage) offers "View release" only and never asks for the manifest;
  * - edge: the manifest names another version than the notice → stale_state, the file stays;
  * - edge: "Restart now" asks about unsaved work in another window first; Cancel installs nothing;
@@ -394,9 +395,9 @@ const eq = (a, b) => Buffer.compare(a, b) === 0;
 
 /**
  * Per run, in a temp dir that is removed afterwards: a good and a bad signing key, the payload (a copy of
- * /bin/true) signed with `signWith`, and the file `APPIMAGE` points at. Keys never leave the temp dir.
+ * /bin/true) signed with `signWith` for `signedVersion`, and the file `APPIMAGE` points at. Keys never leave the temp dir.
  */
-function makeUpdateFixture(t, { signWith = "good" } = {}) {
+function makeUpdateFixture(t, { signWith = "good", signedVersion = NEWER } = {}) {
   const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "fy-wd-updater-")));
   t.cleanups.push(() => fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const tauri = (...args) =>
@@ -404,7 +405,7 @@ function makeUpdateFixture(t, { signWith = "good" } = {}) {
   for (const name of ["good", "bad"]) tauri("signer", "generate", "--ci", "-p", "", "-w", path.join(dir, `${name}.key`));
   const payloadPath = path.join(dir, `Forkyard_${NEWER}_amd64.AppImage`);
   fs.copyFileSync("/bin/true", payloadPath);
-  tauri("signer", "sign", "-f", path.join(dir, `${signWith}.key`), "-p", "", payloadPath);
+  tauri("signer", "sign", "-f", path.join(dir, `${signWith}.key`), "-p", "", "--app-version", signedVersion, payloadPath);
   const installDir = path.join(dir, "install");
   fs.mkdirSync(installDir);
   const appImage = path.join(installDir, "Forkyard.AppImage");
@@ -566,6 +567,20 @@ scenario(
     assertEqual(await app.waitFor(async () => ((await opened(app)).length ? opened(app) : null), 10_000), [PAGE(NEWER)]);
     assert(fixture.unchanged(), "APPIMAGE untouched");
     await t.shot("update-wrong-key");
+  }),
+);
+
+scenario(
+  "an older release announced as the newer version is refused and nothing is replaced",
+  "edge",
+  withCleanup(async (t) => {
+    const fixture = makeUpdateFixture(t, { signedVersion: CURRENT });
+    const { app } = await launchInstaller(t, fixture);
+    await openInstallDialog(app);
+    await app.click(await dialogButton(app, "Install"));
+    await waitPhase(app, "error");
+    assertIncludes(await dialogText(app), "The download is not signed by Forkyard. Nothing was installed.");
+    assert(fixture.unchanged(), "APPIMAGE untouched");
   }),
 );
 
