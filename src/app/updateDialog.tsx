@@ -19,29 +19,31 @@ import { useAppStore } from "./store";
 
 type Phase = "ready" | "downloading" | "downloaded" | "error";
 
-/** Runs the restart; a failure comes back as the text for the error phase (null = fine or the app is gone). */
-export async function restartFailure(restart: () => Promise<void>): Promise<{ text: string; hint: string } | null> {
+type Failure = { text: string; hint: string };
+
+/** Runs the restart: null = installing (or the app is gone), "cancelled" = the close guard was declined, else the text for the error phase. */
+export async function restartOutcome(restart: () => Promise<boolean>): Promise<Failure | "cancelled" | null> {
   try {
-    await restart();
-    return null;
+    return (await restart()) ? null : "cancelled";
   } catch (error) {
     return describeError(error);
   }
 }
 
-function UpdateDialog({ release, done }: { release: UpdateRelease; done: () => void }) {
-  const [phase, setPhase] = useState<Phase>("ready");
+/** `start`: where to continue after the close guard asked (the download is still waiting in the core). */
+function UpdateDialog({ release, done, start }: { release: UpdateRelease; done: () => void; start?: { phase: Phase; failure?: Failure } }) {
+  const [phase, setPhase] = useState<Phase>(start?.phase ?? "ready");
   const [jobId] = useState(newJobId);
-  const [failure, setFailure] = useState<{ text: string; hint: string } | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(start?.failure ?? null);
   const percent = useAppStore((state) => state.jobs[jobId]?.percent ?? null);
   const openPage = () => void openInBrowser(release.url, t("updates.page"));
 
+  // The close guard's question queues behind an open dialog, so this one closes first and comes back if nothing was installed.
   async function restart() {
-    const problem = await restartFailure(restartForUpdate);
-    if (problem) {
-      setFailure(problem);
-      setPhase("error");
-    }
+    done();
+    const outcome = await restartOutcome(restartForUpdate);
+    if (outcome === "cancelled") void openUpdateDialog(release, { phase: "downloaded" });
+    else if (outcome) void openUpdateDialog(release, { phase: "error", failure: outcome });
   }
 
   async function install() {
@@ -139,6 +141,6 @@ function UpdateDialog({ release, done }: { release: UpdateRelease; done: () => v
   );
 }
 
-export const openUpdateDialog = async (release: UpdateRelease): Promise<void> => {
-  await showDialog<void>((done) => <UpdateDialog release={release} done={() => done(null)} />);
+export const openUpdateDialog = async (release: UpdateRelease, start?: { phase: Phase; failure?: Failure }): Promise<void> => {
+  await showDialog<void>((done) => <UpdateDialog release={release} done={() => done(null)} start={start} />);
 };

@@ -4,13 +4,16 @@ vi.mock("./closeGuard", () => ({ restartForUpdate: vi.fn() }));
 vi.mock("./actions/hosts", () => ({ openInBrowser: vi.fn() }));
 vi.mock("./errors", () => ({ describeError: (error: unknown) => ({ text: String(error), hint: "hint" }) }));
 
-const { restartFailure } = await import("./updateDialog");
+const { restartOutcome } = await import("./updateDialog");
 
-describe("restartFailure", () => {
+describe("restartOutcome", () => {
   it("is null when the restart works", async () => {
-    expect(await restartFailure(async () => undefined)).toBeNull();
+    expect(await restartOutcome(async () => true)).toBeNull();
+  });
+  it("says so when the user cancelled the close guard", async () => {
+    expect(await restartOutcome(async () => false)).toBe("cancelled");
   });
   it("turns a failed install into the error text instead of staying silent", async () => {
-    expect(await restartFailure(() => Promise.reject("boom"))).toEqual({ text: "boom", hint: "hint" });
+    expect(await restartOutcome(() => Promise.reject("boom"))).toEqual({ text: "boom", hint: "hint" });
   });
 });

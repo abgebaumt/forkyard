@@ -29,14 +29,14 @@ describe("isLastWindow", () => {
 describe("restartForUpdate", () => {
   beforeEach(() => vi.clearAllMocks());
   it("installs instead of quitting when nothing would be lost", async () => {
-    await restartForUpdate();
+    expect(await restartForUpdate()).toBe(true);
     expect(core.updateInstall).toHaveBeenCalledTimes(1);
     expect(core.appQuit).not.toHaveBeenCalled();
   });
   it("does not install when the user cancels", async () => {
     core.appLossesElsewhere.mockResolvedValueOnce(1);
     dialogs.confirm.mockResolvedValueOnce(false);
-    await restartForUpdate();
+    expect(await restartForUpdate()).toBe(false);
     expect(core.updateInstall).not.toHaveBeenCalled();
   });
 });

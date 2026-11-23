@@ -83,8 +83,15 @@ async function onCloseRequested() {
 /** "Quit Forkyard": asks once for every window, then ends the app; all windows open again at the next start. */
 export const quitApp = () => leave(true);
 
-/** "Restart now" after an update download: asks once for every window like `quitApp`, then installs and restarts. */
-export const restartForUpdate = () => leave(true, () => core.updateInstall());
+/** "Restart now" after an update download: asks once for every window like `quitApp`, then installs and restarts. false = the user cancelled. */
+export async function restartForUpdate(): Promise<boolean> {
+  let installing = false;
+  await leave(true, async () => {
+    installing = true;
+    await core.updateInstall();
+  });
+  return installing;
+}
 
 /** Asks if something would be lost, then closes this window – or with `quit` the whole app. `finish` replaces the closing step. */
 async function leave(quit: boolean, finish: () => Promise<void> = () => (quit ? core.appQuit() : core.windowClose())) {
