@@ -1,5 +1,5 @@
 {
-  "title": "What's new – last 24 hours",
+  "title": "What's new in {{repo}} – last 24 hours",
   "empty": "Nothing new in the last 24 hours.",
   "numbers": {
     "commits_one": "{{count}} new commit",

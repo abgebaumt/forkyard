@@ -106,6 +106,27 @@ async function snapshotCount(app) {
   }
 }
 
+/** Waits until the stored snapshot has `sha` for `ref`. */
+async function waitSnapshotRef(app, ref, sha) {
+  const emit = process.emitWarning;
+  process.emitWarning = () => undefined;
+  const { DatabaseSync } = await import("node:sqlite");
+  process.emitWarning = emit;
+  await app.waitFor(
+    () => {
+      const db = new DatabaseSync(path.join(app.dataDir, "forkyard.db"), { readOnly: true });
+      try {
+        db.exec("pragma busy_timeout = 5000");
+        return JSON.parse(db.prepare("select refs from repo_seen").get().refs)[ref] === sha;
+      } finally {
+        db.close();
+      }
+    },
+    15_000,
+    { message: `the check stored ${ref} at ${sha.slice(0, 8)}` },
+  );
+}
+
 /** Opens the repository and waits for the snapshot the first open creates: what a fetch is compared with. */
 async function openAndWait(app, ui, fx) {
   const ids = await app.openRepo(fx.path);
@@ -170,7 +191,7 @@ scenario("a fetch with news opens the dialog; rows jump; the palette opens it ag
     assertEqual(git(fx, "log", "-1", "--format=%s", login), "Login prüfen", "origin/main~1 is Mira's first commit");
 
     await ui.waitDialog(TITLE, 30_000);
-    assertEqual((await ui.waitDialog(TITLE)).title, "What's new – last 24 hours", "title");
+    assertEqual((await ui.waitDialog(TITLE)).title, "What's new in messnetz – last 24 hours", "title");
     assertEqual(await textOf(app, `${DIGEST} [data-digest-number="commits"]`), "2 new commits", "commits number");
     assertEqual(await textOf(app, `${DIGEST} [data-digest-number="files"]`), "1 of your files affected", "files number");
     assertEqual(
@@ -225,7 +246,7 @@ scenario("a fetch that changes nothing opens nothing; new news open it again wit
     await closeDialog(app, ui);
 
     await fetchNow(ui);
-    await app.settle();
+    // Nothing changed: the fetch reports nothing, so no check is made at all.
     assertEqual(await ui.dialog(), null, "the same refs open nothing");
     t.step("an unchanged fetch opens nothing");
 
@@ -251,7 +272,8 @@ scenario("news older than 24 hours open nothing; the palette shows the empty sta
     const sha = fx.commitOnRemote({ message: "Kalibrierung nachgetragen" });
     await fetchNow(ui);
     assertEqual(git(fx, "rev-parse", "origin/main"), sha, "the fetch brought the colleague's tip");
-    await app.settle();
+    // The check stores the refs it looked at even when it opens nothing: that is its end.
+    await waitSnapshotRef(app, "refs/remotes/origin/main", sha);
     assertEqual(await ui.dialog(), null, "no dialog");
     await ui.runCommand("What's new", "repo.digest");
     await ui.waitDialog(TITLE);
@@ -289,8 +311,8 @@ scenario("own pushes open nothing, but the own commits are listed", "edge", asyn
     assertEqual(gitIn(fx, fx.remotePath, ["rev-parse", "feature/eigen"]), git(fx, "rev-parse", "HEAD"), "the amend is on the remote");
 
     await fetchNow(ui);
-    await app.settle();
-    assertEqual(await ui.dialog(), null, "the pushes are what the app already knows: nothing opens");
+    // The pushes are what the app already knows: the fetch reports nothing, so no check is made.
+    assertEqual(await ui.dialog(), null, "nothing opens");
     await ui.runCommand("What's new", "repo.digest");
     await ui.waitDialog(TITLE);
     const rows = await rowTexts(app);
@@ -313,7 +335,7 @@ scenario("German texts", "edge", async (t) => {
     await openAndWait(app, ui, fx);
     miraWorks(fx);
     await ui.clickTool("Fetch");
-    await ui.waitDialog(/^Neu – letzte 24 Stunden$/, 60_000);
+    await ui.waitDialog(/^Neu in messnetz – letzte 24 Stunden$/, 60_000);
     assertEqual(await textOf(app, `${DIGEST} [data-digest-number="commits"]`), "2 neue Commits", "German commits number");
     const rows = await rowTexts(app);
     assert(rows.includes("origin/main – aktualisiert"), `aktualisiert: ${JSON.stringify(rows)}`);

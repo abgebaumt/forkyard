@@ -10,10 +10,11 @@ const busy = new Set<Id>();
 
 /**
  * After a fetch: the dialog opens when the remote refs changed since the last one and the last 24
- * hours hold news. Only in a window with a tab for the repository – each answer may cost host requests.
+ * hours hold news. Only when the repository's tab is the active one of this window – each answer may cost host requests.
  */
 export async function checkDigestAfterFetch(repoId: Id): Promise<void> {
-  const tab = (queryClient.getQueryData<Tab[]>(qk.tabs) ?? []).find((tab) => tab.repoId === repoId);
+  // Only for the repository in front: a dialog about a background tab would name nothing the user sees.
+  const tab = (queryClient.getQueryData<Tab[]>(qk.tabs) ?? []).find((tab) => tab.repoId === repoId && tab.isActive);
   if (!tab || busy.has(repoId)) return;
   busy.add(repoId);
   try {
