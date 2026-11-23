@@ -39,7 +39,14 @@ pub(crate) fn dev_config(url: Option<String>, pubkey: Option<String>) -> Option<
 #[tauri::command]
 pub async fn update_download(core: State<'_, Core>, app: AppHandle, window: WebviewWindow, job_id: String, version: String) -> R<()> {
     ensure_installable(&core)?;
-    let update = app.updater().map_err(|e| core_error(&e))?.check().await.map_err(|e| core_error(&e))?;
+    let handle = app.clone();
+    // Windows: the plugin ends the process with `exit(0)` after starting the installer, so `RunEvent::Exit`
+    // never runs; without `finish_exit` the next start reports a crash. No-op on other platforms (E2E cannot cover it).
+    let updater = app.updater_builder().on_before_exit(move || {
+        handle.cleanup_before_exit();
+        crate::finish_exit(&handle);
+    });
+    let update = updater.build().map_err(|e| core_error(&e))?.check().await.map_err(|e| core_error(&e))?;
     let update = update.ok_or_else(|| CoreError::not_found("No update found for this system in the latest release."))?;
     check_reported(&version, &update.version)?;
     let job = core.start_job(&job_id, None)?;
@@ -65,10 +72,22 @@ pub async fn update_download(core: State<'_, Core>, app: AppHandle, window: Webv
 
 #[tauri::command]
 pub async fn update_install(core: State<'_, Core>, app: AppHandle, window: WebviewWindow) -> R<()> {
-    let (update, bytes) =
-        app.state::<Pending>().0.lock().await.take().ok_or_else(|| CoreError::not_allowed("Download the update first."))?;
+    let state = app.state::<Pending>();
+    let mut pending = state.0.lock().await;
+    let (update, bytes) = pending.as_ref().ok_or_else(|| CoreError::not_allowed("Download the update first."))?;
     scoped(window.label().to_string(), gitcore::commands::app::app_quit(&core)).await?;
-    update.install(bytes).map_err(|e| core_error(&e))?;
+    if let Err(e) = update.install(bytes) {
+        // The app keeps running: guard back on, the verified bytes stay in `Pending` for a retry.
+        // Cancelled jobs stay cancelled.
+        gitcore::commands::app::resume_after_failed_quit(&core);
+        // Windows: `on_before_exit` may already have hidden the windows (and run `finish_exit`).
+        #[cfg(windows)]
+        for w in app.webview_windows().values() {
+            let _ = w.show();
+        }
+        return Err(core_error(&e));
+    }
+    pending.take();
     if crate::dev_env_value(NO_RESTART_ENV).is_none() {
         app.restart();
     }

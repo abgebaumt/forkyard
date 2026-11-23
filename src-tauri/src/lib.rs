@@ -429,7 +429,7 @@ fn close_requested(window: &tauri::Window, api: &tauri::CloseRequestApi, core: C
 }
 
 /// The last steps of every orderly end (quitting, closing the window, a termination request).
-fn finish_exit(handle: &tauri::AppHandle) {
+pub(crate) fn finish_exit(handle: &tauri::AppHandle) {
     if let Some(core) = handle.try_state::<Core>() {
         gitcore::commands::terminal::close_all(&core);
         // Port and password of the local channel are only valid while the app is running.
