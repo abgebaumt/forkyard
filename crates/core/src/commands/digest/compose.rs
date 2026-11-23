@@ -1,24 +1,22 @@
-//! The Git part of the digest: which remote branches and tags changed since the seen state, their
-//! foreign commits, the files of yours they touch, and how far the current branch is behind.
-//! A pure read: no lock.
+//! The Git part of the digest: which remote branches and tags have news from the last 24 hours,
+//! their commits, the files of yours other people's commits touch, and how far the current branch is
+//! behind. A pure read: no lock.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
+
+use chrono::{DateTime, Utc};
 
 use crate::app::Core;
 use crate::commands::{branch_cleanup, refs, status};
-use crate::db::repo_seen::SeenRow;
 use crate::error::CoreResult;
 use crate::git::log::LOG_SAFE;
-use crate::git::rev;
 use crate::host;
-use crate::model::{
-    Digest, DigestBehind, DigestCommit, DigestFile, DigestMark, DigestRef, DigestRefChange, Head, HostKind, RefKind, RefsSnapshot,
-};
+use crate::model::{Digest, DigestBehind, DigestCommit, DigestFile, DigestRef, Head, HostKind, RefKind, RefsSnapshot};
 use crate::util;
 
 use super::{prs, seen};
 
-/// Commits read per ref, before own commits are dropped; also the limit for "your files".
+/// Commits read per ref; also the limit for "your files".
 const MAX_COMMITS: &str = "--max-count=500";
 /// Subjects listed per ref.
 const LISTED: usize = 20;
@@ -32,82 +30,57 @@ struct LogCommit {
     paths: Vec<String>,
 }
 
-/// The digest against `seen`.
-pub(crate) async fn compose_at(core: &Core, repo_id: &str, seen: &SeenRow) -> CoreResult<Digest> {
-    // Before anything is read: what happens from here on is news next time.
-    let composed_at = util::now_iso();
-    let (current, snapshot, status, own, pr) = tokio::join!(
+/// The digest for everything since `since`.
+pub(crate) async fn compose(core: &Core, repo_id: &str, since: DateTime<Utc>) -> CoreResult<Digest> {
+    let (current, snapshot, status, own, pr, tag_times) = tokio::join!(
         seen::current_refs(core, repo_id),
         refs::read_refs(core, repo_id),
         status::read_status(core, repo_id),
         own_emails(core, repo_id),
-        prs::pr_part(core, repo_id, seen),
+        prs::pr_part(core, repo_id, since),
+        tag_times(core, repo_id),
     );
-    let (current, snapshot, status) = (current?, snapshot?, status?);
-    let names: BTreeSet<&String> = seen.refs.keys().chain(current.keys()).collect();
-    // Seen SHAs peeled to their commit. Ones gone from the object database (pruned, gc) are left
-    // out: they would make `git log` fail.
-    let peeled = peel(core, repo_id, seen.refs.values()).await?;
-    // Everything reachable from any seen tip was seen, also when it reaches this ref by a merge or rebase.
-    // shortcut: the exclusion set grows with seen tags (one stdin per changed ref); measure on a repo with 10k+ tags before optimizing
-    let all_seen: Vec<String> = peeled.values().cloned().collect::<BTreeSet<_>>().into_iter().collect();
+    let (current, snapshot, status, tag_times) = (current?, snapshot?, status?, tag_times?);
+    let default = branch_cleanup::default_branch(core, repo_id, &snapshot.locals).await;
+    let base = default.as_deref().and_then(|name| base_of(&snapshot, name));
+
+    // The base branch first: a commit on both it and a feature branch is listed under the base.
+    // shortcut: the rest by name, not by who contains whom; fine while a shared commit is rare in 24 hours.
+    let base_ref = base.as_ref().map(|b| format!("refs/remotes/{b}"));
+    let mut branches: Vec<&String> = current.keys().filter(|name| name.starts_with("refs/remotes/")).collect();
+    branches.sort_by_key(|name| (Some(*name) != base_ref.as_ref(), *name));
 
     let mut digest_refs = Vec::new();
-    let mut foreign: HashSet<String> = HashSet::new();
-    // shortcut: across refs the first ref by name wins, not the newest commit by date; fine while one ref brings a file.
+    let mut listed: HashSet<String> = HashSet::new();
+    // shortcut: across refs the first ref wins, not the newest commit by date; fine while one ref brings a file.
     let mut touched: BTreeMap<String, String> = BTreeMap::new();
-    for name in names {
-        let (old, new) = (seen.refs.get(name), current.get(name));
-        if old == new {
+    for name in branches {
+        let commits: Vec<LogCommit> = log(core, repo_id, name, since).await?.into_iter().filter(|c| listed.insert(c.sha.clone())).collect();
+        if commits.is_empty() {
             continue;
         }
-        let (kind, short) = match (name.strip_prefix("refs/remotes/"), name.strip_prefix("refs/tags/")) {
-            (Some(short), _) => (RefKind::Remote, short),
-            (None, Some(short)) => (RefKind::Tag, short),
-            _ => continue,
-        };
-        let change = match (old, new) {
-            (None, _) => DigestRefChange::New,
-            (_, None) => DigestRefChange::Deleted,
-            (Some(o), Some(n))
-                if kind == RefKind::Remote && (!peeled.contains_key(o) || !rev::is_ancestor(core, repo_id, o, n).await?) =>
-            {
-                DigestRefChange::Rewritten
-            }
-            _ => DigestRefChange::Updated,
-        };
-        let mut commits = Vec::new();
-        // Nothing seen to compare with (an empty seen state): the ref is new, its history not listed.
-        if let (RefKind::Remote, Some(new), false) = (kind, new, all_seen.is_empty()) {
-            commits = log(core, repo_id, new, &all_seen).await?.into_iter().filter(|c| !is_own(&c.email, &own)).collect();
-            // Only own commits: the user pushed it elsewhere, nothing new.
-            if change == DigestRefChange::Updated && commits.is_empty() {
-                continue;
-            }
-        }
-        for commit in &commits {
-            foreign.insert(commit.sha.clone());
+        for commit in commits.iter().filter(|c| !is_own(&c.email, &own)) {
             for path in &commit.paths {
                 touched.entry(path.clone()).or_insert_with(|| commit.sha.clone());
             }
         }
-        let new_sha = match kind {
-            RefKind::Tag => snapshot.tags.iter().find(|t| &t.full_name == name).map(|t| t.sha.clone()).or_else(|| new.cloned()),
-            _ => new.cloned(),
-        };
         digest_refs.push(DigestRef {
-            name: short.to_string(),
-            kind,
-            change,
-            old_sha: old.map(|o| peeled.get(o).unwrap_or(o).clone()),
-            new_sha,
+            name: name.trim_start_matches("refs/remotes/").to_string(),
+            kind: RefKind::Remote,
+            new_sha: current.get(name).cloned(),
             new_commits: commits.len() as u32,
             commits: commits.into_iter().take(LISTED).map(|c| DigestCommit { sha: c.sha, subject: c.subject, author: c.author }).collect(),
         });
     }
+    let mut tags: Vec<DigestRef> = snapshot
+        .tags
+        .iter()
+        .filter(|t| tag_times.get(&t.full_name).is_some_and(|time| *time > since.timestamp()))
+        .map(|t| DigestRef { name: t.name.clone(), kind: RefKind::Tag, new_sha: Some(t.sha.clone()), new_commits: 0, commits: Vec::new() })
+        .collect();
+    tags.sort_by(|a, b| a.name.cmp(&b.name));
+    digest_refs.extend(tags);
 
-    let default = branch_cleanup::default_branch(core, repo_id, &snapshot.locals).await;
-    let base = default.as_deref().and_then(|name| base_of(&snapshot, name));
     let your_files = if touched.is_empty() {
         Vec::new()
     } else {
@@ -131,22 +104,31 @@ pub(crate) async fn compose_at(core: &Core, repo_id: &str, seen: &SeenRow) -> Co
     };
     let is_empty = digest_refs.is_empty() && !pr.prs.as_ref().is_some_and(|p| !p.changed.is_empty() || !p.comments.is_empty());
     Ok(Digest {
-        seen_at: seen.seen_at.clone(),
+        since: since.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string(),
         refs: digest_refs,
-        new_commits: foreign.len() as u32,
+        new_commits: listed.len() as u32,
         your_files,
         behind,
         prs: pr.prs,
         pr_data_missing: pr.missing,
-        mark: DigestMark {
-            composed_at,
-            refs: current,
-            // Never below the stored number: without PR data marking as seen keeps it.
-            pr_max_number: pr.max.max(seen.pr_max_number),
-            pr_open: pr.open,
-        },
         is_empty,
     })
+}
+
+/// Creation time (Unix seconds) per full tag name: the tagger date of an annotated tag, the commit date of a lightweight one.
+async fn tag_times(core: &Core, repo_id: &str) -> CoreResult<BTreeMap<String, i64>> {
+    let path = core.repo_path(repo_id)?;
+    let options = ["--format=%(refname)%00%(creatordate:unix)".to_string()];
+    let out = refs::for_each_ref(core, &path, repo_id, &options, &["refs/tags"]).await?;
+    Ok(out
+        .stdout_lines()
+        .into_iter()
+        .filter_map(|line| {
+            let mut parts = line.split(|&b| b == 0);
+            let (name, time) = (parts.next()?, parts.next()?);
+            Some((util::decode_lossy(name), util::decode_lossy(time).trim().parse().ok()?))
+        })
+        .collect())
 }
 
 /// The user's e-mail addresses, lowercase: the effective `user.email`, and for a connected GitHub
@@ -182,37 +164,15 @@ fn is_own(email: &str, own: &[String]) -> bool {
     })
 }
 
-/// Each of `shas` that is in the object database and peels to a commit, mapped to that commit (a
-/// commit to itself, an annotated tag to the commit it points to).
-async fn peel<'a>(core: &Core, repo_id: &str, shas: impl Iterator<Item = &'a String>) -> CoreResult<HashMap<String, String>> {
-    // `<sha>^{} <sha>`: the object peeled, the original echoed back as `%(rest)`.
-    let query: String = shas.map(|sha| format!("{sha}^{{}} {sha}\n")).collect();
-    if query.is_empty() {
-        return Ok(HashMap::new());
-    }
-    let format = "--batch-check=%(objectname) %(objecttype) %(rest)";
-    let out = core.git_for(repo_id)?.read().args(["cat-file", format]).stdin(query).run().await?;
-    Ok(out
-        .stdout_lines()
-        .into_iter()
-        .map(util::decode_lossy)
-        .filter_map(|line| match line.split(' ').collect::<Vec<_>>()[..] {
-            [commit, "commit", sha] => Some((sha.to_string(), commit.to_string())),
-            _ => None,
-        })
-        .collect())
-}
-
-/// `git log <tip> --not <not…>`, newest first, with the paths each commit changed. The revisions go
-/// through stdin: a seen state with thousands of tags would not fit on a Windows command line.
-async fn log(core: &Core, repo_id: &str, tip: &str, not: &[String]) -> CoreResult<Vec<LogCommit>> {
-    let revs: String = std::iter::once(format!("{tip}\n")).chain(not.iter().map(|sha| format!("^{sha}\n"))).collect();
+/// `git log <tip> --since=<since>`, newest first, with the paths each commit changed.
+async fn log(core: &Core, repo_id: &str, tip: &str, since: DateTime<Utc>) -> CoreResult<Vec<LogCommit>> {
     let out = core
         .git_for(repo_id)?
         .read()
-        .args(["log", "--stdin", "-z", "--no-renames", "--name-only", MAX_COMMITS, "--format=%x1e%H%x00%an%x00%ae%x00%s"])
+        .args(["log", "-z", "--no-renames", "--name-only", MAX_COMMITS, "--format=%x1e%H%x00%an%x00%ae%x00%s"])
+        .arg(format!("--since={}", since.timestamp()))
         .args(LOG_SAFE)
-        .stdin(revs)
+        .args([tip, "--"])
         .run()
         .await?;
     Ok(util::split_records(&out.stdout, 0x1e)

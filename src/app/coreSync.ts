@@ -20,7 +20,7 @@ import { t } from "../i18n";
 import { reportHookOutput } from "./notifications/hooks";
 import { reportSubmoduleUpdate } from "./notifications/submodules";
 import { isFixedRev } from "../screens/Archaeology/model";
-import { checkDigestAfterFetch, digestFetchedWhileOpen } from "../screens/DigestCard/actions";
+import { checkDigestAfterFetch } from "../screens/DigestDialog/actions";
 import { desktopNotify, wasManualSync } from "./notify";
 import { useAppStore } from "./store";
 import { createIndexScheduler } from "./ai/indexScheduler";
@@ -113,8 +113,6 @@ export function invalidateRepo(client: QueryClient, repoId: Id, what: RepoChange
       if (changes.has("config") && CONFIG_PARTS.has(name)) return true;
       if (changes.has("operation") && OPERATION_PARTS.has(name)) return true;
       if (changes.has("locks") && name === "lfsLocks") return true;
-      // Not on refs or fetches: each digest may cost host requests; a fetch goes through `checkDigestAfterFetch`.
-      if (changes.has("seen") && name === "digest") return true;
       if ((changes.has("head") || changes.has("config")) && name === "lfsInUse") return true;
       return false;
     },
@@ -214,7 +212,6 @@ export function useCoreSync(activeRepoId: Id | null) {
         }
         semanticIndex.changed(repoId, what);
         if (what.includes("fetched")) {
-          digestFetchedWhileOpen(repoId);
           void checkDigestAfterFetch(repoId);
         }
       }),

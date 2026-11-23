@@ -4,28 +4,24 @@ import type { RefKind } from "./refs";
 
 export type Digest = {
   /**
-   * When the user last looked.
+   * Start of the window: 24 hours before the digest was composed.
    */
-  seenAt: string;
+  since: string;
   /**
-   * Sorted by name.
+   * The default branch first, then by name.
    */
   refs: Array<DigestRef>;
   /**
-   * Distinct foreign commits across all refs.
+   * Distinct commits across all refs, own ones included.
    */
   newCommits: number;
   /**
-   * Sorted by path. Only from the commits read per ref (at most 500, see `DigestRef::new_commits`).
+   * Sorted by path. Only from other people's commits (at most 500 per ref).
    */
   yourFiles: Array<DigestFile>;
   behind: DigestBehind | null;
   prs: DigestPrs | null;
   prDataMissing: HostKind | null;
-  /**
-   * What this digest compared; `digestMarkSeen` stores exactly this.
-   */
-  mark: DigestMark;
   /**
    * No refs and no PR changes (behind alone does not count).
    */
@@ -67,32 +63,9 @@ export type DigestFile = {
   onBranch: boolean;
 };
 
-/**
- * The state a digest compared against, for `digestMarkSeen`: marking stores what the card showed,
- * so news that arrive while it is open stay news.
- */
-export type DigestMark = {
-  /**
-   * When the digest was composed: the next seen time.
-   */
-  composedAt: string;
-  /**
-   * Remote branches and tags compared (full ref name → object ID as Git stores it).
-   */
-  refs: { [key in string]: string };
-  /**
-   * Highest PR number read, never below the stored one.
-   */
-  prMaxNumber: number | null;
-  /**
-   * Numbers of the open PRs read; `None` without PR data (marking keeps the stored ones).
-   */
-  prOpen: Array<number> | null;
-};
-
 export type DigestPr = { number: number; title: string; change: DigestPrChange; author: string | null; webUrl: string };
 
-export type DigestPrChange = "opened" | "merged" | "closed";
+export type DigestPrChange = "updated" | "merged" | "closed";
 
 export type DigestPrComments = { number: number; title: string; count: number };
 
@@ -104,21 +77,16 @@ export type DigestRef = {
    */
   name: string;
   /**
-   * `Remote` or `Tag`.
+   * `Remote` (a branch with commits in the window) or `Tag` (created in the window).
    */
   kind: RefKind;
-  change: DigestRefChange;
-  /**
-   * For a tag the commit it pointed to.
-   */
-  oldSha: string | null;
   /**
    * For a tag the commit it points to.
    */
   newSha: string | null;
   /**
-   * Foreign commits not reachable from any seen ref. At most 500 commits are read per ref, own
-   * ones are dropped afterwards. 0 for a ref when the seen state had no ref still present in the repository.
+   * Commits of the window not already listed under an earlier ref (at most 500 are read per ref);
+   * 0 for a tag.
    */
   newCommits: number;
   /**
@@ -126,5 +94,3 @@ export type DigestRef = {
    */
   commits: Array<DigestCommit>;
 };
-
-export type DigestRefChange = "new" | "updated" | "rewritten" | "deleted";

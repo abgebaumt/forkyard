@@ -18,8 +18,6 @@ pub enum RepoChange {
     /// A fetch ran (pull) or changed remote branches or tags (fetch). Not proof of news: the digest
     /// compares against the seen state.
     Fetched,
-    /// The "What's new" seen state was set.
-    Seen,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]

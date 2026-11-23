@@ -1,5 +1,6 @@
 {
-  "title": "What's new – last looked {{time}}",
+  "title": "What's new – last 24 hours",
+  "empty": "Nothing new in the last 24 hours.",
   "numbers": {
     "commits_one": "{{count}} new commit",
     "commits_other": "{{count}} new commits",
@@ -11,15 +12,12 @@
   "behind_one": "{{branch}} is {{count}} commit behind {{base}}",
   "behind_other": "{{branch}} is {{count}} commits behind {{base}}",
   "ref": {
-    "new": "{{name}} – new",
     "updated": "{{name}} – updated",
-    "rewritten": "{{name}} – force-pushed",
-    "deleted": "{{name}} – deleted",
     "newTag": "{{name}} – new tag"
   },
   "commit": "{{subject}} – {{author}}",
   "pr": {
-    "opened": "#{{number}} {{title}} – opened",
+    "updated": "#{{number}} {{title}} – active",
     "merged": "#{{number}} {{title}} – merged",
     "closed": "#{{number}} {{title}} – closed",
     "comments_one": "#{{number}} {{title}} – {{count}} new comment",
@@ -29,11 +27,7 @@
     "local": "{{path}} – changed locally",
     "onBranch": "{{path}} – changed on your branch"
   },
-  "showAll": "Show all",
   "prMissing": "Pull requests missing – no connection to {{host}}",
-  "reloaded": "New changes arrived – check them, then mark as seen",
   "summarise": "Summarise",
-  "markSeen": "Mark as seen",
-  "nothingNew": "Nothing new – last looked {{time}}",
-  "rows": "Changes since you last looked"
+  "rows": "Changes in the last 24 hours"
 }

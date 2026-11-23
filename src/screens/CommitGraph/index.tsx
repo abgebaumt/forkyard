@@ -85,7 +85,6 @@ import { GraphCanvas, type GraphDecor } from "../../components/graph/GraphCanvas
 import { GraphHeader, type SmartToggle } from "../../components/graph/GraphHeader";
 import { BisectBar } from "../Bisect/BisectBar";
 import { AutopilotBar } from "../Bisect/AutopilotBar";
-import { DigestCard } from "../DigestCard";
 import { bisectMarks } from "../Bisect/model";
 import {
   activeKey,
@@ -1212,7 +1211,6 @@ export function CommitGraph({ repoId, tabId }: CommitGraphProps) {
     <section data-screen="commit-graph" data-state={state} className="flex h-full min-h-0 w-full min-w-0 flex-col bg-bg">
       <BisectBar repoId={repoId} tabId={tabId} />
       <AutopilotBar repoId={repoId} tabId={tabId} />
-      <DigestCard repoId={repoId} tabId={tabId} />
       {detachedSha ? <DetachedBar repoId={repoId} tabId={tabId} sha={detachedSha} /> : null}
       {filtered && viewState && hasData ? (
         <FilterBar repoId={repoId} view={viewState} smart={smartOn && viewState.soloRefs.length > 0 ? selection : null} />

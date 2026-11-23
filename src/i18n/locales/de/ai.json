@@ -38,7 +38,7 @@
     "semantic_search": "Findet Commits nach ihrem Inhalt.",
     "review_fix": "Schlägt Korrekturen für offene Review-Kommentare vor.",
     "stack_split": "Schlägt vor, wo ein Branch in aufeinander aufbauende Pull Requests geteilt wird.",
-    "digest": "Fasst in einem Absatz zusammen, was sich seit deinem letzten Blick geändert hat."
+    "digest": "Fasst in einem Absatz zusammen, was sich in den letzten 24 Stunden geändert hat."
   },
   "settings": {
     "intro": "Commit-Nachrichten, Pull-Request-Texte und mehr mit einem Anbieter deiner Wahl. Aus, bis du sie einschaltest; ein Anbieter und ein Schlüssel für alle Profile.",

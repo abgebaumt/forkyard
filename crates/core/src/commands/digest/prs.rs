@@ -1,10 +1,11 @@
-//! The pull request part of the digest: opened, merged and closed pull requests since the seen
-//! state, and new comments by others on the user's own open pull requests. Never an error: without
-//! a connection the digest names the host instead.
+//! The pull request part of the digest: pull requests active, merged or closed in the window, and
+//! new comments by others on the user's own open pull requests. Never an error: without a
+//! connection the digest names the host instead.
+
+use chrono::{DateTime, Utc};
 
 use crate::app::Core;
 use crate::commands::host as host_cmd;
-use crate::db::repo_seen::SeenRow;
 use crate::host;
 use crate::model::{DigestPr, DigestPrChange, DigestPrComments, DigestPrs, HostKind, PrListState, PrState, PrSummary};
 
@@ -19,14 +20,10 @@ pub(crate) struct PrPart {
     pub prs: Option<DigestPrs>,
     /// The host whose data is missing.
     pub missing: Option<HostKind>,
-    /// Highest PR number read.
-    pub max: Option<u64>,
-    /// Numbers of the open PRs read, ascending; `None` without PR data.
-    pub open: Option<Vec<u64>>,
 }
 
-/// The pull requests since `seen`.
-pub(crate) async fn pr_part(core: &Core, repo_id: &str, seen: &SeenRow) -> PrPart {
+/// The pull requests since `since`.
+pub(crate) async fn pr_part(core: &Core, repo_id: &str, since: DateTime<Utc>) -> PrPart {
     let missing = |kind| PrPart { missing: Some(kind), ..PrPart::default() };
     let found = match host::resolve(core, repo_id, None).await {
         Ok(Some(found)) => found,
@@ -56,22 +53,18 @@ pub(crate) async fn pr_part(core: &Core, repo_id: &str, seen: &SeenRow) -> PrPar
             }
         }
     }
-    let max = prs.iter().map(|pr| pr.number).max();
 
     let mut changed: Vec<DigestPr> = prs
         .iter()
         .filter_map(|pr| {
-            // PR numbers rise on every host; `PrSummary` has no creation date. `updated_at` moves
-            // with every later comment, so only a PR open at the last look can have ended since.
-            let new = seen.pr_max_number.is_some_and(|m| pr.number > m);
-            if !new && !seen.pr_open.contains(&pr.number) {
+            // `updated_at` also moves with a later comment, so an open PR can only be "active".
+            if !after(&pr.updated_at, since) {
                 return None;
             }
             let change = match pr.state {
-                PrState::Open if new => DigestPrChange::Opened,
+                PrState::Open => DigestPrChange::Updated,
                 PrState::Merged => DigestPrChange::Merged,
                 PrState::Closed => DigestPrChange::Closed,
-                _ => return None,
             };
             Some(DigestPr {
                 number: pr.number,
@@ -82,16 +75,14 @@ pub(crate) async fn pr_part(core: &Core, repo_id: &str, seen: &SeenRow) -> PrPar
             })
         })
         .collect();
-    changed.sort_by_key(|pr| (pr.change != DigestPrChange::Opened, std::cmp::Reverse(pr.number)));
+    changed.sort_by_key(|pr| (pr.change != DigestPrChange::Updated, std::cmp::Reverse(pr.number)));
 
     let mut comments = Vec::new();
     if let Some(login) = account.login.as_deref() {
         let is_me = |author: Option<&str>| author.is_some_and(|a| a.eq_ignore_ascii_case(login));
         let own = prs
             .iter()
-            .filter(|pr| {
-                pr.state == PrState::Open && is_me(pr.author.as_ref().map(|a| a.login.as_str())) && after(&pr.updated_at, &seen.seen_at)
-            })
+            .filter(|pr| pr.state == PrState::Open && is_me(pr.author.as_ref().map(|a| a.login.as_str())) && after(&pr.updated_at, since))
             .take(OWN_PRS);
         for pr in own {
             let details = match host_cmd::pr_get(core, repo_id.to_string(), pr.number, remote.clone()).await {
@@ -104,7 +95,7 @@ pub(crate) async fn pr_part(core: &Core, repo_id: &str, seen: &SeenRow) -> PrPar
             let count = details
                 .comments
                 .iter()
-                .filter(|c| after(&c.created_at, &seen.seen_at) && !is_me(c.author.as_ref().map(|a| a.login.as_str())))
+                .filter(|c| after(&c.created_at, since) && !is_me(c.author.as_ref().map(|a| a.login.as_str())))
                 .count() as u32;
             if count > 0 {
                 comments.push(DigestPrComments { number: pr.number, title: pr.title.clone(), count });
@@ -112,15 +103,10 @@ pub(crate) async fn pr_part(core: &Core, repo_id: &str, seen: &SeenRow) -> PrPar
         }
         comments.sort_by_key(|c| c.number);
     }
-    // Open ones beyond the pages read stay as they were: unknown is not ended.
-    let unread = seen.pr_open.iter().copied().filter(|n| !prs.iter().any(|pr| pr.number == *n));
-    let mut open: Vec<u64> = prs.iter().filter(|pr| pr.state == PrState::Open).map(|pr| pr.number).chain(unread).collect();
-    open.sort_unstable();
-    PrPart { prs: Some(DigestPrs { changed, comments }), missing: None, max, open: Some(open) }
+    PrPart { prs: Some(DigestPrs { changed, comments }), missing: None }
 }
 
 /// `at` is later than `since`; an unreadable time is not.
-fn after(at: &str, since: &str) -> bool {
-    let parse = chrono::DateTime::parse_from_rfc3339;
-    matches!((parse(at), parse(since)), (Ok(at), Ok(since)) if at > since)
+fn after(at: &str, since: DateTime<Utc>) -> bool {
+    DateTime::parse_from_rfc3339(at).is_ok_and(|at| at > since)
 }

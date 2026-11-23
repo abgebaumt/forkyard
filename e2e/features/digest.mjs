@@ -1,25 +1,25 @@
 /**
- * "What's new since …" in the real app over WebDriver: a colleague (a second clone of the bare remote)
- * pushes commits, force-pushes, deletes a branch and pushes a tag; the card from the palette shows it,
- * every row jumps (the commit, the base branch; a deleted ref stays reachable by keyboard) and
- * "Mark as seen" empties it. After a fetch the card opens by itself once the seen state is old; a fetch
- * while it is open makes "Mark as seen" reload it first. Own pushes and force pushes never count, a
- * young seen state opens no card, two windows close together, and the German texts.
+ * "What's new" in the real app over WebDriver: a colleague (a second clone of the bare remote) pushes
+ * commits, force-pushes, deletes a branch and pushes a tag; after the fetch the dialog opens by itself
+ * with the last 24 hours, every row jumps (and closes it) and the palette opens it again. A fetch that
+ * changes nothing opens nothing, neither does news older than 24 hours (the palette then shows the
+ * empty state), and own pushes do not open it but their commits are listed. The German texts.
  *
  *   node e2e/features/digest.mjs
- *   E2E_WD_ONLY=windows node e2e/features/digest.mjs
+ *   E2E_WD_ONLY=German node e2e/features/digest.mjs
  *
- * The seen state ages by editing `repo_seen.seen_at` in the app's database (no debug switch in the app).
- * Every check of a jump target asks Git: `git rev-parse` in the app's clone.
+ * The "last shown" state is `repo_seen` in the app's database; the scenarios only read it, to wait for
+ * the snapshot the first open creates. Every check of a jump target asks Git: `git rev-parse` in the app's clone.
  */
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { gitIsolationEnv, makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { syncUi } from "../fixtures/sync-ui.mjs";
-import { assert, assertEqual, assertMatch, scenario } from "../lib.mjs";
+import { assert, assertEqual, scenario } from "../lib.mjs";
 
 const LAUNCH = { width: 1440, height: 900, theme: "light", lang: "en" };
-const CARD = '[data-screen="digest-card"]';
+const DIGEST = '[data-screen="digest"]';
+const TITLE = /^What's new/;
 const MIRA = { name: "Mira Weber", email: "mira.weber@wetterstation.example" };
 
 // ---------------------------------------------------------------------------------------------
@@ -63,13 +63,13 @@ function prepare(fx) {
   fx.write("stationen.csv", "kürzel;name;höhe_m\nN;Schule Nord;41\nS;Schule Süd;37\nH;Hafen;3\nW;Werft;5\n");
 }
 
-/** What Mira does: two commits on `main` (the second touches `stationen.csv`), a force push, a delete, a tag. */
+/** What Mira does: two commits on `main` (the second touches `stationen.csv`), a force push to an old commit, a delete, a tag. */
 function miraWorks(fx) {
   const mira = colleague(fx);
   mira.commit("src/login.py", '"""Prüft die Anmeldung."""\n', "Login prüfen");
   mira.commit("stationen.csv", "kürzel;name;höhe_m\nN;Schule Nord;41\nS;Schule Süd;37\nH;Hafenkante;3\n", "Station Hafen umbenannt");
   mira.run("push", "-q", "origin", "main");
-  // Back to an older commit: rewritten, but nothing new to list.
+  // Back to an older commit: moved, but nothing in the last 24 hours to list.
   mira.run("push", "-q", "-f", "origin", "HEAD~3:refs/heads/feature/alt");
   mira.run("push", "-q", "origin", ":refs/heads/feature/weg");
   mira.run("tag", "v1.0");
@@ -90,31 +90,28 @@ async function start(t, options = {}) {
   return { app, ui };
 }
 
-/** Opens the repository and takes the seen state now (as a first look at the card would). */
-async function openAndSee(app, ui, fx) {
-  const ids = await app.openRepo(fx.path);
-  await app.waitFor(() => ui.toolButton("Fetch"), 20_000, { message: "repository toolbar" });
-  const { mark } = await app.invoke("digest_get", { repoId: ids.repoId });
-  await app.invoke("digest_mark_seen", { repoId: ids.repoId, mark });
-  await app.settle();
-  return ids;
-}
-
-/** Moves the seen state a day back in the app's database, so the check after a fetch may open the card. */
-async function ageSeenState(app) {
+/** The rows of `repo_seen` in the app's database. */
+async function snapshotCount(app) {
   // node:sqlite warns once that it is experimental; that line is noise in the feature log.
   const emit = process.emitWarning;
   process.emitWarning = () => undefined;
   const { DatabaseSync } = await import("node:sqlite");
   process.emitWarning = emit;
-  const db = new DatabaseSync(path.join(app.dataDir, "forkyard.db"));
+  const db = new DatabaseSync(path.join(app.dataDir, "forkyard.db"), { readOnly: true });
   try {
     db.exec("pragma busy_timeout = 5000");
-    const { changes } = db.prepare("update repo_seen set seen_at = ?").run(new Date(Date.now() - 24 * 3600_000).toISOString());
-    assertEqual(changes, 1, "one seen state aged");
+    return db.prepare("select count(*) as n from repo_seen").get().n;
   } finally {
     db.close();
   }
+}
+
+/** Opens the repository and waits for the snapshot the first open creates: what a fetch is compared with. */
+async function openAndWait(app, ui, fx) {
+  const ids = await app.openRepo(fx.path);
+  await app.waitFor(() => ui.toolButton("Fetch"), 20_000, { message: "repository toolbar" });
+  await app.waitFor(async () => (await snapshotCount(app)) === 1, 20_000, { message: "the first open stored the refs" });
+  return ids;
 }
 
 async function fetchNow(ui) {
@@ -127,168 +124,147 @@ const textOf = (app, selector) =>
   app.exec((wanted) => document.querySelector(wanted)?.innerText.replace(/\s+/g, " ").trim() ?? null, selector);
 const rowTexts = (app) =>
   app.exec(
-    (card) => [...document.querySelectorAll(`${card} [data-digest-row]`)].map((row) => row.innerText.replace(/\s+/g, " ").trim()),
-    CARD,
+    (root) => [...document.querySelectorAll(`${root} [data-digest-row]`)].map((row) => row.innerText.replace(/\s+/g, " ").trim()),
+    DIGEST,
   );
 const rowByText = (app, text) =>
   app.waitFor(
     () =>
       app.exec(
-        (card, wanted) =>
-          [...document.querySelectorAll(`${card} [data-digest-row]`)].find((row) => row.innerText.replace(/\s+/g, " ").trim() === wanted) ??
+        (root, wanted) =>
+          [...document.querySelectorAll(`${root} [data-digest-row]`)].find((row) => row.innerText.replace(/\s+/g, " ").trim() === wanted) ??
           null,
-        CARD,
+        DIGEST,
         text,
       ),
     10_000,
     { message: `row “${text}”` },
   );
-const waitCard = (app) => app.waitFor(`${CARD} [data-digest-number="commits"]`, 20_000);
-const waitNoCard = (app, message = "card closed") => app.waitFor(async () => !(await app.$(CARD)), 10_000, { message });
 const waitCommits = (app, wanted) =>
-  app.waitFor(async () => (await textOf(app, `${CARD} [data-digest-number="commits"]`)) === wanted, 10_000, {
-    message: `card says “${wanted}”`,
+  app.waitFor(async () => (await textOf(app, `${DIGEST} [data-digest-number="commits"]`)) === wanted, 10_000, {
+    message: `dialog says “${wanted}”`,
   });
+const closeDialog = async (app, ui) => {
+  await app.click("[data-digest-close]");
+  await ui.waitNoDialog();
+};
 const graphSelected = (app, sha) =>
   app.waitFor(() => app.$(`[data-row-kind="commit"][data-row-id="${sha}"][aria-selected="true"]`), 10_000, {
     message: `graph selects ${sha.slice(0, 8)}`,
   });
-const digestStale = (app, repoId) =>
-  app.exec((id) => window.__gc.queryClient.getQueryState(["repo", id, "digest"])?.isInvalidated === true, repoId);
 
 // =============================================================================================
 // Scenarios
 // =============================================================================================
 
-scenario("palette shows what the colleague did; rows jump; Mark as seen empties it", "main", async (t) => {
+scenario("a fetch with news opens the dialog; rows jump; the palette opens it again", "main", async (t) => {
   const fx = makeCleanRepoWithRemote({ name: "messnetz" });
   try {
     prepare(fx);
     const { app, ui } = await start(t);
-    await openAndSee(app, ui, fx);
+    await openAndWait(app, ui, fx);
     miraWorks(fx);
     await fetchNow(ui);
     const login = git(fx, "rev-parse", "origin/main~1");
     const tip = git(fx, "rev-parse", "origin/main");
     assertEqual(git(fx, "log", "-1", "--format=%s", login), "Login prüfen", "origin/main~1 is Mira's first commit");
 
-    await ui.runCommand("What's new since", "repo.digest");
-    await waitCard(app);
-    assertMatch(await textOf(app, `${CARD} h2`), /^What's new – last looked /, "title");
-    assertEqual(await textOf(app, `${CARD} [data-digest-number="commits"]`), "2 new commits", "commits number");
-    assertEqual(await textOf(app, `${CARD} [data-digest-number="files"]`), "1 of your files affected", "files number");
+    await ui.waitDialog(TITLE, 30_000);
+    assertEqual((await ui.waitDialog(TITLE)).title, "What's new – last 24 hours", "title");
+    assertEqual(await textOf(app, `${DIGEST} [data-digest-number="commits"]`), "2 new commits", "commits number");
+    assertEqual(await textOf(app, `${DIGEST} [data-digest-number="files"]`), "1 of your files affected", "files number");
     assertEqual(
       await rowTexts(app),
       [
         "feature/export is 2 commits behind origin/main",
-        "origin/feature/alt – force-pushed",
-        "origin/feature/weg – deleted",
         "origin/main – updated",
         "Station Hafen umbenannt – Mira Weber",
         "Login prüfen – Mira Weber",
         "v1.0 – new tag",
         "stationen.csv – changed locally",
       ],
-      "rows: behind, refs with their commits, your file",
+      "rows: behind, the base branch with its commits, the tag, your file (the old force push and the delete are no news)",
     );
     assertEqual(
-      await app.exec((card) => document.querySelector(card).querySelector("[aria-live]")?.getAttribute("aria-live"), CARD),
+      await app.exec((root) => document.querySelector(root).querySelector("[aria-live]")?.getAttribute("aria-live"), DIGEST),
       "polite",
       "numbers announced politely",
     );
-    assertMatch(
-      (await textOf(app, "[data-digest-announce]")) ?? "",
-      /^What's new – last looked /,
-      "the live region mounted before the card announces it",
-    );
-    await t.shot("card");
-
-    // The deleted ref has no target, but stays in the Tab order: aria-disabled, not disabled.
-    const deleted = await rowByText(app, "origin/feature/weg – deleted");
-    assertEqual(await deleted.attr("aria-disabled"), "true", "deleted row is aria-disabled");
-    assertEqual(await deleted.prop("disabled"), false, "deleted row is not natively disabled");
-    await app.exec((row) => row.focus(), await rowByText(app, "origin/feature/alt – force-pushed"));
-    await app.press("Tab");
-    assertEqual(
-      await app.exec(() => document.activeElement?.getAttribute("data-digest-row")),
-      "ref:remote:origin/feature/weg",
-      "Tab reaches the deleted row",
-    );
+    await t.shot("dialog");
 
     await app.click(await rowByText(app, "feature/export is 2 commits behind origin/main"));
+    await ui.waitNoDialog();
     await graphSelected(app, tip);
-    t.step("the behind row selects origin/main");
+    t.step("the behind row closes the dialog and selects origin/main");
+
+    // The same 24 hours from the palette.
+    await ui.runCommand("What's new", "repo.digest");
+    await ui.waitDialog(TITLE);
+    await waitCommits(app, "2 new commits");
     await app.click(await rowByText(app, "Login prüfen – Mira Weber"));
+    await ui.waitNoDialog();
     await graphSelected(app, login);
     t.step("the commit row selects Login prüfen");
-
-    await app.click(`${CARD} [data-digest-seen]`);
-    await waitNoCard(app);
-    await ui.runCommand("What's new since", "repo.digest");
-    await ui.waitToast(/^Nothing new – last looked /, "info");
-    assert(!(await app.$(CARD)), "no card when nothing is new");
     await t.noConsoleErrors(app);
   } finally {
     fx.cleanup();
   }
 });
 
-scenario(
-  "after a fetch the card opens; a fetch while it is open makes Mark as seen reload first; seen news stay away",
-  "main",
-  async (t) => {
-    const fx = makeCleanRepoWithRemote({ name: "messnetz" });
-    try {
-      const { app, ui } = await start(t);
-      const { repoId } = await openAndSee(app, ui, fx);
-      const mira = colleague(fx);
-      await ageSeenState(app);
-      mira.commit("docs/a.md", "A\n", "Messreihe A");
-      mira.run("push", "-q", "origin", "main");
-      await fetchNow(ui);
-      await waitCard(app);
-      await waitCommits(app, "1 new commit");
-      assert(
-        await app.exec((card) => !document.querySelector(card).contains(document.activeElement), CARD),
-        "the card does not take focus",
-      );
-      t.step("card opened by the fetch");
+scenario("a fetch that changes nothing opens nothing; new news open it again with the whole window", "main", async (t) => {
+  const fx = makeCleanRepoWithRemote({ name: "messnetz" });
+  try {
+    const { app, ui } = await start(t);
+    await openAndWait(app, ui, fx);
+    const mira = colleague(fx);
+    mira.commit("docs/a.md", "A\n", "Messreihe A");
+    mira.run("push", "-q", "origin", "main");
+    await fetchNow(ui);
+    await ui.waitDialog(TITLE, 30_000);
+    await waitCommits(app, "1 new commit");
+    await closeDialog(app, ui);
 
-      mira.commit("docs/b.md", "B\n", "Messreihe B");
-      mira.run("push", "-q", "origin", "main");
-      await fetchNow(ui);
-      await app.waitFor(() => digestStale(app, repoId), 10_000, { message: "the open card knows it is behind the fetch" });
-      await waitCommits(app, "1 new commit");
-      await app.click(`${CARD} [data-digest-seen]`);
-      await app.waitFor(`${CARD} [data-digest-reloaded]`, 10_000);
-      assertEqual(
-        await textOf(app, `${CARD} [data-digest-reloaded]`),
-        "New changes arrived – check them, then mark as seen",
-        "reload hint",
-      );
-      await waitCommits(app, "2 new commits");
-      await t.shot("reloaded");
-      await app.click(`${CARD} [data-digest-seen]`);
-      await waitNoCard(app, "the second click marks as seen");
+    await fetchNow(ui);
+    await app.settle();
+    assertEqual(await ui.dialog(), null, "the same refs open nothing");
+    t.step("an unchanged fetch opens nothing");
 
-      // Old enough again, and one more commit: only that one is news.
-      await ageSeenState(app);
-      mira.commit("docs/c.md", "C\n", "Messreihe C");
-      mira.run("push", "-q", "origin", "main");
-      await fetchNow(ui);
-      await waitCard(app);
-      await waitCommits(app, "1 new commit");
-      const rows = await rowTexts(app);
-      assert(rows.includes("Messreihe C – Mira Weber"), `C listed: ${JSON.stringify(rows)}`);
-      assert(!rows.some((row) => /Messreihe [AB]/.test(row)), `A and B do not come back: ${JSON.stringify(rows)}`);
-      await t.noConsoleErrors(app);
-    } finally {
-      fx.cleanup();
-    }
-  },
-);
+    mira.commit("docs/b.md", "B\n", "Messreihe B");
+    mira.run("push", "-q", "origin", "main");
+    await fetchNow(ui);
+    await ui.waitDialog(TITLE, 30_000);
+    await waitCommits(app, "2 new commits");
+    const rows = await rowTexts(app);
+    assert(rows.includes("Messreihe A – Mira Weber") && rows.includes("Messreihe B – Mira Weber"), `both listed: ${JSON.stringify(rows)}`);
+    await t.noConsoleErrors(app);
+  } finally {
+    fx.cleanup();
+  }
+});
 
-scenario("own push and own force push never appear", "edge", async (t) => {
+scenario("news older than 24 hours open nothing; the palette shows the empty state", "edge", async (t) => {
+  const fx = makeCleanRepoWithRemote({ name: "messnetz" });
+  try {
+    const { app, ui } = await start(t);
+    await openAndWait(app, ui, fx);
+    // The fixture dates its commits long ago: the fetch changes the refs, the window holds nothing.
+    const sha = fx.commitOnRemote({ message: "Kalibrierung nachgetragen" });
+    await fetchNow(ui);
+    assertEqual(git(fx, "rev-parse", "origin/main"), sha, "the fetch brought the colleague's tip");
+    await app.settle();
+    assertEqual(await ui.dialog(), null, "no dialog");
+    await ui.runCommand("What's new", "repo.digest");
+    await ui.waitDialog(TITLE);
+    assertEqual(await textOf(app, `${DIGEST} [data-digest-empty]`), "Nothing new in the last 24 hours.", "empty state");
+    assertEqual(await rowTexts(app), [], "no rows");
+    await closeDialog(app, ui);
+    await t.noConsoleErrors(app);
+  } finally {
+    fx.cleanup();
+  }
+});
+
+scenario("own pushes open nothing, but the own commits are listed", "edge", async (t) => {
   const fx = makeCleanRepoWithRemote({ name: "messnetz" });
   try {
     git(fx, "checkout", "-q", "-b", "feature/eigen");
@@ -296,7 +272,7 @@ scenario("own push and own force push never appear", "edge", async (t) => {
     git(fx, "add", "-A");
     git(fx, "commit", "-q", "-m", "Eigene Auswertung");
     const { app, ui } = await start(t);
-    await openAndSee(app, ui, fx);
+    await openAndWait(app, ui, fx);
 
     await ui.clickTool("Push");
     await ui.waitDialog(/^Where to push\?$/, 30_000);
@@ -312,77 +288,17 @@ scenario("own push and own force push never appear", "edge", async (t) => {
     await ui.waitToast(/Force-pushed to origin\/feature\/eigen/, "success", 60_000);
     assertEqual(gitIn(fx, fx.remotePath, ["rev-parse", "feature/eigen"]), git(fx, "rev-parse", "HEAD"), "the amend is on the remote");
 
-    await ui.runCommand("What's new since", "repo.digest");
-    await ui.waitToast(/^Nothing new – last looked /, "info");
-    assert(!(await app.$(CARD)), "no card for own pushes");
-    await t.noConsoleErrors(app);
-  } finally {
-    fx.cleanup();
-  }
-});
-
-scenario("a fetch with a fresh seen state opens no card", "edge", async (t) => {
-  const fx = makeCleanRepoWithRemote({ name: "messnetz" });
-  try {
-    const { app, ui } = await start(t);
-    const { repoId } = await openAndSee(app, ui, fx);
-    const sha = fx.commitOnRemote({ message: "Kalibrierung nachgetragen" });
     await fetchNow(ui);
-    assertEqual(git(fx, "rev-parse", "origin/main"), sha, "the fetch brought the colleague's tip");
-    // The check after the fetch answers before any Git work while the seen state is young.
-    assertEqual(await app.invoke("digest_get", { repoId, minAgeHours: 8 }), null, "the young seen state answers nothing");
     await app.settle();
-    assert(!(await app.$(CARD)), "no card");
-    // The news are there, the palette shows them.
-    await ui.runCommand("What's new since", "repo.digest");
-    await waitCard(app);
-    await waitCommits(app, "1 new commit");
-    await t.noConsoleErrors(app);
-  } finally {
-    fx.cleanup();
-  }
-});
-
-/** Switches into the window with this label and waits for its shell. */
-async function enter(app, wanted) {
-  await app.waitFor(
-    async () => {
-      for (const handle of await app.windowHandles()) {
-        await app.switchToWindow(handle);
-        const here = await app.exec(() => window.__TAURI_INTERNALS__.metadata.currentWindow.label).catch(() => null);
-        if (here === wanted) return handle;
-      }
-      return null;
-    },
-    15_000,
-    { message: `window ${wanted}` },
-  );
-  await app.waitForShell(30_000);
-  await app.settle();
-}
-
-scenario("two windows: closing the card in one closes it in the other", "edge", async (t) => {
-  const fx = makeCleanRepoWithRemote({ name: "messnetz" });
-  try {
-    const { app, ui } = await start(t);
-    await openAndSee(app, ui, fx);
-    fx.commitOnRemote({ message: "Kalibrierung nachgetragen" });
-    await fetchNow(ui);
-    const second = await app.invoke("window_new");
-    await enter(app, second);
-    await app.openRepo(fx.path);
-    await ui.install();
-    await ui.runCommand("What's new since", "repo.digest");
-    await waitCard(app);
-
-    await enter(app, "main");
-    await ui.runCommand("What's new since", "repo.digest");
-    await waitCard(app);
-    await app.click(`${CARD} [data-digest-close]`);
-    await waitNoCard(app, "closed in the main window");
-
-    await enter(app, second);
-    await waitNoCard(app, "closed in the second window too");
+    assertEqual(await ui.dialog(), null, "the pushes are what the app already knows: nothing opens");
+    await ui.runCommand("What's new", "repo.digest");
+    await ui.waitDialog(TITLE);
+    const rows = await rowTexts(app);
+    assert(rows.includes("origin/feature/eigen – updated"), `the branch is listed: ${JSON.stringify(rows)}`);
+    assert(
+      rows.some((row) => row.startsWith("Eigene Auswertung, korrigiert – ")),
+      `the own commit is listed: ${JSON.stringify(rows)}`,
+    );
     await t.noConsoleErrors(app);
   } finally {
     fx.cleanup();
@@ -394,25 +310,17 @@ scenario("German texts", "edge", async (t) => {
   try {
     prepare(fx);
     const { app, ui } = await start(t, { lang: "de" });
-    await openAndSee(app, ui, fx);
+    await openAndWait(app, ui, fx);
     miraWorks(fx);
     await ui.clickTool("Fetch");
-    await app.waitFor(() => git(fx, "rev-parse", "origin/main") === git(fx, "rev-parse", "refs/tags/v1.0"), 60_000, {
-      message: "fetched",
-    });
-    await app.settle();
-    await ui.runCommand("Was ist neu seit", "repo.digest");
-    await waitCard(app);
-    assertMatch(await textOf(app, `${CARD} h2`), /^Neu – zuletzt angesehen /, "German title");
-    assertEqual(await textOf(app, `${CARD} [data-digest-number="commits"]`), "2 neue Commits", "German commits number");
+    await ui.waitDialog(/^Neu – letzte 24 Stunden$/, 60_000);
+    assertEqual(await textOf(app, `${DIGEST} [data-digest-number="commits"]`), "2 neue Commits", "German commits number");
     const rows = await rowTexts(app);
-    assert(rows.includes("origin/feature/alt – force-gepusht"), `force-gepusht: ${JSON.stringify(rows)}`);
-    assertEqual(await textOf(app, `${CARD} [data-digest-seen]`), "Als gesehen markieren", "German button");
+    assert(rows.includes("origin/main – aktualisiert"), `aktualisiert: ${JSON.stringify(rows)}`);
+    assert(rows.includes("v1.0 – neuer Tag"), `neuer Tag: ${JSON.stringify(rows)}`);
+    assertEqual(await textOf(app, "[data-digest-close]"), "Schließen", "German button");
     await t.shot("deutsch");
-    await app.click(`${CARD} [data-digest-seen]`);
-    await waitNoCard(app);
-    await ui.runCommand("Was ist neu seit", "repo.digest");
-    await ui.waitToast(/^Nichts Neues – zuletzt angesehen /, "info");
+    await closeDialog(app, ui);
     await t.noConsoleErrors(app);
   } finally {
     fx.cleanup();

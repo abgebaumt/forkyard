@@ -451,7 +451,7 @@
   "repo": {
     "digest": {
       "keywords": "digest,since yesterday,changes,news,catch up",
-      "title": "What's new since …"
+      "title": "What's new …"
     },
     "cleanupBranches": {
       "keywords": "delete old branches merged stale prune",

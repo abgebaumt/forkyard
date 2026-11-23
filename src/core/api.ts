@@ -33,7 +33,6 @@ import type {
   BranchCleanupList,
   BranchCleanupTarget,
   Digest,
-  DigestMark,
   Agent,
   AgentCleanupPreview,
   AgentSuggestion,
@@ -446,19 +445,15 @@ export interface CoreCommands {
    */
   branchCleanupDelete(input: R & { targets: BranchCleanupTarget[] }): Promise<RefsSnapshot>;
   /**
-   * "What's new since …": changed remote branches and tags since the seen state, their foreign
-   * commits, your files they touch, how far the current branch is behind. With `minAgeHours`,
-   * `null` while the seen state is younger (no Git work). Without a seen state one is created and
-   * the digest is empty.
+   * "What's new": the last 24 hours – remote branches with commits (other people's and your own) and
+   * new tags, which of your files other people's commits touch, how far the current branch is behind
+   * and, with a host, active, merged and closed pull requests. Every answer stores the remote refs it
+   * was based on. With `ifChanged` (the check after a fetch) `null` while they are the ones the last
+   * answer was based on (no Git work beyond reading them) and when the window holds nothing.
    */
-  digestGet(input: R & { minAgeHours?: number | null }): Promise<Digest | null>;
+  digestGet(input: R & { ifChanged?: boolean | null }): Promise<Digest | null>;
   /**
-   * Stores what the shown digest compared (`digest.mark`) as seen, so what arrived after it stays news; a ref an
-   * own push moved meanwhile keeps that. `prMaxNumber`/`prOpen: null` keep the stored PR data. Reports `repo:changed` with `seen`.
-   */
-  digestMarkSeen(input: R & { mark: DigestMark }): Promise<void>;
-  /**
-   * One paragraph about the current digest, as plain text; the seen state stays. Job `jobId`
+   * One paragraph about the current digest, as plain text. Job `jobId`
    * (cancellable). Show and confirm `aiPreview` with `{ kind: "digest" }` first. Errors: `ai_disabled`,
    * `ai_not_configured`, `ai_provider_unavailable`, `ai_invalid_answer`, `ai_refused`, `ai_limit_reached`,
    * `ai_too_large`, `not_allowed` (not confirmed), `repo_untrusted`, `cancelled`, `timeout`.
