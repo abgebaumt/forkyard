@@ -89,7 +89,7 @@
     "activityHint": "Log of the Git commands that were run",
     "activity": "Log",
     "versionHint": "Forkyard {{version}} – open the changelog on GitHub",
-    "versionLabel": "Forkyard version {{version}}, changelog"
+    "versionLabel": "Forkyard {{version}}, changelog"
   },
   "tabMenu": {
     "closeOthers": "Close other tabs",

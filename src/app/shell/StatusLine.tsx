@@ -236,7 +236,7 @@ function AppVersion() {
       <button
         type="button"
         data-status="version"
-        aria-label={t("shell.status.versionLabel", { version: info.version })}
+        aria-label={t("shell.status.versionLabel", { version: versionLabel(info.version) })}
         onClick={() => void openInBrowser(CHANGELOG_URL, t("shell.status.versionHint", { version: info.version }))}
         className="shrink-0 rounded-sm px-1 tabular-nums hover:bg-surface-raised hover:text-text"
       >
