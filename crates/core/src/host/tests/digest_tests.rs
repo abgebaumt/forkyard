@@ -68,6 +68,16 @@ async fn new_comments_on_your_pull_request() {
 }
 
 #[tokio::test]
+async fn azure_counts_new_comments_on_your_pull_request_created_before_the_window() {
+    let fx = Fixture::new(HostKind::AzureDevops).await;
+    fx.state.lock().pr_authors = vec![(1, "lena".into())];
+    // PR 1 was created at 09-02 08:01 and Azure reports nothing later; mira commented at 09:00 and 09:30.
+    let d = since(&fx, "2026-09-02T08:30:00Z").await;
+    let prs = d.prs.unwrap();
+    assert_eq!(prs.comments, vec![DigestPrComments { number: 1, title: "Thema 1 umsetzen".into(), count: 2 }]);
+}
+
+#[tokio::test]
 async fn a_failing_pull_request_detail_drops_the_whole_pr_part() {
     let fx = Fixture::new(HostKind::Github).await;
     fx.state.lock().pr_authors = vec![(1, "lena-hartmann".into())];

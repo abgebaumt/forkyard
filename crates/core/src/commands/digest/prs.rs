@@ -38,12 +38,15 @@ pub(crate) async fn pr_part(core: &Core, repo_id: &str, since: DateTime<Utc>) ->
         return missing(kind);
     };
     let remote = Some(found.remote.clone());
+    // Azure DevOps has no update time: `updated_at` is when the PR was created or closed, and the list is
+    // sorted by creation.
+    let by_update = kind != HostKind::AzureDevops;
     let mut prs: Vec<PrSummary> = Vec::new();
     for page in 1..=PAGES {
         match host_cmd::pr_list_lean(core, repo_id, PrListState::All, page, &found.remote).await {
             Ok(list) => {
-                // Sorted by update except on Azure: a page ending before the window ends the list.
-                let past = kind != HostKind::AzureDevops && list.items.last().is_some_and(|pr| !after(&pr.updated_at, since));
+                // Sorted by update: a page ending before the window ends the list.
+                let past = by_update && list.items.last().is_some_and(|pr| !after(&pr.updated_at, since));
                 prs.extend(list.items);
                 if list.next_page.is_none() || past {
                     break;
@@ -84,7 +87,11 @@ pub(crate) async fn pr_part(core: &Core, repo_id: &str, since: DateTime<Utc>) ->
         let is_me = |author: Option<&str>| author.is_some_and(|a| a.eq_ignore_ascii_case(login));
         let own = prs
             .iter()
-            .filter(|pr| pr.state == PrState::Open && is_me(pr.author.as_ref().map(|a| a.login.as_str())) && after(&pr.updated_at, since))
+            .filter(|pr| {
+                pr.state == PrState::Open
+                    && is_me(pr.author.as_ref().map(|a| a.login.as_str()))
+                    && (!by_update || after(&pr.updated_at, since))
+            })
             .take(OWN_PRS);
         for pr in own {
             let details = match host_cmd::pr_get(core, repo_id.to_string(), pr.number, remote.clone()).await {
