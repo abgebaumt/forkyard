@@ -349,3 +349,15 @@ async fn the_noreply_address_of_a_connected_github_account_is_own() {
     // No token in the keychain: the PR part stops before any request, which keeps this test offline.
     assert_eq!(digest.pr_data_missing, Some(HostKind::Github));
 }
+
+#[tokio::test]
+async fn own_unpushed_commits_on_a_local_branch_are_news() {
+    let d = colleague_day(colleague_story).await;
+    d.repo.commit_as("Noch lokal", "Lena", "lena@example.com", &at(5));
+    let digest = shown(&d.tc, &d.id).await;
+    let local: Vec<_> = digest.refs.iter().filter(|r| r.kind == RefKind::Local).map(|r| (r.name.as_str(), r.new_commits)).collect();
+    // Only the unpushed commit: pushed ones stay under their remote branch, local `main` is behind and has none.
+    assert_eq!(local, vec![("feature/mein", 1)]);
+    assert_eq!(digest.refs.iter().find(|r| r.kind == RefKind::Local).unwrap().commits[0].subject, "Noch lokal");
+    assert_eq!(digest.new_commits, 5);
+}
