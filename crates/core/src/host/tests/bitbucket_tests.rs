@@ -136,7 +136,7 @@ async fn pull_requests_are_listed_and_read() {
         vec![("build", CheckRunState::Passing), ("docs", CheckRunState::Skipped)]
     );
     assert_eq!((pr.summary.checks, pr.mergeable), (Some(ChecksState::Passing), Some(true)));
-    assert_eq!(pr.head_sha.as_str(), &format!("{:040x}", 1)[..12]);
+    assert_eq!(pr.head_sha, format!("{:040x}", 1), "the short hash of `source.commit` becomes the full ID from the commit list");
     assert_eq!(cmd::pr_get(&fx.tc, fx.id(), 13, None).await.unwrap().mergeable, Some(false), "a conflict in the diffstat");
     assert_eq!(cmd::pr_get(&fx.tc, fx.id(), 999, None).await.unwrap_err().message, "Pull request #999 does not exist in team/demo.");
 
