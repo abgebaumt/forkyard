@@ -1429,7 +1429,7 @@ fn az_pr(number: u64, state: &MockState) -> Value {
         "description": format!("Beschreibung zu **Thema {number}**."),
         "status": status,
         "isDraft": number == 3,
-        "createdBy": az_user("jonas"),
+        "createdBy": az_user(state.pr_authors.iter().find(|(n, _)| *n == number).map_or("jonas", |(_, login)| login.as_str())),
         "creationDate": updated(number),
         "closedDate": if status == "active" { Value::Null } else { json!(updated(number)) },
         "sourceRefName": format!("refs/heads/{}", source_branch(number)),
