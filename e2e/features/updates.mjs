@@ -10,9 +10,21 @@
  * - edge: a skipped version does not come back after a restart;
  * - edge: only a draft or prerelease exists (/releases/latest answers 404) → nothing reported.
  *
+ * Installing (Linux, AppImage): the updater plugin asks a local manifest (`FORKYARD_UPDATER_URL`) and
+ * checks the download against a key made per run (`FORKYARD_UPDATER_PUBKEY`); `APPIMAGE` is a temp file
+ * that the install replaces, the app does not restart (`FORKYARD_UPDATER_NO_RESTART`).
+ *
+ * - main: install from the toast: notes as Markdown, progress to 100 %, "Restart now" replaces the file;
+ * - edge: a download signed with another key is refused, the file stays;
+ * - edge: a package build (no AppImage) offers "View release" only and never asks for the manifest;
+ * - edge: the manifest names another version than the notice → stale_state, the file stays;
+ * - edge: "Restart now" asks about unsaved work in another window first; Cancel installs nothing;
+ * - main/edge: "What's new" shows once per version, and not at all without highlights.
+ *
  *   node e2e/features/updates.mjs
  *   E2E_WD_ONLY=skipped node e2e/features/updates.mjs
  */
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -49,10 +61,12 @@ const notFound = {
 };
 
 /** Local stand-in for api.github.com: records every request, answers with `answer()`. */
-async function startMock(answer) {
+async function startMock(answer, extra = null) {
   const requests = [];
   const server = http.createServer((req, res) => {
     requests.push({ method: req.method, url: req.url, headers: req.headers });
+    // `extra(req, res)`: the update manifest and the download; true = answered.
+    if (extra?.(req, res)) return;
     const { status, body } = req.url === ROUTE ? answer() : notFound;
     const text = JSON.stringify(body);
     res.writeHead(status, { "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(text) });
@@ -64,6 +78,7 @@ async function startMock(answer) {
     url: `http://127.0.0.1:${port}`,
     requests,
     count: () => requests.filter((request) => request.url === ROUTE).length,
+    countOf: (url) => requests.filter((request) => request.url === url).length,
     close: () => new Promise((resolve) => server.close(resolve)),
   };
 }
@@ -369,5 +384,328 @@ scenario(
     await runCommand(app, "Check for updates", "app.checkForUpdates");
     await waitToast(app, "success", /You are up to date/);
     await t.noConsoleErrors(app);
+  }),
+);
+
+// --- Installing ------------------------------------------------------------------------------
+
+const OLD_BYTES = Buffer.from("old AppImage, not yet replaced\n");
+const eq = (a, b) => Buffer.compare(a, b) === 0;
+
+/**
+ * Per run, in a temp dir that is removed afterwards: a good and a bad signing key, the payload (a copy of
+ * /bin/true) signed with `signWith`, and the file `APPIMAGE` points at. Keys never leave the temp dir.
+ */
+function makeUpdateFixture(t, { signWith = "good" } = {}) {
+  const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "fy-wd-updater-")));
+  t.cleanups.push(() => fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+  const tauri = (...args) =>
+    execFileSync("npx", ["tauri", ...args], { cwd: ROOT, stdio: "pipe", env: { ...process.env, TAURI_SIGNING_PRIVATE_KEY_PASSWORD: "" } });
+  for (const name of ["good", "bad"]) tauri("signer", "generate", "--ci", "-p", "", "-w", path.join(dir, `${name}.key`));
+  const payloadPath = path.join(dir, `Forkyard_${NEWER}_amd64.AppImage`);
+  fs.copyFileSync("/bin/true", payloadPath);
+  tauri("signer", "sign", "-f", path.join(dir, `${signWith}.key`), "-p", "", payloadPath);
+  const installDir = path.join(dir, "install");
+  fs.mkdirSync(installDir);
+  const appImage = path.join(installDir, "Forkyard.AppImage");
+  fs.writeFileSync(appImage, OLD_BYTES, { mode: 0o755 });
+  return {
+    pubkey: fs.readFileSync(path.join(dir, "good.key.pub"), "utf8").trim(),
+    signature: fs.readFileSync(`${payloadPath}.sig`, "utf8").trim(),
+    payload: fs.readFileSync(payloadPath),
+    appImage,
+    unchanged: () => eq(fs.readFileSync(appImage), OLD_BYTES),
+  };
+}
+
+/**
+ * Mock of the updater endpoint: `/latest.json` (announcing `version`) and the download. With `hold`, the
+ * download stops half way until `hold.open()` is called, so the progress can be watched.
+ */
+function updaterRoutes(fixture, { version = NEWER, hold = null } = {}) {
+  let origin = "";
+  const handler = (req, res) => {
+    if (req.url === "/latest.json") {
+      const text = JSON.stringify({
+        version,
+        notes: "Signed update.",
+        pub_date: "2026-11-02T09:30:00Z",
+        platforms: { "linux-x86_64": { signature: fixture.signature, url: `${origin}/Forkyard.AppImage` } },
+      });
+      res.writeHead(200, { "content-type": "application/json", "content-length": Buffer.byteLength(text) });
+      res.end(text);
+      return true;
+    }
+    if (req.url === "/Forkyard.AppImage") {
+      const half = Math.floor(fixture.payload.length / 2);
+      res.writeHead(200, { "content-type": "application/octet-stream", "content-length": fixture.payload.length });
+      if (!hold) return (res.end(fixture.payload), true);
+      res.write(fixture.payload.subarray(0, half));
+      void hold.promise.then(() => res.end(fixture.payload.subarray(half)));
+      return true;
+    }
+    return false;
+  };
+  return { handler, setOrigin: (url) => (origin = url) };
+}
+
+const gate = () => {
+  let open;
+  const promise = new Promise((resolve) => {
+    open = resolve;
+  });
+  return { promise, open };
+};
+
+/** Starts mock + app for an install scenario; `appImage: false` = a package build (no APPIMAGE). */
+async function launchInstaller(t, fixture, { release: notice = release(NEWER), version, hold, appImage = true, ...options } = {}) {
+  const routes = updaterRoutes(fixture, { version, hold });
+  const mock = await startMock(() => notice, routes.handler);
+  routes.setOrigin(mock.url);
+  t.cleanups.push(() => mock.close());
+  const env = {
+    FORKYARD_UPDATER_URL: `${mock.url}/latest.json`,
+    FORKYARD_UPDATER_PUBKEY: fixture.pubkey,
+    FORKYARD_UPDATER_NO_RESTART: "1",
+    APPIMAGE: appImage ? fixture.appImage : "",
+    ...(options.env ?? {}),
+  };
+  const app = await launch(t, mock.url, { ...options, env, ignoreErrors: [/update/i, /signature/i] });
+  return { app, mock };
+}
+
+const updateDialogPhase = (app) =>
+  app.exec(() => document.querySelector("[data-update-dialog]")?.getAttribute("data-update-dialog") ?? null);
+const waitPhase = (app, phase, timeout = 20_000) =>
+  app.waitFor(async () => (await updateDialogPhase(app)) === phase, timeout, { message: `update dialog phase ${phase}` });
+const dialogButton = (app, text) =>
+  app.waitFor(() => app.byText(text, { within: '[role="dialog"]' }), 10_000, { message: `dialog button ${text}` });
+const dialogText = (app) => app.exec(() => document.querySelector('[role="dialog"]')?.innerText.replace(/\s+/g, " ").trim() ?? "");
+const opened = (app) => app.exec(() => window.__gcTestOpened ?? []);
+
+/** Toast "Install…" → the dialog in its ready phase. */
+async function openInstallDialog(app) {
+  await waitToast(app, "info", /is available/);
+  await clickInToast(app, /is available/, "Install…");
+  await waitPhase(app, "ready");
+}
+
+scenario(
+  "install an update from the toast: notes, progress, restart replaces the file",
+  "main",
+  withCleanup(async (t) => {
+    const fixture = makeUpdateFixture(t);
+    const hold = gate();
+    const { app, mock } = await launchInstaller(t, fixture, {
+      hold,
+      release: release(NEWER, "## Highlights\n\n- **Faster** commit graph\n- Signed updates"),
+    });
+    await openInstallDialog(app);
+    assertEqual(await dialogTitle(app), `Forkyard ${NEWER}`);
+    const rendered = await app.exec(() => {
+      const root = document.querySelector("[data-update-dialog]");
+      return {
+        heading: [...root.querySelectorAll("h1,h2,h3,h4,h5,h6")].map((el) => el.innerText.trim()),
+        strong: [...root.querySelectorAll("strong,b")].map((el) => el.innerText.trim()),
+        text: root.innerText,
+      };
+    });
+    assertIncludes(rendered.heading, "Highlights", "heading rendered");
+    assertIncludes(rendered.strong, "Faster", "bold rendered");
+    assert(!rendered.text.includes("**") && !rendered.text.includes("##"), `no raw Markdown: ${rendered.text}`);
+    assertEqual(mock.countOf("/latest.json"), 0, "nothing is downloaded before the click");
+    await t.shot("update-dialog-notes");
+
+    await app.exec(() => {
+      window.__fyPercent = [];
+      new MutationObserver(() => {
+        const bar = document.querySelector('[role="progressbar"]');
+        if (bar) window.__fyPercent.push(Number(bar.getAttribute("aria-valuenow")));
+      }).observe(document.body, { subtree: true, attributes: true, childList: true });
+    });
+    await app.click(await dialogButton(app, "Install"));
+    await waitPhase(app, "downloading");
+    await app.waitFor(
+      () => app.exec(() => (Number(document.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")) || 0) > 0),
+      15_000,
+      { message: "progress while the download is held half way" },
+    );
+    assertEqual(await updateDialogPhase(app), "downloading", "still downloading while held");
+    assert(fixture.unchanged(), "nothing replaced during the download");
+    hold.open();
+    await waitPhase(app, "downloaded");
+    assertEqual(Math.max(...(await app.exec(() => window.__fyPercent))), 100, "progress reached 100 %");
+    assert(fixture.unchanged(), "nothing replaced before 'Restart now'");
+    assertIncludes(await dialogText(app), "Downloaded and checked");
+    await t.shot("update-downloaded");
+
+    await app.click(await dialogButton(app, "Restart now"));
+    await app.waitFor(async () => eq(fs.readFileSync(fixture.appImage), fixture.payload), 20_000, {
+      message: "APPIMAGE replaced by the payload",
+    });
+    t.step("file replaced, app kept running (no restart in the test)");
+  }),
+);
+
+scenario(
+  "an update signed with another key is refused and nothing is replaced",
+  "edge",
+  withCleanup(async (t) => {
+    const fixture = makeUpdateFixture(t, { signWith: "bad" });
+    const { app } = await launchInstaller(t, fixture);
+    await openInstallDialog(app);
+    await app.click(await dialogButton(app, "Install"));
+    await waitPhase(app, "error");
+    // The plugin's own message, then the hint of `update_signature_invalid`.
+    const text = await dialogText(app);
+    assertIncludes(text, "The update could not be installed");
+    assertIncludes(text, "signature");
+    assertIncludes(text, "Download the release from the release page instead.");
+    await app.click(await dialogButton(app, "Open release page"));
+    assertEqual(await app.waitFor(async () => ((await opened(app)).length ? opened(app) : null), 10_000), [PAGE(NEWER)]);
+    assert(fixture.unchanged(), "APPIMAGE untouched");
+    await t.shot("update-wrong-key");
+  }),
+);
+
+scenario(
+  "a package build offers only the release page and never asks for the manifest",
+  "edge",
+  withCleanup(async (t) => {
+    const fixture = makeUpdateFixture(t);
+    const { app, mock } = await launchInstaller(t, fixture, { appImage: false });
+    const toast = await waitToast(app, "info", /is available/);
+    assertIncludes(toast, "View release");
+    assert(!toast.includes("Install"), `no Install in the toast: ${toast}`);
+    await app.waitFor(async () => (await hint(app)) === `Forkyard ${NEWER} is available`, 10_000, { message: "status bar hint" });
+    await app.click("[data-update-hint]");
+    assertEqual(
+      await app.waitFor(async () => ((await opened(app)).length ? opened(app) : null), 10_000),
+      [PAGE(NEWER)],
+      "hint opens the page",
+    );
+    assertEqual(await dialogTitle(app), null, "no install dialog");
+    assertEqual(mock.countOf("/latest.json"), 0, "the manifest is not requested");
+    assert(fixture.unchanged());
+  }),
+);
+
+scenario(
+  "the manifest names another version than the notice: stale state, nothing replaced",
+  "edge",
+  withCleanup(async (t) => {
+    const fixture = makeUpdateFixture(t);
+    const { app } = await launchInstaller(t, fixture, { version: NEWER.replace(/\d+$/, "1") });
+    await openInstallDialog(app);
+    await app.click(await dialogButton(app, "Install"));
+    await waitPhase(app, "error");
+    assertIncludes(await dialogText(app), "The release changed since the last check.");
+    assert(fixture.unchanged(), "APPIMAGE untouched");
+  }),
+);
+
+scenario(
+  "Restart now asks about unsaved work in another window first",
+  "edge",
+  withCleanup(async (t) => {
+    const fixture = makeUpdateFixture(t);
+    const { app } = await launchInstaller(t, fixture);
+    await openInstallDialog(app);
+    await app.click(await dialogButton(app, "Install"));
+    await waitPhase(app, "downloaded");
+
+    // The second window has something to lose (as unsaved text reports it).
+    const main = await app.exec(() => window.__TAURI_INTERNALS__.metadata.currentWindow.label);
+    const second = await app.invoke("window_new");
+    const into = (wanted) =>
+      app.waitFor(
+        async () => {
+          for (const handle of await app.windowHandles()) {
+            await app.switchToWindow(handle);
+            if ((await app.exec(() => window.__TAURI_INTERNALS__.metadata.currentWindow.label).catch(() => null)) === wanted) return true;
+          }
+          return null;
+        },
+        15_000,
+        { message: `window ${wanted}` },
+      );
+    await into(second);
+    await app.waitForShell(30_000);
+    await app.exec(() => window.__TAURI_INTERNALS__.invoke("app_close_guard", { active: true }));
+    await into(main);
+    await app.waitForShell(30_000);
+
+    await app.click(await dialogButton(app, "Restart now"));
+    const prompt = await app.waitFor(
+      () =>
+        app.exec(
+          () =>
+            [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].find((el) => /other window/.test(el.innerText)) ?? null,
+        ),
+      10_000,
+      { message: "the close guard names the other window" },
+    );
+    assertIncludes(await app.exec((el) => el.innerText, prompt), "1 other window has unsaved work");
+    await app.click(
+      await app.waitFor(
+        () => app.exec((el) => [...el.querySelectorAll("button")].find((button) => button.innerText.trim() === "Cancel") ?? null, prompt),
+        10_000,
+        { message: "Cancel in the close guard" },
+      ),
+    );
+    await app.waitFor(() => app.exec(() => !/other window/.test(document.body.innerText)), 10_000, { message: "prompt closed" });
+    assert(fixture.unchanged(), "APPIMAGE unchanged after Cancel");
+    // The guard's question needs the stage to itself, so the dialog comes back where it was.
+    await waitPhase(app, "downloaded");
+    await dialogButton(app, "Restart now");
+  }),
+);
+
+// --- What's new --------------------------------------------------------------------------------
+
+const whatsNewTitle = async (app) => {
+  const title = await dialogTitle(app);
+  return title?.startsWith("What's new") ? title : null;
+};
+
+scenario(
+  "What's new shows once per version",
+  "main",
+  withCleanup(async (t) => {
+    const dataDir = persistentDataDir(t);
+    const version = (v) => ({ dataDir, env: { FORKYARD_APP_VERSION: v } });
+
+    let app = await launch(t, "off", version("1.2.9"));
+    await app.settle();
+    assertEqual(await whatsNewTitle(app), null, "a fresh installation shows nothing");
+    await app.close();
+
+    app = await launch(t, "off", { ...version("1.3.0"), restart: true });
+    await app.waitFor(async () => (await whatsNewTitle(app)) === "What's new in Forkyard 1.3.0", 20_000, {
+      message: "the What's new dialog",
+    });
+    assertEqual(await app.exec(() => [...document.querySelectorAll('[role="dialog"] li')].length), 6, "the 1.3.0 highlights");
+    await t.shot("whats-new");
+    await app.click(await dialogButton(app, "Let's go"));
+    await app.waitFor(async () => (await dialogTitle(app)) === null, 10_000, { message: "dialog closed" });
+    await app.close();
+
+    app = await launch(t, "off", { ...version("1.3.0"), restart: true });
+    await app.settle();
+    assertEqual(await whatsNewTitle(app), null, "not shown a second time");
+  }),
+);
+
+scenario(
+  "What's new stays away for a version without highlights",
+  "edge",
+  withCleanup(async (t) => {
+    const dataDir = persistentDataDir(t);
+    let app = await launch(t, "off", { dataDir, env: { FORKYARD_APP_VERSION: "1.2.9" } });
+    await app.settle();
+    await app.close();
+    app = await launch(t, "off", { dataDir, restart: true, env: { FORKYARD_APP_VERSION: "1.3.7" } });
+    await app.settle();
+    assertEqual(await whatsNewTitle(app), null, "no highlights for 1.3.7, no dialog");
   }),
 );
