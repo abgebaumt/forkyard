@@ -2,11 +2,24 @@
 import { core, type Id, type Tab } from "../../core";
 import { qk, queryClient } from "../../app/queries";
 import { runAction } from "../../app/run";
+import { useAppStore } from "../../app/store";
 import { t } from "../../i18n";
 import { showDigestDialog } from "./index";
 
 /** Repositories with a dialog open or a check in flight: a second fetch or command meanwhile asks nothing. */
 const busy = new Set<Id>();
+
+/** Resolves once no sign-in or host prompt is open: that one lives outside the dialog queue, and a dialog opened over it would take its focus. */
+function credentialsAnswered(): Promise<void> {
+  return new Promise((resolve) => {
+    if (!useAppStore.getState().credentialQueue.length) return resolve();
+    const stop = useAppStore.subscribe((state) => {
+      if (state.credentialQueue.length) return;
+      stop();
+      resolve();
+    });
+  });
+}
 
 /**
  * After a fetch: the dialog opens when the remote refs changed since the last one and the last 24
@@ -19,7 +32,9 @@ export async function checkDigestAfterFetch(repoId: Id): Promise<void> {
   busy.add(repoId);
   try {
     const digest = await core.digestGet({ repoId, ifChanged: true });
-    if (digest) await showDigestDialog(repoId, tab.id, digest);
+    if (!digest) return;
+    await credentialsAnswered();
+    await showDigestDialog(repoId, tab.id, digest);
   } catch (error) {
     // A background check: the user asked for nothing, the palette command still shows errors.
     console.debug("What's new: check after a fetch failed", error);
