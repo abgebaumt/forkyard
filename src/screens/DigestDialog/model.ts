@@ -1,12 +1,6 @@
-/** "What's new since …": the card's numbers and rows from a `Digest` (pure). */
+/** "What's new": the dialog's numbers and rows from a `Digest` (pure). */
 import type { Digest } from "../../core";
 import { t } from "../../i18n";
-
-/** After a fetch the card only appears when the seen state is at least this old. */
-export const AUTO_MIN_AGE_HOURS = 8;
-
-/** Rows shown before "Show all". */
-export const ROW_LIMIT = 8;
 
 export type DigestNumbers = { commits: number; prs: number; files: number };
 
@@ -31,7 +25,7 @@ export function digestRows(d: Digest): DigestRow[] {
     rows.push({ kind: "behind", key: "behind", label: t("digest.behind", { branch, base, count: behind }) });
   }
   for (const ref of d.refs) {
-    const word = ref.kind === "tag" && ref.change === "new" ? "newTag" : ref.change;
+    const word = ref.kind === "tag" ? "newTag" : "updated";
     // A remote branch and a tag can share a short name.
     const id = `${ref.kind}:${ref.name}`;
     rows.push({ kind: "ref", key: `ref:${id}`, label: t(`digest.ref.${word}`, { name: ref.name }), sha: ref.newSha });

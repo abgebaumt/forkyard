@@ -123,8 +123,7 @@ commands! {
     branch_delete => branches::branch_delete(repo_id: String, names: Vec<String>, force: bool) -> RefsSnapshot;
     branch_cleanup_candidates => branch_cleanup::branch_cleanup_candidates(repo_id: String) -> BranchCleanupList;
     branch_cleanup_delete => branch_cleanup::branch_cleanup_delete(repo_id: String, targets: Vec<BranchCleanupTarget>) -> RefsSnapshot;
-    digest_get => digest::digest_get(repo_id: String, min_age_hours: Option<u32>) -> Option<Digest>;
-    digest_mark_seen => digest::digest_mark_seen(repo_id: String, mark: DigestMark) -> ();
+    digest_get => digest::digest_get(repo_id: String, if_changed: Option<bool>) -> Option<Digest>;
     branch_delete_remote => sync::branch_delete_remote(repo_id: String, job_id: String, remote: String, name: String, expected: Option<String>) -> PushResult;
     branch_set_upstream => branches::branch_set_upstream(repo_id: String, name: String, upstream: Option<String>) -> RefsSnapshot;
     branch_fast_forward => branches::branch_fast_forward(repo_id: String, branch: String) -> OpResult;

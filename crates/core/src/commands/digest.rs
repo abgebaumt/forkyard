@@ -1,53 +1,40 @@
-//! "What's new since …": what changed in a repository since the user last looked.
+//! "What's new": what happened in a repository in the last 24 hours.
 
 mod compose;
 mod prs;
 pub(crate) mod seen;
 
-pub(crate) use compose::compose_at;
+pub(crate) use compose::compose;
+
+/// The window of the digest.
+pub(crate) const WINDOW_HOURS: i64 = 24;
 
 use crate::app::Core;
 use crate::db::repo_seen;
 use crate::error::CoreResult;
-use crate::model::{Digest, DigestMark};
+use crate::model::Digest;
 
-/// What changed since the seen state. With `min_age_hours`, `None` while the seen state is younger,
-/// before any Git work (auto-fetch asks every minute). Without a seen state one is created and the
-/// digest is empty. A pure read: no lock.
-pub async fn digest_get(core: &Core, repo_id: String, min_age_hours: Option<u32>) -> CoreResult<Option<Digest>> {
+/// One answer at a time: two windows asking after the same fetch must not both find the refs changed.
+static ONE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+/// What happened in the last 24 hours. Every answer records the remote refs it was based on
+/// (`seen`). With `if_changed` (the check after a fetch) the answer is `None`, before any
+/// other Git work, while the remote refs are what the last shown digest was based on, and also
+/// when there is nothing new in the window.
+pub async fn digest_get(core: &Core, repo_id: String, if_changed: Option<bool>) -> CoreResult<Option<Digest>> {
+    let _one = ONE.lock().await;
     let profile_id = core.active_profile_id()?;
-    let stored = core.db.with(|c| repo_seen::get(c, &profile_id, &repo_id))?;
-    let (row, fresh) = match stored {
-        Some(row) => (row, false),
-        None => (seen::ensure(core, &repo_id).await?, true),
-    };
-    if let Some(hours) = min_age_hours {
-        let young = chrono::DateTime::parse_from_rfc3339(&row.seen_at)
-            .is_ok_and(|at| chrono::Utc::now().signed_duration_since(at) < chrono::Duration::hours(i64::from(hours)));
-        if young {
+    // Read before composing: a fetch meanwhile counts as changed next time.
+    let current = seen::current_refs(core, &repo_id).await?;
+    if if_changed == Some(true) {
+        let stored = core.db.with(|c| repo_seen::get(c, &profile_id, &repo_id))?;
+        if stored.map_or(true, |row| row.refs == current) {
             return Ok(None);
         }
     }
-    if fresh {
-        return Ok(Some(Digest {
-            seen_at: row.seen_at.clone(),
-            refs: Vec::new(),
-            new_commits: 0,
-            your_files: Vec::new(),
-            behind: None,
-            prs: None,
-            pr_data_missing: None,
-            mark: DigestMark { composed_at: row.seen_at, refs: row.refs, pr_max_number: row.pr_max_number, pr_open: Some(row.pr_open) },
-            is_empty: true,
-        }));
-    }
-    compose_at(core, &repo_id, &row).await.map(Some)
-}
-
-/// The user has seen what the card showed: `mark` comes from that digest, so what arrived after it
-/// was composed stays news.
-pub async fn digest_mark_seen(core: &Core, repo_id: String, mark: DigestMark) -> CoreResult<()> {
-    seen::mark(core, &repo_id, mark).await
+    let digest = compose(core, &repo_id, chrono::Utc::now() - chrono::Duration::hours(WINDOW_HOURS)).await?;
+    seen::store(core, &repo_id, current).await?;
+    Ok((!(digest.is_empty && if_changed == Some(true))).then_some(digest))
 }
 
 #[cfg(test)]

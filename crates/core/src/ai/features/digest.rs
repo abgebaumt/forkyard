@@ -1,6 +1,6 @@
-//! The AI writes one paragraph about "What's new since …".
+//! The AI writes one paragraph about "What's new".
 //!
-//! Context: the digest the card shows (`commands::digest`) – ref names and how they changed, commit
+//! Context: the digest the dialog shows (`commands::digest`) – ref names and how they changed, commit
 //! subjects (never authors, e-mail addresses, bodies or file contents), the names of the
 //! user's files the new commits touch, how far the current branch is behind, pull request numbers and
 //! titles. Secret and ignored file names are not named and show up in "What is sent?". Everything is
@@ -11,16 +11,16 @@ use serde_json::{json, Value};
 use crate::ai::context::{self, Built, Exclusions};
 use crate::ai::prompt::{self, Section};
 use crate::app::Core;
-use crate::commands::digest::{compose_at, seen};
+use crate::commands::digest::{compose, WINDOW_HOURS};
 use crate::error::{CoreError, CoreResult};
-use crate::model::{AiDigest, AiOmitReason, AiOmitted, Digest, DigestPrChange, DigestRefChange, RefKind, Settings};
+use crate::model::{AiDigest, AiOmitReason, AiOmitted, Digest, DigestPrChange, RefKind, Settings};
 
-/// Longest paragraph the card shows.
+/// Longest paragraph the dialog shows.
 pub const MAX_CHARS: usize = 1200;
-pub const DIGEST_TITLE: &str = "What changed since the user last looked";
+pub const DIGEST_TITLE: &str = "What changed in the last 24 hours";
 
 pub const INSTRUCTION: &str =
-    "Write one short paragraph in the user's language about what changed in the repository since the user last looked. \
+    "Write one short paragraph in the user's language about what changed in the repository in the last 24 hours. \
 Name branches, tags and pull requests by their names. \
 Give no advice and use no lists. Return the paragraph as `paragraph`.";
 
@@ -42,13 +42,7 @@ pub fn finish(value: &Value) -> AiDigest {
 fn render(digest: &Digest, exclusions: &Exclusions, omitted: &mut Vec<AiOmitted>) -> String {
     let mut out = String::new();
     for r in &digest.refs {
-        let change = match (r.kind, r.change) {
-            (RefKind::Tag, DigestRefChange::New) => "new tag",
-            (_, DigestRefChange::New) => "new",
-            (_, DigestRefChange::Updated) => "updated",
-            (_, DigestRefChange::Rewritten) => "force-pushed",
-            (_, DigestRefChange::Deleted) => "deleted",
-        };
+        let change = if r.kind == RefKind::Tag { "new tag" } else { "updated" };
         out.push_str(&format!("Ref {}: {change}, {} new commits\n", r.name, r.new_commits));
         for commit in &r.commits {
             out.push_str(&format!("   {}\n", commit.subject));
@@ -70,7 +64,7 @@ fn render(digest: &Digest, exclusions: &Exclusions, omitted: &mut Vec<AiOmitted>
     }
     for pr in digest.prs.iter().flat_map(|prs| &prs.changed) {
         let change = match pr.change {
-            DigestPrChange::Opened => "opened",
+            DigestPrChange::Updated => "updated",
             DigestPrChange::Merged => "merged",
             DigestPrChange::Closed => "closed",
         };
@@ -92,14 +86,13 @@ pub async fn build(
     locale: &str,
     secrets: &[String],
 ) -> CoreResult<Built> {
-    let row = seen::ensure(core, repo_id).await?;
-    let digest = compose_at(core, repo_id, &row).await?;
+    let digest = compose(core, repo_id, chrono::Utc::now() - chrono::Duration::hours(WINDOW_HOURS)).await?;
     let exclusions = Exclusions::load(core, repo_id, &settings.ai_exclude).await?;
     let mut omitted = Vec::new();
     let body = context::redact_for_ai(&render(&digest, &exclusions, &mut omitted), secrets);
     let prompt = prompt::build(INSTRUCTION, locale, &[Section { title: DIGEST_TITLE.into(), body }]);
     if prompt.chars() as f64 > budget_tokens as f64 * context::CHARS_PER_TOKEN {
-        return Err(CoreError::ai_too_large("What's new is too long for the model's context; read the card instead."));
+        return Err(CoreError::ai_too_large("What's new is too long for the model's context; read the dialog instead."));
     }
     Ok(Built { prompt, omitted, shortened: Vec::new() })
 }

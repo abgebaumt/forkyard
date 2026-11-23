@@ -38,7 +38,7 @@
     "semantic_search": "Finds commits by what they are about.",
     "review_fix": "Proposes fixes for open review comments.",
     "stack_split": "Proposes where to cut a branch into pull requests that build on each other.",
-    "digest": "Sums up in one paragraph what changed since you last looked."
+    "digest": "Sums up in one paragraph what changed in the last 24 hours."
   },
   "settings": {
     "intro": "Commit messages, pull request texts and more with a provider of your choice. Off until you turn it on; one provider and one key for every profile.",

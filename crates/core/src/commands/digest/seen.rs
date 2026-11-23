@@ -1,6 +1,7 @@
-//! The seen state per profile and repository (`db::repo_seen`): a snapshot of the remote branches
-//! and tags at the time the user last looked. Own pushes, deletes and tags move it forward
-//! (`absorb`, `absorb_push`), so they never show up as news. App state only: no repository lock.
+//! The "last shown" state per profile and repository (`db::repo_seen`): a snapshot of the remote
+//! branches and tags the "What's new" dialog was last based on. A fetch that leaves it unchanged
+//! opens nothing by itself. Own pushes, deletes and tags move it forward (`absorb`, `absorb_push`),
+//! so they do not open the dialog either. App state only: no repository lock.
 
 use std::collections::BTreeMap;
 
@@ -8,7 +9,6 @@ use crate::app::Core;
 use crate::commands::refs;
 use crate::db::repo_seen::{self, SeenRow};
 use crate::error::CoreResult;
-use crate::model::{DigestMark, RepoChange};
 use crate::util;
 
 /// Remote branches and tags with the object ID as Git stores it (the tag object for annotated
@@ -32,7 +32,7 @@ pub(crate) async fn current_refs(core: &Core, repo_id: &str) -> CoreResult<BTree
 /// the one `start_background` spawned).
 static ENSURING: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
-/// The stored seen state; without one it is created silently from the current refs.
+/// The stored state; without one it is created silently from the current refs.
 pub(crate) async fn ensure(core: &Core, repo_id: &str) -> CoreResult<SeenRow> {
     let profile_id = core.active_profile_id()?;
     if let Some(row) = core.db.with(|c| repo_seen::get(c, &profile_id, repo_id))? {
@@ -42,7 +42,7 @@ pub(crate) async fn ensure(core: &Core, repo_id: &str) -> CoreResult<SeenRow> {
     if let Some(row) = core.db.with(|c| repo_seen::get(c, &profile_id, repo_id))? {
         return Ok(row);
     }
-    let mut row = SeenRow { seen_at: util::now_iso(), refs: current_refs(core, repo_id).await?, pr_max_number: None, pr_open: Vec::new() };
+    let mut row = SeenRow { seen_at: util::now_iso(), refs: current_refs(core, repo_id).await? };
     // Checked again in the same access: a concurrent `ensure` may have been faster.
     let existing = core.db.with(|c| match repo_seen::get(c, &profile_id, repo_id)? {
         Some(existing) => Ok(Some(existing)),
@@ -73,32 +73,23 @@ pub(crate) async fn ensure(core: &Core, repo_id: &str) -> CoreResult<SeenRow> {
     })
 }
 
-/// The user has seen what a digest showed: its time, refs and PRs (`None` keeps the stored PR data).
-/// A ref whose stored SHA is already what Git has now keeps it: an own push absorbed after the
-/// digest was composed must not come back as news.
-pub(crate) async fn mark(core: &Core, repo_id: &str, mark: DigestMark) -> CoreResult<()> {
+/// The dialog was shown for `refs` (read before the digest was composed, so a fetch meanwhile still
+/// counts as changed). A ref whose stored SHA is already what Git has now keeps it: an own push
+/// absorbed after `refs` was read must not come back as a change.
+pub(crate) async fn store(core: &Core, repo_id: &str, refs: BTreeMap<String, String>) -> CoreResult<()> {
     let profile_id = core.active_profile_id()?;
     let current = current_refs(core, repo_id).await?;
     core.db.with(|c| {
-        let stored = repo_seen::get(c, &profile_id, repo_id)?;
-        let stored_refs = stored.as_ref().map(|row| row.refs.clone()).unwrap_or_default();
-        let mut refs = BTreeMap::new();
-        for name in mark.refs.keys().chain(stored_refs.keys()) {
+        let stored_refs = repo_seen::get(c, &profile_id, repo_id)?.map(|row| row.refs).unwrap_or_default();
+        let mut merged = BTreeMap::new();
+        for name in refs.keys().chain(stored_refs.keys()) {
             let kept = stored_refs.get(name).filter(|sha| current.get(name) == Some(sha));
-            if let Some(sha) = kept.or_else(|| mark.refs.get(name)) {
-                refs.insert(name.clone(), sha.clone());
+            if let Some(sha) = kept.or_else(|| refs.get(name)) {
+                merged.insert(name.clone(), sha.clone());
             }
         }
-        let row = SeenRow {
-            seen_at: mark.composed_at,
-            refs,
-            pr_max_number: mark.pr_max_number.or_else(|| stored.as_ref().and_then(|row| row.pr_max_number)),
-            pr_open: mark.pr_open.or_else(|| stored.map(|row| row.pr_open)).unwrap_or_default(),
-        };
-        repo_seen::put(c, &profile_id, repo_id, &row)
-    })?;
-    core.emit_repo_changed(repo_id, &[RepoChange::Seen]);
-    Ok(())
+        repo_seen::put(c, &profile_id, repo_id, &SeenRow { seen_at: util::now_iso(), refs: merged })
+    })
 }
 
 /// Takes the current state of `names` (full ref names) into the seen state: the SHA it has now,

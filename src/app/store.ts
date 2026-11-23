@@ -232,8 +232,6 @@ export interface AppState {
   agentsRunning: number;
   /** Repositories that reported agents this session (from `agents:changed`); their agents stay watched without an open tab. */
   agentRepos: Id[];
-  /** "What's new" card open per repository (src/screens/DigestCard). */
-  digestOpen: Record<Id, boolean>;
 
   // --- per tab ---
   selectWip(tabId: Id): void;
@@ -302,8 +300,6 @@ export interface AppState {
   markFetched(repoId: Id, at?: number): void;
   setAgentsRunning(count: number): void;
   noteAgentRepo(repoId: Id): void;
-  openDigest(repoId: Id): void;
-  closeDigest(repoId: Id): void;
 }
 
 const initialWidths = loadWidths();
@@ -345,7 +341,6 @@ export const useAppStore = create<AppState>()((set, get) => {
     lastFetch: {},
     agentsRunning: 0,
     agentRepos: [],
-    digestOpen: {},
 
     selectWip: (tabId) => patchView(tabId, { selection: { kind: "wip" }, rightPanel: "details" }),
     selectCommits: (tabId, shas) =>
@@ -483,8 +478,6 @@ export const useAppStore = create<AppState>()((set, get) => {
     markFetched: (repoId, at = Date.now()) => set((state) => ({ lastFetch: { ...state.lastFetch, [repoId]: at } })),
     setAgentsRunning: (agentsRunning) => set((state) => (state.agentsRunning === agentsRunning ? state : { agentsRunning })),
     noteAgentRepo: (repoId) => set((state) => (state.agentRepos.includes(repoId) ? state : { agentRepos: [...state.agentRepos, repoId] })),
-    openDigest: (repoId) => set((state) => ({ digestOpen: { ...state.digestOpen, [repoId]: true } })),
-    closeDigest: (repoId) => set((state) => ({ digestOpen: { ...state.digestOpen, [repoId]: false } })),
   };
 });
 

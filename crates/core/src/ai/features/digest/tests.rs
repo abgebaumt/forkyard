@@ -6,6 +6,7 @@ use serde_json::json;
 use super::*;
 use crate::commands::ai::ai_preview;
 use crate::commands::ai_features::ai_digest;
+use crate::commands::digest::seen;
 use crate::commands::settings::settings_set;
 use crate::commands::sync;
 use crate::error::ErrorCode;
@@ -31,7 +32,7 @@ async fn day(subject: &str) -> (TestCore, TestRepo, String) {
     let colleague = TestRepo::clone_of(&remote);
     colleague.write_file("src/login.rs", "fn login() { pruefen() }\n");
     colleague.write_file(".env", "TOKEN=2\n");
-    colleague.commit_as(&format!("{subject}\n\ngeheimer Text"), AUTHOR, EMAIL, "@1760000000 +0000");
+    colleague.commit_as(&format!("{subject}\n\ngeheimer Text"), AUTHOR, EMAIL, &format!("@{} +0000", chrono::Utc::now().timestamp()));
     colleague.git(&["push", "-q", "origin", "main"]);
     repo.write_file("src/login.rs", "fn login() { todo!() }\n");
     repo.write_file(".env", "TOKEN=3\n");

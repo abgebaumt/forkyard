@@ -1,5 +1,5 @@
 import { t } from "../../i18n";
-import { openDigestCard } from "../../screens/DigestCard/actions";
+import { openDigest } from "../../screens/DigestDialog/actions";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
 
 const hasRepo = (ctx: CommandContext) => Boolean(ctx.repoId && ctx.tabId);
@@ -11,6 +11,6 @@ export const commands: AppCommand[] = [
     group: "Repository",
     keywords: kw("commands.repo.digest.keywords"),
     when: hasRepo,
-    run: (ctx) => openDigestCard(ctx.repoId!),
+    run: (ctx) => openDigest(ctx.repoId!, ctx.tabId!),
   },
 ];

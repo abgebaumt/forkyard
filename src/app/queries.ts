@@ -96,7 +96,6 @@ export const qk = {
   stackStatus: (repoId: Id, branch: string) => ["repo", repoId, "stack", "status", branch] as const,
   bisect: (repoId: Id) => ["repo", repoId, "bisect"] as const,
   bisectAutopilot: (repoId: Id) => ["repo", repoId, "bisectAutopilot"] as const,
-  digest: (repoId: Id) => ["repo", repoId, "digest"] as const,
   commitDetails: (repoId: Id, source: DiffSource) => ["repo", repoId, "commit", source] as const,
   commitDetailsAll: (repoId: Id) => ["repo", repoId, "commit"] as const,
   diff: (repoId: Id, path: string, source: DiffSource, options: DiffOptions = {}) =>
@@ -317,13 +316,6 @@ export const useBisectAutopilot = (repoId: Id | null | undefined) =>
     queryFn: (): Promise<BisectAutopilot | null> => core.bisectAutopilotStatus({ repoId: repoId! }),
     enabled: enabledFor(repoId),
   });
-
-/**
- * "What's new" since the seen state. Each answer may cost host requests, so it never goes stale by time
- * or on fetches: only `seen` (coreSync) or an explicit open from the palette reload it.
- */
-export const useDigest = (repoId: Id, enabled: boolean) =>
-  useQuery({ queryKey: qk.digest(repoId), queryFn: () => core.digestGet({ repoId }), enabled, staleTime: Infinity });
 
 /** Commits, ranges and stashes never change – only sources involving the working directory go stale. */
 export const isLive = (source: DiffSource) =>

@@ -4,12 +4,12 @@ use crate::commands::{repos, sync, tags};
 use crate::db::hoster_accounts::{self, AccountFacts};
 use crate::db::repo_seen::{self, SeenRow};
 use crate::events::names;
-use crate::model::{Digest, DigestBehind, DigestMark, DigestRefChange, HostKind, RepoChange};
-use crate::testkit::{TestCore, TestRemote, TestRepo, BASE_TIME};
+use crate::model::{Digest, DigestBehind, HostKind, RefKind, RepoChange};
+use crate::testkit::{TestCore, TestRemote, TestRepo};
 use crate::util;
 
 use super::compose::own_emails;
-use super::{digest_get, digest_mark_seen, seen};
+use super::{digest_get, seen};
 
 struct Fixture {
     tc: TestCore,
@@ -57,8 +57,6 @@ async fn the_first_start_creates_the_seen_state_silently() {
     assert_eq!(first.refs.get("refs/remotes/origin/main"), Some(&f.repo.git(&["rev-parse", "origin/main"])));
     assert!(first.refs.contains_key("refs/remotes/origin/feature/eigen"));
     assert!(!first.refs.keys().any(|name| name.ends_with("/HEAD")));
-    assert_eq!(first.pr_max_number, None);
-    assert!(!changes(&f.tc).iter().any(|what| what.contains(&RepoChange::Seen)), "silently");
     seen::ensure(&f.tc, &f.id).await.unwrap();
     assert_eq!(seen_row(&f.tc, &f.id).seen_at, first.seen_at, "a second ensure keeps the old time");
 }
@@ -102,62 +100,12 @@ async fn a_fetch_that_changed_refs_reports_fetched() {
     assert!(changes(&f.tc).is_empty(), "a second fetch without changes reports nothing");
 }
 
-/// The digest the card shows right now.
+/// The digest the dialog shows right now.
 async fn shown(tc: &TestCore, id: &str) -> Digest {
     digest_get(tc, id.to_string(), None).await.unwrap().expect("a digest")
 }
 
-/// Shows the digest and marks it as seen, as the card does.
-async fn see(tc: &TestCore, id: &str) {
-    let digest = shown(tc, id).await;
-    digest_mark_seen(tc, id.to_string(), digest.mark).await.unwrap();
-}
-
-#[tokio::test]
-async fn mark_reports_seen_and_keeps_the_pr_data_when_none() {
-    let f = fixture().await;
-    let mark = shown(&f.tc, &f.id).await.mark;
-    seen::mark(&f.tc, &f.id, DigestMark { pr_max_number: Some(42), pr_open: Some(vec![3, 7]), ..mark.clone() }).await.unwrap();
-    seen::mark(&f.tc, &f.id, DigestMark { composed_at: util::now_iso(), pr_max_number: None, pr_open: None, ..mark }).await.unwrap();
-    let row = seen_row(&f.tc, &f.id);
-    assert_eq!((row.pr_max_number, row.pr_open), (Some(42), vec![3, 7]));
-    assert_eq!(row.refs.get("refs/remotes/origin/main"), Some(&f.repo.git(&["rev-parse", "origin/main"])));
-    assert_eq!(changes(&f.tc).last(), Some(&vec![RepoChange::Seen]));
-}
-
-/// Marking stores what the card showed: a fetch after it was composed stays news, and so does the
-/// time in between (the seen time is when the card was composed, not the click).
-#[tokio::test]
-async fn marking_an_older_digest_keeps_what_came_after_it() {
-    let d = colleague_day(colleague_story).await;
-    let digest = shown(&d.tc, &d.id).await;
-    let c = TestRepo::clone_of(&d.remote);
-    c.commit_as("Nach dem Blick", "Mira", "mira@example.com", &at(9));
-    c.git(&["push", "-q", "origin", "main"]);
-    sync::fetch(&d.tc, d.id.clone(), util::new_id(), None, true).await.unwrap();
-    let composed_at = digest.mark.composed_at.clone();
-    digest_mark_seen(&d.tc, d.id.clone(), digest.mark).await.unwrap();
-    assert_eq!(seen_row(&d.tc, &d.id).seen_at, composed_at);
-    let after = shown(&d.tc, &d.id).await;
-    let refs: Vec<_> = after.refs.iter().map(|r| (r.name.as_str(), r.change, r.new_commits)).collect();
-    assert_eq!(refs, vec![("origin/main", DigestRefChange::Updated, 1)]);
-    assert_eq!(after.refs[0].commits[0].subject, "Nach dem Blick");
-}
-
-/// An own force push while the card is open stays absorbed after marking the older digest.
-#[tokio::test]
-async fn an_own_push_while_the_card_is_open_stays_away_after_marking() {
-    let f = fixture().await;
-    seen::ensure(&f.tc, &f.id).await.unwrap();
-    let digest = shown(&f.tc, &f.id).await;
-    f.repo.git(&["commit", "-q", "--amend", "-m", "Eigene Arbeit, umformuliert"]);
-    sync::push(&f.tc, f.id.clone(), util::new_id(), Some("feature/eigen".into()), None, None, true, None).await.unwrap();
-    digest_mark_seen(&f.tc, f.id.clone(), digest.mark).await.unwrap();
-    let after = shown(&f.tc, &f.id).await;
-    assert!(after.refs.is_empty() && after.is_empty, "{:?}", after.refs);
-}
-
-/// Seen A, a colleague pushes B (fetched, no card), the user pulls and pushes C: B stays news.
+/// Seen state A, a colleague pushes B (fetched, nothing shown), the user pulls and pushes C: B stays news.
 #[tokio::test]
 async fn an_own_push_keeps_foreign_commits_fetched_before_it() {
     let f = fixture().await;
@@ -169,13 +117,17 @@ async fn an_own_push_keeps_foreign_commits_fetched_before_it() {
     sync::fetch(&f.tc, f.id.clone(), util::new_id(), None, true).await.unwrap();
     f.repo.checkout("main");
     f.repo.git(&["merge", "-q", "--ff-only", "origin/main"]);
-    f.repo.commit_file("lena.txt", "l\n", "Von Lena");
+    f.repo.commit_as("Von Lena", "Lena", "lena@example.com", &at(2));
     let result = sync::push(&f.tc, f.id.clone(), util::new_id(), Some("main".into()), None, None, false, None).await.unwrap();
     assert!(matches!(result, crate::model::PushResult::Done { forced: false, .. }), "{result:?}");
     assert_eq!(f.repo.git(&["rev-parse", "origin/main"]), f.repo.git(&["rev-parse", "main"]), "pushed");
-    let digest = shown(&f.tc, &f.id).await;
+    let digest = digest_get(&f.tc, f.id.clone(), Some(true)).await.unwrap().expect("the fetched commit is still news");
     let main = digest.refs.iter().find(|r| r.name == "origin/main").expect("origin/main is news");
-    assert_eq!(main.commits.iter().map(|c| c.subject.as_str()).collect::<Vec<_>>(), vec!["Vom Kollegen"]);
+    assert_eq!(
+        main.commits.iter().map(|c| c.subject.as_str()).collect::<Vec<_>>(),
+        vec!["Von Lena", "Vom Kollegen"],
+        "own commits count too"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -187,12 +139,10 @@ struct Day {
     repo: TestRepo,
     remote: TestRemote,
     id: String,
-    /// `feature/alt` as the app saw it.
-    old_alt: String,
 }
 
-/// App clone as Lena (`lena@example.com`): `main`, `feature/alt`, `feature/weg` pushed, on
-/// `feature/mein` (one own commit), seen state ensured. Then `colleague` works in a fresh clone,
+/// App clone as Lena (`lena@example.com`): `main`, `feature/alt`, `feature/weg` pushed (all dated long
+/// ago), on `feature/mein` (one own commit), seen state ensured. Then `colleague` works in a fresh clone,
 /// the app gets a local change in `src/login.rs` and fetches.
 async fn colleague_day(colleague: impl FnOnce(&TestRepo)) -> Day {
     let tc = TestCore::new().await;
@@ -207,7 +157,6 @@ async fn colleague_day(colleague: impl FnOnce(&TestRepo)) -> Day {
         repo.git(&["push", "-q", "origin", name]);
         repo.checkout("main");
     }
-    let old_alt = repo.git(&["rev-parse", "feature/alt"]);
     repo.checkout_new("feature/mein");
     repo.commit_file("mein.txt", "mein\n", "Meine Arbeit");
     let id = tc.open(&repo).await.repo.id;
@@ -216,15 +165,17 @@ async fn colleague_day(colleague: impl FnOnce(&TestRepo)) -> Day {
     colleague(&TestRepo::clone_of(&remote));
     repo.write_file("src/login.rs", "fn login() { todo!() }\n");
     sync::fetch(&tc, id.clone(), util::new_id(), None, true).await.unwrap();
-    Day { tc, repo, remote, id, old_alt }
+    Day { tc, repo, remote, id }
 }
 
+/// A commit date `minute` minutes into the last hour.
 fn at(minute: i64) -> String {
-    format!("@{} +0000", BASE_TIME + 3600 + 60 * minute)
+    format!("@{} +0000", chrono::Utc::now().timestamp() - 3600 + 60 * minute)
 }
 
-/// Mira's two commits and one of Lena's on `main`, `feature/alt` rewritten, `feature/weg` deleted, tag `v1.0`.
+/// Mira's two commits and one of Lena's on `main`, `feature/alt` rewritten, `feature/weg` deleted, tags `v0.1` (old) and `v1.0`.
 fn colleague_story(c: &TestRepo) {
+    c.git(&["tag", "v0.1"]);
     c.write_file("src/login.rs", "fn login() { pruefen() }\n");
     c.commit_as("Login prüfen", "Mira", "mira@example.com", &at(1));
     c.write_file("src/fehler.rs", "fn fehler() { \"Ungültig\" }\n");
@@ -239,59 +190,65 @@ fn colleague_story(c: &TestRepo) {
     c.git(&["push", "-q", "-f", "origin", "feature/alt"]);
     c.git(&["push", "-q", "origin", "--delete", "feature/weg"]);
     c.git(&["tag", "v1.0", "main"]);
-    c.git(&["push", "-q", "origin", "v1.0"]);
+    c.git(&["push", "-q", "origin", "v0.1", "v1.0"]);
 }
 
 #[tokio::test]
-async fn the_digest_lists_what_the_colleague_did() {
+async fn the_digest_lists_the_last_24_hours() {
     let d = colleague_day(colleague_story).await;
-    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
-    let refs: Vec<_> = digest.refs.iter().map(|r| (r.name.as_str(), r.change, r.new_commits)).collect();
-    assert_eq!(
-        refs,
-        vec![
-            ("origin/feature/alt", DigestRefChange::Rewritten, 1),
-            ("origin/feature/weg", DigestRefChange::Deleted, 0),
-            ("origin/main", DigestRefChange::Updated, 2),
-            ("v1.0", DigestRefChange::New, 0),
-        ]
-    );
-    let main = digest.refs.iter().find(|r| r.name == "origin/main").unwrap();
+    let digest = shown(&d.tc, &d.id).await;
+    let refs: Vec<_> = digest.refs.iter().map(|r| (r.name.as_str(), r.kind, r.new_commits)).collect();
+    // The base branch first, then by name; the deleted branch and the old tag are no news; the tag's
+    // time is its commit's.
+    assert_eq!(refs, vec![("origin/main", RefKind::Remote, 3), ("origin/feature/alt", RefKind::Remote, 1), ("v1.0", RefKind::Tag, 0),]);
+    let main = &digest.refs[0];
     assert_eq!(
         main.commits.iter().map(|c| (c.subject.as_str(), c.author.as_str())).collect::<Vec<_>>(),
-        vec![("Fehlertext ändern", "Mira"), ("Login prüfen", "Mira")]
+        vec![("Eigene Arbeit", "Lena"), ("Fehlertext ändern", "Mira"), ("Login prüfen", "Mira")],
+        "own commits are mixed in"
     );
-    assert_eq!(digest.new_commits, 3);
+    assert_eq!(digest.new_commits, 4);
     assert_eq!(
         digest.your_files.iter().map(|f| (f.path.as_str(), f.local, f.on_branch)).collect::<Vec<_>>(),
-        vec![("src/login.rs", true, false)]
+        vec![("src/login.rs", true, false)],
+        "only other people's commits touch your files"
     );
     assert_eq!(digest.your_files[0].sha, d.repo.git(&["rev-parse", "origin/main~2"]), "the newest commit touching it");
     assert_eq!(digest.behind, Some(DigestBehind { branch: "feature/mein".into(), base: "origin/main".into(), behind: 3, ahead: 1 }));
     let tag = digest.refs.iter().find(|r| r.name == "v1.0").unwrap();
     assert_eq!(tag.new_sha.as_deref(), Some(d.repo.git(&["rev-parse", "origin/main"]).as_str()));
     assert!(!digest.is_empty);
-    // Oracle for the rewrite: the old tip is not in the new history.
-    let new_alt = d.repo.git(&["rev-parse", "origin/feature/alt"]);
-    assert!(!d.repo.git_output(&["merge-base", "--is-ancestor", &d.old_alt, &new_alt]).status.success());
 }
 
 #[tokio::test]
-async fn only_own_commits_hide_the_ref() {
+async fn only_own_commits_are_news_too() {
     let d = colleague_day(|c| {
         c.write_file("eigen.txt", "von Lena\n");
         c.commit_as("Eigene Arbeit", "Lena", "LENA@example.com", &at(1));
         c.git(&["push", "-q", "origin", "main"]);
     })
     .await;
-    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
-    assert!(digest.refs.is_empty() && digest.is_empty, "{:?}", digest.refs);
-    assert_eq!(digest.new_commits, 0);
+    let digest = shown(&d.tc, &d.id).await;
+    assert_eq!(digest.refs.iter().map(|r| (r.name.as_str(), r.new_commits)).collect::<Vec<_>>(), vec![("origin/main", 1)]);
+    assert!(!digest.is_empty && digest.new_commits == 1);
+    assert!(digest.your_files.is_empty());
+}
+
+#[tokio::test]
+async fn commits_older_than_24_hours_are_no_news() {
+    let d = colleague_day(|c| {
+        c.write_file("alt.txt", "x\n");
+        c.commit_as("Vorgestern", "Mira", "mira@example.com", &format!("@{} +0000", chrono::Utc::now().timestamp() - 48 * 3600));
+        c.git(&["push", "-q", "origin", "main"]);
+    })
+    .await;
+    let digest = shown(&d.tc, &d.id).await;
+    assert!(digest.refs.is_empty() && digest.is_empty && digest.new_commits == 0, "{:?}", digest.refs);
     assert!(digest.behind.is_some(), "behind alone still shows, but does not make it non-empty");
 }
 
 #[tokio::test]
-async fn a_new_branch_counts_only_commits_not_seen_before() {
+async fn a_new_branch_lists_its_commits_of_the_window() {
     let d = colleague_day(|c| {
         c.git(&["checkout", "-q", "-b", "feature/neu"]);
         c.write_file("neu.txt", "1\n");
@@ -301,9 +258,9 @@ async fn a_new_branch_counts_only_commits_not_seen_before() {
         c.git(&["push", "-q", "origin", "feature/neu"]);
     })
     .await;
-    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
-    let refs: Vec<_> = digest.refs.iter().map(|r| (r.name.as_str(), r.change, r.new_commits)).collect();
-    assert_eq!(refs, vec![("origin/feature/neu", DigestRefChange::New, 2)]);
+    let digest = shown(&d.tc, &d.id).await;
+    let refs: Vec<_> = digest.refs.iter().map(|r| (r.name.as_str(), r.new_commits)).collect();
+    assert_eq!(refs, vec![("origin/feature/neu", 2)]);
 }
 
 #[tokio::test]
@@ -311,7 +268,7 @@ async fn a_file_changed_on_the_current_branch_is_yours() {
     let d = colleague_day(colleague_story).await;
     d.repo.write_file("src/fehler.rs", "fn fehler() { \"Falsch\" }\n");
     d.repo.git(&["commit", "-q", "-m", "Fehler anders", "--", "src/fehler.rs"]);
-    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
+    let digest = shown(&d.tc, &d.id).await;
     assert_eq!(
         digest.your_files.iter().map(|f| (f.path.as_str(), f.local, f.on_branch)).collect::<Vec<_>>(),
         vec![("src/fehler.rs", false, true), ("src/login.rs", true, false)]
@@ -319,38 +276,60 @@ async fn a_file_changed_on_the_current_branch_is_yours() {
 }
 
 #[tokio::test]
-async fn a_missing_seen_state_is_created_and_reports_nothing() {
+async fn every_answer_stores_the_refs_it_was_based_on() {
     let d = colleague_day(colleague_story).await;
-    d.tc.db.with(|c| Ok(c.execute("delete from repo_seen", [])?)).unwrap();
-    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
-    assert!(digest.is_empty && digest.refs.is_empty());
-    assert!(stored(&d.tc, &d.id).is_some(), "created");
-    assert!(digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap().is_empty, "and nothing is new against it");
+    let before = seen_row(&d.tc, &d.id);
+    assert!(!before.refs.contains_key("refs/tags/v1.0"), "the fetch brought news");
+    assert!(shown(&d.tc, &d.id).await.refs.len() == 3);
+    assert_eq!(seen_row(&d.tc, &d.id).refs["refs/remotes/origin/main"], d.repo.git(&["rev-parse", "origin/main"]));
+    // The same 24 hours do not open the dialog again, however often one fetches.
+    assert_eq!(digest_get(&d.tc, d.id.clone(), Some(true)).await.unwrap(), None);
+    sync::fetch(&d.tc, d.id.clone(), util::new_id(), None, true).await.unwrap();
+    assert_eq!(digest_get(&d.tc, d.id.clone(), Some(true)).await.unwrap(), None);
+    // The palette still shows them.
+    assert!(!shown(&d.tc, &d.id).await.is_empty);
 }
 
 #[tokio::test]
-async fn a_young_seen_state_answers_none_without_work() {
+async fn after_a_fetch_the_changed_refs_open_it_once() {
     let d = colleague_day(colleague_story).await;
-    assert_eq!(digest_get(&d.tc, d.id.clone(), Some(8)).await.unwrap(), None);
-    let profile = d.tc.active_profile_id().unwrap();
-    let mut row = seen_row(&d.tc, &d.id);
-    row.seen_at = (chrono::Utc::now() - chrono::Duration::hours(9)).format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
-    d.tc.db.with(|c| repo_seen::put(c, &profile, &d.id, &row)).unwrap();
-    let digest = digest_get(&d.tc, d.id.clone(), Some(8)).await.unwrap().expect("old enough");
+    let digest = digest_get(&d.tc, d.id.clone(), Some(true)).await.unwrap().expect("refs changed since the repository was opened");
     assert!(!digest.is_empty);
+    assert_eq!(digest_get(&d.tc, d.id.clone(), Some(true)).await.unwrap(), None, "now it is what was shown");
+    let c = TestRepo::clone_of(&d.remote);
+    c.commit_as("Noch einer", "Mira", "mira@example.com", &at(10));
+    c.git(&["push", "-q", "origin", "main"]);
+    sync::fetch(&d.tc, d.id.clone(), util::new_id(), None, true).await.unwrap();
+    assert!(digest_get(&d.tc, d.id.clone(), Some(true)).await.unwrap().is_some(), "a new fetch with news");
 }
 
 #[tokio::test]
-async fn marking_as_seen_empties_the_digest() {
-    let d = colleague_day(colleague_story).await;
-    see(&d.tc, &d.id).await;
-    assert!(digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap().is_empty);
+async fn changed_refs_without_news_in_the_window_open_nothing_and_are_remembered() {
+    let d = colleague_day(|c| {
+        c.write_file("alt.txt", "x\n");
+        c.commit_as("Vorgestern", "Mira", "mira@example.com", &format!("@{} +0000", chrono::Utc::now().timestamp() - 48 * 3600));
+        c.git(&["push", "-q", "origin", "main"]);
+    })
+    .await;
+    assert_eq!(digest_get(&d.tc, d.id.clone(), Some(true)).await.unwrap(), None);
+    assert_eq!(seen_row(&d.tc, &d.id).refs["refs/remotes/origin/main"], d.repo.git(&["rev-parse", "origin/main"]), "remembered");
+}
+
+#[tokio::test]
+async fn an_own_push_after_the_refs_were_read_stays_absorbed() {
+    let f = fixture().await;
+    seen::ensure(&f.tc, &f.id).await.unwrap();
+    let read_before = seen::current_refs(&f.tc, &f.id).await.unwrap();
+    f.repo.git(&["commit", "-q", "--amend", "-m", "Eigene Arbeit, umformuliert"]);
+    sync::push(&f.tc, f.id.clone(), util::new_id(), Some("feature/eigen".into()), None, None, true, None).await.unwrap();
+    seen::store(&f.tc, &f.id, read_before).await.unwrap();
+    assert_eq!(digest_get(&f.tc, f.id.clone(), Some(true)).await.unwrap(), None);
 }
 
 #[tokio::test]
 async fn the_noreply_address_of_a_connected_github_account_is_own() {
     let d = colleague_day(|c| {
-        c.write_file("web.txt", "aus dem Browser\n");
+        c.write_file("src/login.rs", "fn login() { im_browser() }\n");
         c.commit_as("Im Browser bearbeitet", "Lena Hartmann", "123+lena-hartmann@users.noreply.github.com", &at(1));
         c.git(&["push", "-q", "origin", "main"]);
     })
@@ -364,70 +343,9 @@ async fn the_noreply_address_of_a_connected_github_account_is_own() {
     let own = own_emails(&d.tc, &d.id).await;
     assert!(own.contains(&"lena-hartmann@users.noreply.github.com".to_string()), "{own:?}");
     assert!(own.contains(&"lena@example.com".to_string()), "{own:?}");
-    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
-    assert!(digest.refs.is_empty(), "{:?}", digest.refs);
+    let digest = shown(&d.tc, &d.id).await;
+    assert_eq!(digest.new_commits, 1, "the commit is listed");
+    assert!(digest.your_files.is_empty(), "but it is not someone else's change to your file");
     // No token in the keychain: the PR part stops before any request, which keeps this test offline.
     assert_eq!(digest.pr_data_missing, Some(HostKind::Github));
-}
-
-#[tokio::test]
-async fn merging_the_seen_main_into_a_seen_branch_reports_only_the_merge() {
-    let d = colleague_day(colleague_story).await;
-    see(&d.tc, &d.id).await;
-    let c = TestRepo::clone_of(&d.remote);
-    c.git(&["checkout", "-q", "-b", "feature/alt", "origin/feature/alt"]);
-    c.git(&["merge", "-q", "--no-ff", "--no-edit", "origin/main"]);
-    c.git(&["push", "-q", "origin", "feature/alt"]);
-    sync::fetch(&d.tc, d.id.clone(), util::new_id(), None, true).await.unwrap();
-    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
-    let refs: Vec<_> = digest.refs.iter().map(|r| (r.name.as_str(), r.change, r.new_commits)).collect();
-    assert_eq!(refs, vec![("origin/feature/alt", DigestRefChange::Updated, 1)]);
-    assert_eq!(digest.new_commits, 1);
-}
-
-#[tokio::test]
-async fn a_seen_tip_gone_from_the_object_database_counts_as_rewritten() {
-    let d = colleague_day(colleague_story).await;
-    let profile = d.tc.active_profile_id().unwrap();
-    let mut row = seen_row(&d.tc, &d.id);
-    row.refs.insert("refs/remotes/origin/feature/alt".into(), "0123456789abcdef0123456789abcdef01234567".into());
-    d.tc.db.with(|c| repo_seen::put(c, &profile, &d.id, &row)).unwrap();
-    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
-    let alt = digest.refs.iter().find(|r| r.name == "origin/feature/alt").unwrap();
-    assert_eq!((alt.change, alt.new_commits), (DigestRefChange::Rewritten, 1));
-}
-
-#[tokio::test]
-async fn without_any_seen_ref_new_refs_list_no_commits() {
-    let d = colleague_day(colleague_story).await;
-    let profile = d.tc.active_profile_id().unwrap();
-    let mut row = seen_row(&d.tc, &d.id);
-    row.refs.clear();
-    d.tc.db.with(|c| repo_seen::put(c, &profile, &d.id, &row)).unwrap();
-    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
-    assert!(!digest.refs.is_empty());
-    assert!(digest.refs.iter().all(|r| r.change == DigestRefChange::New && r.new_commits == 0), "{:?}", digest.refs);
-    assert_eq!(digest.new_commits, 0);
-}
-
-#[tokio::test]
-async fn a_moved_annotated_tag_reports_both_commits() {
-    let d = colleague_day(|c| {
-        c.git(&["tag", "-a", "v0.9", "-m", "Vorab", "main"]);
-        c.git(&["push", "-q", "origin", "v0.9"]);
-    })
-    .await;
-    see(&d.tc, &d.id).await;
-    let old = d.repo.git(&["rev-parse", "v0.9^{commit}"]);
-    let c = TestRepo::clone_of(&d.remote);
-    c.commit_file("später.txt", "x\n", "Später");
-    c.git(&["push", "-q", "origin", "main"]);
-    sync::fetch(&d.tc, d.id.clone(), util::new_id(), None, true).await.unwrap();
-    // A plain fetch never moves an existing tag: move it the way a forced tag fetch would.
-    d.repo.git(&["tag", "-f", "-a", "v0.9", "-m", "Verschoben", "origin/main"]);
-    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
-    let tag = digest.refs.iter().find(|r| r.name == "v0.9").unwrap();
-    assert_eq!(tag.change, DigestRefChange::Updated);
-    assert_eq!(tag.old_sha.as_deref(), Some(old.as_str()));
-    assert_eq!(tag.new_sha.as_deref(), Some(d.repo.git(&["rev-parse", "origin/main"]).as_str()));
 }
