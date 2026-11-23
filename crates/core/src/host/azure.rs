@@ -212,7 +212,7 @@ async fn checks(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> CoreRes
 
 /// `GET …/pullrequests?searchCriteria.status=…&$top=…&$skip=…`, one more than the page to know
 /// whether another follows; plus the statuses per entry (in parallel).
-pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState, paging: Paging) -> CoreResult<PrPage> {
+pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState, paging: Paging, enrich: bool) -> CoreResult<PrPage> {
     let status = match state {
         PrListState::Open => "active",
         PrListState::Merged => "completed",
@@ -229,14 +229,16 @@ pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState
     values.truncate(paging.per_page as usize);
     let web = repo_web(api, repo);
     let mut items: Vec<PrSummary> = values.iter().map(|value| pr_summary(&web, value)).collect();
-    let numbers: Vec<u64> = items.iter().map(|item| item.number).collect();
-    let extras = parallel(numbers, |number| {
-        let (core, api, repo) = (core.clone(), api.clone(), repo.clone());
-        async move { checks(&core, &api, &repo, number).await.ok().and_then(|c| summarize_checks(&c)) }
-    })
-    .await;
-    for (item, checks) in items.iter_mut().zip(extras) {
-        item.checks = checks.flatten();
+    if enrich {
+        let numbers: Vec<u64> = items.iter().map(|item| item.number).collect();
+        let extras = parallel(numbers, |number| {
+            let (core, api, repo) = (core.clone(), api.clone(), repo.clone());
+            async move { checks(&core, &api, &repo, number).await.ok().and_then(|c| summarize_checks(&c)) }
+        })
+        .await;
+        for (item, checks) in items.iter_mut().zip(extras) {
+            item.checks = checks.flatten();
+        }
     }
     Ok(PrPage { items, next_page: more.then_some(paging.page + 1) })
 }
@@ -870,8 +872,9 @@ impl Host for AzureHost {
         repo: &'a RepoPath,
         state: PrListState,
         paging: Paging,
+        enrich: bool,
     ) -> HostFuture<'a, PrPage> {
-        Box::pin(pr_list(core, api, repo, state, paging))
+        Box::pin(pr_list(core, api, repo, state, paging, enrich))
     }
     fn pr_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrDetails> {
         Box::pin(pr_get(core, api, repo, number))

@@ -40,10 +40,12 @@ pub(crate) async fn pr_part(core: &Core, repo_id: &str, since: DateTime<Utc>) ->
     let remote = Some(found.remote.clone());
     let mut prs: Vec<PrSummary> = Vec::new();
     for page in 1..=PAGES {
-        match host_cmd::pr_list(core, repo_id.to_string(), PrListState::All, Some(page), Some(100), remote.clone()).await {
+        match host_cmd::pr_list_lean(core, repo_id, PrListState::All, page, &found.remote).await {
             Ok(list) => {
+                // Sorted by update except on Azure: a page ending before the window ends the list.
+                let past = kind != HostKind::AzureDevops && list.items.last().is_some_and(|pr| !after(&pr.updated_at, since));
                 prs.extend(list.items);
-                if list.next_page.is_none() {
+                if list.next_page.is_none() || past {
                     break;
                 }
             }

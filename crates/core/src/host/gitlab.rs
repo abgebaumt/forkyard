@@ -187,7 +187,15 @@ async fn mr_raw(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> CoreRes
 }
 
 /// `GET /projects/:id/merge_requests`, plus pipeline and approvals per entry (in parallel).
-pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState, page: u32, per_page: u32) -> CoreResult<PrPage> {
+pub async fn pr_list(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    state: PrListState,
+    page: u32,
+    per_page: u32,
+    enrich: bool,
+) -> CoreResult<PrPage> {
     let api_state = match state {
         PrListState::Open => "opened",
         PrListState::Closed => "closed",
@@ -206,23 +214,25 @@ pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState
     );
     let (values, next_page) = api.get_page(core, &path).await.map_err(|e| not_found_as(e, project_missing(repo)))?;
     let mut items: Vec<PrSummary> = values.iter().map(mr_summary).collect();
-    let numbers: Vec<u64> = items.iter().map(|item| item.number).collect();
-    let extras = parallel(numbers, |number| {
-        let (core, api, repo) = (core.clone(), api.clone(), repo.clone());
-        async move {
-            // The list doesn't include the pipeline; the single merge request does.
-            let single = mr_raw(&core, &api, &repo, number).await.ok();
-            let approvals = api.get_json(&core, &format!("{}/approvals", mr_path(&repo, number))).await.ok();
-            let checks = single.as_ref().and_then(|value| summarize_checks(&pipeline_checks(value)));
-            let review = single.as_ref().and_then(|value| review_summary(&reviewers(value, approvals.as_ref()), approvals.as_ref()));
-            (checks, review)
-        }
-    })
-    .await;
-    for (item, extra) in items.iter_mut().zip(extras) {
-        if let Some((checks, review)) = extra {
-            item.checks = checks;
-            item.review_state = review;
+    if enrich {
+        let numbers: Vec<u64> = items.iter().map(|item| item.number).collect();
+        let extras = parallel(numbers, |number| {
+            let (core, api, repo) = (core.clone(), api.clone(), repo.clone());
+            async move {
+                // The list doesn't include the pipeline; the single merge request does.
+                let single = mr_raw(&core, &api, &repo, number).await.ok();
+                let approvals = api.get_json(&core, &format!("{}/approvals", mr_path(&repo, number))).await.ok();
+                let checks = single.as_ref().and_then(|value| summarize_checks(&pipeline_checks(value)));
+                let review = single.as_ref().and_then(|value| review_summary(&reviewers(value, approvals.as_ref()), approvals.as_ref()));
+                (checks, review)
+            }
+        })
+        .await;
+        for (item, extra) in items.iter_mut().zip(extras) {
+            if let Some((checks, review)) = extra {
+                item.checks = checks;
+                item.review_state = review;
+            }
         }
     }
     Ok(PrPage { items, next_page })
@@ -822,8 +832,9 @@ impl Host for GitlabHost {
         repo: &'a RepoPath,
         state: PrListState,
         paging: Paging,
+        enrich: bool,
     ) -> HostFuture<'a, PrPage> {
-        Box::pin(pr_list(core, api, repo, state, paging.page, paging.per_page))
+        Box::pin(pr_list(core, api, repo, state, paging.page, paging.per_page, enrich))
     }
     fn pr_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrDetails> {
         Box::pin(pr_get(core, api, repo, number))

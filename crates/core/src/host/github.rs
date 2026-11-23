@@ -212,7 +212,15 @@ async fn reviews(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> CoreRe
 
 /// `GET /repos/{owner}/{repo}/pulls`, plus checks and reviews per entry (in parallel, with
 /// cached responses). If enriching an entry fails, its fields stay empty.
-pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState, page: u32, per_page: u32) -> CoreResult<PrPage> {
+pub async fn pr_list(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    state: PrListState,
+    page: u32,
+    per_page: u32,
+    enrich: bool,
+) -> CoreResult<PrPage> {
     let api_state = match state {
         PrListState::Open => "open",
         PrListState::Closed | PrListState::Merged => "closed",
@@ -241,21 +249,23 @@ pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState
         })
         .collect();
     let mut items: Vec<PrSummary> = wanted.iter().map(|value| pr_summary(value)).collect();
-    let inputs: Vec<(u64, String, Vec<Value>)> =
-        wanted.iter().map(|value| (number(value, "number"), head_sha(value), list(value, "requested_reviewers").to_vec())).collect();
-    let extras = parallel(inputs, |(number, sha, requested)| {
-        let (core, api, repo) = (core.clone(), api.clone(), repo.clone());
-        async move {
-            let checks = checks(&core, &api, &repo, &sha).await.ok().and_then(|c| summarize_checks(&c));
-            let review = reviews(&core, &api, &repo, number).await.ok().and_then(|r| review_summary(&reviewers(&r, &requested)));
-            (checks, review)
-        }
-    })
-    .await;
-    for (item, extra) in items.iter_mut().zip(extras) {
-        if let Some((checks, review)) = extra {
-            item.checks = checks;
-            item.review_state = review;
+    if enrich {
+        let inputs: Vec<(u64, String, Vec<Value>)> =
+            wanted.iter().map(|value| (number(value, "number"), head_sha(value), list(value, "requested_reviewers").to_vec())).collect();
+        let extras = parallel(inputs, |(number, sha, requested)| {
+            let (core, api, repo) = (core.clone(), api.clone(), repo.clone());
+            async move {
+                let checks = checks(&core, &api, &repo, &sha).await.ok().and_then(|c| summarize_checks(&c));
+                let review = reviews(&core, &api, &repo, number).await.ok().and_then(|r| review_summary(&reviewers(&r, &requested)));
+                (checks, review)
+            }
+        })
+        .await;
+        for (item, extra) in items.iter_mut().zip(extras) {
+            if let Some((checks, review)) = extra {
+                item.checks = checks;
+                item.review_state = review;
+            }
         }
     }
     Ok(PrPage { items, next_page })
@@ -850,8 +860,9 @@ impl Host for GithubHost {
         repo: &'a RepoPath,
         state: PrListState,
         paging: Paging,
+        enrich: bool,
     ) -> HostFuture<'a, PrPage> {
-        Box::pin(pr_list(core, api, repo, state, paging.page, paging.per_page))
+        Box::pin(pr_list(core, api, repo, state, paging.page, paging.per_page, enrich))
     }
     fn pr_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrDetails> {
         Box::pin(pr_get(core, api, repo, number))
