@@ -13,6 +13,9 @@ use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tauri::State;
 
+#[allow(clippy::wildcard_imports)] // brings the `__cmd__` macros of the hand-written updater commands along
+use crate::updater::*;
+
 type R<T> = Result<T, CoreError>;
 
 /// Field of a partial object: missing = `None`, `null` = `Some(None)`, value = `Some(Some(..))`.
@@ -52,7 +55,7 @@ macro_rules! commands {
 }
 
 commands! {
-    hand_written: app_quit, repo_open, repo_update, signing_set, window_close, window_layout;
+    hand_written: app_quit, repo_open, repo_update, signing_set, update_download, update_install, window_close, window_layout;
 
     app_info => app::app_info() -> AppInfo;
     app_keyring_available => app::app_keyring_available() -> bool;

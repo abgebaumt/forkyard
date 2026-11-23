@@ -202,6 +202,10 @@ export interface CoreCommands {
   updateCheck(input: { manual: boolean }): Promise<UpdateInfo>;
   /** The notice for `version` was seen (`skip: false`, no second toast) or the version is skipped (`skip: true`, no notice at all). */
   updateDismiss(input: { version: string; skip: boolean }): Promise<UpdateInfo>;
+  /** Downloads and verifies the update for `version` (the one `updateCheck` reported); progress arrives for `jobId`. Installing is a separate click. */
+  updateDownload(input: { jobId: string; version: string }): Promise<void>;
+  /** Installs the downloaded update and restarts the app; only after `updateDownload`. */
+  updateInstall(): Promise<void>;
   /** The version whose "What's new" to show now – exactly once per version, null on a new installation, the same version or a downgrade. */
   updateWhatsNew(): Promise<string | null>;
   /**

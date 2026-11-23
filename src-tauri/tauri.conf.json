@@ -34,6 +34,12 @@
           "forkyard"
         ]
       }
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDczNzVEODgxNzQ1NDkwRTYKUldUbWtGUjBnZGgxYzFsbGFBM0VnSmR5eVBUV0ZxVFBOYTVmU1NOWWpBT1VsaW8wYURzcWMvTncK",
+      "endpoints": [
+        "https://github.com/abgebaumt/forkyard/releases/latest/download/latest.json"
+      ]
     }
   },
   "bundle": {
