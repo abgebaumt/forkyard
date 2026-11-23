@@ -79,9 +79,11 @@ pub fn configure(core: &Core, base: Option<String>) {
     *core.state::<UpdateCheckState>().base.lock() = base.map(|base| base.trim_end_matches('/').to_string());
 }
 
-/// Whether this build may replace itself: Windows, macOS, or Linux started as an AppImage.
-pub fn installable(os: &str, appimage: Option<&std::ffi::OsStr>) -> bool {
-    matches!(os, "windows" | "macos") || (os == "linux" && appimage.is_some_and(|path| !path.is_empty()))
+/// Whether this build may replace itself: Windows, macOS, or Linux started as an AppImage. On Linux
+/// `appimage_build` must hold too (the binary is the AppImage bundle): a .deb or .rpm started from an
+/// AppImage's terminal inherits `APPIMAGE`.
+pub fn installable(os: &str, appimage: Option<&std::ffi::OsStr>, appimage_build: bool) -> bool {
+    matches!(os, "windows" | "macos") || (os == "linux" && appimage_build && appimage.is_some_and(|path| !path.is_empty()))
 }
 
 /// Set once at start by the shell (`src-tauri`); default false.
