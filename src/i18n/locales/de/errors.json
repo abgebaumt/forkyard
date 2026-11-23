@@ -218,5 +218,13 @@
   "selection_conflicts_with_index": {
     "text": "Die ausgewählten Zeilen einer Datei liegen neben oder auf gestagten Änderungen.",
     "hint": "Erst die gestagten Änderungen dieser Datei committen oder unstagen, dann erneut versuchen."
+  },
+  "update_signature_invalid": {
+    "text": "Der Download ist nicht von Forkyard signiert. Es wurde nichts installiert.",
+    "hint": "Lade die Version stattdessen von der Release-Seite herunter."
+  },
+  "update_unavailable_for_package": {
+    "text": "Diese Installation wird vom Paketmanager (.deb/.rpm) verwaltet und kann sich nicht selbst aktualisieren.",
+    "hint": "Lade das neue Paket von der Release-Seite herunter oder aktualisiere über deinen Paketmanager."
   }
 }

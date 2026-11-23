@@ -47,6 +47,7 @@ const info = (patch: Partial<UpdateInfo> = {}): UpdateInfo => ({
   checkedAt: "2026-10-15T10:00:00.000Z",
   notifiedVersion: null,
   skippedVersion: null,
+  installable: false,
   ...patch,
 });
 

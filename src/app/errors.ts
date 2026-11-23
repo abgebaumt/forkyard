@@ -67,6 +67,8 @@ const CODES: Record<ErrorCode, true> = {
   ai_too_large: true,
   ai_unsupported_version: true,
   selection_conflicts_with_index: true,
+  update_signature_invalid: true,
+  update_unavailable_for_package: true,
 };
 
 /** Error code → understandable sentence with a suggested action. Covers every ErrorCode. */

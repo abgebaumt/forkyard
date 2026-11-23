@@ -73,4 +73,6 @@ export type ErrorCode =
   | "ai_limit_reached"
   | "ai_too_large"
   | "ai_unsupported_version"
-  | "selection_conflicts_with_index";
+  | "selection_conflicts_with_index"
+  | "update_signature_invalid"
+  | "update_unavailable_for_package";

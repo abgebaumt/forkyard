@@ -88,11 +88,15 @@ pub enum ErrorCode {
     AiUnsupportedVersion,
     /// The selected lines don't apply onto HEAD because of staged changes in the same place (`commit_selection`).
     SelectionConflictsWithIndex,
+    /// The downloaded update does not carry Forkyard's signature; nothing was installed.
+    UpdateSignatureInvalid,
+    /// This installation cannot replace itself (`.deb`/`.rpm`, unbundled build).
+    UpdateUnavailableForPackage,
 }
 
 impl ErrorCode {
     /// All codes, for tests and cross-checks.
-    pub const ALL: [ErrorCode; 55] = [
+    pub const ALL: [ErrorCode; 57] = [
         ErrorCode::NotARepo,
         ErrorCode::PathNotFound,
         ErrorCode::PathExists,
@@ -148,6 +152,8 @@ impl ErrorCode {
         ErrorCode::AiTooLarge,
         ErrorCode::AiUnsupportedVersion,
         ErrorCode::SelectionConflictsWithIndex,
+        ErrorCode::UpdateSignatureInvalid,
+        ErrorCode::UpdateUnavailableForPackage,
     ];
 
     /// The code as text, as it appears in the JSON (`"not_a_repo"`).
@@ -208,6 +214,8 @@ impl ErrorCode {
             ErrorCode::AiTooLarge => "ai_too_large",
             ErrorCode::AiUnsupportedVersion => "ai_unsupported_version",
             ErrorCode::SelectionConflictsWithIndex => "selection_conflicts_with_index",
+            ErrorCode::UpdateSignatureInvalid => "update_signature_invalid",
+            ErrorCode::UpdateUnavailableForPackage => "update_unavailable_for_package",
         }
     }
 }
@@ -470,6 +478,18 @@ mod tests {
             assert_eq!(v.as_str().unwrap(), code.as_str());
             let back: ErrorCode = serde_json::from_value(v).unwrap();
             assert_eq!(back, code);
+        }
+    }
+
+    #[test]
+    fn update_codes_have_their_wire_names() {
+        for (code, name) in [
+            (ErrorCode::UpdateSignatureInvalid, "update_signature_invalid"),
+            (ErrorCode::UpdateUnavailableForPackage, "update_unavailable_for_package"),
+        ] {
+            assert!(ErrorCode::ALL.contains(&code));
+            assert_eq!(code.as_str(), name);
+            assert_eq!(serde_json::from_value::<ErrorCode>(serde_json::Value::String(name.into())).unwrap(), code);
         }
     }
 

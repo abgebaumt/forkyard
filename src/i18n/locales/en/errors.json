@@ -218,5 +218,13 @@
   "selection_conflicts_with_index": {
     "text": "The selected lines of a file sit next to or on staged changes.",
     "hint": "Commit or unstage the staged changes of that file first, then try again."
+  },
+  "update_signature_invalid": {
+    "text": "The download is not signed by Forkyard. Nothing was installed.",
+    "hint": "Download the release from the release page instead."
+  },
+  "update_unavailable_for_package": {
+    "text": "This installation is managed by the package manager (.deb/.rpm) and cannot update itself.",
+    "hint": "Download the new package from the release page or update through your package manager."
   }
 }

@@ -59,6 +59,7 @@ commands! {
     app_recheck_git => app::app_recheck_git() -> AppInfo;
     update_check => update::update_check(manual: bool) -> UpdateInfo;
     update_dismiss => update::update_dismiss(version: String, skip: bool) -> UpdateInfo;
+    update_whats_new => update::update_whats_new() -> Option<String>;
     app_startup_report => app::app_startup_report(report: StartupReport) -> ();
     app_close_guard => app::app_close_guard(active: bool) -> ();
     app_losses_elsewhere => app::app_losses_elsewhere() -> u32;

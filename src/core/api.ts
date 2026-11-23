@@ -202,6 +202,8 @@ export interface CoreCommands {
   updateCheck(input: { manual: boolean }): Promise<UpdateInfo>;
   /** The notice for `version` was seen (`skip: false`, no second toast) or the version is skipped (`skip: true`, no notice at all). */
   updateDismiss(input: { version: string; skip: boolean }): Promise<UpdateInfo>;
+  /** The version whose "What's new" to show now – exactly once per version, null on a new installation, the same version or a downgrade. */
+  updateWhatsNew(): Promise<string | null>;
   /**
    * The request the app was started with (start argument or `forkyard://` link) –
    * exactly once, null afterwards. Call it at startup (after subscribing to `app:open_request`):

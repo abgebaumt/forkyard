@@ -93,6 +93,8 @@ pub struct UpdateInfo {
     pub notified_version: Option<String>,
     /// Version the user chose to skip: no notice for it at all.
     pub skipped_version: Option<String>,
+    /// This build can replace itself (Windows, macOS, Linux AppImage); otherwise the UI links the release page.
+    pub installable: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
