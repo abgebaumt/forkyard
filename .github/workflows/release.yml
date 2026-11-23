@@ -8,6 +8,9 @@ name: Release
 #   macOS    Apple Silicon and Intel (.dmg, .app.tar.gz; Intel is cross-compiled)
 #   Linux    x64 and ARM64 (.deb, .rpm, .AppImage), built on Ubuntu 22.04 for an older glibc
 #
+# Updater artifacts: every installer gets a `.sig` file, and `latest.json` lists them for the in-app
+# updater. All matrix targets merge into one `latest.json` on the draft; it is covered by SHA256SUMS.txt.
+#
 # GitHub only offers ARM64 Linux runners to public repositories, so that build is skipped
 # while the repository is private. Run the workflow by hand with the tag to add it later.
 on:
@@ -71,6 +74,14 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ env.TAG }}
+      - name: Check the updater signing key
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then echo "::error::Secret TAURI_SIGNING_PRIVATE_KEY is missing"; exit 1; fi
+          if [ "$(jq -r .plugins.updater.pubkey src-tauri/tauri.conf.json)" = "$(tr -d '\n' < src-tauri/updater-test-key.pub)" ]; then
+            echo "::error::src-tauri/tauri.conf.json still has the test public key – insert the release key first"; exit 1
+          fi
       - name: Check that the tag matches the app version
         run: |
           version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)
@@ -144,9 +155,13 @@ jobs:
       - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.release.outputs.id }}
-          args: ${{ matrix.args }}
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true
+          args: ${{ matrix.args }} --config src-tauri/tauri.updater.conf.json
 
   publish:
     name: Checksums and publish
