@@ -1148,6 +1148,12 @@ async fn delete_remote_branch(
     util::check_ref_name(name).map_err(|reason| CoreError::invalid_name(format!("Invalid name for the remote branch: {reason}")))?;
     let remote_ref = format!("refs/heads/{name}");
     let tracking = format!("refs/remotes/{remote}/{name}");
+    // The remote's default branch (its HEAD here) is never deleted from here.
+    let head =
+        core.git_for(repo_id)?.read().args(["symbolic-ref", "-q", &format!("refs/remotes/{remote}/HEAD")]).check(false).run().await?;
+    if head.success() && head.stdout_text().trim() == tracking {
+        return Err(CoreError::not_allowed(format!("“{remote}/{name}” is the remote’s default branch and can’t be deleted.")));
+    }
     // Lease (hard rule 6): only the tip the caller showed (`expected`), else the one this repository
     // knows, may go; commits someone pushed there since stay.
     let expected = match expected.map(str::trim).filter(|sha| !sha.is_empty()) {
@@ -1732,6 +1738,21 @@ mod tests {
         assert!(changes(&f.tc).is_empty(), "nothing changed");
         let done = f.tc.events.named(names::JOB_DONE);
         assert_eq!((done.len(), &done[0]["ok"]), (1, &json!(false)));
+    }
+
+    #[tokio::test]
+    async fn the_remote_default_branch_is_not_deleted() {
+        let f = fixture().await;
+        // The server itself would allow it (not its checked-out branch).
+        f.repo.git(&["push", "-q", "origin", "main:trunk"]);
+        f.repo.git(&["fetch", "-q", "origin"]);
+        f.repo.git(&["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/trunk"]);
+        let before = f.remote.git(&["rev-parse", "refs/heads/trunk"]);
+
+        let err =
+            branch_delete_remote(&f.tc, f.id.clone(), util::new_id(), "origin".into(), "origin/trunk".into(), None).await.unwrap_err();
+        assert_eq!(err.code, ErrorCode::NotAllowed, "{err:?}");
+        assert_eq!(f.remote_output(&["rev-parse", "--verify", "-q", "refs/heads/trunk"]), Some(before), "still on the remote");
     }
 
     #[tokio::test]

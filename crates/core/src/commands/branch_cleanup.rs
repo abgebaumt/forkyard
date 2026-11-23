@@ -65,6 +65,7 @@ pub(crate) async fn candidates_at(core: &Core, repo_id: &str, now: i64) -> CoreR
         .map(|r| r.name.clone())
         .collect();
     let (prs, pr_data_missing) = pr_facts(core, repo_id, &branches, &settled).await?;
+    let heads = remote_heads(core, repo_id).await;
 
     let mut candidates = Vec::new();
     for branch in branches {
@@ -97,8 +98,13 @@ pub(crate) async fn candidates_at(core: &Core, repo_id: &str, now: i64) -> CoreR
             }
             _ => None,
         };
-        let upstream_remote = (upstream_sha.is_some() && !remote.is_empty() && remote != ".").then_some(remote);
-        let upstream_branch = upstream_remote.as_ref().map(|_| remote_ref.strip_prefix("refs/heads/").unwrap_or(&remote_ref).to_string());
+        let remote_branch = remote_ref.strip_prefix("refs/heads/").unwrap_or(&remote_ref).to_string();
+        // Never offered: a protected or the default branch on the remote (e.g. a branch created from `origin/main`).
+        let keeps_remote = is_protected(&remote_branch, &own_patterns)
+            || default.as_ref() == Some(&remote_branch)
+            || heads.iter().any(|(r, b)| r == &remote && b == &remote_branch);
+        let upstream_remote = (upstream_sha.is_some() && !keeps_remote && !remote.is_empty() && remote != ".").then_some(remote);
+        let upstream_branch = upstream_remote.as_ref().map(|_| remote_branch);
         let upstream_sha = upstream_sha.filter(|_| upstream_remote.is_some());
         candidates.push(BranchCleanupCandidate {
             name: facts.name,
@@ -179,27 +185,31 @@ async fn unmerged_count(core: &Core, repo_id: &str, tip: &str, bases: &[String])
 /// `master`, else the checked-out branch.
 pub(crate) async fn default_branch(core: &Core, repo_id: &str, locals: &[Ref]) -> Option<String> {
     let exists = |name: &str| locals.iter().any(|r| r.name == name);
-    let path = core.repo_path(repo_id).ok()?;
-    let options = ["--format=%(refname)%00%(symref)%00".to_string()];
-    if let Ok(out) = refs::for_each_ref(core, &path, repo_id, &options, &["refs/remotes"]).await {
-        let mut heads: Vec<(String, String)> = fields(&out.stdout, 2)
-            .into_iter()
-            .filter_map(|f| {
-                let remote = f[0].strip_prefix("refs/remotes/")?.strip_suffix("/HEAD")?;
-                let branch = f[1].strip_prefix(&format!("refs/remotes/{remote}/"))?;
-                Some((remote.to_string(), branch.to_string()))
-            })
-            .collect();
-        heads.sort_by_key(|(remote, _)| remote != "origin");
-        if let Some((_, branch)) = heads.into_iter().find(|(_, branch)| exists(branch)) {
-            return Some(branch);
-        }
+    let mut heads = remote_heads(core, repo_id).await;
+    heads.sort_by_key(|(remote, _)| remote != "origin");
+    if let Some((_, branch)) = heads.into_iter().find(|(_, branch)| exists(branch)) {
+        return Some(branch);
     }
     ["main", "master"]
         .into_iter()
         .find(|name| exists(name))
         .map(str::to_string)
         .or_else(|| locals.iter().find(|r| r.is_head).map(|r| r.name.clone()))
+}
+
+/// (remote, branch) for every `refs/remotes/<remote>/HEAD` that points at `refs/remotes/<remote>/<branch>`.
+async fn remote_heads(core: &Core, repo_id: &str) -> Vec<(String, String)> {
+    let Ok(path) = core.repo_path(repo_id) else { return Vec::new() };
+    let options = ["--format=%(refname)%00%(symref)%00".to_string()];
+    let Ok(out) = refs::for_each_ref(core, &path, repo_id, &options, &["refs/remotes"]).await else { return Vec::new() };
+    fields(&out.stdout, 2)
+        .into_iter()
+        .filter_map(|f| {
+            let remote = f[0].strip_prefix("refs/remotes/")?.strip_suffix("/HEAD")?;
+            let branch = f[1].strip_prefix(&format!("refs/remotes/{remote}/"))?;
+            Some((remote.to_string(), branch.to_string()))
+        })
+        .collect()
 }
 
 /// What the host says per branch name, and the host whose data is missing. For a `settled` branch a
