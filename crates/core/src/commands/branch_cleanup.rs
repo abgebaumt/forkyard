@@ -64,7 +64,7 @@ pub(crate) async fn candidates_at(core: &Core, repo_id: &str, now: i64) -> CoreR
         .filter(|r| merged.contains(&r.name) || r.worktree_path.is_some() || is_protected(&r.name, &own_patterns))
         .map(|r| r.name.clone())
         .collect();
-    let (prs, pr_data_missing) = pr_facts(core, repo_id, &branches, &settled).await?;
+    let (prs, pr_data_missing) = pr_facts(core, repo_id, &branches, &settled, default_ref).await?;
     let heads = remote_heads(core, repo_id).await;
 
     let mut candidates = Vec::new();
@@ -219,6 +219,7 @@ async fn pr_facts(
     repo_id: &str,
     branches: &[&Ref],
     settled: &HashSet<String>,
+    default_ref: Option<&Ref>,
 ) -> CoreResult<(HashMap<String, PrFact>, Option<HostKind>)> {
     let Some(found) = host::resolve(core, repo_id, None).await? else {
         return Ok((HashMap::new(), None));
@@ -246,11 +247,12 @@ async fn pr_facts(
         }
     }
     let mut facts = HashMap::new();
+    // A branch that tracks another name on the host remote has its PR under that name.
+    let host_prefix = format!("{}/", found.remote);
+    let on_host = |r: &Ref| r.upstream.as_deref().and_then(|u| u.strip_prefix(&host_prefix)).map(str::to_string).unwrap_or(r.name.clone());
+    let default = default_ref.map(on_host).unwrap_or_default();
     for branch in branches {
-        // A branch that tracks another name on the host remote has its PR under that name.
-        let host_prefix = format!("{}/", found.remote);
-        let source = branch.upstream.as_deref().and_then(|u| u.strip_prefix(&host_prefix)).unwrap_or(&branch.name);
-        let mut fact = listed_fact(&prs, source, cut_off, settled.contains(&branch.name));
+        let mut fact = listed_fact(&prs, &on_host(branch), &default, cut_off, settled.contains(&branch.name));
         if let PrFact::Merged { number, commits_after_head: true } = fact {
             // An unknown head (details fail, object missing locally) counts as commits after it.
             let contained = match host_cmd::pr_get(core, repo_id.to_string(), number, Some(found.remote.clone())).await {
@@ -268,12 +270,13 @@ async fn pr_facts(
 
 /// What the PR list (newest first) says about `branch`. A merged PR counts as having commits after
 /// its head until the details show otherwise, unless the branch is `settled`. `cut_off`: older PRs
-/// were not read, so no match means unknown.
-fn listed_fact(prs: &[PrSummary], branch: &str, cut_off: bool, settled: bool) -> PrFact {
+/// were not read, so no match means unknown. A PR merged into another branch than `default` (stacked
+/// PRs) did not bring its work into the default branch: it counts as not merged.
+fn listed_fact(prs: &[PrSummary], branch: &str, default: &str, cut_off: bool, settled: bool) -> PrFact {
     match prs.iter().find(|pr| !pr.is_fork && pr.source_branch == branch) {
         None if cut_off => PrFact::Unknown,
         None => PrFact::None,
-        Some(pr) if pr.state != PrState::Merged => PrFact::Open,
+        Some(pr) if pr.state != PrState::Merged || pr.target_branch != default => PrFact::Open,
         Some(pr) => PrFact::Merged { number: pr.number, commits_after_head: !settled },
     }
 }

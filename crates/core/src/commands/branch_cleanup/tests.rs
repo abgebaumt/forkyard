@@ -356,19 +356,27 @@ fn pr(number: u64, branch: &str, state: crate::model::PrState) -> PrSummary {
 fn the_pr_list_decides_the_fact_before_any_detail() {
     use crate::model::PrState::{Merged as M, Open as O};
     let prs = vec![pr(9, "neu", O), pr(5, "neu", M), pr(4, "fertig", M), PrSummary { is_fork: true, ..pr(3, "fremd", M) }];
-    assert_eq!(listed_fact(&prs, "neu", false, false), PrFact::Open, "the newest PR counts");
+    assert_eq!(listed_fact(&prs, "neu", "main", false, false), PrFact::Open, "the newest PR counts");
     assert_eq!(
-        listed_fact(&prs, "fertig", false, false),
+        listed_fact(&prs, "fertig", "main", false, false),
         PrFact::Merged { number: 4, commits_after_head: true },
         "until the head is checked"
     );
-    assert_eq!(listed_fact(&prs, "fertig", false, true), PrFact::Merged { number: 4, commits_after_head: false }, "settled: no check");
-    assert_eq!(listed_fact(&prs, "fremd", false, false), PrFact::None, "a fork's PR is not this branch's");
-    assert_eq!(listed_fact(&prs, "ohne", false, false), PrFact::None);
-    assert_eq!(listed_fact(&prs, "ohne", true, false), PrFact::Unknown, "cut-off list: an older PR may exist");
     assert_eq!(
-        listed_fact(&prs, "fertig", true, false),
+        listed_fact(&prs, "fertig", "main", false, true),
+        PrFact::Merged { number: 4, commits_after_head: false },
+        "settled: no check"
+    );
+    assert_eq!(listed_fact(&prs, "fremd", "main", false, false), PrFact::None, "a fork's PR is not this branch's");
+    assert_eq!(listed_fact(&prs, "ohne", "main", false, false), PrFact::None);
+    assert_eq!(listed_fact(&prs, "ohne", "main", true, false), PrFact::Unknown, "cut-off list: an older PR may exist");
+    assert_eq!(
+        listed_fact(&prs, "fertig", "main", true, false),
         PrFact::Merged { number: 4, commits_after_head: true },
         "a match counts even when cut off"
     );
+    // Stacked PRs: merged into another feature branch, not into the default branch.
+    let stacked = vec![PrSummary { target_branch: "feature/a".into(), ..pr(6, "feature/b", M) }];
+    assert_eq!(listed_fact(&stacked, "feature/b", "main", false, true), PrFact::Open, "its work is not in main");
+    assert_eq!(listed_fact(&stacked, "feature/b", "feature/a", false, true), PrFact::Merged { number: 6, commits_after_head: false });
 }
