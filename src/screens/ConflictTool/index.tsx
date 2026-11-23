@@ -20,7 +20,7 @@ import { operationNames, showWip } from "../../app/actions/merge";
 import { hasOpenDialog } from "../../app/dialogs";
 import { toCoreError } from "../../app/errors";
 import { useConflict, useSettings, useStatus } from "../../app/queries";
-import { isTextField } from "../../app/viewFocus";
+import { isTextField, isTextTarget } from "../../app/viewFocus";
 import { getTabView, useAppStore } from "../../app/store";
 import { preventedByGuard } from "../../app/webviewGuards";
 import { IconButton } from "../../ui/Button";
@@ -107,7 +107,7 @@ export function ConflictTool({ repoId, tabId, path }: ConflictToolProps) {
       if (isTextField(target)) return;
       if (target?.closest('[role="menu"], [role="dialog"]')) return;
       const inside = Boolean(target && root.current?.contains(target));
-      if (!inside && target instanceof HTMLElement && target.isContentEditable) return;
+      if (!inside && isTextTarget(target)) return;
       const plain = !event.ctrlKey && !event.metaKey;
       let handled = true;
       if (event.key === "F7" && plain && !event.altKey) workbench.current?.goToConflict(event.shiftKey ? -1 : 1);

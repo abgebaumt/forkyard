@@ -1,6 +1,6 @@
 /** Pure parts of the shortcut overview: sections from the registry and the fixed keys, and the filter. */
 import type { AppCommand, CommandGroup } from "../../app/commandTypes";
-import { effectiveKeys } from "../../app/keybindings";
+import { defaultKeys } from "../../app/keybindings";
 import { formatShortcut } from "../../ui/shortcut";
 import { fold } from "../CommandPalette/fuzzy";
 import { fixedKeyGroups } from "./fixedKeys";
@@ -45,7 +45,7 @@ export function registrySections(commands: readonly AppCommand[], { editing = fa
     const numbered = list.filter((command) => /^tab\.goto\.[1-8]$/.test(command.id));
     const range =
       !editing &&
-      numbered.every((command, index) => command.id === `tab.goto.${index + 1}` && effectiveKeys(command).join() === `Mod+${index + 1}`);
+      numbered.every((command, index) => command.id === `tab.goto.${index + 1}` && defaultKeys(command).join() === `Mod+${index + 1}`);
     for (const command of list) {
       if (range && numbered.includes(command)) {
         if (command === numbered[0]) {
@@ -57,7 +57,7 @@ export function registrySections(commands: readonly AppCommand[], { editing = fa
         }
         continue;
       }
-      entries.push({ key: command.id, label: command.title.replace(/ …$/, ""), keys: effectiveKeys(command).map((key) => [key]) });
+      entries.push({ key: command.id, label: command.title.replace(/ …$/, ""), keys: defaultKeys(command).map((key) => [key]) });
     }
     sections.push({ id: `group-${group}`, title: GROUP_TITLES[group], entries });
   }

@@ -59,13 +59,10 @@ export function applyKeybindings(base: readonly AppCommand[], overrides: Keybind
   });
 }
 
-/** Every key of a command: the shown one first, then the aliases. */
+/** Every key of a command (also one after `applyKeybindings`): the shown one first, then the aliases. */
 export function defaultKeys(command: AppCommand): string[] {
   return [command.shortcut, ...(command.aliases ?? [])].filter((key): key is string => Boolean(key));
 }
-
-/** The same for a command after `applyKeybindings`. */
-export const effectiveKeys: (command: AppCommand) => string[] = defaultKeys;
 
 export type Refusal = { kind: "plain" } | { kind: "fixed"; group: string; label: string } | { kind: "text" } | { kind: "system" };
 
@@ -104,7 +101,7 @@ export function conflictWith(
   platform: ShortcutPlatform,
 ): AppCommand | null {
   const key = canonical(combo, platform);
-  return effective.find((c) => c.id !== commandId && effectiveKeys(c).some((k) => canonical(k, platform) === key)) ?? null;
+  return effective.find((c) => c.id !== commandId && defaultKeys(c).some((k) => canonical(k, platform) === key)) ?? null;
 }
 
 /** Gives the command exactly this combination and takes it away from every other command. */
@@ -119,7 +116,7 @@ export function assign(
   const next: Keybindings = { ...overrides, [commandId]: [key] };
   for (const command of effective) {
     if (command.id === commandId) continue;
-    const keys = effectiveKeys(command);
+    const keys = defaultKeys(command);
     const rest = keys.filter((k) => canonical(k, platform) !== key);
     if (rest.length < keys.length) next[command.id] = rest.length > 0 ? rest : null;
   }

@@ -12,6 +12,7 @@ import { applyKeybindings, isAltGrText, type Keybindings } from "./keybindings";
 import { qk, queryClient } from "./queries";
 import { showError } from "./run";
 import { useAppStore } from "./store";
+import { isTextTarget } from "./viewFocus";
 import { preventedByGuard } from "./webviewGuards";
 
 export type { AppCommand, CommandContext, CommandGroup } from "./commandTypes";
@@ -138,16 +139,6 @@ export async function runCommand(idOrCommand: string | AppCommand, source: Comma
     showError(command.title, error);
   }
   return true;
-}
-
-function isTextTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable) return true;
-  if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
-  if (target instanceof HTMLInputElement) {
-    return !["checkbox", "radio", "button", "submit", "reset", "range", "color", "file"].includes(target.type);
-  }
-  return Boolean(target.closest(".cm-editor"));
 }
 
 /** An open modal window (Radix dialog, promise dialog) blocks global shortcuts. */
