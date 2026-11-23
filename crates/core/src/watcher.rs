@@ -16,6 +16,10 @@
 //!   operation. A new folder there counts by its own path (its first files may come without
 //!   events). Everything else there (objects, logs, lock files) is skipped.
 //!
+//! On Linux the working directory is watched folder by folder instead (`tree.rs`): ignored
+//! folders, symlinks and nested repositories get no watch; folders that appear later get one as
+//! their event arrives, and a changed ignore rule walks the tree again.
+//!
 //! Callers: `commands::repos` calls `start_watching` as soon as a repository gets a tab,
 //! and `stop_watching` when its last tab is closed or it is forgotten; src-tauri calls
 //! `start_watching` for all open repo tabs at startup.
@@ -27,6 +31,7 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use notify::{EventKind, RecursiveMode, Watcher};
@@ -303,11 +308,23 @@ struct Intake {
     /// as ignored if nothing in it is tracked – so everything below it is of no interest.
     ignored_dirs: HashSet<Vec<u8>>,
     pending: Pending,
+    /// Linux: folders that appeared and need a watch of their own.
+    to_watch: Vec<PathBuf>,
+    /// Linux: an ignore rule changed – folders skipped so far may need a watch now.
+    rewalk: bool,
 }
 
 impl Intake {
     fn new(root: PathBuf, git_inside: bool, git_roots: Vec<GitRoot>) -> Self {
-        Intake { root, git_inside, git_roots, ignored_dirs: HashSet::new(), pending: Pending::default() }
+        Intake {
+            root,
+            git_inside,
+            git_roots,
+            ignored_dirs: HashSet::new(),
+            pending: Pending::default(),
+            to_watch: Vec::new(),
+            rewalk: false,
+        }
     }
 
     fn forget_ignore_cache(&mut self) {
@@ -328,6 +345,8 @@ impl Intake {
         self.pending.kinds.insert(hit.change);
         if hit.affects_ignore {
             self.forget_ignore_cache();
+            // The index only tracks files; rules come from .gitignore, info/exclude and config.
+            self.rewalk |= hit.change != RepoChange::Index;
         }
         true
     }
@@ -383,13 +402,19 @@ impl Intake {
         match rel.rsplit(|&b| b == b'/').next() {
             // The link file of a nested repository itself.
             Some(b".git") => return false,
-            Some(b".gitignore") => self.forget_ignore_cache(),
+            Some(b".gitignore") => {
+                self.forget_ignore_cache();
+                self.rewalk = true;
+            }
             _ => {}
         }
         if self.is_known_ignored(&rel) {
             return false;
         }
         if path.is_dir() {
+            if appears && cfg!(target_os = "linux") {
+                self.to_watch.push(path.to_path_buf());
+            }
             // Changed folder: its files report themselves. Only a newly appeared one counts.
             return appears && self.candidate(rel, true);
         }
@@ -478,14 +503,19 @@ async fn watch_repo(
     }
 
     let (tx, mut rx) = mpsc::unbounded_channel::<notify::Result<notify::Event>>();
-    // A recursive watch walks the whole working directory (ignored folders like node_modules
-    // included) and blocks while doing so – seconds for a large tree. It runs on a blocking
-    // thread so it never holds up a worker of the async runtime that serves the UI's calls.
+    // Setting up walks the working directory and blocks while doing so – seconds for a large
+    // tree. It runs on a blocking thread so it never holds up a worker of the async runtime that
+    // serves the UI's calls.
     let started = std::time::Instant::now();
-    let paths: Vec<PathBuf> = git_roots.iter().map(|g| g.path.clone()).collect();
+    let mut ignored = Arc::new(if cfg!(target_os = "linux") { tree::ignored_dirs(core, root).await } else { HashSet::new() });
+    let mut paths: Vec<PathBuf> = git_roots.iter().map(|g| g.path.clone()).collect();
+    if git_inside && cfg!(target_os = "linux") {
+        paths.push(root.join(".git"));
+    }
     let watch_root = root.clone();
-    let setup = tokio::task::spawn_blocking(move || set_up_watches(&watch_root, &paths, tx));
-    let _watcher = tokio::select! {
+    let walk_ignored = ignored.clone();
+    let setup = tokio::task::spawn_blocking(move || set_up_watches(&watch_root, &paths, &walk_ignored, tx));
+    let watcher = tokio::select! {
         _ = stop.cancelled() => return Ok(()),
         result = setup => result.map_err(|_| CoreError::unknown("File watching couldn’t be set up."))??,
     };
@@ -493,7 +523,9 @@ async fn watch_repo(
     if took >= SLOW_SETUP {
         log::info!("File watching for {} took {} ms to set up", util::display_path(root), took.as_millis());
     }
+    let watcher = Arc::new(Mutex::new(watcher));
     let mut intake = Intake::new(root.to_path_buf(), git_inside, git_roots.clone());
+    intake.ignored_dirs = (*ignored).clone();
     phase.send_replace(Phase::Watching);
 
     let mut first_at: Option<Instant> = None;
@@ -510,7 +542,11 @@ async fn watch_repo(
                     None => return Ok(()),
                     Some(Ok(event)) => {
                         errors_in_a_row = 0;
-                        intake.absorb(&event)
+                        let relevant = intake.absorb(&event);
+                        if !intake.to_watch.is_empty() {
+                            watch_new_dirs(&watcher, root, std::mem::take(&mut intake.to_watch), &ignored);
+                        }
+                        relevant
                     }
                     // Watcher error (e.g. overflow): better to report once too often.
                     Some(Err(e)) => {
@@ -538,6 +574,11 @@ async fn watch_repo(
                 if !root.is_dir() {
                     break;
                 }
+                if std::mem::take(&mut intake.rewalk) && cfg!(target_os = "linux") {
+                    ignored = Arc::new(tree::ignored_dirs(core, root).await);
+                    watch_new_dirs(&watcher, root, vec![root.clone()], &ignored);
+                    intake.ignored_dirs = (*ignored).clone();
+                }
                 flush(core, repo_id, &mut intake).await;
             }
             _ = liveness.tick() => {
@@ -552,12 +593,13 @@ async fn watch_repo(
     Ok(())
 }
 
-/// Creates the watcher and adds the recursive watches (blocking: walks the trees). The working
-/// directory first, then the Git directories outside it – shortest paths first: if one lies below
-/// another (a worktree's own part below the common one), watching that one is enough.
+/// Creates the watcher and adds the watches (blocking: walks the trees). The working directory
+/// first, then the Git directories – shortest paths first: if one lies below another (a worktree's
+/// own part below the common one), watching that one recursively is enough.
 fn set_up_watches(
     root: &Path,
     git_roots: &[PathBuf],
+    ignored: &HashSet<Vec<u8>>,
     tx: mpsc::UnboundedSender<notify::Result<notify::Event>>,
 ) -> CoreResult<notify::RecommendedWatcher> {
     let failed = |e: notify::Error| CoreError::io(format!("File watching couldn’t be set up: {e}"));
@@ -565,10 +607,15 @@ fn set_up_watches(
         let _ = tx.send(event);
     })
     .map_err(failed)?;
-    watcher.watch(root, RecursiveMode::Recursive).map_err(failed)?;
+    let mut watched: Vec<&Path> = Vec::new();
+    if cfg!(target_os = "linux") {
+        tree::watch_tree(root, root, ignored, &mut |dir| watcher.watch(dir, RecursiveMode::NonRecursive)).map_err(failed)?;
+    } else {
+        watcher.watch(root, RecursiveMode::Recursive).map_err(failed)?;
+        watched.push(root);
+    }
     let mut outside: Vec<&Path> = git_roots.iter().map(PathBuf::as_path).collect();
     outside.sort_by_key(|path| path.components().count());
-    let mut watched: Vec<&Path> = vec![root];
     for path in outside {
         if !watched.iter().any(|w| path.starts_with(w)) {
             watcher.watch(path, RecursiveMode::Recursive).map_err(failed)?;
@@ -576,6 +623,20 @@ fn set_up_watches(
         }
     }
     Ok(watcher)
+}
+
+/// Linux: watches folders that appeared (or became visible), on a blocking thread – a folder
+/// moved in can hold a large tree. Failures only cost events from that folder, so they are logged.
+fn watch_new_dirs(watcher: &Arc<Mutex<notify::RecommendedWatcher>>, root: &Path, dirs: Vec<PathBuf>, ignored: &Arc<HashSet<Vec<u8>>>) {
+    let (watcher, root, ignored) = (watcher.clone(), root.to_path_buf(), ignored.clone());
+    tokio::task::spawn_blocking(move || {
+        let mut watcher = watcher.lock();
+        for dir in dirs {
+            if let Err(e) = tree::watch_tree(&root, &dir, &ignored, &mut |d| watcher.watch(d, RecursiveMode::NonRecursive)) {
+                log::debug!("Watching new folder {} failed: {e}", util::display_path(&dir));
+            }
+        }
+    });
 }
 
 async fn sleep_until_due(due: Option<Instant>) {
@@ -673,3 +734,4 @@ async fn dirs_have_visible_content(core: &Core, root: &Path, dirs: &[&Vec<u8>]) 
 
 #[cfg(test)]
 mod tests;
+mod tree;
