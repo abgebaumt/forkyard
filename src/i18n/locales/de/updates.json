@@ -15,10 +15,40 @@
     "card": "Updates",
     "auto": {
       "title": "Automatisch nach Updates suchen",
-      "description": "Einmal am Tag fragt Forkyard bei GitHub (api.github.com) nach dem neuesten stabilen Release. Gesendet wird nur die App-Version. Eine neue Version erscheint in der Statusleiste; heruntergeladen oder installiert wird nichts."
+      "description": "Einmal am Tag fragt Forkyard bei GitHub (api.github.com) nach dem neuesten stabilen Release. Gesendet wird nur die App-Version. Eine neue Version erscheint in der Statusleiste. Installiert wird immer erst nach deinem Klick."
     },
     "checkNow": "Jetzt prüfen",
     "lastChecked": "Zuletzt geprüft {{time}}",
     "neverChecked": "Noch nicht geprüft"
+  },
+  "install": "Installieren …",
+  "dialog": {
+    "title": "Forkyard {{version}}",
+    "install": "Installieren",
+    "later": "Später",
+    "cancel": "Abbrechen",
+    "restartNow": "Jetzt neu starten",
+    "openPage": "Release-Seite öffnen",
+    "origin": "in den Release-Notizen",
+    "progress": "Fortschritt des Downloads",
+    "downloading": "Wird heruntergeladen … {{percent}} %",
+    "downloadingUnknown": "Wird heruntergeladen …",
+    "downloaded": "Heruntergeladen und geprüft. Forkyard startet neu, um abzuschließen.",
+    "failed": "Das Update konnte nicht installiert werden"
+  },
+  "whatsNew": {
+    "title": "Neu in Forkyard {{version}}",
+    "fullChangelog": "Vollständiges Changelog",
+    "go": "Los geht’s",
+    "1_3_0": {
+      "items": [
+        "Rebase direkt im Graphen: Commits per Ziehen umsortieren, zusammenfassen oder weglassen und das Ergebnis vorab sehen.",
+        "Ausgewählte Zeilen committen: Mit dem Lasso die gewünschten Zeilen markieren und nur diese committen.",
+        "Pull Requests in der App prüfen, auf GitHub, GitLab, Bitbucket, Gitea und Azure DevOps.",
+        "Eine Übersicht „seit gestern“ zeigt, was sich in deinen Repositories getan hat, während du weg warst.",
+        "Der Branch-Aufräumer nennt für jeden Branch den Grund: gemergt, Upstream gelöscht oder veraltet.",
+        "Mehrere Fenster, eigene Tastenkürzel und Updates mit einem Klick."
+      ]
+    }
   }
 }

@@ -15,10 +15,40 @@
     "card": "Updates",
     "auto": {
       "title": "Check for updates automatically",
-      "description": "Once a day, Forkyard asks GitHub (api.github.com) for the newest stable release. Only the app version is sent. A new version is shown in the status bar; nothing is downloaded or installed."
+      "description": "Once a day, Forkyard asks GitHub (api.github.com) for the newest stable release. Only the app version is sent. A new version is shown in the status bar. Installing always needs your click."
     },
     "checkNow": "Check now",
     "lastChecked": "Last checked {{time}}",
     "neverChecked": "Not checked yet"
+  },
+  "install": "Install…",
+  "dialog": {
+    "title": "Forkyard {{version}}",
+    "install": "Install",
+    "later": "Later",
+    "cancel": "Cancel",
+    "restartNow": "Restart now",
+    "openPage": "Open release page",
+    "origin": "in the release notes",
+    "progress": "Download progress",
+    "downloading": "Downloading … {{percent}} %",
+    "downloadingUnknown": "Downloading …",
+    "downloaded": "Downloaded and checked. Forkyard restarts to finish.",
+    "failed": "The update could not be installed"
+  },
+  "whatsNew": {
+    "title": "What's new in Forkyard {{version}}",
+    "fullChangelog": "Full changelog",
+    "go": "Let's go",
+    "1_3_0": {
+      "items": [
+        "Rebase right in the graph: drag commits to reorder, squash or drop them, and see the result before it is applied.",
+        "Commit selected lines: draw a lasso over the lines you want and commit just those.",
+        "Review pull requests in the app, on GitHub, GitLab, Bitbucket, Gitea and Azure DevOps.",
+        "A \"since yesterday\" overview shows what changed in your repositories while you were away.",
+        "The branch cleaner says why each branch can go: merged, gone upstream or stale.",
+        "Several windows, your own shortcuts and one-click updates."
+      ]
+    }
   }
 }
