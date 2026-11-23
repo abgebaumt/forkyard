@@ -36,6 +36,8 @@ actually happens, and makes the risky parts safe:
   Besides your own Git and host operations (and author avatars from GitHub, which you can turn off),
   the only automatic network request is an optional daily update check to api.github.com that sends
   nothing but the app version in the User-Agent – it can be switched off in Settings › About.
+  Installing an update (only on your click) downloads `latest.json` and the installer from github.com
+  and checks its signature before anything changes.
 - **Safe with unknown repositories.** Repositories whose config or hooks would run programs stay
   locked until you trust them.
 
