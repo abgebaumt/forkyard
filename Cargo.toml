@@ -12,6 +12,8 @@ homepage = "https://github.com/abgebaumt/forkyard"
 
 [profile.dev]
 opt-level = 1
+# Backtraces keep file and line; full debug info only slowed linking.
+debug = "line-tables-only"
 
 [profile.dev.package."*"]
 opt-level = 2
