@@ -23,6 +23,7 @@ const sample = {
 } satisfies Digest;
 
 const { qk, queryClient } = await import("../../app/queries");
+const { useAppStore } = await import("../../app/store");
 const { checkDigestAfterFetch, openDigest } = await import("./actions");
 
 const withTab = (isActive = true) => queryClient.setQueryData(qk.tabs, [{ id: "t1", kind: "repo", repoId: "r1", isActive }]);
@@ -40,6 +41,19 @@ describe("checkDigestAfterFetch", () => {
     digestGet.mockResolvedValue(sample);
     await checkDigestAfterFetch("r1");
     expect(digestGet).toHaveBeenCalledWith({ repoId: "r1", ifChanged: true });
+    expect(showDigestDialog).toHaveBeenCalledWith("r1", "t1", sample);
+  });
+
+  it("waits until an open sign-in prompt is answered", async () => {
+    withTab();
+    digestGet.mockResolvedValue(sample);
+    useAppStore.setState({ credentialQueue: [{ requestId: "c1" } as never] });
+    const check = checkDigestAfterFetch("r1");
+    await vi.waitFor(() => expect(digestGet).toHaveBeenCalled());
+    await Promise.resolve();
+    expect(showDigestDialog).not.toHaveBeenCalled();
+    useAppStore.setState({ credentialQueue: [] });
+    await check;
     expect(showDigestDialog).toHaveBeenCalledWith("r1", "t1", sample);
   });
 
