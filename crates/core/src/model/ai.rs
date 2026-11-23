@@ -240,8 +240,9 @@ pub enum AiInput {
     /// The search by meaning (9.2): the question and – with embeddings – the new index entries.
     SemanticSearch { query: String },
     /// "What's new since …": the current digest of the repository – ref names, commit subjects, file
-    /// names and pull request titles with their counts; never authors.
-    Digest,
+    /// names and pull request titles with their counts; never authors. `since`: the window start of the digest
+    /// the dialog shows (`Digest.since`), so preview and send see the same window.
+    Digest { since: IsoTime },
 }
 
 /// `aiDigest`: one paragraph about the digest, shown as plain text.

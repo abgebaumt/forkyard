@@ -21,7 +21,6 @@ import { locale, t } from "../../i18n";
 import { digestNumbers, digestRows, type DigestNumbers, type DigestRow } from "./model";
 
 const AI_FEATURE = "digest" as const;
-const AI_INPUT = { kind: AI_FEATURE };
 
 function openRow(repoId: Id, tabId: Id, row: DigestRow, base: string | null): void {
   switch (row.kind) {
@@ -73,15 +72,17 @@ function DigestDialog({ repoId, tabId, digest, onClose }: { repoId: Id; tabId: I
   const rows = digestRows(digest);
   const aiVisible = !digest.isEmpty && featureVisible(status.data, AI_FEATURE, repoSettings.data?.aiOff ?? false);
   const opensSetup = aiVisibility(status.data).elementsOpenSetup;
+  // The window of the digest shown: preview and send must not each start their own 24 hours.
+  const aiInput = { kind: AI_FEATURE, since: digest.since };
   const summarise = async () => {
     if (!checkProvider(status.data) || job.busy()) return;
     const answer = await job.start(
-      (jobId) => core.aiDigest({ repoId, jobId, locale: locale() }),
-      () => askAi(repoId, AI_FEATURE, AI_INPUT),
+      (jobId) => core.aiDigest({ repoId, jobId, since: digest.since, locale: locale() }),
+      () => askAi(repoId, AI_FEATURE, aiInput),
     );
     if (answer) setParagraph(answer.paragraph);
   };
-  const showSent = () => void showWhatIsSent(repoId, AI_FEATURE, AI_INPUT, job.fail);
+  const showSent = () => void showWhatIsSent(repoId, AI_FEATURE, aiInput, job.fail);
   // The dialog closes first: the view the row points to may take focus only then.
   const jump = (row: DigestRow) => {
     job.cancel();

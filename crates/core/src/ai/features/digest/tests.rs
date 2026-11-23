@@ -40,6 +40,11 @@ async fn day(subject: &str) -> (TestCore, TestRepo, String) {
     (tc, repo, id)
 }
 
+/// The window of the dialog's digest: the last 24 hours.
+fn window() -> String {
+    (chrono::Utc::now() - chrono::Duration::hours(24)).to_rfc3339()
+}
+
 fn chat(content: &str) -> MockResponse {
     MockResponse::json(
         200,
@@ -79,14 +84,17 @@ fn the_answer_is_trimmed_and_cut() {
 
 #[test]
 fn the_preview_input_reads_as_the_ui_sends_it() {
-    assert_eq!(serde_json::from_value::<AiInput>(json!({"kind": "digest"})).unwrap(), AiInput::Digest);
+    assert_eq!(
+        serde_json::from_value::<AiInput>(json!({"kind": "digest", "since": "2026-11-19T08:00:00Z"})).unwrap(),
+        AiInput::Digest { since: "2026-11-19T08:00:00Z".into() }
+    );
 }
 
 #[tokio::test]
 async fn the_prompt_holds_only_names_subjects_and_titles() {
     let (tc, _repo, id) = day("Login prüfen").await;
     let settings = tc.settings().unwrap();
-    let built = build(&tc, &id, &settings, 8_000, "de", &[]).await.unwrap();
+    let built = build(&tc, &id, &window(), &settings, 8_000, "de", &[]).await.unwrap();
     let text = built.prompt.text();
     for wanted in ["origin/main", "Login prüfen", "src/login.rs"] {
         assert!(text.contains(wanted), "{wanted}: {text}");
@@ -95,7 +103,7 @@ async fn the_prompt_holds_only_names_subjects_and_titles() {
         assert!(!text.contains(never), "{never} must not be sent: {text}");
     }
     assert_eq!(built.omitted, vec![AiOmitted { path: ".env".into(), reason: AiOmitReason::Secret, size: 0 }]);
-    let preview = ai_preview(&tc, id, AiFeature::Digest, AiInput::Digest, "de".into()).await.unwrap();
+    let preview = ai_preview(&tc, id, AiFeature::Digest, AiInput::Digest { since: window() }, "de".into()).await.unwrap();
     assert!(preview.text.contains("   Login prüfen\n"), "{}", preview.text);
     assert!(!preview.text.contains("Bäumler") && !preview.text.contains(EMAIL), "the preview names no author");
     assert_eq!(preview.omitted, built.omitted);
@@ -106,7 +114,7 @@ async fn an_injected_subject_stays_data() {
     let (tc, _repo, id) = day(INJECTION).await;
     let server = ollama(vec![json!({"paragraph": "Mira hat zwei Commits gepusht."}).to_string()]);
     ai_on_with_ollama(&tc, &server).await;
-    let answer = ai_digest(&tc, id, "d1".into(), "de".into()).await.unwrap();
+    let answer = ai_digest(&tc, id, "d1".into(), window(), "de".into()).await.unwrap();
     assert_eq!(answer.paragraph, "Mira hat zwei Commits gepusht.");
     let sent = chats(&server);
     assert_eq!(sent.len(), 1);
@@ -121,7 +129,7 @@ async fn the_request_names_no_author() {
     let (tc, _repo, id) = day("Login prüfen").await;
     let server = ollama(vec![json!({"paragraph": "Auf origin/main kam ein Commit."}).to_string()]);
     ai_on_with_ollama(&tc, &server).await;
-    ai_digest(&tc, id, "d4".into(), "de".into()).await.unwrap();
+    ai_digest(&tc, id, "d4".into(), window(), "de".into()).await.unwrap();
     let sent = chats(&server);
     assert_eq!(sent.len(), 1);
     // The decoded messages and the raw body: no escaping can hide a name.
@@ -139,7 +147,7 @@ async fn the_answer_must_match_the_schema() {
     let (tc, _repo, id) = day("Login prüfen").await;
     let server = ollama(vec![json!({"text": "Mira hat gepusht."}).to_string()]);
     ai_on_with_ollama(&tc, &server).await;
-    let error = ai_digest(&tc, id, "d2".into(), "en".into()).await.unwrap_err();
+    let error = ai_digest(&tc, id, "d2".into(), window(), "en".into()).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::AiInvalidAnswer);
     assert_eq!(chats(&server).len(), 2, "exactly one repair attempt");
 }
@@ -150,6 +158,20 @@ async fn ai_off_sends_nothing() {
     let server = ollama(vec![json!({"paragraph": "x"}).to_string()]);
     crate::ai::configure_base(&tc, AiProviderKind::Ollama, Some(server.url()));
     assert_eq!(tc.settings().unwrap().ai_enabled, None);
-    assert_eq!(ai_digest(&tc, id, "d3".into(), "en".into()).await.unwrap_err().code, ErrorCode::AiDisabled);
+    assert_eq!(ai_digest(&tc, id, "d3".into(), window(), "en".into()).await.unwrap_err().code, ErrorCode::AiDisabled);
     assert!(server.requests().is_empty(), "the provider saw no request");
+}
+
+#[tokio::test]
+async fn preview_and_send_use_the_window_of_the_shown_digest() {
+    let (tc, _repo, id) = day("Login prüfen").await;
+    // A window that starts after the pushed commit: the commit is no news in it.
+    let later = (chrono::Utc::now() + chrono::Duration::minutes(1)).to_rfc3339();
+    let preview = ai_preview(&tc, id.clone(), AiFeature::Digest, AiInput::Digest { since: later.clone() }, "de".into()).await.unwrap();
+    assert!(!preview.text.contains("Login prüfen"), "{}", preview.text);
+    let server = ollama(vec![json!({"paragraph": "Nichts Neues."}).to_string()]);
+    ai_on_with_ollama(&tc, &server).await;
+    ai_digest(&tc, id, "d5".into(), later, "de".into()).await.unwrap();
+    let sent = chats(&server);
+    assert!(!sent[0].body_text().contains("Login prüfen"), "the request has the same window as the preview");
 }
