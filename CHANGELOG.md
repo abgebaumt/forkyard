@@ -15,6 +15,10 @@ All notable changes to Forkyard are listed here. The format follows
 
 ### Added
 
+- Install updates with one click on Windows, macOS and Linux (AppImage): the download is signature-checked,
+  and Forkyard restarts after asking about unsaved work in every window. `.deb`/`.rpm` installs keep the
+  link to the release page.
+- After an update, a short "What's new" overview shows once.
 - Review pull requests in the app on GitHub, GitLab, Gitea/Forgejo, Bitbucket Cloud and Azure DevOps: comments
   at diff lines (ranges where the host allows), drafts that survive restarts and join a review started in the
   browser, Approve / Request changes / Comment, resolve and reopen threads.
