@@ -89,7 +89,7 @@ type Request =
   | { id: number; type: "prompt"; options: PromptOptions; resolve: (value: string | null) => void }
   | { id: number; type: "choose"; options: ChooseOptions; resolve: (value: string | null) => void }
   | { id: number; type: "pick"; options: PickOptions; resolve: (value: string | null) => void }
-  | { id: number; type: "custom"; render: CustomDialogRender<unknown>; resolve: (value: unknown) => void }
+  | { id: number; type: "custom"; render: CustomDialogRender<unknown>; resolve: (value: unknown) => void; above?: boolean }
   | { id: number; type: "output"; options: { title: string; text: string }; resolve: (value: null) => void };
 
 let queue: Request[] = [];
@@ -128,14 +128,16 @@ export function pickFromList<K extends string>(options: PickOptions<K>): Promise
 
 /**
  * Custom dialog with arbitrary content (forms with several fields). `render` receives `done` and
- * returns a `<Dialog open …>`; like the other dialogs it appears on its own and in order.
+ * returns a `<Dialog open …>`; like the other dialogs it appears on its own and in order. With
+ * `above` it opens at once on top of the open dialog instead (asked for from inside that dialog).
  */
-export function showDialog<T>(render: CustomDialogRender<T>): Promise<T | null> {
+export function showDialog<T>(render: CustomDialogRender<T>, options: { above?: boolean } = {}): Promise<T | null> {
   return push<unknown>((id, resolve) => ({
     id,
     type: "custom",
     render: render as CustomDialogRender<unknown>,
     resolve,
+    above: options.above,
   })) as Promise<T | null>;
 }
 
@@ -157,9 +159,12 @@ function subscribe(listener: () => void) {
 /** Mount once in the shell. */
 export function DialogHost() {
   const items = useSyncExternalStore(subscribe, () => queue);
-  const current = items[0];
-  if (!current) return null;
+  if (!items[0]) return null;
+  const shown = [items[0], ...items.slice(1).filter((item) => item.type === "custom" && item.above)];
+  return <>{shown.map(renderRequest)}</>;
+}
 
+function renderRequest(current: Request) {
   switch (current.type) {
     case "confirm":
       return (
