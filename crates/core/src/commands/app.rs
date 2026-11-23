@@ -147,6 +147,12 @@ pub fn mark_quitting(core: &Core) {
     core.state::<CloseGuard>().quitting.store(true, Ordering::SeqCst);
 }
 
+/// Quitting did not happen after all (a failed update install): the close guard protects again.
+/// Jobs cancelled by `app_quit` stay cancelled.
+pub fn resume_after_failed_quit(core: &Core) {
+    core.state::<CloseGuard>().quitting.store(false, Ordering::SeqCst);
+}
+
 /// Cancels all running jobs and waits briefly until they have cleaned up.
 pub async fn stop_running_jobs(core: &Core) {
     let cancelled = core.jobs.cancel_all();
@@ -190,6 +196,9 @@ mod tests {
         assert!(guard.intercept("main"));
         app_quit(&tc).await.unwrap();
         assert!(!guard.intercept("main") && guard.quitting(), "after confirmation it closes");
+        // The quit was for an update install that failed: unsaved work is protected again.
+        resume_after_failed_quit(&tc);
+        assert!(guard.intercept("main") && !guard.quitting(), "after a failed quit it asks again");
     }
 
     #[tokio::test]
