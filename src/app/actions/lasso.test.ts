@@ -5,6 +5,7 @@ const commitSelection = vi.fn<(input: Record<string, unknown>) => Promise<Commit
 const selectionToBranch = vi.fn<(input: Record<string, unknown>) => Promise<CommitResult>>();
 const stagePaths = vi.fn<(input: Record<string, unknown>) => Promise<Status>>();
 const discardPaths = vi.fn<(input: Record<string, unknown>) => Promise<Status>>();
+const commitCreate = vi.fn<(input: Record<string, unknown>) => Promise<CommitResult>>();
 const stashCreate = vi.fn<(input: Record<string, unknown>) => Promise<unknown>>();
 
 vi.mock("../../core", async (original) => ({
@@ -14,6 +15,7 @@ vi.mock("../../core", async (original) => ({
     selectionToBranch: (input: Record<string, unknown>) => selectionToBranch(input),
     stagePaths: (input: Record<string, unknown>) => stagePaths(input),
     discardPaths: (input: Record<string, unknown>) => discardPaths(input),
+    commitCreate: (input: Record<string, unknown>) => commitCreate(input),
     stashCreate: (input: Record<string, unknown>) => stashCreate(input),
     on: () => () => undefined,
   },
@@ -34,7 +36,7 @@ const { useWipStore } = await import("../../screens/WipPanel/state");
 const { commitLasso, lassoToBranch } = await import("./lasso");
 const { focusSummarySoon } = await import("../commands/focus");
 const { getTabView, useAppStore } = await import("../store");
-const { discardFiles, stageFiles } = await import("../../screens/WipPanel/actions");
+const { commitChanges, discardFiles, stageFiles } = await import("../../screens/WipPanel/actions");
 const { stashFiles } = await import("./files");
 const { stashChanges } = await import("./stash");
 const { forgetLassoPaths } = await import("../lasso");
@@ -185,6 +187,25 @@ describe("staging or discarding whole files", () => {
   it("discarding forgets their lasso the same way", async () => {
     expect(await lassoWhenStatusArrives(discardPaths, () => discardFiles("r1", "t1", ["src/sitzung.ts"]))).toEqual({});
     expect(discardPaths).toHaveBeenCalledWith({ repoId: "r1", paths: ["src/sitzung.ts"] });
+  });
+
+  it("Stage all & commit forgets the whole lasso before the status reloads", async () => {
+    queryClient.setQueryData(qk.status("r1"), {
+      head: { kind: "branch", branch: "main", sha: "h1" },
+      unstaged: [{ path: "src/sitzung.ts" }],
+      staged: [],
+      conflicted: [],
+      identitySet: true,
+    } as unknown as Status);
+    commitCreate.mockResolvedValue(RESULT);
+    let lassoAtReload: unknown = "unset";
+    const refetch = vi.spyOn(queryClient, "refetchQueries").mockImplementation(async () => {
+      if (lassoAtReload === "unset") lassoAtReload = useLassoStore.getState().byTab.t1;
+    });
+    await commitChanges("r1", "t1", { stageAll: true });
+    refetch.mockRestore();
+    expect(commitCreate).toHaveBeenCalledWith(expect.objectContaining({ stageAll: true }));
+    expect(lassoAtReload).toEqual({});
   });
 
   /** A stash reloads the status afterwards (`withFreshStatus`): the lasso at that reload. */
