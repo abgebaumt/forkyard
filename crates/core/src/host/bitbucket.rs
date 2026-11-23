@@ -319,7 +319,7 @@ pub async fn pr_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> Cor
     let mut comments: Vec<HostComment> =
         all_of(core, api, &format!("{path}/comments?pagelen=100")).await?.iter().filter(|c| !flag(c, "deleted")).map(comment).collect();
     comments.sort_by(|a, b| a.created_at.cmp(&b.created_at));
-    let commits = all_of(core, api, &format!("{path}/commits?pagelen=100"))
+    let commits: Vec<PrCommit> = all_of(core, api, &format!("{path}/commits?pagelen=100"))
         .await?
         .iter()
         .map(|c| PrCommit {
@@ -332,7 +332,9 @@ pub async fn pr_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> Cor
     let check_runs = checks(core, api, repo, number).await.unwrap_or_default();
     summary.checks = summarize_checks(&check_runs);
     let open = summary.state == PrState::Open;
-    let head_sha = value.get("source").and_then(|s| s.get("commit")).map(|c| text(c, "hash")).unwrap_or_default();
+    // Bitbucket names the head by its short hash; the full ID is the matching commit of the list.
+    let short = value.get("source").and_then(|s| s.get("commit")).map(|c| text(c, "hash")).unwrap_or_default();
+    let head_sha = commits.iter().map(|c| &c.sha).find(|sha| !short.is_empty() && sha.starts_with(&short)).cloned().unwrap_or(short);
     Ok(PrDetails {
         summary,
         body: text(&value, "description"),
