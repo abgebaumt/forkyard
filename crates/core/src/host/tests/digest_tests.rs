@@ -28,6 +28,16 @@ async fn pull_requests_of_the_window() {
 }
 
 #[tokio::test]
+async fn the_pull_request_list_is_read_without_checks_and_reviews() {
+    let fx = Fixture::new(HostKind::Github).await;
+    since(&fx, "2026-09-27T00:00:00Z").await;
+    assert_eq!(fx.sent("GET", "/pulls").len(), 1, "one page of the list");
+    let extra: Vec<String> =
+        fx.server.requests().iter().map(|r| r.path().to_string()).filter(|p| p.contains("/commits/") || p.contains("/reviews")).collect();
+    assert_eq!(extra, Vec::<String>::new(), "no requests per pull request");
+}
+
+#[tokio::test]
 async fn an_open_pull_request_is_active_and_comes_first() {
     let fx = Fixture::new(HostKind::Github).await;
     let d = since(&fx, "2026-09-26T00:00:00Z").await;

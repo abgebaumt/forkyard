@@ -256,7 +256,7 @@ async fn pr_facts(
     // Still more pages after the last one read: a branch without a match may have an older PR.
     let mut cut_off = false;
     for page in 1..=2 {
-        match host_cmd::pr_list(core, repo_id.to_string(), PrListState::All, Some(page), Some(100), Some(found.remote.clone())).await {
+        match host_cmd::pr_list_lean(core, repo_id, PrListState::All, page, &found.remote).await {
             Ok(list) => {
                 prs.extend(list.items);
                 cut_off = list.next_page.is_some();

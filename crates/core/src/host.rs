@@ -305,6 +305,7 @@ pub trait Host: Sync {
     /// Checks the token and says whom it belongs to.
     fn account_facts<'a>(&'a self, core: &'a Core, api: &'a Api) -> HostFuture<'a, AccountFacts>;
     fn repo_facts<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath) -> HostFuture<'a, RepoFacts>;
+    /// `enrich`: also read checks and reviews per entry (one or more requests each).
     fn pr_list<'a>(
         &'a self,
         core: &'a Core,
@@ -312,6 +313,7 @@ pub trait Host: Sync {
         repo: &'a RepoPath,
         state: PrListState,
         paging: Paging,
+        enrich: bool,
     ) -> HostFuture<'a, PrPage>;
     fn pr_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrDetails>;
     /// Only the header data of a pull request (without checks and reviews).

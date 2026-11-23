@@ -241,7 +241,7 @@ async fn mergeable(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> Opti
 
 /// `GET …/pullrequests` (the list holds no participants: each entry is read once more, in parallel,
 /// together with its statuses).
-pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState, paging: Paging) -> CoreResult<PrPage> {
+pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState, paging: Paging, enrich: bool) -> CoreResult<PrPage> {
     let states: &[&str] = match state {
         PrListState::Open => &["OPEN"],
         PrListState::Merged => &["MERGED"],
@@ -258,21 +258,23 @@ pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState
         .await
         .map_err(|e| not_found_as(e, missing_repo(repo)))?;
     let mut items: Vec<PrSummary> = values.iter().map(pr_summary).collect();
-    let numbers: Vec<u64> = items.iter().map(|item| item.number).collect();
-    let extras = parallel(numbers, |number| {
-        let (core, api, repo) = (core.clone(), api.clone(), repo.clone());
-        async move {
-            let single = pr_raw(&core, &api, &repo, number).await.ok();
-            let checks = checks(&core, &api, &repo, number).await.ok().and_then(|c| summarize_checks(&c));
-            let review = single.as_ref().and_then(|value| review_summary(&reviewers(value)));
-            (checks, review)
-        }
-    })
-    .await;
-    for (item, extra) in items.iter_mut().zip(extras) {
-        if let Some((checks, review)) = extra {
-            item.checks = checks;
-            item.review_state = review;
+    if enrich {
+        let numbers: Vec<u64> = items.iter().map(|item| item.number).collect();
+        let extras = parallel(numbers, |number| {
+            let (core, api, repo) = (core.clone(), api.clone(), repo.clone());
+            async move {
+                let single = pr_raw(&core, &api, &repo, number).await.ok();
+                let checks = checks(&core, &api, &repo, number).await.ok().and_then(|c| summarize_checks(&c));
+                let review = single.as_ref().and_then(|value| review_summary(&reviewers(value)));
+                (checks, review)
+            }
+        })
+        .await;
+        for (item, extra) in items.iter_mut().zip(extras) {
+            if let Some((checks, review)) = extra {
+                item.checks = checks;
+                item.review_state = review;
+            }
         }
     }
     Ok(PrPage { items, next_page })
@@ -780,8 +782,9 @@ impl Host for BitbucketHost {
         repo: &'a RepoPath,
         state: PrListState,
         paging: Paging,
+        enrich: bool,
     ) -> HostFuture<'a, PrPage> {
-        Box::pin(pr_list(core, api, repo, state, paging))
+        Box::pin(pr_list(core, api, repo, state, paging, enrich))
     }
     fn pr_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrDetails> {
         Box::pin(pr_get(core, api, repo, number))

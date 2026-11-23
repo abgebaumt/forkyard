@@ -133,7 +133,13 @@ pub async fn pr_list(
     remote: Option<String>,
 ) -> CoreResult<PrPage> {
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
-    host::host(api.kind).pr_list(core, &api, &repo, state, paging(page_number, per_page_count)).await
+    host::host(api.kind).pr_list(core, &api, &repo, state, paging(page_number, per_page_count), true).await
+}
+
+/// Like [`pr_list`] without checks and reviews: one request per page instead of several per entry.
+pub(crate) async fn pr_list_lean(core: &Core, repo_id: &str, state: PrListState, page_number: u32, remote: &str) -> CoreResult<PrPage> {
+    let RepoApi { api, repo, .. } = host::api_for_repo(core, repo_id, Some(remote)).await?;
+    host::host(api.kind).pr_list(core, &api, &repo, state, paging(Some(page_number), Some(100)), false).await
 }
 
 pub async fn pr_get(core: &Core, repo_id: String, number: u64, remote: Option<String>) -> CoreResult<PrDetails> {
