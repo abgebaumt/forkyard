@@ -77,15 +77,15 @@ export function setRowAction(state: EditState, sha: Sha, action: Exclude<RebaseA
   );
 }
 
-/** New summary, description kept (from the row's own message if it has one); equal to the original → pick without message. */
+/** New summary, description kept (from the row's own message if it has one); equal to the original → reword goes back to pick, other actions stay. */
 export function rewordSummary(state: EditState, sha: Sha, summary: string): EditState {
   return patchRow(state, sha, (row) => {
     // Like the tool's reword dialog: an own message (reword, or a group's result message) is the base.
     const description = row.message ? splitMessage(row.message).description : row.description;
     const message = joinMessage({ summary, description });
-    return message === joinMessage({ summary: row.summary, description: row.description })
-      ? { action: "pick", message: null }
-      : { action: "reword", message };
+    if (message !== joinMessage({ summary: row.summary, description: row.description })) return { action: "reword", message };
+    // Unchanged: only a reword goes back to pick; squash/fixup/drop keep their action.
+    return row.action === "reword" ? { action: "pick", message: null } : null;
   });
 }
 
