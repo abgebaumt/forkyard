@@ -16,6 +16,7 @@ import { core, type UpdateInfo, type UpdateRelease } from "../core";
 import { toast } from "../ui/Feedback";
 import { t } from "../i18n";
 import { openInBrowser } from "./actions/hosts";
+import { openUpdateDialog } from "./updateDialog";
 import { runAction } from "./run";
 
 /** How often the UI asks the core; the core itself only asks GitHub once a day. */
@@ -55,6 +56,12 @@ export function visibleUpdate(info: UpdateInfo | null): UpdateRelease | null {
   return latest;
 }
 
+/** Primary toast/status action: "Install…" when installable, else "View release". */
+export function primaryAction(info: UpdateInfo | null): "install" | "view" | null {
+  if (!visibleUpdate(info)) return null;
+  return info?.installable ? "install" : "view";
+}
+
 /** A toast only once per version, and never for a skipped one. */
 export function toastDue(info: UpdateInfo | null): boolean {
   const latest = visibleUpdate(info);
@@ -88,11 +95,14 @@ export function notesExcerpt(notes: string, max = NOTES_EXCERPT): string {
 // --- Actions -----------------------------------------------------------------------------
 
 function showUpdateToast(release: UpdateRelease): void {
+  const install = primaryAction(current) === "install";
   toast({
     tone: "info",
     title: t("updates.available", { version: release.version }),
     description: notesExcerpt(release.notes) || undefined,
-    action: { label: t("updates.view"), onClick: () => void openInBrowser(release.url, t("updates.page")) },
+    action: install
+      ? { label: t("updates.install"), onClick: () => void openUpdateDialog(release) }
+      : { label: t("updates.view"), onClick: () => void openInBrowser(release.url, t("updates.page")) },
     secondaryAction: { label: t("updates.skip"), onClick: () => void skipVersion(release.version) },
   });
 }

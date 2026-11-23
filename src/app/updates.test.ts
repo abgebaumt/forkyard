@@ -20,6 +20,7 @@ vi.mock("./actions/hosts", () => ({
     return Promise.resolve(true);
   },
 }));
+vi.mock("./updateDialog", () => ({ openUpdateDialog: vi.fn() }));
 vi.mock("./run", () => ({
   runAction: async <T>(_label: string, fn: () => Promise<T>) => {
     try {
@@ -31,9 +32,8 @@ vi.mock("./run", () => ({
   },
 }));
 
-const { checkAutomatically, checkNow, getUpdateInfo, notesExcerpt, setUpdateInfo, skipVersion, toastDue, visibleUpdate } = await import(
-  "./updates"
-);
+const { checkAutomatically, checkNow, getUpdateInfo, notesExcerpt, primaryAction, setUpdateInfo, skipVersion, toastDue, visibleUpdate } =
+  await import("./updates");
 
 const release = {
   version: "1.2.0",
@@ -186,5 +186,14 @@ describe("release notes excerpt", () => {
   });
   it("is empty for empty notes", () => {
     expect(notesExcerpt("  \n ")).toBe("");
+  });
+});
+
+describe("primaryAction", () => {
+  it("install is offered only for installable builds with a visible release", () => {
+    expect(primaryAction(info({ installable: true }))).toBe("install");
+    expect(primaryAction(info({ installable: false }))).toBe("view");
+    expect(primaryAction(info({ latest: null }))).toBe(null);
+    expect(primaryAction(info({ installable: true, skippedVersion: "1.2.0" }))).toBe(null);
   });
 });

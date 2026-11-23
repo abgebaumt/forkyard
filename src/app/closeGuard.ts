@@ -83,8 +83,11 @@ async function onCloseRequested() {
 /** "Quit Forkyard": asks once for every window, then ends the app; all windows open again at the next start. */
 export const quitApp = () => leave(true);
 
-/** Asks if something would be lost, then closes this window – or with `quit` the whole app. */
-async function leave(quit: boolean) {
+/** "Restart now" after an update download: asks once for every window like `quitApp`, then installs and restarts. */
+export const restartForUpdate = () => leave(true, () => core.updateInstall());
+
+/** Asks if something would be lost, then closes this window – or with `quit` the whole app. `finish` replaces the closing step. */
+async function leave(quit: boolean, finish: () => Promise<void> = () => (quit ? core.appQuit() : core.windowClose())) {
   if (asking) return;
   asking = true;
   try {
@@ -94,7 +97,6 @@ async function leave(quit: boolean) {
     const others = quit ? await core.appLossesElsewhere().catch(() => 0) : 0;
     // Several windows: × closes only this one, the texts say so.
     const key = (name: string) => `app.closeGuard.${appWide ? name : `${name}Window`}`;
-    const finish = () => (quit ? core.appQuit() : core.windowClose());
     if (!anything(now) && others === 0) {
       await finish();
       return;

@@ -30,6 +30,7 @@ import { useStartFocus } from "./shell/startFocus";
 import { StatusLine } from "./shell/StatusLine";
 import { TabStrip } from "./shell/TabStrip";
 import { useUpdateChecks } from "./updates";
+import { showWhatsNewOnce } from "./whatsNew";
 import { useAiIntro } from "./ai/intro";
 
 const APP_NAME = "forkyard";
@@ -166,6 +167,9 @@ function Shell({ info }: { info: AppInfo }) {
   useCrashReportsOnStart(tabsQuery.isSuccess && !hasScenario);
   useUpdateChecks(tabsQuery.isSuccess ? settings?.checkForUpdates : undefined);
   useAiIntro(tabsQuery.isSuccess);
+  useEffect(() => {
+    if (tabsQuery.isSuccess && !hasScenario) void showWhatsNewOnce();
+  }, [tabsQuery.isSuccess, hasScenario]);
   useEffect(() => {
     if (!tabsQuery.isSuccess) return;
     startupMark("shell");
