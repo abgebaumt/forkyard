@@ -76,11 +76,15 @@ export const errorInfo = Object.fromEntries(
   (Object.keys(CODES) as ErrorCode[]).map((code) => [code, { text: t(`errors.${code}.text`), hint: t(`errors.${code}.hint`) }]),
 ) as Record<ErrorCode, ErrorInfo>;
 
+/** Codes whose locale text always wins over the core's message (the updater plugin's English minisign error). */
+const OWN_TEXT = new Set<ErrorCode>(["update_signature_invalid"]);
+
 /** Text for toasts and banners: the core's message (if any) plus a suggested action. */
 export function describeError(error: unknown): { text: string; hint: string } {
   const coreError = toCoreError(error);
   const info = errorInfo[coreError.code] ?? errorInfo.unknown;
-  const message = coreError.message.trim();
+  // These codes have a clear, localised sentence; the core's message is a raw third-party text.
+  const message = OWN_TEXT.has(coreError.code) ? "" : coreError.message.trim();
   // If the core's message already says what to do, the generic advice would only repeat it.
   return { text: message || info.text, hint: message && givesAdvice(message) ? "" : info.hint };
 }
