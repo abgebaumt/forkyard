@@ -12,6 +12,7 @@
  *   node e2e/features/sync.mjs
  *   node e2e/run.mjs sync --only "atomic"
  */
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
 import net from "node:net";
@@ -21,7 +22,7 @@ import { makeCleanRepoWithRemote, makeEmptyRepo } from "../fixtures/fixtures.mjs
 import { startGitHttpServer } from "../fixtures/git-http-server.mjs";
 import { findSshd, startGitSshServer } from "../fixtures/git-ssh-server.mjs";
 import { startPrivateKeyring } from "../fixtures/sync-keyring.mjs";
-import { NO_PROXY_ENV, appendAppGitConfig, closedPort, git, revParse, slash, sleep, syncUi } from "../fixtures/sync-ui.mjs";
+import { NO_PROXY_ENV, appendAppGitConfig, closedPort, git, plainGitEnv, revParse, slash, sleep, syncUi } from "../fixtures/sync-ui.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 
 /** Starts the app (English, light, 1440x900), switches auto-fetch off, installs the recorders. */
@@ -861,22 +862,26 @@ async function signIn(app, ui, { password = HTTPS_PASSWORD, remember = false, sh
   await ui.clickDialogButton("Sign in");
 }
 
-/** A new commit directly in the server's bare repository (no network). Returns the SHA. */
+/**
+ * A new commit directly in the server's bare repository (no network). Returns the SHA. Dated two days
+ * back: news from the last 24 hours would open the "What's new" dialog after the fetch (digest.mjs tests it).
+ */
 function commitOnServer(bare, message) {
   const tree = git(bare, "rev-parse", "main^{tree}");
-  const commit = git(
-    bare,
-    "-c",
-    "user.name=Jonas Albrecht",
-    "-c",
-    "user.email=jonas.albrecht@wetterstation.example",
-    "commit-tree",
-    tree,
-    "-p",
-    "main",
-    "-m",
-    message,
-  );
+  const when = new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString();
+  const commit = execFileSync("git", ["commit-tree", tree, "-p", "main", "-m", message], {
+    cwd: bare,
+    env: {
+      ...plainGitEnv(),
+      GIT_AUTHOR_NAME: "Jonas Albrecht",
+      GIT_AUTHOR_EMAIL: "jonas.albrecht@wetterstation.example",
+      GIT_AUTHOR_DATE: when,
+      GIT_COMMITTER_NAME: "Jonas Albrecht",
+      GIT_COMMITTER_EMAIL: "jonas.albrecht@wetterstation.example",
+      GIT_COMMITTER_DATE: when,
+    },
+    encoding: "utf8",
+  }).trim();
   git(bare, "update-ref", "refs/heads/main", commit);
   return commit;
 }
