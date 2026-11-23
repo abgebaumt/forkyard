@@ -153,9 +153,13 @@ function parseCore() {
 
 // --- Comparison -------------------------------------------------------------
 
+/** Commands implemented in src-tauri/src/updater.rs only (they need the updater plugin). */
+const SHELL_ONLY = new Set(["update_download", "update_install"]);
+
 function main() {
   const api = parseApi();
-  const { bindings, handlers } = parseBindings(read("src-tauri", "src", "commands.rs"));
+  // updater.rs holds the commands that need the updater plugin and so cannot live in the core.
+  const { bindings, handlers } = parseBindings(read("src-tauri", "src", "commands.rs") + "\n" + read("src-tauri", "src", "updater.rs"));
   const core = parseCore();
   const problems = [];
   if (!read("src-tauri", "src", "lib.rs").includes(".invoke_handler(commands::handler())")) {
@@ -173,7 +177,7 @@ function main() {
       }
     }
     if (!handlers.includes(name)) problems.push(`Not registered (table or hand_written list): ${name}`);
-    if (!core.has(name)) problems.push(`Missing in crates/core/src/commands: ${name}`);
+    if (!SHELL_ONLY.has(name) && !core.has(name)) problems.push(`Missing in crates/core/src/commands: ${name}`);
   }
   for (const name of bindings.keys()) {
     if (!api.has(name)) problems.push(`Binding without an entry in api.ts: ${name}`);

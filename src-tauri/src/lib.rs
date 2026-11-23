@@ -2,6 +2,7 @@
 //! registers the commands from src/core/api.ts. All logic lives in `gitcore`.
 
 mod commands;
+mod updater;
 mod windows;
 
 use std::path::PathBuf;
@@ -38,6 +39,12 @@ const UPDATE_URL_ENV: &str = "FORKYARD_UPDATE_URL";
 /// Development build only: search the AI command-line tools only in this folder – no PATH, no login
 /// shell (E2E with the fake tool target/debug/forkyard-fake-cli).
 const AI_CLI_DIR_ENV: &str = "FORKYARD_AI_CLI_DIR";
+/// Development build only: the update manifest address (plain http allowed) and the public key its
+/// signature is checked against, instead of the release's.
+const UPDATER_URL_ENV: &str = "FORKYARD_UPDATER_URL";
+const UPDATER_PUBKEY_ENV: &str = "FORKYARD_UPDATER_PUBKEY";
+/// Development build only: the version "What's new" sees as the running one.
+const APP_VERSION_ENV: &str = "FORKYARD_APP_VERSION";
 /// WebKitGTK's switch for its timer-based vblank instead of watching the display through DRM.
 #[cfg(target_os = "linux")]
 const VBLANK_TIMER_ENV: &str = "WEBKIT_FORCE_VBLANK_TIMER";
@@ -205,6 +212,12 @@ fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) ->
     if let Some(base) = dev_env_value(UPDATE_URL_ENV).and_then(|v| v.into_string().ok()) {
         gitcore::commands::update::configure(&core, Some(if base == "off" { String::new() } else { base }));
     }
+    // A release installs itself where that works; a development build only with a local manifest.
+    let may_update = gitcore::commands::update::installable(std::env::consts::OS, std::env::var_os("APPIMAGE").as_deref());
+    let manifest = dev_env_value(UPDATER_URL_ENV).is_some();
+    gitcore::commands::update::configure_installable(&core, may_update && (!dev_mode() || manifest));
+    gitcore::commands::update::configure_version(&core, dev_env_value(APP_VERSION_ENV).and_then(|v| v.into_string().ok()));
+    app.manage(updater::Pending::default());
     // Development build only: AI providers at local mock addresses (`FORKYARD_AI_BASE_URL_<PROVIDER>`).
     for (kind, name) in gitcore::ai::BASE_URL_ENVS {
         if let Some(base) = dev_env_value(name).and_then(|v| v.into_string().ok()) {
@@ -351,6 +364,10 @@ fn context() -> tauri::Context {
                 Err(e) => eprintln!("{DEV_URL_ENV} is not a valid address ({e}); keeping the built-in one."),
             }
         }
+        let text = |name| env_value(name).and_then(|v| v.into_string().ok());
+        if let Some(updater) = updater::dev_config(text(UPDATER_URL_ENV), text(UPDATER_PUBKEY_ENV)) {
+            config.plugins.0.insert("updater".to_string(), updater);
+        }
         if env_value(E2E_WINDOW_ENV).is_some_and(|v| v == "hidden") {
             for window in &mut config.app.windows {
                 window.visible = false;
@@ -480,6 +497,7 @@ pub fn run() {
         // rejects every request) and clipboard access without a WebView prompt.
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
             gitcore::startup::reached("window created");
             setup(app, launch)
