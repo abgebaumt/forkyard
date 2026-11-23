@@ -102,6 +102,31 @@ describe("checkDigestAfterFetch", () => {
 });
 
 describe("openDigest", () => {
+  it("waits for a running check and asks itself when that one found nothing", async () => {
+    withTab();
+    let answer: (value: Digest | null) => void = () => undefined;
+    digestGet.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)));
+    const check = checkDigestAfterFetch("r1");
+    const open = openDigest("r1", "t1");
+    answer(null);
+    digestGet.mockResolvedValue(sample);
+    await Promise.all([check, open]);
+    expect(digestGet).toHaveBeenLastCalledWith({ repoId: "r1" });
+    expect(showDigestDialog).toHaveBeenCalledWith("r1", "t1", sample);
+  });
+
+  it("leaves the dialog to a running check that found news", async () => {
+    withTab();
+    let answer: (value: Digest | null) => void = () => undefined;
+    digestGet.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)));
+    const check = checkDigestAfterFetch("r1");
+    const open = openDigest("r1", "t1");
+    answer(sample);
+    await Promise.all([check, open]);
+    expect(digestGet).toHaveBeenCalledTimes(1);
+    expect(showDigestDialog).toHaveBeenCalledTimes(1);
+  });
+
   it("asks without ifChanged and shows the digest, also an empty one", async () => {
     digestGet.mockResolvedValue({ ...sample, refs: [], isEmpty: true });
     await openDigest("r1", "t1");
