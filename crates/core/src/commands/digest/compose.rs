@@ -1,4 +1,4 @@
-//! The Git part of the digest: which remote branches and tags have news from the last 24 hours,
+//! The Git part of the digest: which branches (remote first, then local) and tags have news from the last 24 hours,
 //! their commits, the files of yours other people's commits touch, and how far the current branch is
 //! behind. A pure read: no lock.
 
@@ -49,17 +49,24 @@ pub(crate) async fn compose(core: &Core, repo_id: &str, since: DateTime<Utc>) ->
     let base_ref = base.as_ref().map(|b| format!("refs/remotes/{b}"));
     // A tip older than the window has no commit in it: one `git log` less per idle branch.
     // shortcut: trusts the tip's committer date; a commit with a date from the future would hide older ones below it.
-    let mut branches: Vec<&String> = current
-        .keys()
-        .filter(|name| name.starts_with("refs/remotes/") && ref_times.get(*name).is_some_and(|time| *time > since.timestamp()))
+    let fresh = |name: &str| ref_times.get(name).is_some_and(|time| *time > since.timestamp());
+    let mut branches: Vec<(&String, RefKind, Option<String>)> = current
+        .iter()
+        .filter(|(name, _)| name.starts_with("refs/remotes/") && fresh(name))
+        .map(|(name, sha)| (name, RefKind::Remote, Some(sha.clone())))
         .collect();
-    branches.sort_by_key(|name| (Some(*name) != base_ref.as_ref(), *name));
+    branches.sort_by_key(|(name, ..)| (Some(*name) != base_ref.as_ref(), *name));
+    // Local branches after all remote ones: what is pushed is listed under the remote, the rest are own unpushed commits.
+    let mut locals: Vec<_> =
+        snapshot.locals.iter().filter(|r| fresh(&r.full_name)).map(|r| (&r.full_name, RefKind::Local, Some(r.sha.clone()))).collect();
+    locals.sort_by_key(|(name, ..)| *name);
+    branches.extend(locals);
 
     let mut digest_refs = Vec::new();
     let mut listed: HashSet<String> = HashSet::new();
     // shortcut: across refs the first ref wins, not the newest commit by date; fine while one ref brings a file.
     let mut touched: BTreeMap<String, String> = BTreeMap::new();
-    for name in branches {
+    for (name, kind, new_sha) in branches {
         let commits: Vec<LogCommit> = log(core, repo_id, name, since).await?.into_iter().filter(|c| listed.insert(c.sha.clone())).collect();
         if commits.is_empty() {
             continue;
@@ -70,9 +77,9 @@ pub(crate) async fn compose(core: &Core, repo_id: &str, since: DateTime<Utc>) ->
             }
         }
         digest_refs.push(DigestRef {
-            name: name.trim_start_matches("refs/remotes/").to_string(),
-            kind: RefKind::Remote,
-            new_sha: current.get(name).cloned(),
+            name: name.trim_start_matches("refs/remotes/").trim_start_matches("refs/heads/").to_string(),
+            kind,
+            new_sha,
             new_commits: commits.len() as u32,
             commits: commits.into_iter().take(LISTED).map(|c| DigestCommit { sha: c.sha, subject: c.subject, author: c.author }).collect(),
         });
@@ -80,7 +87,7 @@ pub(crate) async fn compose(core: &Core, repo_id: &str, since: DateTime<Utc>) ->
     let mut tags: Vec<DigestRef> = snapshot
         .tags
         .iter()
-        .filter(|t| ref_times.get(&t.full_name).is_some_and(|time| *time > since.timestamp()))
+        .filter(|t| fresh(&t.full_name))
         .map(|t| DigestRef { name: t.name.clone(), kind: RefKind::Tag, new_sha: Some(t.sha.clone()), new_commits: 0, commits: Vec::new() })
         .collect();
     tags.sort_by(|a, b| a.name.cmp(&b.name));
@@ -120,12 +127,12 @@ pub(crate) async fn compose(core: &Core, repo_id: &str, since: DateTime<Utc>) ->
     })
 }
 
-/// Time (Unix seconds) per full ref name of the remote branches and tags: the committer date of a branch tip, the
+/// Time (Unix seconds) per full ref name of the local and remote branches and tags: the committer date of a branch tip, the
 /// tagger date of an annotated tag, the commit date of a lightweight one. One Git call.
 async fn ref_times(core: &Core, repo_id: &str) -> CoreResult<BTreeMap<String, i64>> {
     let path = core.repo_path(repo_id)?;
     let options = ["--format=%(refname)%00%(creatordate:unix)".to_string()];
-    let out = refs::for_each_ref(core, &path, repo_id, &options, &["refs/remotes", "refs/tags"]).await?;
+    let out = refs::for_each_ref(core, &path, repo_id, &options, &["refs/heads", "refs/remotes", "refs/tags"]).await?;
     Ok(out
         .stdout_lines()
         .into_iter()
