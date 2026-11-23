@@ -731,6 +731,14 @@ pub(crate) fn gitlab(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
                 ] }),
             )
         }
+        ("GET", ["merge_requests", _, "diffs"]) => gl_page(
+            request,
+            vec![
+                json!({ "old_path": "src/größe.rs", "new_path": "src/größe.rs", "renamed_file": false, "new_file": false, "deleted_file": false, "diff": "" }),
+                json!({ "old_path": "src/alt_name.rs", "new_path": "a.rs", "renamed_file": true, "new_file": false, "deleted_file": false, "diff": "" }),
+            ],
+            None,
+        ),
         ("GET", ["merge_requests", _, "draft_notes"]) => gl_page(
             request,
             if state.gl_draft_note {
