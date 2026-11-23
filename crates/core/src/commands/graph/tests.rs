@@ -1744,6 +1744,24 @@ async fn a_later_page_without_merges_runs_no_reach_walk() {
     assert_eq!(reach_walks(&spawned), 0, "{spawned:?}");
 }
 
+/// Follow-up pages read on in the reach walk of the page before: deep pages don't sort and read the
+/// history from the top again. The rows stay those of one big page.
+#[tokio::test]
+async fn a_page_sequence_runs_one_reach_walk() {
+    let tc = TestCore::new().await;
+    let repo = branchy_repo(40);
+    let id = tc.open(&repo).await.repo.id;
+    let whole = graph_page(&tc, id.clone(), None, 500).await.unwrap().rows;
+    tc.git.take_spawned();
+    let rows = all_rows(&tc, &id, 7).await;
+    let spawned = tc.git.take_spawned();
+    let reach_walks = spawned.iter().filter(|argv| argv.iter().any(|a| a == "--topo-order")).count();
+    assert_eq!(reach_walks, 1, "{spawned:?}");
+    assert!(rows.iter().filter(|r| r.kind == GraphRowKind::Merge).count() >= 10);
+    let strip = |rows: &[GraphRow]| rows.iter().map(|r| (r.id.clone(), r.collapsible, r.collapsed_count)).collect::<Vec<_>>();
+    assert_eq!(strip(&rows), strip(&whole));
+}
+
 /// The plan of the current view, as `graph_page` builds it.
 async fn plan_of(tc: &TestCore, repo: &TestRepo, id: &str) -> page::Plan {
     let path = tc.repo_path(id).unwrap();

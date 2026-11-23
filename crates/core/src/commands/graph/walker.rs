@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
 
+use super::page::Reach;
 use crate::app::Core;
 use crate::error::CoreResult;
 use crate::git::log::{Records, HEADER, HEADER_FIELDS, LOG_SAFE};
@@ -37,6 +38,8 @@ pub(super) struct Walker {
     records: Records,
     /// A record read past the page end, handed out first next time.
     unread: Option<Vec<Vec<u8>>>,
+    /// The page's reach walk, read on by the next page (same fingerprint, same tips).
+    pub reach: Option<Reach>,
     touched: Instant,
 }
 
@@ -68,6 +71,7 @@ impl Walker {
             stream,
             records: Records::new(HEADER_FIELDS),
             unread: None,
+            reach: None,
             touched: Instant::now(),
         })
     }
