@@ -180,6 +180,34 @@ async fn an_upstream_that_exists_is_reported_for_the_remote_option() {
 }
 
 #[tokio::test]
+async fn a_protected_or_default_branch_on_the_remote_is_never_offered() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let _remote = repo.add_remote();
+    // Created from `origin/main`, so it tracks `main` there; merged and pushed.
+    repo.git(&["switch", "-q", "-c", "schnell", "--track", "origin/main"]);
+    repo.commit_file("s.txt", "s\n", "Schnell");
+    repo.checkout("main");
+    repo.git(&["merge", "-q", "--no-ff", "--no-edit", "schnell"]);
+    repo.git(&["push", "-q", "origin", "main"]);
+    // Tracks `develop` there (protected by default).
+    repo.git(&["push", "-q", "origin", "main:develop"]);
+    repo.git(&["branch", "-q", "--track", "entwurf", "origin/develop"]);
+    let id = tc.open(&repo).await.repo.id;
+
+    let list = candidates_at(&tc, &id, NOW).await.unwrap();
+    for name in ["schnell", "entwurf"] {
+        let row = list.candidates.iter().find(|c| c.name == name).unwrap();
+        assert_eq!(row.class, Safe, "{name}: the local branch may still go");
+        assert_eq!(
+            (row.upstream_remote.as_deref(), row.upstream_branch.as_deref(), row.upstream_sha.as_deref()),
+            (None, None, None),
+            "{name}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn a_merge_only_in_the_upstream_of_the_default_branch_counts_as_merged() {
     let tc = TestCore::new().await;
     let repo = TestRepo::with_commit();
