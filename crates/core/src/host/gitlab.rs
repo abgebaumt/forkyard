@@ -649,9 +649,6 @@ pub async fn review_host_drafts(core: &Core, api: &Api, repo: &RepoPath, mr: u64
         .collect())
 }
 
-const DRAFT_ON_OLD_HEAD: &str =
-    "The merge request has new commits since this comment was written. Check the line and save the comment again.";
-
 /// Whether `POST …/approve` is still needed, from `GET …/approvals` (GitLab answers a refused approval with 401,
 /// which would read as a rejected token): already approved → no; not allowed to → `not_allowed`.
 async fn approval_needed(core: &Core, api: &Api, repo: &RepoPath, mr: u64) -> CoreResult<bool> {
@@ -686,11 +683,6 @@ pub async fn review_submit(
     let not_found = |e| not_found_as(e, mr_missing(repo, mr));
     let mut outcome = ReviewSubmitOutcome::default();
     for draft in submission.drafts {
-        // Its line numbers belong to another head; GitLab would put it on the wrong line.
-        if draft.commit.as_deref() != Some(submission.commit) {
-            outcome.failed.push((draft.id.clone(), DRAFT_ON_OLD_HEAD.to_string()));
-            continue;
-        }
         let body = json!({ "note": draft.body, "position": position(&refs, &draft_as_comment(draft)) });
         match api.send_json(core, Method::Post, &format!("{path}/draft_notes"), &body).await {
             Ok(_) => outcome.sent.push(draft.id.clone()),

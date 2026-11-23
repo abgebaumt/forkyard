@@ -42,7 +42,7 @@ function SubmitReviewDialog({
 
   const submit = async () => {
     if (busy) return;
-    const result = await submitReview(repoId, pr.number, vote, body.trim(), pr.headSha);
+    const result = await submitReview(repoId, pr.number, vote, body, pr.headSha);
     if (result?.submitted) onDone(vote);
     else if (result) setFailed(result.failed);
   };

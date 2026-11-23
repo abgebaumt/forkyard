@@ -625,9 +625,20 @@ pub async fn review_reply(core: &Core, api: &Api, repo: &RepoPath, pr: u64, thre
     Ok(ReviewReply { comment: comment(&value), quoted: false })
 }
 
+/// The pull request must still be at the head the line numbers belong to (Bitbucket names it by its short hash).
+async fn check_head(core: &Core, api: &Api, repo: &RepoPath, pr: u64, expected: &str, what_next: &str) -> CoreResult<()> {
+    let value = pr_raw(core, api, repo, pr).await?;
+    let short = value.get("source").and_then(|s| s.get("commit")).map(|c| text(c, "hash")).unwrap_or_default();
+    if short.is_empty() || !expected.starts_with(&short) {
+        return Err(CoreError::new(ErrorCode::StaleState, format!("The pull request has new commits. Reload and {what_next}.")));
+    }
+    Ok(())
+}
+
 /// `POST …/pullrequests/{id}/comments` with `inline`: `to` is the line on the new side, `from` on the old one.
 /// Bitbucket takes single lines only (no range).
 pub async fn review_comment_create(core: &Core, api: &Api, repo: &RepoPath, pr: u64, comment: &NewReviewComment) -> CoreResult<()> {
+    check_head(core, api, repo, pr, &comment.commit, "comment again").await?;
     let key = if comment.side == ReviewSide::Old { "from" } else { "to" };
     let body = json!({ "content": { "raw": comment.body }, "inline": { "path": comment.path, key: comment.line } });
     api.send_json(core, Method::Post, &format!("{}/comments", pr_path(repo, pr)), &body)
@@ -659,6 +670,7 @@ pub async fn review_submit(
     pr: u64,
     submission: ReviewSubmission<'_>,
 ) -> CoreResult<ReviewSubmitOutcome> {
+    check_head(core, api, repo, pr, submission.commit, "send the review again").await?;
     let vote = match submission.vote {
         ReviewVote::Approve => Some("approve"),
         ReviewVote::RequestChanges => Some("request-changes"),

@@ -43,15 +43,15 @@ export function ReviewComposer({
 }) {
   const [preview, setPreview] = useState(false);
   const busy = useBusy(prBusyKeys.write(repoId, pr.number));
-  const text = body.trim();
+  const empty = !body.trim(); // only for the empty check; the body goes out as typed
 
   const add = async () => {
-    if (!text || busy) return;
-    if (await saveDraft(repoId, pr.number, { ...comment, body: text }, draft?.id)) onDone();
+    if (empty || busy) return;
+    if (await saveDraft(repoId, pr.number, { ...comment, body }, draft?.id)) onDone();
   };
   const now = async () => {
-    if (!text || busy) return;
-    if (await commentNow(repoId, pr.number, { ...comment, body: text })) onDone();
+    if (empty || busy) return;
+    if (await commentNow(repoId, pr.number, { ...comment, body })) onDone();
   };
 
   return (
@@ -101,11 +101,11 @@ export function ReviewComposer({
           {t("ui.cancel")}
         </Button>
         {draft ? null : (
-          <Button size="sm" data-review-comment-now="" disabled={!text} loading={busy} onClick={() => void now()}>
+          <Button size="sm" data-review-comment-now="" disabled={empty} loading={busy} onClick={() => void now()}>
             {t("pullRequest.view.review.commentNow")}
           </Button>
         )}
-        <Button type="submit" size="sm" variant="primary" data-review-add="" disabled={!text} loading={busy}>
+        <Button type="submit" size="sm" variant="primary" data-review-add="" disabled={empty} loading={busy}>
           {t("pullRequest.view.review.addToReview")}
         </Button>
       </div>

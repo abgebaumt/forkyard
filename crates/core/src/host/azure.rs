@@ -411,9 +411,19 @@ pub async fn review_reply(core: &Core, api: &Api, repo: &RepoPath, pr: u64, thre
     })
 }
 
+/// The pull request must still be at the head the line numbers belong to.
+async fn check_head(core: &Core, api: &Api, repo: &RepoPath, pr: u64, expected: &str, what_next: &str) -> CoreResult<()> {
+    let value = pr_raw(core, api, repo, pr).await?;
+    if value.get("lastMergeSourceCommit").map(|c| text(c, "commitId")).unwrap_or_default() != expected {
+        return Err(CoreError::new(ErrorCode::StaleState, format!("The pull request has new commits. Reload and {what_next}.")));
+    }
+    Ok(())
+}
+
 /// A new thread on a file position: `rightFile…` on the new side, `leftFile…` on the old one, from the first
 /// to the last line of the range.
 pub async fn review_comment_create(core: &Core, api: &Api, repo: &RepoPath, pr: u64, comment: &NewReviewComment) -> CoreResult<()> {
+    check_head(core, api, repo, pr, &comment.commit, "comment again").await?;
     let (start, end) = if comment.side == ReviewSide::Old { ("leftFileStart", "leftFileEnd") } else { ("rightFileStart", "rightFileEnd") };
     let first = comment.start_line.unwrap_or(comment.line);
     let body = json!({
@@ -460,6 +470,7 @@ pub async fn review_submit(
     pr: u64,
     submission: ReviewSubmission<'_>,
 ) -> CoreResult<ReviewSubmitOutcome> {
+    check_head(core, api, repo, pr, submission.commit, "send the review again").await?;
     let vote = match submission.vote {
         ReviewVote::Approve => Some(10),
         ReviewVote::RequestChanges => Some(-5),

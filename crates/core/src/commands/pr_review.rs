@@ -241,7 +241,13 @@ pub async fn pr_review_submit(
     };
     check_submission(vote, &body, local.len() + at_host)?;
 
-    let outcome = if caps.review_submit_batch {
+    // Line numbers of a draft belong to the head it was written at; on another head it would land on the wrong line.
+    let outcome = if local.iter().any(|d| d.commit.as_deref() != Some(commit.as_str())) {
+        let message =
+            format!("The {} has new commits since this comment was written. Check the line and save the comment again.", hoster.pr_word());
+        let failed = local.iter().filter(|d| d.commit.as_deref() != Some(commit.as_str())).map(|d| (d.id.clone(), message.clone()));
+        ReviewSubmitOutcome { failed: failed.collect(), ..ReviewSubmitOutcome::default() }
+    } else if caps.review_submit_batch {
         let submission = ReviewSubmission { vote, body: &body, commit: &commit, drafts: &local };
         hoster.review_submit(core, &api, &repo, number, submission).await?
     } else {
