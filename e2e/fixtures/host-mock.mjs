@@ -281,10 +281,19 @@ function github(ctx) {
       if (typeof body.title === "string") state.titles.set(number, body.title);
       return json(200, ghPull(base, number, state));
     case "GET pulls/:n/reviews": {
-      // Only the token's user sees its own pending review; it has no `submitted_at`.
+      // Only the token's user sees its own pending review; it has no `submitted_at`, its `commit_id` is the head it was started on.
       const pending =
         state.pendingReview?.number === number
-          ? [{ id: 77, node_id: "PRR_kwDOpending", user: ghUser("lena-hartmann"), state: "PENDING", body: "" }]
+          ? [
+              {
+                id: 77,
+                node_id: "PRR_kwDOpending",
+                user: ghUser("lena-hartmann"),
+                state: "PENDING",
+                body: "",
+                commit_id: ghPull(base, number, state).head.sha,
+              },
+            ]
           : [];
       return json(200, [
         ...(number === 1
