@@ -681,3 +681,89 @@ async fn setting_up_the_watch_does_not_hold_up_the_runtime() {
     repo.write_file("neu.txt", "x");
     wait_for(&tc, &id, &["worktree"]).await;
 }
+
+/// Linux watches folder by folder: ignored folders (however many subfolders they hold),
+/// symlinks, `.git` and nested repositories get no watch.
+#[cfg(unix)]
+#[tokio::test]
+async fn the_walk_skips_ignored_folders_symlinks_and_nested_repositories() {
+    let repo = TestRepo::new();
+    repo.commit_file(".gitignore", "node_modules/\n*.log\n", "Ignorieren");
+    for index in 0..50 {
+        repo.subdir(&format!("node_modules/paket-{index}/lib"));
+    }
+    repo.write_file("src/nur.log", "x");
+    repo.subdir("src/tief/drin");
+    repo.subdir("verschachtelt/.git");
+    repo.subdir("verschachtelt/innen");
+    repo.subdir("arbeitskopie/teil");
+    std::fs::write(repo.path().join("arbeitskopie").join(".git"), "gitdir: /woanders\n").unwrap();
+    std::os::unix::fs::symlink("/usr", repo.path().join("verweis")).unwrap();
+    let tc = TestCore::new().await;
+    let ignored = tree::ignored_dirs(&tc, repo.path()).await;
+    assert_eq!(ignored, [b"node_modules".to_vec()].into_iter().collect());
+
+    let mut watched: Vec<String> = Vec::new();
+    tree::watch_tree(repo.path(), repo.path(), &ignored, &mut |dir| {
+        watched.push(util::decode_lossy(&rel_bytes(repo.path(), dir).unwrap()));
+        Ok(())
+    })
+    .unwrap();
+    watched.sort();
+    // `src` holds only an ignored file, yet it isn't ignored itself: it stays watched.
+    assert_eq!(watched, ["", "src", "src/tief", "src/tief/drin"]);
+
+    // A folder appearing inside a nested repository isn't watched either.
+    let mut inner: Vec<PathBuf> = Vec::new();
+    tree::watch_tree(repo.path(), &repo.path().join("verschachtelt").join("innen"), &ignored, &mut |dir| {
+        inner.push(dir.to_path_buf());
+        Ok(())
+    })
+    .unwrap();
+    assert!(inner.is_empty(), "{inner:?}");
+}
+
+/// A folder that appears after watching started is watched as well – also one that is still empty
+/// when it appears, and folders created right inside it. Removing an ignore rule makes the
+/// folders it covered watched.
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn folders_created_after_the_start_are_watched_and_ignored_ones_stay_quiet() {
+    let repo = TestRepo::new();
+    repo.commit_file(".gitignore", "node_modules/\n", "Ignorieren");
+    for index in 0..100 {
+        repo.subdir(&format!("node_modules/paket-{index}/lib"));
+    }
+    let (tc, id) = watched(&repo).await;
+
+    repo.write_file("node_modules/paket-7/lib/index.js", "x");
+    tokio::time::sleep(QUIET).await;
+    assert_eq!(event_count(&tc), 0, "{:?}", tc.events.named(names::REPO_CHANGED));
+
+    // Empty folders are invisible to Git: nothing to report yet.
+    repo.subdir("neu/tief");
+    assert_eq!(settle(&tc, &id).await, BTreeSet::new());
+    // A file in the new folder is only seen if the folder got its own watch.
+    let deadline = Instant::now() + PATIENCE;
+    let mut index = 0;
+    while !kinds(&tc, &id).contains("worktree") {
+        assert!(Instant::now() < deadline, "the new folder isn't watched");
+        repo.write_file(&format!("neu/tief/datei-{index}.txt"), "x");
+        index += 1;
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+    settle(&tc, &id).await;
+
+    // Without the rule the formerly ignored folders are walked again and watched.
+    repo.write_file(".gitignore", "");
+    wait_for(&tc, &id, &["worktree"]).await;
+    settle(&tc, &id).await;
+    let deadline = Instant::now() + PATIENCE;
+    while !kinds(&tc, &id).contains("worktree") {
+        assert!(Instant::now() < deadline, "the formerly ignored folder isn't watched");
+        repo.write_file(&format!("node_modules/paket-3/lib/datei-{index}.js"), "x");
+        index += 1;
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+    shutdown(&tc, &id).await;
+}
