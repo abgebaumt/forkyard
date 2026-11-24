@@ -22,7 +22,7 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 notify = "6"
 keyring = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service"] }
 uuid = { version = "1", features = ["v4"] }
-thiserror = "1"
+thiserror = "2"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 parking_lot = "0.12"
 encoding_rs = "0.8"
