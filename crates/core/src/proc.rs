@@ -236,7 +236,15 @@ impl Proc {
         if given.is_absolute() || given.components().count() > 1 {
             // A relative path counts from the working directory the program will run in.
             let given = self.cwd.as_ref().map_or_else(|| given.to_path_buf(), |cwd| cwd.join(given));
-            return if given.is_file() { Ok(given) } else { Err(not_found(&self.program)) };
+            if given.is_file() {
+                return Ok(given);
+            }
+            // Windows: `.\tool` also finds `tool.cmd` or `tool.exe` (PATHEXT), as in a terminal.
+            #[cfg(windows)]
+            if let Ok(found) = which::which(&given) {
+                return Ok(found);
+            }
+            return Err(not_found(&self.program));
         }
         let cwd = self.cwd.clone().unwrap_or_else(std::env::temp_dir);
         self.search_path

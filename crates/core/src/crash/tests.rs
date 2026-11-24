@@ -251,7 +251,8 @@ fn a_run_that_ended_with_the_computer_is_not_reported() {
     assert_eq!(outcome.unexpected_report, None);
     assert!(reports(dir.path()).is_empty());
     assert!(log_text(dir.path()).contains("ended with the computer"), "{}", log_text(dir.path()));
-    // The new run's marker names the new boot.
+    // The new run's marker names the new boot (Windows only lets it be read once the run let go of it).
+    drop(second);
     let marker = std::fs::read_to_string(dir.path().join(MARKER_FILE)).unwrap();
     assert!(marker.contains("boot-after"), "{marker}");
 }
