@@ -85,7 +85,7 @@
     "radix-ui": "^1.7.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-i18next": "^17.0.16",
+    "react-i18next": "^18.0.3",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
