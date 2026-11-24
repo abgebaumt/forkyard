@@ -1,5 +1,7 @@
 /**
- * Pending crash reports: on start (if the previous run crashed) and from the command palette.
+ * Pending crash reports: on start (only a panic of the previous run) and from the command palette.
+ * A hard end without a panic (kill -9, out of memory, a WebKit crash) cannot be told from a
+ * deliberate kill, so on start it stays quiet and waits for the command.
  * One dialog per report, newest first: View / Save… / Discard. Closing the dialog keeps the
  * reports for later (command "Show crash reports"). Nothing is ever uploaded.
  */
@@ -16,20 +18,21 @@ type Choice = "view" | "save" | "discard";
 
 let running = false;
 
-/** `quietIfNone`: on start nothing is said when there are no reports. */
-export async function offerCrashReports(options: { quietIfNone: boolean }): Promise<void> {
+/** `onStart`: only panics are offered, and nothing is said when there are none. */
+export async function offerCrashReports(options: { onStart: boolean }): Promise<void> {
   if (running) return;
   running = true;
   try {
     let reports: CrashReportSummary[];
     try {
       reports = await core.crashReportsList();
+      if (options.onStart) reports = reports.filter((report) => report.kind === "panic");
     } catch (error) {
-      if (!options.quietIfNone) showError(t("crash.loadFailed"), error);
+      if (!options.onStart) showError(t("crash.loadFailed"), error);
       return;
     }
     if (reports.length === 0) {
-      if (!options.quietIfNone) toast({ tone: "info", title: t("crash.none") });
+      if (!options.onStart) toast({ tone: "info", title: t("crash.none") });
       return;
     }
     for (let index = 0; index < reports.length; index += 1) {
@@ -85,6 +88,6 @@ export function useCrashReportsOnStart(ready: boolean): void {
   useEffect(() => {
     if (!ready || offeredOnStart) return;
     offeredOnStart = true;
-    void offerCrashReports({ quietIfNone: true });
+    void offerCrashReports({ onStart: true });
   }, [ready]);
 }

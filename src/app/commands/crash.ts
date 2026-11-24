@@ -9,6 +9,6 @@ export const commands: AppCommand[] = [
     title: t("commands.app.crashReports.title"),
     group: "General",
     keywords: kw("commands.app.crashReports.keywords"),
-    run: () => offerCrashReports({ quietIfNone: false }),
+    run: () => offerCrashReports({ onStart: false }),
   },
 ];
