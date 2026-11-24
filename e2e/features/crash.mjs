@@ -1,9 +1,10 @@
 /**
  * Crash reports in the real app (v1.1 pre-release): a run that ends hard (SIGKILL, SIGABRT) leaves
- * the crash marker, the next start makes an "unexpected exit" report from that run's log and offers
- * it (View / Save… / Discard, also "Show crash reports" in the palette). Panic reports in the panic
- * hook's format are offered the same way. SIGTERM, SIGINT and SIGHUP end the app like quitting:
- * marker removed, no report, no dialog on the next start.
+ * the crash marker, the next start makes an "unexpected exit" report from that run's log. A kill
+ * cannot be told from a crash, so that report stays quiet on start (no dialog, no toast) and is
+ * offered by "Show crash reports" in the palette (View / Save… / Discard). Panic reports in the
+ * panic hook's format are offered on start, and also by the palette. SIGTERM, SIGINT and SIGHUP end
+ * the app like quitting: marker removed, no report, no dialog on the next start.
  *
  *   node e2e/features/crash.mjs
  *
@@ -104,7 +105,7 @@ async function waitToast(app, text, timeout = 8000) {
 }
 
 /** "Show crash reports" from the command palette. */
-async function paletteCrashReports(app) {
+async function paletteCrashReports(app, label = "Show crash reports") {
   await app.exec(() => document.activeElement?.blur());
   await app.press("Control+p");
   const input = await app.waitFor('[data-screen="command-palette"] input[role="combobox"]', 10_000);
@@ -114,7 +115,7 @@ async function paletteCrashReports(app) {
   const title = await app.waitFor(() => app.exec((s) => document.querySelector(s)?.innerText ?? null, sel), 10_000, {
     message: "palette entry app.crashReports",
   });
-  assertIncludes(title, "Show crash reports", "palette entry title");
+  assertIncludes(title, label, "palette entry title");
   await app.settle();
   await app.click(sel);
   await app.waitFor(() => app.exec(() => !document.querySelector('[data-screen="command-palette"]')), 5000, { message: "palette closed" });
@@ -129,6 +130,13 @@ async function expectNoCrashDialog(app, ms = 4000) {
     assert(!box || !/closed unexpectedly|unerwartet beendet/.test(box.title), `unexpected crash dialog: ${box?.title}`);
     await sleep(250);
   }
+}
+
+/** An unexpected-exit report is quiet on start: no dialog, then "Show crash reports" opens it. */
+async function showReports(app, title = TITLE, label) {
+  await expectNoCrashDialog(app);
+  await paletteCrashReports(app, label);
+  return waitDialog(app, title);
 }
 
 // ---- process helpers --------------------------------------------------------
@@ -219,7 +227,7 @@ sc(
     assert(!fs.existsSync(path.join(repo.path, ".git", "index.lock")), "no index.lock left behind");
 
     const app = await t.launch({ dataDir, lang: "en", theme: "light" });
-    const box = await waitDialog(app, TITLE);
+    const box = await showReports(app);
     assertIncludes(box.text, "Unexpected exit", "kind in the dialog");
     assertIncludes(box.text, `Forkyard ${APP_VERSION}`, "version in the dialog");
     assertIncludes(box.text, "ended without shutting down", "message in the dialog");
@@ -250,7 +258,7 @@ sc(
   withSetup(async (t, dataDir, repo) => {
     const before = await crashedRun(t, dataDir, repo);
     const app = await t.launch({ dataDir, lang: "en", theme: "light" });
-    await waitDialog(app, TITLE);
+    await showReports(app);
     await clickInDialog(app, "View");
     const { text } = await reportText(app);
     assertMatch(text, /^Forkyard crash report\n/, "report header");
@@ -285,7 +293,7 @@ sc(
   withSetup(async (t, dataDir, repo) => {
     const before = await crashedRun(t, dataDir, repo);
     const app = await t.launch({ dataDir, lang: "en", theme: "light" });
-    await waitDialog(app, TITLE);
+    await showReports(app);
     const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "fy-e2e-crash-save-"));
     try {
       const target = path.join(outDir, "forkyard-crash.txt");
@@ -321,7 +329,7 @@ sc(
   withSetup(async (t, dataDir, repo) => {
     await crashedRun(t, dataDir, repo);
     const { app, pid } = await startWithRepo(t, dataDir, null);
-    await waitDialog(app, TITLE);
+    await showReports(app);
     assertEqual(reportFiles(dataDir).length, 1, "one report before discarding");
     await clickInDialog(app, "Discard");
     const toast = await waitToast(app, "Crash report deleted");
@@ -413,7 +421,7 @@ sc(
     }
     const aborted = await crashedRun(t, dataDir, null, "SIGABRT");
     const app = await t.launch({ dataDir, lang: "en", theme: "light" });
-    const box = await waitDialog(app, TITLE);
+    const box = await showReports(app);
     assertIncludes(box.text, "Unexpected exit", "SIGABRT reported as unexpected exit");
     assertEqual(
       reportFiles(dataDir).map((r) => r.runId),
@@ -425,7 +433,7 @@ sc(
 );
 
 sc(
-  'several reports: newest first with "n of m", Escape keeps the rest, palette reopens',
+  'several reports: start walks only the panics; the palette lists all, newest first with "n of m"',
   "edge",
   withSetup(async (t, dataDir, repo) => {
     const older = writeReport(dataDir, {
@@ -435,8 +443,15 @@ sc(
     });
     const killed = await crashedRun(t, dataDir, repo);
     const app = await t.launch({ dataDir, lang: "en", theme: "light" });
-    // Newest first: the unexpected exit of the killed run, then the older panic.
-    let box = await waitDialog(app, titleOf(1, 2));
+    // On start only the panic is offered; the unexpected exit of the killed run stays quiet.
+    let box = await waitDialog(app, TITLE);
+    assertIncludes(box.text, "older panic", "start offers the panic");
+    await app.press("Escape");
+    await noDialog(app);
+    assertEqual(reportFiles(dataDir).length, 2, "Escape keeps both reports");
+    // The palette lists both, newest first: the unexpected exit of the killed run, then the panic.
+    await paletteCrashReports(app);
+    box = await waitDialog(app, titleOf(1, 2));
     assertIncludes(box.text, "Unexpected exit", "first: newest report");
     // Keyboard: the focus starts on "View"; Enter opens it, Escape goes back.
     const focused = await app.exec(() => document.activeElement?.innerText.split("\n")[0].trim());
@@ -477,12 +492,19 @@ sc(
       writeReport(dataDir, { kind: i % 2 ? "panic" : "unexpected_exit", timeMs: base + i * 60_000, message: `report number ${i + 1}` }),
     );
     const app = await t.launch({ dataDir, lang: "en", theme: "light" });
-    const box = await waitDialog(app, titleOf(1, 10));
+    // On start only the 5 panics among the kept reports are walked.
+    let box = await waitDialog(app, titleOf(1, 5));
     assertIncludes(box.text, "report number 12", "newest first");
     const kept = reportFiles(dataDir).map((r) => r.id);
     assertEqual(kept.length, 10, "10 reports kept");
     assert(!kept.includes(written[0].id) && !kept.includes(written[1].id), "the two oldest were removed");
     assertEqual((await app.invoke("crash_reports_list", {})).length, 10, "list has 10");
+    await clickInDialog(app, "Cancel");
+    await noDialog(app);
+    // The palette walks all 10, the unexpected exits included.
+    await paletteCrashReports(app);
+    box = await waitDialog(app, titleOf(1, 10));
+    assertIncludes(box.text, "report number 12", "palette: newest first");
     await clickInDialog(app, "Cancel");
     await noDialog(app);
     await t.noConsoleErrors(app);
@@ -611,7 +633,7 @@ sc(
       message: `panic while talking to http://e2euser:${secret}@127.0.0.1:9/never.git`,
     });
     const again = await t.launch({ dataDir, lang: "en", theme: "light" });
-    await waitDialog(again, titleOf(1, 2));
+    await waitDialog(again, TITLE); // start offers only the panic
     const text = await again.invoke("crash_report_get", { id: panic.id });
     assertIncludes(text, "git fetch --progress -- leaky", "the fetch is among the last Git calls");
     assertMatch(text, /remote\.leaky\.url/, "the remote config (with the URL) is among the last Git calls");
@@ -622,6 +644,10 @@ sc(
     assert(!text2.includes(secret), "password in the unexpected-exit report");
     assert(!fs.readFileSync(path.join(crashDir(dataDir), unexpected.file), "utf8").includes(secret), "password in the report file");
     assert(!logText(dataDir).includes(secret), "password in the log file");
+    await clickInDialog(again, "Cancel");
+    await noDialog(again);
+    await paletteCrashReports(again);
+    await waitDialog(again, titleOf(1, 2)); // the palette also offers the unexpected exit
     t.step("no password in the reports, the report file or the log");
     await t.noConsoleErrors(again);
   }),
@@ -637,7 +663,7 @@ sc(
     await app.settle(5000);
     await endWith(app, pid, "SIGKILL");
     const again = await t.launch({ dataDir, lang: "en", theme: "light" });
-    await waitDialog(again, TITLE);
+    await showReports(again);
     await clickInDialog(again, "View");
     const { text } = await reportText(again);
     await t.shot("unexpected-exit-git-calls");
@@ -657,7 +683,7 @@ sc(
       message: "Forkyard 1.0.0 ended without shutting down (run started 2026-10-14T10:00:00.000Z, last log line 2026-10-14T10:05:00.000Z).",
     });
     const app = await t.launch({ dataDir, lang: "de", theme: "light" });
-    const box = await waitDialog(app, "Forkyard wurde beim letzten Mal unerwartet beendet");
+    const box = await showReports(app, "Forkyard wurde beim letzten Mal unerwartet beendet", "Absturzberichte anzeigen");
     for (const label of ["Unerwartet beendet", "Ansehen", "Speichern…", "Verwerfen", "Es wird nichts verschickt"])
       assertIncludes(box.text, label, "German text");
     await t.shot("german-dialog");
@@ -674,7 +700,7 @@ sc(
     // The core's unexpected-exit message ends with "." and the dialog sentence adds another one.
     await crashedRun(t, dataDir, null);
     const app = await t.launch({ dataDir, lang: "en", theme: "light" });
-    const box = await waitDialog(app, TITLE);
+    const box = await showReports(app);
     await t.shot("dialog-double-period");
     assert(
       !/\)\.\. It contains/.test(box.text),
