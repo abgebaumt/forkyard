@@ -1855,7 +1855,8 @@ async fn file_delete_refuses_what_it_cannot_back_up() {
 // Non-UTF-8 file names (Linux): the UI only sees the lossy decoded name
 // ---------------------------------------------------------------------------
 
-#[cfg(unix)]
+// Linux only: macOS (APFS) refuses file names that are not UTF-8.
+#[cfg(target_os = "linux")]
 mod non_utf8 {
     use std::ffi::OsStr;
     use std::os::unix::ffi::OsStrExt;
