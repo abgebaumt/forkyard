@@ -81,7 +81,7 @@
     "i18next": "^26.4.4",
     "lucide-react": "^1.55.0",
     "marked": "^18.1.0",
-    "node-diff3": "^3.2.1",
+    "node-diff3": "^4.0.0",
     "radix-ui": "^1.7.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
