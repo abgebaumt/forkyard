@@ -81,10 +81,15 @@ pub(super) fn find_editor_helper(core: &Core) -> CoreResult<PathBuf> {
     let file = format!("{EDITOR_HELPER_NAME}{}", std::env::consts::EXE_SUFFIX);
     let dir = exe.parent().unwrap_or(Path::new("."));
     let mut places = vec![dir.join(&file)];
-    if dir.file_name().is_some_and(|n| n == "deps") {
-        if let Some(parent) = dir.parent() {
-            places.push(parent.join(&file));
-        }
+    // Tests: Cargo puts test programs in target/<profile>/deps (older) or
+    // target/<profile>/build/<package>/<hash>/out (Rust 1.100+), the helper in target/<profile>.
+    let profile = match dir.file_name().and_then(|n| n.to_str()) {
+        Some("deps") => dir.parent(),
+        Some("out") if dir.ancestors().nth(3).is_some_and(|b| b.ends_with("build")) => dir.ancestors().nth(4),
+        _ => None,
+    };
+    if let Some(profile) = profile {
+        places.push(profile.join(&file));
     }
     places.into_iter().find(|p| p.is_file()).ok_or_else(|| helper_missing(&file))
 }
