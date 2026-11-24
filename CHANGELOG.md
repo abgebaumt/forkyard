@@ -5,6 +5,13 @@ All notable changes to Forkyard are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.3.1] – 2026-11-24
+
+### Fixed
+
+- On Windows, a custom command that starts a program by a relative path without its extension, such as
+  `.\tool`, finds `tool.cmd` or `tool.exe` again.
+
 ## [1.3.0] – 2026-11-24
 
 ### Changed
@@ -479,7 +486,8 @@ All notable changes to Forkyard are listed here. The format follows
 
 First public release.
 
-[Unreleased]: https://github.com/abgebaumt/forkyard/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/abgebaumt/forkyard/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/abgebaumt/forkyard/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/abgebaumt/forkyard/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/abgebaumt/forkyard/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/abgebaumt/forkyard/compare/v1.0.0...v1.1.0

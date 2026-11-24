@@ -14,9 +14,12 @@ export function whatsNewKey(version: string): string | null {
   return match ? `updates.whatsNew.${match[1]}_${match[2]}_${match[3]}.items` : null;
 }
 
-/** The highlights of a version; null when there are none (key missing or not a non-empty array of texts). */
+/** The highlights of a version, else those of its x.y.0 (a patch release brings no own list); null when there are none. */
 export function whatsNewItems(version: string): string[] | null {
-  const key = whatsNewKey(version);
+  return itemsAt(whatsNewKey(version)) ?? itemsAt(whatsNewKey(version.replace(VERSION, "$1.$2.0")));
+}
+
+function itemsAt(key: string | null): string[] | null {
   if (!key) return null;
   const items: unknown = i18n.t(key, { returnObjects: true });
   return Array.isArray(items) && items.length > 0 && items.every((item) => typeof item === "string") ? (items as string[]) : null;

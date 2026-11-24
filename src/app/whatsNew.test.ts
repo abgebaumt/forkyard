@@ -12,6 +12,8 @@ describe("what's new", () => {
     expect(items.length).toBeGreaterThanOrEqual(3);
     expect(items.length).toBeLessThanOrEqual(6);
     expect(whatsNewItems("9.9.9")).toBe(null);
+    expect(whatsNewItems("1.3.1")).toEqual(items);
+    expect(whatsNewItems("1.3.2-dev")).toEqual(items);
   });
   it("en and de have the same highlights count", () => {
     expect(de.whatsNew["1_3_0"].items).toHaveLength(en.whatsNew["1_3_0"].items.length);
