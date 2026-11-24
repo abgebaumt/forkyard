@@ -5,6 +5,8 @@ All notable changes to Forkyard are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] – 2026-11-24
+
 ### Changed
 
 - The commit graph stays fast deep in very large histories, also with "collapse all merges": scrolling
@@ -12,6 +14,10 @@ All notable changes to Forkyard are listed here. The format follows
   with one history walk per page instead of one per merge.
 - Blame shows the file at once and fills in the authors while it runs, with progress in percent; opening
   the same file again is instant.
+- On Linux, watching a repository for changes skips ignored folders (such as `node_modules`), symbolic
+  links and nested repositories, so opening a large repository no longer keeps the processor busy.
+- A run that ended hard without a crash of Forkyard itself (killed, out of memory) no longer opens a
+  dialog on the next start; such reports are listed under “Show crash reports” in the command palette.
 
 ### Added
 
@@ -473,7 +479,8 @@ All notable changes to Forkyard are listed here. The format follows
 
 First public release.
 
-[Unreleased]: https://github.com/abgebaumt/forkyard/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/abgebaumt/forkyard/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/abgebaumt/forkyard/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/abgebaumt/forkyard/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/abgebaumt/forkyard/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/abgebaumt/forkyard/releases/tag/v1.0.0
