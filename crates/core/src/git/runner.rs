@@ -1010,7 +1010,7 @@ impl GitRecordStream {
         Err(error)
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(crate) fn pid(&self) -> Option<u32> {
         self.child.as_ref()?.id()
     }
